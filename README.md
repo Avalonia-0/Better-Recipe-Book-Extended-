@@ -1,6 +1,8 @@
 # Better Recipe Book (Extended)
 
-This is an unofficial fork of [Better Recipe Book (check out the core features here)](https://modrinth.com/mod/brb), aimed at porting to newer Minecraft versions and extending functionality.
+This is an unofficial fork of [Better Recipe Book](https://modrinth.com/mod/brb), aimed at porting to newer Minecraft versions and extending functionality.
+
+Better Recipe Book improves the vanilla recipe book (similar in concept to JEI/REI), making it more convenient and user-friendly. Visit their page to learn about the core features.
 
 ## Extended Features
 
