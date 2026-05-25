@@ -1,0 +1,44 @@
+{
+  "text.autoconfig.brbe.title": "更好的配方手冊｜Better Recipe Book 設定",
+  
+  "text.autoconfig.brbe.category.default": "一般設定",
+  "text.autoconfig.brbe.option.enableBook": "啟用配方手冊",
+  "text.autoconfig.brbe.option.darkMode": "啟用暗色模式的介面變體。§o需要一個完整的資源包",
+  "text.autoconfig.brbe.option.darkMode.@Tooltip": "僅在你使用暗色模式資源包時啟用，像是 §aVanilla Tweaks§r。",
+  "text.autoconfig.brbe.option.keepCentered": "保持合成置中",
+  "text.autoconfig.brbe.option.enablePinning": "啟用配方釘選",
+  "text.autoconfig.brbe.option.settingsButton": "啟用設定按鈕",
+  "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§d--- 進階 ---\n§eNeoForge 警告：§7若你關閉這兩個選項中的任何一個，你將需要在 brb.toml 檔案中編輯它們，才能再次訪問這個選單！在 Fabric 上，你可以使用§b模組選單（Mod Menu）§r來進入此選單。",
+  
+  "text.autoconfig.brbe.category.instantCraft": "立即合成設定",
+  "text.autoconfig.brbe.option.instantCraft.showButton": "顯示立即合成按鈕",
+  
+  "text.autoconfig.brbe.category.scrolling": "捲動設定",
+  "text.autoconfig.brbe.option.scrolling.scrollAround": "以循環方式捲動",
+  "text.autoconfig.brbe.option.scrolling.scrollAround.@Tooltip": "當你到達手冊的最後一頁，從頭開始繼續捲動（就像 JEI 一樣） ",
+  "text.autoconfig.brbe.option.scrolling.enableScrolling": "啟用配方手冊中的捲動功能。",
+  
+  "text.autoconfig.brbe.category.alternativeRecipes": "替代配方設定",
+  "text.autoconfig.brbe.option.alternativeRecipes.onHover": "僅在懸停時顯示替代配方",
+  "text.autoconfig.brbe.option.alternativeRecipes.onHover.@Tooltip": "將替代配方中的物品顯示出來，而不是它們的具體配方，這樣更容易查看",
+  "text.autoconfig.brbe.option.alternativeRecipes.noGrouped": "取消群組替代配方",
+  
+  "text.autoconfig.brbe.category.incompleteCrafting": "不完全可合成設定",
+  "text.autoconfig.brbe.option.incompleteCrafting.partialCraftableEqualsCraftable": "不完全可合成等於可合成",
+  "text.autoconfig.brbe.option.incompleteCrafting.partialCraftableEqualsCraftable.@Tooltip": "當「僅顯示可合成」開啟時，缺少部分材料的配方將不會隱藏",
+  
+  "text.autoconfig.brbe.category.newRecipes": "新配方設定",
+  "text.autoconfig.brbe.option.newRecipes.unlockAll": "自動解鎖所有配方",
+  "text.autoconfig.brbe.option.newRecipes.enableBounce": "啟用解鎖彈跳動畫。",
+  "text.autoconfig.brbe.option.newRecipes.enableBounce.@Tooltip": "啟用解鎖新物品時出現的小彈跳動畫",
+  
+  "brbe.gui.pin.add": "按下 %s 以釘選此配方",
+  "brbe.gui.pin.remove": "按下 %s 以取消釘選此配方",
+  "brbe.gui.togglePotions.brewable": "顯示釀造配方",
+  "brbe.gui.instantCraft.on": "立即合成已開啟",
+  "brbe.gui.instantCraft.off": "立即合成已關閉",
+  "brbe.gui.settings.open": "開啟設定",
+  "brbe.gui.smithable": "已列出可鍛造項目",
+  "category.brbe": "更好的配方手冊｜Better Recipe Book",
+  "key.brbe.pin": "釘選配方"
+}

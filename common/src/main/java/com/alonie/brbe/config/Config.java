@@ -1,0 +1,37 @@
+package com.alonie.brbe.config;
+
+import me.shedaniel.autoconfig.ConfigData;
+import me.shedaniel.autoconfig.annotation.ConfigEntry;
+
+@me.shedaniel.autoconfig.annotation.Config(name = "brbe")
+public class Config implements ConfigData {
+    public boolean enablePinning = true;
+
+    public boolean keepCentered = false;
+
+    @ConfigEntry.Gui.Tooltip()
+    public boolean showModName = false;
+
+    @ConfigEntry.Gui.Tooltip()
+    public boolean partialCraftableEqualsCraftable = false;
+
+    @ConfigEntry.Category("newRecipes")
+    @ConfigEntry.Gui.TransitiveObject()
+    public NewRecipes newRecipes = new NewRecipes();
+
+    @ConfigEntry.Category("instantCraft")
+    @ConfigEntry.Gui.TransitiveObject()
+    public InstantCraft instantCraft = new InstantCraft();
+
+    @ConfigEntry.Category("alternativeRecipes")
+    @ConfigEntry.Gui.TransitiveObject()
+    public AlternativeRecipes alternativeRecipes = new AlternativeRecipes();
+
+    @ConfigEntry.Category("scrolling")
+    @ConfigEntry.Gui.TransitiveObject()
+    public Scrolling scrolling = new Scrolling();
+
+    @ConfigEntry.Gui.PrefixText()
+    public boolean settingsButton = true;
+    public boolean enableBook = true;
+}

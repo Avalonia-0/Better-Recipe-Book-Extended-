@@ -1,0 +1,8 @@
+
+# build output everywhere
+**/build/
+**/.gradle/
+
+# IDE
+neoforge/.gradle/
+neoforge/build/

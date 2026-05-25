@@ -1,0 +1,39 @@
+package com.alonie.brbe.mixins.centered;
+
+import com.alonie.brbe.BetterRecipeBook;
+import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.injection.Constant;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.ModifyConstant;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
+
+@Mixin(RecipeBookComponent.class)
+public class RecipeBookComponentMixin {
+    @Shadow private int xOffset;
+    @Shadow private boolean widthTooNarrow;
+
+    @ModifyConstant(method = "initVisuals", constant = @Constant(intValue = 86))
+    private int centerRecipeBook(int original) {
+        return BetterRecipeBook.config.keepCentered ? 162 : original;
+    }
+
+    @Inject(method = "updateScreenPosition", locals = LocalCapture.CAPTURE_FAILHARD, at = @At(value = "RETURN"), cancellable = true)
+    public void findLeftEdge(int width, int backgroundWidth, CallbackInfoReturnable<Integer> cir, int j) {
+        if (BetterRecipeBook.config.keepCentered) {
+            j = (width - backgroundWidth) / 2;
+        }
+        cir.setReturnValue(j);
+    }
+
+    @Inject(method = "isOffsetNextToMainGUI", at = @At("RETURN"), cancellable = true)
+    public void isWide(CallbackInfoReturnable<Boolean> cir) {
+        if (this.xOffset == 162 || this.xOffset == 86) {
+            cir.setReturnValue(true);
+        }
+    }
+}
