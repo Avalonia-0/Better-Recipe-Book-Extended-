@@ -1,8 +1,8 @@
 package com.alonie.brbe.mixins.accessors.smithing;
 
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.SmithingTransformRecipe;
-import net.minecraft.world.item.crafting.TransmuteResult;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 
@@ -20,5 +20,5 @@ public interface SmithingTransformRecipeAccessor {
     Optional<Ingredient> getUnderlyingAddition();
 
     @Accessor("result")
-    TransmuteResult getResult();
+    ItemStackTemplate getResult();
 }

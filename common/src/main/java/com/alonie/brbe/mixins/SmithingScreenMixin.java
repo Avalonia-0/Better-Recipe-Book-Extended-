@@ -7,7 +7,7 @@ import com.alonie.brbe.smithingtable.SmithingRecipeBookPage;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBTextures;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.input.CharacterEvent;
@@ -20,7 +20,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.inventory.SmithingMenu;
 import net.minecraft.world.item.ItemStack;
@@ -110,9 +110,9 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     }
 
     @Override
-    public void betterRecipeBook$renderTopLayerOverlay(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public void betterRecipeBook$renderTopLayerOverlay(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         if (this.betterRecipeBook$hasTopLayerOverlay()) {
-            ((SmithingRecipeBookPage) this._$recipeBookComponent.recipesPage).overlay.render(guiGraphics, mouseX, mouseY, partialTick);
+            ((SmithingRecipeBookPage) this._$recipeBookComponent.recipesPage).overlay.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         }
     }
 
@@ -136,7 +136,7 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     }
 
     @Override
-    protected void slotClicked(Slot slot, int x, int y, ClickType clickType) {
+    protected void slotClicked(Slot slot, int x, int y, ContainerInput clickType) {
         // clear ghost recipe if an empty ingredient slot is clicked with no items
         if (BetterRecipeBook.config.enableBook && slot != null && slot.index < 4 && menu.getCarried().isEmpty() && menu.slots.get(slot.index).getItem().isEmpty()) {
             _$recipeBookComponent.ghostRecipe.clear();
@@ -151,26 +151,27 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
         return this._$recipeBookComponent.hasClickedOutside(d, e, this.leftPos, this.topPos, this.imageWidth, this.imageHeight, 0) && bl;
     }
 
-    @Inject(method = "render", at = @At("RETURN"))
-    public void render(GuiGraphics guiGraphics, int i, int j, float f, CallbackInfo ci) {
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor guiGraphics, int i, int j, float f) {
+        super.extractRenderState(guiGraphics, i, j, f);
         if (this._$recipeBookComponent.isVisible()) {
-            this._$recipeBookComponent.render(guiGraphics, i, j, f);
+            this._$recipeBookComponent.extractRenderState(guiGraphics, i, j, f);
             this._$recipeBookComponent.renderGhostRecipe(guiGraphics, this.leftPos, this.topPos, false, f);
             this._$recipeBookComponent.drawTooltip(guiGraphics, this.leftPos, this.topPos, i, j);
         }
     }
 
-    @Redirect(method = "renderBg", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/CyclingSlotBackground;render(Lnet/minecraft/world/inventory/AbstractContainerMenu;Lnet/minecraft/client/gui/GuiGraphics;FII)V"))
-    public void renderBg(CyclingSlotBackground instance, AbstractContainerMenu slot, GuiGraphics bl, float g, int k, int arg) {
+    @Redirect(method = "extractBackground", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/CyclingSlotBackground;extractRenderState(Lnet/minecraft/world/inventory/AbstractContainerMenu;Lnet/minecraft/client/gui/GuiGraphicsExtractor;FII)V"))
+    public void renderBg(CyclingSlotBackground instance, AbstractContainerMenu slot, GuiGraphicsExtractor bl, float g, int k, int arg) {
         if (!BetterRecipeBook.config.enableBook || !_$recipeBookComponent.isShowingGhostRecipe()) {
-            instance.render(this.menu, bl, g, this.leftPos, this.topPos);
+            instance.extractRenderState(this.menu, bl, g, this.leftPos, this.topPos);
         }
 
         // pass, cancel render of onboarding tip slots if there is a ghost recipe
     }
 
     @Inject(method = "renderOnboardingTooltips", at = @At(value = "HEAD"), cancellable = true)
-    public void renderOnboardingTooltips(GuiGraphics guiGraphics, int i, int j, CallbackInfo ci) {
+    public void renderOnboardingTooltips(GuiGraphicsExtractor guiGraphics, int i, int j, CallbackInfo ci) {
         if (BetterRecipeBook.config.enableBook && _$recipeBookComponent.isShowingGhostRecipe()) {
             ci.cancel();
         }

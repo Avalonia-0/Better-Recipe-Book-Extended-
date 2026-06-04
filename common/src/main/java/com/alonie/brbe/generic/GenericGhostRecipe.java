@@ -4,7 +4,7 @@ import com.google.common.collect.Lists;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.util.ClientCompat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.util.Mth;
@@ -93,7 +93,7 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
         this.recipe = recipe;
     }
 
-    public void render(GuiGraphics guiGraphics, Minecraft minecraft, int i, int j, boolean bl, float f, BRBBookCategories.Category category) {
+    public void render(GuiGraphicsExtractor guiGraphics, Minecraft minecraft, int i, int j, boolean bl, float f, BRBBookCategories.Category category) {
         if (!ClientCompat.isControlDown()) {
             this.time += f;
             if (this.onGhostUpdate != null && this.recipe != null) this.onGhostUpdate.accept(this.getCurrentResult(category));
@@ -116,7 +116,7 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
 
             ItemStack itemStack = ghostIngredient.getItem();
             if (shouldRenderItem) {
-                guiGraphics.renderFakeItem(itemStack, l, m);
+                guiGraphics.fakeItem(itemStack, l, m);
             }
 
             if (shouldRenderBackground) {
@@ -124,7 +124,7 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
             }
 
             if (k == 0) {
-                guiGraphics.renderItemDecorations(minecraft.font, itemStack, l, m);
+                guiGraphics.itemDecorations(minecraft.font, itemStack, l, m);
             }
         }
     }
@@ -136,7 +136,7 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
         return null;
     }
 
-    public void drawTooltip(GuiGraphics gui, int x, int y, int mouseX, int mouseY) {
+    public void drawTooltip(GuiGraphicsExtractor gui, int x, int y, int mouseX, int mouseY) {
         ItemStack itemStack = null;
 
         for (GenericGhostIngredient ingredient : ingredients) {

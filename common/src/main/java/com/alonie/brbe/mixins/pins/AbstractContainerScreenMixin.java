@@ -7,7 +7,7 @@ import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor;
 import com.alonie.brbe.util.ClientCompat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -41,8 +41,8 @@ public abstract class AbstractContainerScreenMixin {
         }
     }
 
-    @Inject(method = "render", at = @At(value = "RETURN"))
-    public void betterRecipeBook$renderVisibleOverlayOnTop(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+    @Inject(method = "extractRenderState", at = @At(value = "RETURN"))
+    public void betterRecipeBook$renderVisibleOverlayOnTop(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
         RecipeBookComponent<?> book = this.recipeBookComponent;
         if (!book.isVisible()) {
             return;
@@ -51,7 +51,7 @@ public abstract class AbstractContainerScreenMixin {
         OverlayRecipeComponent alternatesWidget = ((RecipeBookPageAccessor) ((RecipeBookComponentAccessor) book).getRecipeBookPage()).getOverlay();
         if (alternatesWidget.isVisible()) {
             guiGraphics.nextStratum();
-            alternatesWidget.render(guiGraphics, mouseX, mouseY, partialTick);
+            alternatesWidget.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         }
     }
 

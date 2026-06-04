@@ -5,18 +5,11 @@ import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.Minecraft;
-import com.alonie.brbe.widget.StateSwitchingButton;
-import net.minecraft.client.gui.GuiGraphics;
-
-import com.alonie.brbe.widget.StateSwitchingButton;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.input.MouseButtonEvent;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.gui.screens.recipebook.FurnaceRecipeBookComponent;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.network.chat.Component;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -64,8 +57,8 @@ public abstract class RecipeBookComponentMixin {
         BetterRecipeBook.instantCraftingManager.lastInstantCraftButton = this.betterRecipeBook$instantCraftButton;
     }
 
-    @Inject(method = "render", at = @At("RETURN"))
-    public void render(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(method = "extractRenderState", at = @At("RETURN"))
+    public void render(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (betterRecipeBook$shouldSkip() || this.betterRecipeBook$instantCraftButton == null) {
             return;
         }
@@ -76,7 +69,7 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
-        this.betterRecipeBook$instantCraftButton.render(gui, mouseX, mouseY, delta);
+        this.betterRecipeBook$instantCraftButton.extractRenderState(gui, mouseX, mouseY, delta);
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
@@ -92,8 +85,8 @@ public abstract class RecipeBookComponentMixin {
         }
     }
 
-    @Inject(method = "renderTooltip", at = @At("RETURN"))
-    public void drawTooltip(GuiGraphics gui, int mouseX, int mouseY, Slot hoveredSlot, CallbackInfo ci) {
+    @Inject(method = "extractTooltip", at = @At("RETURN"))
+    public void drawTooltip(GuiGraphicsExtractor gui, int mouseX, int mouseY, Slot hoveredSlot, CallbackInfo ci) {
         if (!this.isVisible() || betterRecipeBook$shouldSkip() || this.betterRecipeBook$instantCraftButton == null) {
             return;
         }

@@ -1,2 +1,5 @@
-accessWidener	v1      named
+accessWidener	v1      official
 accessible	class	net/minecraft/world/item/alchemy/PotionBrewing$Mix
+accessible	field	net/minecraft/world/item/alchemy/PotionBrewing$Mix	ingredient	Lnet/minecraft/world/item/crafting/Ingredient;
+accessible	field	net/minecraft/world/item/alchemy/PotionBrewing$Mix	to	Lnet/minecraft/core/Holder;
+accessible	field	net/minecraft/world/item/alchemy/PotionBrewing$Mix	from	Lnet/minecraft/core/Holder;

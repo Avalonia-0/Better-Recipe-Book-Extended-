@@ -19,7 +19,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.BrewingStandMenu;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -83,6 +83,7 @@ public class BrewingRecipeBookComponent extends GenericRecipeBookComponent<Brewi
     }
 
     public ItemStack getInputStack(BrewableResult result) {
+        BetterRecipeBook.ensureCategories();
         Potion inputPotion = getFrom(result.recipe);
         Ingredient ingredient = getIngredient(result.recipe);
         //Identifier identifier = BuiltInRegistries.POTION.getKey(inputPotion);
@@ -129,6 +130,7 @@ public class BrewingRecipeBookComponent extends GenericRecipeBookComponent<Brewi
 
     @Override
     public BRBHelper.Book getRecipeBookType() {
+        BetterRecipeBook.ensureCategories();
         return BetterRecipeBook.BREWING;
     }
 
@@ -157,16 +159,16 @@ public class BrewingRecipeBookComponent extends GenericRecipeBookComponent<Brewi
                 if (usedInputSlots <= 2) {
                     assert Minecraft.getInstance().gameMode != null;
                     ClientInventoryUtil.storeItem(-1, i -> i > 4);
-                    Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, menu.getSlot(slotIndex).index, 0, ClickType.PICKUP, Minecraft.getInstance().player);
-                    Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, menu.getSlot(usedInputSlots).index, 0, ClickType.PICKUP, Minecraft.getInstance().player);
+                    Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, menu.getSlot(slotIndex).index, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
+                    Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, menu.getSlot(usedInputSlots).index, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
                     ClientInventoryUtil.storeItem(-1, i -> i > 4);
                     ++usedInputSlots;
                 }
             } else if (ClientCompat.firstIngredientItem(ingredient).getItem().equals(slot.getItem().getItem())) {
                 assert Minecraft.getInstance().gameMode != null;
                 ClientInventoryUtil.storeItem(-1, i -> i > 4);
-                Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, menu.getSlot(slotIndex).index, 0, ClickType.PICKUP, Minecraft.getInstance().player);
-                Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, menu.getSlot(3).index, 0, ClickType.PICKUP, Minecraft.getInstance().player);
+                Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, menu.getSlot(slotIndex).index, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
+                Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, menu.getSlot(3).index, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
                 ClientInventoryUtil.storeItem(-1, i -> i > 4);
             }
 

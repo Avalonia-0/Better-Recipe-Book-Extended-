@@ -5,7 +5,7 @@ import com.alonie.brbe.brewingstand.BrewingRecipeBookComponent;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBTextures;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
@@ -14,7 +14,7 @@ import net.minecraft.client.gui.screens.inventory.BrewingStandScreen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.BrewingStandMenu;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
@@ -83,7 +83,7 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
     }
 
     @Override
-    protected void slotClicked(Slot slot, int x, int y, ClickType clickType) {
+    protected void slotClicked(Slot slot, int x, int y, ContainerInput clickType) {
         // clear ghost recipe if an empty ingredient slot is clicked with no items
         if (slot != null && slot.index < 4 && menu.slots.get(slot.index).getItem().isEmpty()) {
             _$recipeBookComponent.ghostRecipe.clear();
@@ -98,10 +98,11 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
         return this._$recipeBookComponent.hasClickedOutside(d, e, this.leftPos, this.topPos, this.imageWidth, this.imageHeight, 0) && bl;
     }
 
-    @Inject(method = "render", at = @At("RETURN"))
-    public void render(GuiGraphics guiGraphics, int i, int j, float f, CallbackInfo ci) {
+    @Override
+    public void extractRenderState(GuiGraphicsExtractor guiGraphics, int i, int j, float f) {
+        super.extractRenderState(guiGraphics, i, j, f);
         if (this._$recipeBookComponent.isVisible()) {
-            this._$recipeBookComponent.render(guiGraphics, i, j, f);
+            this._$recipeBookComponent.extractRenderState(guiGraphics, i, j, f);
             this._$recipeBookComponent.renderGhostRecipe(guiGraphics, this.leftPos, this.topPos, false, f);
             this._$recipeBookComponent.drawTooltip(guiGraphics, this.leftPos, this.topPos, i, j);
         }
@@ -109,7 +110,7 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
 
     // fix brewing progress indicator offset when recipe book is open by modifying the width offset
     @ModifyVariable(
-            method = "renderBg",
+            method = "extractBackground",
             index = 5,
             at = @At("STORE")
     )

@@ -1,5 +1,6 @@
 package com.alonie.brbe.fabric;
 
+import com.alonie.brbe.brewingstand.fabric.PlatformPotionUtilImpl;
 import com.alonie.brbe.fabric.compat.rei.ReiCompatHandler;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import net.fabricmc.api.ClientModInitializer;
@@ -16,6 +17,9 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        // Register platform provider
+        PlatformPotionUtilImpl.init();
+
         // Register optional compat handlers
         ReiCompatHandler.register();
         
@@ -27,7 +31,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             }
 
             this.registeredScreens.add(screen);
-            ScreenEvents.afterRender(screen).register(TopLayerOverlayRenderer::render);
+            ScreenEvents.afterExtract(screen).register(TopLayerOverlayRenderer::render);
         });
     }
 }

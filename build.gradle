@@ -1,6 +1,6 @@
 plugins {
     id "architectury-plugin" version "3.4.+"
-    id "dev.architectury.loom" version "1.13.467" apply false
+    id "dev.architectury.loom-no-remap" version "1.14.475" apply false
 }
 
 architectury {
@@ -8,18 +8,21 @@ architectury {
 }
 
 subprojects {
-    apply plugin: "dev.architectury.loom"
-
-    loom {
-        silentMojangMappingsLicense()
-    }
+    apply plugin: "dev.architectury.loom-no-remap"
 
     dependencies {
         minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
-        // The following line declares the mojmap mappings, you may use other mappings as well
-        mappings loom.officialMojangMappings()
-        // The following line declares the yarn mappings you may select this one as well.
-        // mappings "net.fabricmc:yarn:1.18+build.1:v2"
+
+        // fabric-loader provides Mixin and @Environment at compile time
+        compileOnly "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+
+        // Common module: compile-only deps (platform modules provide at runtime)
+        if (project.name == "common") {
+            compileOnly("dev.architectury:architectury-fabric:${rootProject.architectury_version}") {
+                exclude group: "net.fabricmc.fabric-api"
+            }
+            compileOnly files(rootProject.file("libs/cloth-config-${rootProject.cloth_config_version}.jar"))
+        }
     }
 
     jar {
@@ -42,20 +45,16 @@ allprojects {
     group = rootProject.maven_group
 
     repositories {
-        // Add repositories to retrieve artifacts from in here.
-        // You should only use this when depending on other mods because
-        // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-        // See https://docs.gradle.org/current/userguide/declaring_repositories.html
-        // for more information about repositories.
-
-        maven {
-            url = "https://api.modrinth.com/maven"
-        }
+        maven { url = "https://maven.fabricmc.net/" }
+        maven { url = "https://maven.architectury.dev/" }
+        maven { url = "https://maven.neoforged.net/releases" }
+        maven { url = "https://api.modrinth.com/maven" }
+        mavenCentral()
     }
 
     tasks.withType(JavaCompile) {
         options.encoding = "UTF-8"
-        options.release = 21
+        options.release = 25
     }
 
     java {

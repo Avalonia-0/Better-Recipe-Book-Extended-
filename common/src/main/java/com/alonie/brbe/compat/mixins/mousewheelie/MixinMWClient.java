@@ -1,12 +1,11 @@
 package com.alonie.brbe.compat.mixins.mousewheelie;
 
-import de.siphalor.mousewheelie.client.MWClient;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(MWClient.class)
+@Mixin(targets = "de.siphalor.mousewheelie.client.MWClient")
 public class MixinMWClient {
 
     // mousewheelie implements scrolling in the recipe book. This breaks scroll in circles.

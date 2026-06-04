@@ -3,7 +3,7 @@ package com.alonie.brbe.util;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
 
@@ -38,7 +38,7 @@ public class ClientInventoryUtil {
                 storeItem(-1, indexCheck);
             }
 
-            gameMode.handleInventoryMouseClick(menu.containerId, fromSlot, 0, ClickType.PICKUP, minecraft.player);
+            gameMode.handleContainerInput(menu.containerId, fromSlot, 0, ContainerInput.PICKUP, minecraft.player);
         } else if (menu.getCarried().isEmpty()) {
             return true;
         }
@@ -54,7 +54,7 @@ public class ClientInventoryUtil {
                 int slotCount = slot.getItem().getCount();
                 if (slotCount < slot.getMaxStackSize()) {
                     count -= Math.max(0, slot.getMaxStackSize() - slotCount);
-                    gameMode.handleInventoryMouseClick(menu.containerId, slot.index, 0, ClickType.PICKUP, minecraft.player);
+                    gameMode.handleContainerInput(menu.containerId, slot.index, 0, ContainerInput.PICKUP, minecraft.player);
                 }
             }
         }
@@ -73,17 +73,17 @@ public class ClientInventoryUtil {
         AbstractContainerMenu menu = minecraft.player.containerMenu;
         if (menu == null) return;
 
-        ClickType type = ClickType.THROW;
+        ContainerInput type = ContainerInput.THROW;
 
         if (slot < 0) {
             slot = -999;
-            type = ClickType.PICKUP;
+            type = ContainerInput.PICKUP;
             if (!force && menu.getCarried().isEmpty()) return;
         } else if (!force && menu.slots.get(slot).getItem().isEmpty()) {
             return;
         }
 
-        gameMode.handleInventoryMouseClick(menu.containerId, slot, wholeStack ? 0 : 1, type, minecraft.player);
+        gameMode.handleContainerInput(menu.containerId, slot, wholeStack ? 0 : 1, type, minecraft.player);
     }
 
 }

@@ -72,7 +72,7 @@ public class BRBSmithingTrimRecipe implements BRBSmithingRecipe {
 
     @Override
     public ItemStack getResult(ResourceKey<TrimMaterial> trimMaterialResourceKey, RegistryAccess registryAccess, BRBBookCategories.Category category) {
-        return SmithingTrimRecipe.applyTrim(registryAccess, this.itemStackBase.copy(), this.materialStack(trimMaterialResourceKey), this.pattern);
+        return SmithingTrimRecipe.applyTrim(this.itemStackBase.copy(), this.materialStack(trimMaterialResourceKey), this.pattern);
     }
 
     private ItemStack materialStack(ResourceKey<TrimMaterial> material) {

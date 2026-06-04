@@ -32,7 +32,7 @@ public class RecipeBookPageMixin {
                     .ifPresent(btn -> {
                         RecipeCollection hoveredCollection = btn.getCollection();
                         int idx = recipeCollections.indexOf(hoveredCollection);
-                        if (idx != -1 && idx < list.size() && BetterRecipeBook.instantCraftingManager.lastClickedRecipe != null) {
+                        if (idx != -1 && idx < list.size() && BetterRecipeBook.instantCraftingManager.getLastClickedRecipe() != null) {
                             list.remove(hoveredCollection);
                             list.add(idx, hoveredCollection);
                             BetterRecipeBook.instantCraftingManager.lastHoveredCollection = btn.getCollection();

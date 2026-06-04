@@ -3,7 +3,7 @@ package com.alonie.brbe.smithingtable;
 import com.alonie.brbe.generic.GenericRecipeButton;
 import com.alonie.brbe.generic.GenericRecipePage;
 import com.alonie.brbe.recipe.BRBSmithingRecipe;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.world.inventory.SmithingMenu;
 
@@ -33,11 +33,11 @@ public class SmithingRecipeBookPage extends GenericRecipePage<SmithingMenu, Smit
     }
 
     @Override
-    public void render(GuiGraphics gui, int x, int y, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphicsExtractor gui, int x, int y, int mouseX, int mouseY, float delta) {
         super.render(gui, x, y, mouseX, mouseY, delta);
 
         gui.nextStratum();
-        this.overlay.render(gui, mouseX, mouseY, delta);
+        this.overlay.extractRenderState(gui, mouseX, mouseY, delta);
     }
 
     @Override

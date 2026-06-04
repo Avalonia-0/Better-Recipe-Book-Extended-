@@ -1,7 +1,7 @@
 package com.alonie.brbe.mixins;
 
 import com.alonie.brbe.BetterRecipeBook;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
@@ -18,8 +18,8 @@ public abstract class RemoveBookButton {
     @Shadow
     protected WidgetSprites sprites;
 
-    @Inject(at = @At("HEAD"), method = "renderContents", cancellable = true)
-    public void renderContents(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(at = @At("HEAD"), method = "extractContents", cancellable = true)
+    public void renderContents(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (sprites == RecipeBookComponent.RECIPE_BUTTON_SPRITES) {
             ((ImageButton) (Object) this).visible = BetterRecipeBook.config.enableBook;
             if (!BetterRecipeBook.config.enableBook) {

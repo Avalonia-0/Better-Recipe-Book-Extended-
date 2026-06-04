@@ -8,7 +8,7 @@ modId = "brbe"
 version = "${version}"
 displayName = "Better Recipe Book (Extended)"
 authors = "marshmallow"
-credits = "ruvaldak, Felix14-v2, buiawpkgew1, TauCubed, MehradN, notlin4"
+credits = "Avalonia_0, ruvaldak, Felix14-v2, buiawpkgew1, TauCubed, MehradN, notlin4"
 description = '''
 Adds some quality of life changes to the recipe book
 '''
@@ -17,21 +17,21 @@ logoFile = "icon.png"
 [[dependencies.brbe]]
 modId = "neoforge"
 type = "required"
-versionRange = "[21,)"
+versionRange = "[26.1,)"
 ordering = "NONE"
 side = "CLIENT"
 
 [[dependencies.brbe]]
 modId = "minecraft"
 type = "required"
-versionRange = "[1.21,)"
+versionRange = "[26.1,)"
 ordering = "NONE"
 side = "CLIENT"
 
 [[dependencies.brbe]]
 modId = "architectury"
 type = "required"
-versionRange = "[13,)"
+versionRange = "[20,)"
 ordering = "AFTER"
 side = "CLIENT"
 

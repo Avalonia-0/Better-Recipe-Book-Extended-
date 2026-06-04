@@ -2,7 +2,7 @@ package com.alonie.brbe.mixins.settings;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.interfaces.ISettingsButton;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
@@ -56,8 +56,8 @@ public abstract class RecipeBookComponentMixin implements ISettingsButton {
         }
     }
 
-    @Inject(method = "render", at = @At("RETURN"))
-    public void render(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(method = "extractRenderState", at = @At("RETURN"))
+    public void render(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (this._$settingsButton != null) {
             this._$settingsButton.visible = this.isVisible() && BetterRecipeBook.config.settingsButton;
         }
@@ -69,8 +69,8 @@ public abstract class RecipeBookComponentMixin implements ISettingsButton {
         this.renderSettingsButton(this._$settingsButton, gui, mouseX, mouseY, delta);
     }
 
-    @Inject(method = "renderTooltip", at = @At("RETURN"))
-    public void drawTooltip(GuiGraphics gui, int mouseX, int mouseY, Slot hoveredSlot, CallbackInfo ci) {
+    @Inject(method = "extractTooltip", at = @At("RETURN"))
+    public void drawTooltip(GuiGraphicsExtractor gui, int mouseX, int mouseY, Slot hoveredSlot, CallbackInfo ci) {
         if (!this.isVisible()) {
             return;
         }

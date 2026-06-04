@@ -1,7 +1,7 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
 import com.alonie.brbe.util.PartialCraftingUtil;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
@@ -30,10 +30,15 @@ public abstract class RecipeButtonMixin {
         return PartialCraftingUtil.getSelectedRecipes(collection, status);
     }
 
-    @Redirect(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
-    private boolean betterRecipeBook$renderCurrentRecipeCraftability(RecipeCollection collection, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        RecipeDisplayId currentRecipe = this.getCurrentRecipe();
-        return collection.isCraftable(currentRecipe) && !PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
+    @Redirect(method = "extractWidgetRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
+    private boolean betterRecipeBook$renderCurrentRecipeCraftability(RecipeCollection collection, GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+        // Guard against MC-26.1.2 vanilla bug: getCurrentRecipe divides by zero
+        try {
+            RecipeDisplayId currentRecipe = this.getCurrentRecipe();
+            return collection.isCraftable(currentRecipe) && !PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
+        } catch (ArithmeticException e) {
+            return collection.hasCraftable();
+        }
     }
 
     @Inject(method = "isOnlyOption", at = @At("RETURN"), cancellable = true)

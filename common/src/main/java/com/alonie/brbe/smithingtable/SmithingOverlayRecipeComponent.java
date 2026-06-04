@@ -7,7 +7,7 @@ import com.alonie.brbe.recipe.BRBSmithingRecipe;
 import com.alonie.brbe.util.AlternativeOverlayLayout;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.GuiEventListener;
@@ -39,6 +39,7 @@ public class SmithingOverlayRecipeComponent implements Renderable, GuiEventListe
 
         List<BRBSmithingRecipe> lockedRecipes = recipeCollection.getDisplayRecipes(true);
         List<BRBSmithingRecipe> unlockedRecipes;
+        BetterRecipeBook.ensureCategories();
         if (!BRBBookSettings.isFiltering(BetterRecipeBook.SMITHING)) {
             unlockedRecipes = recipeCollection.getDisplayRecipes(false);
         } else if (BetterRecipeBook.config.partialCraftableEqualsCraftable) {
@@ -126,7 +127,7 @@ public class SmithingOverlayRecipeComponent implements Renderable, GuiEventListe
     }
 
     @Override
-    public void render(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta) {
         if (!this.visible) {
             return;
         }
@@ -139,7 +140,7 @@ public class SmithingOverlayRecipeComponent implements Renderable, GuiEventListe
         ClientCompat.blitSprite(guiGraphics, OVERLAY_RECIPE_SPRITE, this.x, this.y, visibleColumns * 25 + 8, rows * 25 + 8);
 
         for (OverlayRecipeButton overlayRecipeButton : this.recipeButtons) {
-            overlayRecipeButton.render(guiGraphics, mouseX, mouseY, delta);
+            overlayRecipeButton.extractWidgetRenderState(guiGraphics, mouseX, mouseY, delta);
         }
 
         guiGraphics.pose().popMatrix();
@@ -172,10 +173,11 @@ public class SmithingOverlayRecipeComponent implements Renderable, GuiEventListe
         }
 
         @Override
-        public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
+        protected void extractWidgetRenderState(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float delta) {
+            BetterRecipeBook.ensureCategories();
             Identifier sprite = BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(this.craftable, this.isHoveredOrFocused());
             ClientCompat.blitSprite(guiGraphics, sprite, this.getX(), this.getY(), this.width, this.height);
-            guiGraphics.renderFakeItem(this.recipe.getResult(this.registryAccess, BetterRecipeBook.SMITHING_SEARCH), this.getX() + 4, this.getY() + 4);
+            guiGraphics.fakeItem(this.recipe.getResult(this.registryAccess, BetterRecipeBook.SMITHING_SEARCH), this.getX() + 4, this.getY() + 4);
         }
     }
 }

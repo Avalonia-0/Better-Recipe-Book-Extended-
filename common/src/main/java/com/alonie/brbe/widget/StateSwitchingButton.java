@@ -1,7 +1,7 @@
 package com.alonie.brbe.widget;
 
 import com.alonie.brbe.util.ClientCompat;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -51,7 +51,7 @@ public class StateSwitchingButton extends AbstractWidget {
     }
 
     @Override
-    protected void renderWidget(GuiGraphics gui, int mouseX, int mouseY, float delta) {
+    protected void extractWidgetRenderState(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta) {
         boolean enabledState = this.useStateTriggeredForTexture ? this.isStateTriggered : this.active;
         boolean focusedState = this.useStateTriggeredForTexture ? this.isHoveredOrFocused() : this.isHoveredOrFocused();
         Identifier sprite = this.sprites.get(enabledState, focusedState);

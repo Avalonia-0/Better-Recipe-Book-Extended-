@@ -16,7 +16,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.util.context.ContextMap;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.SmithingMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
@@ -53,6 +53,7 @@ public class SmithingRecipeBookComponent extends GenericRecipeBookComponent<Smit
 
     @Override
     public BRBHelper.Book getRecipeBookType() {
+        BetterRecipeBook.ensureCategories();
         return BetterRecipeBook.SMITHING;
     }
 
@@ -78,21 +79,21 @@ public class SmithingRecipeBookComponent extends GenericRecipeBookComponent<Smit
             if (result.requiresTemplate() && result.getTemplate().test(itemStack)) {
                 assert Minecraft.getInstance().gameMode != null;
                 ClientInventoryUtil.storeItem(-1, i -> i > 4);
-                Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, menu.getSlot(slotIndex).index, 0, ClickType.PICKUP, Minecraft.getInstance().player);
-                Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, SmithingMenu.TEMPLATE_SLOT, 0, ClickType.PICKUP, Minecraft.getInstance().player);
+                Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, menu.getSlot(slotIndex).index, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
+                Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, SmithingMenu.TEMPLATE_SLOT, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
                 ClientInventoryUtil.storeItem(-1, i -> i > 4);
             } else if (!placedBase && !itemStack.has(DataComponents.TRIM) && result.getBase().getItem().equals(itemStack.getItem())) {
                 assert Minecraft.getInstance().gameMode != null;
                 ClientInventoryUtil.storeItem(-1, i -> i > 4);
-                Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, menu.getSlot(slotIndex).index, 0, ClickType.PICKUP, Minecraft.getInstance().player);
-                Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, SmithingMenu.BASE_SLOT, 0, ClickType.PICKUP, Minecraft.getInstance().player);
+                Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, menu.getSlot(slotIndex).index, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
+                Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, SmithingMenu.BASE_SLOT, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
                 ClientInventoryUtil.storeItem(-1, i -> i > 4);
                 placedBase = true;
             } else if (result.requiresAddition() && result.getAddition().test(itemStack)) {
                 assert Minecraft.getInstance().gameMode != null;
                 ClientInventoryUtil.storeItem(-1, i -> i > 4);
-                Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, menu.getSlot(slotIndex).index, 0, ClickType.PICKUP, Minecraft.getInstance().player);
-                Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, SmithingMenu.ADDITIONAL_SLOT, 0, ClickType.PICKUP, Minecraft.getInstance().player);
+                Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, menu.getSlot(slotIndex).index, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
+                Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, SmithingMenu.ADDITIONAL_SLOT, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
                 ClientInventoryUtil.storeItem(-1, i -> i > 4);
             }
 
@@ -158,6 +159,7 @@ public class SmithingRecipeBookComponent extends GenericRecipeBookComponent<Smit
     }
 
     private static boolean shouldInclude(BRBBookCategories.Category category, boolean isTrimRecipe) {
+        BetterRecipeBook.ensureCategories();
         if (category == BetterRecipeBook.SMITHING_SEARCH) {
             return true;
         }

@@ -46,6 +46,7 @@
     "unlockrecipes.RecipeButtonMixin"
   ],
   "injectors": {
-    "defaultRequire": 1
-  }
+    "defaultRequire": 0
+  },
+  "refmap": "mixins.brbe-common.refmap.json"
 }

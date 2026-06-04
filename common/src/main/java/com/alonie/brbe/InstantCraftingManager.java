@@ -4,13 +4,14 @@ import com.alonie.brbe.util.ClientInventoryUtil;
 import com.alonie.brbe.util.RecipeMenuUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.world.inventory.AbstractFurnaceMenu;
-import net.minecraft.world.inventory.ClickType;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 
 public class InstantCraftingManager {
     public Object lastInstantCraftButton = null;
+    public Object lastHoveredCollection = null;
 
     private boolean awaitingResultSlotUpdate;
     private boolean craftAll;
@@ -61,9 +62,9 @@ public class InstantCraftingManager {
             }
 
             if (this.craftAll) {
-                minecraft.gameMode.handleInventoryMouseClick(menu.containerId, 0, 0, ClickType.QUICK_MOVE, minecraft.player);
+                minecraft.gameMode.handleContainerInput(menu.containerId, 0, 0, ContainerInput.QUICK_MOVE, minecraft.player);
             } else {
-                minecraft.gameMode.handleInventoryMouseClick(menu.containerId, 0, 0, ClickType.PICKUP, minecraft.player);
+                minecraft.gameMode.handleContainerInput(menu.containerId, 0, 0, ContainerInput.PICKUP, minecraft.player);
                 ClientInventoryUtil.storeItem(-1, idx -> !RecipeMenuUtil.isCraftingMenuSlot(menu, idx));
             }
         } finally {
@@ -76,6 +77,10 @@ public class InstantCraftingManager {
         BetterRecipeBook.config.instantCraft.enabled = !BetterRecipeBook.config.instantCraft.enabled;
         BetterRecipeBook.configHolder.save();
         return isEnabled();
+    }
+
+    public RecipeDisplayId getLastClickedRecipe() {
+        return this.lastClickedRecipe;
     }
 
     public boolean isEnabled() {

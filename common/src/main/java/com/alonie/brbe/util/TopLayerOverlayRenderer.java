@@ -5,7 +5,7 @@ import com.alonie.brbe.mixins.accessors.AbstractRecipeBookScreenAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeComponentAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.screens.Screen;
@@ -27,7 +27,7 @@ public final class TopLayerOverlayRenderer {
         return getVanillaOverlay(screen) != null;
     }
 
-    public static void render(Screen screen, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    public static void render(Screen screen, GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         if (screen instanceof TopLayerOverlayProvider provider) {
             if (provider.betterRecipeBook$hasTopLayerOverlay()) {
                 guiGraphics.nextStratum();
@@ -39,7 +39,7 @@ public final class TopLayerOverlayRenderer {
         OverlayRecipeComponent overlay = getVanillaOverlay(screen);
         if (overlay != null) {
             guiGraphics.nextStratum();
-            overlay.render(guiGraphics, mouseX, mouseY, partialTick);
+            overlay.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
         }
     }
 

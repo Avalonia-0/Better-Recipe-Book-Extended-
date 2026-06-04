@@ -8,7 +8,7 @@ import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ModNameUtil;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonInfo;
@@ -46,7 +46,7 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         this.category = category;
     }
 
-    public void renderWidget(GuiGraphics gui, int mouseX, int mouseY, float delta) {
+    public void extractWidgetRenderState(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta) {
         if (!ClientCompat.isControlDown()) {
             this.time += delta;
         }
@@ -68,7 +68,7 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
 
         // render ingredient item
         int offset = 4;
-        gui.renderFakeItem(result, getX() + offset, getY() + offset);
+        gui.fakeItem(result, getX() + offset, getY() + offset);
 
         // if pinned recipe, blit the pin texture over it
         if (BetterRecipeBook.config.enablePinning && BetterRecipeBook.pinnedRecipeManager.has(collection)) {

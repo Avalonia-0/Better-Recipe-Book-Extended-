@@ -1,0 +1,50 @@
+{
+  "schemaVersion": 1,
+  "id": "brbe",
+  "version": "1.0.1",
+  "name": "Better Recipe Book (Extended)",
+  "description": "Adds some quality of life changes to the recipe book",
+  "authors": [
+    "marshmallow"
+  ],
+  "contributors": [
+    "Avalonia_0",
+    "ruvaldak",
+    "Felix14-v2",
+    "buiawpkgew1",
+    "TauCubed",
+    "MehradN",
+    "notlin4"
+  ],
+  "contact": {
+    "issues": "https://github.com/Avalonia-0/Better-Recipe-Book-Extended-/issues",
+    "homepage": "https://github.com/Avalonia-0/Better-Recipe-Book-Extended-"
+  },
+  "license": "MIT",
+  "icon": "assets/brbe/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "main": [
+      "com.alonie.brbe.fabric.BetterRecipeBookFabric"
+    ],
+    "client": [
+      "com.alonie.brbe.fabric.BetterRecipeBookClientFabric"
+    ],
+    "rei_client": [
+      "com.alonie.brbe.fabric.compat.rei.BetterRecipeBookREIPlugin"
+    ],
+    "modmenu": [
+      "com.alonie.brbe.fabric.ModMenuFabric"
+    ]
+  },
+  "mixins": [
+    "mixins.brbe.json",
+    "mixins.brbe-common.json",
+    "mixins.brbe-common-compat.json"
+  ],
+  "depends": {
+    "fabric-api": "*",
+    "minecraft": ">=26.1",
+    "architectury": ">=20"
+  }
+}
