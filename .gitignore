@@ -6,3 +6,11 @@
 # IDE
 neoforge/.gradle/
 neoforge/build/
+
+# dependency jars
+/libs/*.jar
+
+# root build artifacts
+/*.jar
+/HeadlessMC/
+/logs/
