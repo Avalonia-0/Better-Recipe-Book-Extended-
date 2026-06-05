@@ -30,6 +30,9 @@
     "client": [
       "com.alonie.brbe.fabric.BetterRecipeBookClientFabric"
     ],
+    "jei_mod_plugin": [
+      "com.alonie.brbe.fabric.compat.jei.BetterRecipeBookJEIPlugin"
+    ],
     "modmenu": [
       "com.alonie.brbe.fabric.ModMenuFabric"
     ]

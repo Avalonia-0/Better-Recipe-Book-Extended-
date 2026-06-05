@@ -33,6 +33,12 @@ dependencies {
 
     modCompileOnly files(rootProject.file("libs/modmenu-17.0.0.jar"))
 
+    def jeiJarPath = rootProject.findProperty("jei_fabric_jar")
+            ?: "/media/avalonia/data/MinecraftLib/versions/1.21.11-Fabric/mods/jei-1.21.11-fabric-27.4.0.22.jar"
+    if (file(jeiJarPath).exists()) {
+        modCompileOnly files(jeiJarPath)
+    }
+
     common(project(path: ":common", configuration: "namedElements")) { transitive false }
 }
 
