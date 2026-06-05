@@ -6,10 +6,15 @@ import com.google.gson.stream.JsonReader;
 import com.alonie.brbe.generic.GenericRecipe;
 import com.alonie.brbe.generic.GenericRecipeBookCollection;
 import com.alonie.brbe.generic.pins.Pinnable;
-import com.alonie.brbe.generic.pins.PinnableRecipeCollection;
+import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import net.minecraft.client.Minecraft;
-import net.minecraft.resources.Identifier;
+import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
+import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
+import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
+import net.minecraft.client.gui.screens.recipebook.RecipeUpdateListener;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import org.apache.commons.io.IOUtils;
 
 import java.io.File;
@@ -19,9 +24,10 @@ import java.io.OutputStreamWriter;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
+import java.util.List;
 
 public class PinnedRecipeManager {
-    public HashSet<Identifier> pinned;
+    public HashSet<ResourceLocation> pinned;
 
     public void read() {
         Gson gson = new Gson();
@@ -32,7 +38,7 @@ public class PinnedRecipeManager {
 
             if (pinsFile.exists()) {
                 reader = new JsonReader(new FileReader(pinsFile.getAbsolutePath()));
-                Type type = new TypeToken<HashSet<Identifier>>() {
+                Type type = new TypeToken<HashSet<ResourceLocation>>() {
                 }.getType();
                 pinned = gson.fromJson(reader, type);
             }
@@ -61,8 +67,23 @@ public class PinnedRecipeManager {
         }
     }
 
+    public void addOrRemoveFavourite(RecipeCollection target) {
+        for (ResourceLocation identifier : this.pinned) {
+            for (RecipeHolder<?> recipe : target.getRecipes()) {
+                if (recipe.id().equals(identifier)) {
+                    this.pinned.remove(identifier);
+                    this.store();
+                    return;
+                }
+            }
+        }
+
+        this.pinned.addAll(target.getRecipes().stream().map(RecipeHolder::id).toList());
+        this.store();
+    }
+
     public <R extends GenericRecipe, M extends AbstractContainerMenu> void addOrRemoveFavourite(GenericRecipeBookCollection<R, M> target) {
-        for (Identifier identifier : this.pinned) {
+        for (ResourceLocation identifier : this.pinned) {
             for (R recipe : target.getRecipes()) {
                 if (recipe.id().equals(identifier)) {
                     this.pinned.remove(identifier);
@@ -76,18 +97,8 @@ public class PinnedRecipeManager {
         this.store();
     }
 
-    public void addOrRemoveFavourite(PinnableRecipeCollection target) {
-        if (this.pinned.removeIf(target::has)) {
-            this.store();
-            return;
-        }
-
-        this.pinned.addAll(target.identifiers());
-        this.store();
-    }
-
     public boolean has(Pinnable target) {
-        for (Identifier identifier : this.pinned) {
+        for (ResourceLocation identifier : this.pinned) {
             if (target.has(identifier)) {
                 return true;
             }
@@ -95,4 +106,15 @@ public class PinnedRecipeManager {
 
         return false;
     }
+
+    public static void handlePinRecipe(RecipeBookComponent book, RecipeBookPage page, RecipeHolder<?> recipe) {
+        RecipeCollection collection = new RecipeCollection(Minecraft.getInstance().level.registryAccess(), List.of(recipe));
+        collection.updateKnownRecipes(page.getRecipeBook());
+        BetterRecipeBook.pinnedRecipeManager.addOrRemoveFavourite(collection);
+        ((RecipeBookComponentAccessor) book).updateCollectionsInvoker(false);
+        if (Minecraft.getInstance().screen instanceof RecipeUpdateListener rul) {
+            rul.recipesUpdated();
+        }
+    }
+
 }

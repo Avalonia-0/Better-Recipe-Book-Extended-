@@ -4,45 +4,26 @@ import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.api.BRBBookSettings;
-import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.interfaces.IPinningComponent;
 import com.alonie.brbe.interfaces.ISettingsButton;
-import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.util.BRBTextures;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.Minecraft;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.gui.GuiGraphics;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.gui.components.*;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.gui.components.events.GuiEventListener;
-import com.alonie.brbe.widget.StateSwitchingButton;
-import net.minecraft.client.input.CharacterEvent;
-import com.alonie.brbe.widget.StateSwitchingButton;
-import net.minecraft.client.input.KeyEvent;
-import com.alonie.brbe.widget.StateSwitchingButton;
-import net.minecraft.client.input.MouseButtonEvent;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.gui.narration.NarratableEntry;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
-import com.alonie.brbe.widget.StateSwitchingButton;
+import net.minecraft.client.gui.screens.recipebook.RecipeShownListener;
 import net.minecraft.client.resources.language.LanguageInfo;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.resources.language.LanguageManager;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.core.RegistryAccess;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.network.chat.Component;
-import com.alonie.brbe.widget.StateSwitchingButton;
-import net.minecraft.world.entity.player.StackedItemContents;
-import com.alonie.brbe.widget.StateSwitchingButton;
+import net.minecraft.world.entity.player.StackedContents;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.world.item.ItemStack;
-import com.alonie.brbe.widget.StateSwitchingButton;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.RecipeManager;
 import org.jetbrains.annotations.NotNull;
 import org.jetbrains.annotations.Nullable;
@@ -50,9 +31,9 @@ import org.jetbrains.annotations.Nullable;
 import java.util.*;
 import java.util.function.Consumer;
 
-public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu, C extends GenericRecipeBookCollection<R, M>, R extends GenericRecipe> implements Renderable, NarratableEntry, GuiEventListener, ISettingsButton, IPinningComponent<C> {
-    protected static final Component SEARCH_HINT = Component.translatable("gui.recipebook.search_hint");
-    protected static final Component ALL_RECIPES_TOOLTIP = Component.translatable("gui.recipebook.toggleRecipes.all");
+public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu, C extends GenericRecipeBookCollection<R, M>, R extends GenericRecipe> implements Renderable, NarratableEntry, GuiEventListener, ISettingsButton, RecipeShownListener, IPinningComponent<C> {
+    protected static final Component SEARCH_HINT = RecipeBookComponentAccessor.getSEARCH_HINT();
+    protected static final Component ALL_RECIPES_TOOLTIP = RecipeBookComponentAccessor.getALL_RECIPES_TOOLTIP();
     boolean visible;
     protected boolean ignoreTextInput;
     protected Minecraft minecraft;
@@ -63,7 +44,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     protected int width;
     protected int height;
     protected M menu;
-    protected final StackedItemContents stackedContents = new StackedItemContents();
+    protected final StackedContents stackedContents = new StackedContents();
     protected StateSwitchingButton filterButton;
     protected ImageButton settingsButton;
     public GenericRecipePage<M, C, R> recipesPage;
@@ -135,11 +116,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.settingsButton = createSettingsButton(i, j);
         this.recipesPage.initialize(this.minecraft, i, j, menu, xOffset);
         this.tabButtons.clear();
-        this.filterButton = new StateSwitchingButton(i + 110, j + 12, 26, 16, false);
-        this.filterButton.useStateTriggeredForTexture(true);
-        this.filterButton.setStateTriggered(BRBBookSettings.isFiltering(this.getRecipeBookType()));
-        this.filterButton.initTextureValues(BRBTextures.RECIPE_BOOK_FILTER_BUTTON_SPRITES);
+        this.filterButton = new StateSwitchingButton(i + 110, j + 12, 26, 16, BRBBookSettings.isFiltering(this.getRecipeBookType()));
         this.updateFilterButtonTooltip();
+        this.filterButton.initTextureValues(BRBTextures.RECIPE_BOOK_FILTER_BUTTON_SPRITES);
 
         List<BRBBookCategories.Category> categories = BRBBookCategories.getCategories(this.getRecipeBookType());
 
@@ -171,12 +150,13 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             this.doubleRefresh = false;
         }
 
-        gui.pose().pushMatrix();
+        gui.pose().pushPose();
+        gui.pose().translate(0.0f, 0.0f, 100.0f);
 
         // blit recipe book background texture
         int blitX = (this.width - 147) / 2 - this.xOffset;
         int blitY = (this.height - 166) / 2;
-        gui.blit(ClientCompat.GUI_TEXTURED, BRBTextures.RECIPE_BOOK_BACKGROUND_TEXTURE, blitX, blitY, 1.0F, 1.0F, 147, 166, 256, 256);
+        gui.blit(BRBTextures.RECIPE_BOOK_BACKGROUND_TEXTURE, blitX, blitY, 1, 1, 147, 166);
 
         // render search box
         this.searchBox.render(gui, mouseX, mouseY, delta);
@@ -193,14 +173,10 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         // render the recipe book page contents
         this.recipesPage.render(gui, blitX, blitY, mouseX, mouseY, delta);
 
-        gui.pose().popMatrix();
+        gui.pose().popPose();
     }
 
     @Override
-    public boolean keyPressed(KeyEvent event) {
-        return this.keyPressed(event.key(), event.scancode(), event.modifiers());
-    }
-
     public boolean keyPressed(int i, int j, int k) {
         this.ignoreTextInput = false;
         if (!this.isVisible() || this.minecraft.player != null && this.minecraft.player.isSpectator()) {
@@ -212,20 +188,20 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             this.setVisible(false);
             return true;
         }*/
-        if (ClientCompat.keyPressed(this.searchBox, i, j, k)) {
+        if (this.searchBox.keyPressed(i, j, k)) {
             this.checkSearchStringUpdate();
             return true;
         }
         if (this.searchBox.isFocused() && this.searchBox.isVisible() && i != 256) {
             return true;
         }
-        if (ClientCompat.matches(this.minecraft.options.keyChat, i, j, k) && !this.searchBox.isFocused()) {
+        if (this.minecraft.options.keyChat.matches(i, j) && !this.searchBox.isFocused()) {
             this.ignoreTextInput = true;
             this.searchBox.setFocused(true);
             return true;
         }
 
-        if (ClientCompat.matches(BetterRecipeBook.PIN_MAPPING, i, j, k) && BetterRecipeBook.config.enablePinning) {
+        if (BetterRecipeBook.PIN_MAPPING.matches(i, j) && BetterRecipeBook.config.enablePinning) {
             for (GenericRecipeButton<C, R, M> resultButton : this.recipesPage.buttons) {
                 if (resultButton.isHoveredOrFocused()) {
                     BetterRecipeBook.pinnedRecipeManager.addOrRemoveFavourite(resultButton.getCollection());
@@ -235,45 +211,18 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             }
         }
 
-        // REI integration: open recipe/usage views for hovered item
-        if (ReiCompat.isLoaded()) {
-            // Check recipe buttons first
-            if (this.recipesPage.hoveredButton != null) {
-                R hoveredRecipe = this.recipesPage.hoveredButton.getCurrentDisplayedRecipe();
-                if (hoveredRecipe != null) {
-                    ItemStack hoveredStack = hoveredRecipe.getResult(registryAccess, this.recipesPage.hoveredButton.category);
-                    if (ClientCompat.matches(BetterRecipeBook.RECIPE_VIEW_MAPPING, i, j, k)) {
-                        return ReiCompat.openRecipeView(hoveredStack);
-                    }
-                    if (ClientCompat.matches(BetterRecipeBook.USAGE_VIEW_MAPPING, i, j, k)) {
-                        return ReiCompat.openUsageView(hoveredStack);
-                    }
-                }
-            }
-
-
-        }
-
         return false;
     }
 
     public abstract void handlePlaceRecipe();
 
     @Override
-    public boolean keyReleased(KeyEvent event) {
-        return this.keyReleased(event.key(), event.scancode(), event.modifiers());
-    }
-
     public boolean keyReleased(int i, int j, int k) {
         this.ignoreTextInput = false;
-        return GuiEventListener.super.keyReleased(ClientCompat.keyEvent(i, j, k));
+        return GuiEventListener.super.keyReleased(i, j, k);
     }
 
     @Override
-    public boolean charTyped(CharacterEvent event) {
-        return this.charTyped((char) event.codepoint(), event.modifiers());
-    }
-
     public boolean charTyped(char c, int i) {
         if (this.ignoreTextInput) {
             return false;
@@ -281,11 +230,11 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         if (!this.isVisible() || this.minecraft.player != null && this.minecraft.player.isSpectator()) {
             return false;
         }
-        if (ClientCompat.charTyped(this.searchBox, c, i)) {
+        if (this.searchBox.charTyped(c, i)) {
             this.checkSearchStringUpdate();
             return true;
         }
-        return GuiEventListener.super.charTyped(ClientCompat.characterEvent(c, i));
+        return GuiEventListener.super.charTyped(c, i);
     }
 
     private void checkSearchStringUpdate() {
@@ -310,33 +259,12 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         }
 
         if (BRBBookSettings.isFiltering(this.getRecipeBookType())) {
-            results.removeIf((result) -> !result.atleastOneCraftable(this.menu.slots)
-                    && (!BetterRecipeBook.config.partialCraftableEqualsCraftable || !result.atleastOnePartiallyCraftable(this.menu.slots)));
+            results.removeIf((result) -> !result.atleastOneCraftable(this.menu.slots));
         }
 
         this.betterRecipeBook$sortByPinsInPlace(results);
-        if (BRBBookSettings.isFiltering(this.getRecipeBookType()) && BetterRecipeBook.config.partialCraftableEqualsCraftable) {
-            this.betterRecipeBook$sortCraftableBeforePartial(results);
-        }
 
         this.recipesPage.setResults(results, b, selectedTab.getCategory());
-    }
-
-    private void betterRecipeBook$sortCraftableBeforePartial(List<C> results) {
-        List<C> craftableResults = new ArrayList<>();
-        List<C> partialResults = new ArrayList<>();
-
-        for (C result : results) {
-            if (result.atleastOneCraftable(this.menu.slots)) {
-                craftableResults.add(result);
-            } else {
-                partialResults.add(result);
-            }
-        }
-
-        results.clear();
-        results.addAll(craftableResults);
-        results.addAll(partialResults);
     }
 
     private void pirateSpeechForThePeople(String string) {
@@ -388,10 +316,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean bl) {
-        return this.mouseClicked(event.x(), event.y(), event.button());
-    }
-
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (!this.isVisible()) return false;
 
@@ -400,7 +324,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             return true;
         }
 
-        if (ClientCompat.mouseClicked(this.searchBox, mouseX, mouseY, button)) {
+        if (this.searchBox.mouseClicked(mouseX, mouseY, button)) {
             searchBox.setFocused(true);
             ignoreTextInput = true;
             return true;
@@ -448,7 +372,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             this.updateCollections(true);
         }
 
-        return true;
+        return false;
     }
 
     protected boolean toggleFiltering() {
@@ -481,27 +405,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
     @Override
     public boolean isFocused() {
-        return false;
-    }
-
-    @Override
-    public boolean isMouseOver(double mouseX, double mouseY) {
-        if (!this.isVisible()) {
-            return false;
-        }
-
-        int left = (this.width - 147) / 2 - this.xOffset;
-        int top = (this.height - 166) / 2;
-        if (mouseX >= left && mouseX < left + 147 && mouseY >= top && mouseY < top + 166) {
-            return true;
-        }
-
-        for (BRBGroupButtonWidget tabButton : this.tabButtons) {
-            if (tabButton.visible && tabButton.isMouseOver(mouseX, mouseY)) {
-                return true;
-            }
-        }
-
         return false;
     }
 
@@ -538,8 +441,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         int i = (this.width - 147) / 2 - this.xOffset - 30;
         int j = (this.height - 166) / 2 + 3;
         int l = 0;
-        BRBGroupButtonWidget firstVisibleButton = null;
-        BRBGroupButtonWidget lastVisibleButton = null;
 
         for (BRBGroupButtonWidget button : this.tabButtons) {
             BRBBookCategories.Category category = button.getCategory();
@@ -547,18 +448,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
                 button.visible = true;
             }
             button.setPosition(i, j + 27 * l++);
-            button.setIconYOffset(0);
-            if (button.visible) {
-                if (firstVisibleButton == null) {
-                    firstVisibleButton = button;
-                }
-                lastVisibleButton = button;
-            }
-        }
-
-        if (firstVisibleButton != null && lastVisibleButton != null && firstVisibleButton != lastVisibleButton) {
-            firstVisibleButton.setIconYOffset(-1);
-            lastVisibleButton.setIconYOffset(1);
         }
     }
 
@@ -569,4 +458,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     protected abstract List<C> getCollectionsForCategory();
+
+    @Override
+    public void recipesShown(List<RecipeHolder<?>> list) {
+
+    }
 }

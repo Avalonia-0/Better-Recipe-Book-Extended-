@@ -1,11 +1,10 @@
 package com.alonie.brbe.generic;
 
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.Lists;
 import com.alonie.brbe.generic.pins.Pinnable;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.Slot;
 
@@ -28,9 +27,9 @@ public abstract class GenericRecipeBookCollection<R extends GenericRecipe, M ext
 
     protected abstract List<R> getDisplayRecipes(boolean craftable);
 
-    public boolean has(Identifier Identifier) {
+    public boolean has(ResourceLocation resourceLocation) {
         for (R recipe : getRecipes()) {
-            if (recipe.id().equals(Identifier)) {
+            if (recipe.id().equals(resourceLocation)) {
                 return true;
             }
         }
@@ -43,18 +42,4 @@ public abstract class GenericRecipeBookCollection<R extends GenericRecipe, M ext
     }
 
     protected abstract boolean atleastOneCraftable(NonNullList<Slot> slots);
-
-    public abstract boolean isCraftable(R recipe, NonNullList<Slot> slots);
-
-    protected boolean atleastOnePartiallyCraftable(NonNullList<Slot> slots) {
-        return false;
-    }
-
-    public List<R> getPartiallyCraftableRecipes(NonNullList<Slot> slots) {
-        return Lists.newArrayList();
-    }
-
-    public List<R> getPartiallyCraftableRecipes() {
-        return this.getPartiallyCraftableRecipes(this.menu.slots);
-    }
 }

@@ -1,23 +1,16 @@
 package com.alonie.brbe.mixins;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.interfaces.TopLayerOverlayProvider;
 import com.alonie.brbe.smithingtable.SmithingRecipeBookComponent;
-import com.alonie.brbe.smithingtable.SmithingRecipeBookPage;
-import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBTextures;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ImageButton;
-import net.minecraft.client.gui.navigation.ScreenRectangle;
-import net.minecraft.client.input.CharacterEvent;
-import net.minecraft.client.input.KeyEvent;
-import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.inventory.CyclingSlotBackground;
 import net.minecraft.client.gui.screens.inventory.ItemCombinerScreen;
 import net.minecraft.client.gui.screens.inventory.SmithingScreen;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ClickType;
@@ -33,7 +26,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(SmithingScreen.class)
-public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMenu> implements TopLayerOverlayProvider {
+public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMenu> {
     @Shadow
     protected abstract void updateArmorStandPreview(ItemStack itemStack);
 
@@ -42,15 +35,15 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     @Unique
     private boolean _$widthNarrow;
 
-    public SmithingScreenMixin(SmithingMenu itemCombinerMenu, Inventory inventory, Component component, Identifier Identifier) {
-        super(itemCombinerMenu, inventory, component, Identifier);
+    public SmithingScreenMixin(SmithingMenu itemCombinerMenu, Inventory inventory, Component component, ResourceLocation resourceLocation) {
+        super(itemCombinerMenu, inventory, component, resourceLocation);
     }
 
     @Inject(method = "subInit", at = @At("RETURN"))
     void init(CallbackInfo ci) {
         if (BetterRecipeBook.config.enableBook) {
             this._$widthNarrow = this.width < 379;
-            this._$recipeBookComponent.init(this.width, this.height, this.minecraft, _$widthNarrow, this.menu, this::updateArmorStandPreview, Minecraft.getInstance().getConnection().registryAccess());
+            this._$recipeBookComponent.init(this.width, this.height, this.minecraft, _$widthNarrow, this.menu, this::updateArmorStandPreview, Minecraft.getInstance().getConnection().registryAccess(), Minecraft.getInstance().getConnection().getRecipeManager());
 
             if (!BetterRecipeBook.config.keepCentered) {
                 this.leftPos = this._$recipeBookComponent.findLeftEdge(this.width, this.imageWidth);
@@ -70,69 +63,27 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     }
 
     @Override
-    public boolean keyPressed(KeyEvent event) {
-        if (_$recipeBookComponent.keyPressed(event)) {
+    public boolean keyPressed(int i, int j, int k) {
+        if (_$recipeBookComponent.keyPressed(i, j, k)) {
             return true;
         }
-        return super.keyPressed(event);
+        return super.keyPressed(i, j, k);
     }
 
     @Override
-    public boolean keyReleased(KeyEvent event) {
-        if (_$recipeBookComponent.keyReleased(event)) {
+    public boolean keyReleased(int i, int j, int k) {
+        if (_$recipeBookComponent.keyReleased(i, j, k)) {
             return true;
         }
-        return super.keyReleased(event);
+        return super.keyReleased(i, j, k);
     }
 
     @Override
-    public boolean charTyped(CharacterEvent event) {
-        if (_$recipeBookComponent.charTyped(event)) {
+    public boolean charTyped(char c, int i) {
+        if (_$recipeBookComponent.charTyped(c, i)) {
             return true;
         }
-        return super.charTyped(event);
-    }
-
-    @Override
-    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (this.betterRecipeBook$clickTopLayerOverlay(event, doubleClick)) {
-            return true;
-        }
-
-        return super.mouseClicked(event, doubleClick);
-    }
-
-    @Override
-    public boolean betterRecipeBook$hasTopLayerOverlay() {
-        return this._$recipeBookComponent.isVisible()
-                && this._$recipeBookComponent.recipesPage instanceof SmithingRecipeBookPage page
-                && page.overlayIsVisible();
-    }
-
-    @Override
-    public void betterRecipeBook$renderTopLayerOverlay(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        if (this.betterRecipeBook$hasTopLayerOverlay()) {
-            ((SmithingRecipeBookPage) this._$recipeBookComponent.recipesPage).overlay.render(guiGraphics, mouseX, mouseY, partialTick);
-        }
-    }
-
-    @Override
-    public boolean betterRecipeBook$clickTopLayerOverlay(MouseButtonEvent event, boolean doubleClick) {
-        if (this.betterRecipeBook$hasTopLayerOverlay()
-                && this._$recipeBookComponent.mouseClicked(event, doubleClick)) {
-            return true;
-        }
-
-        return false;
-    }
-
-    @Override
-    public ScreenRectangle betterRecipeBook$getTopLayerOverlayBounds() {
-        if (this.betterRecipeBook$hasTopLayerOverlay()) {
-            return ((SmithingRecipeBookPage) this._$recipeBookComponent.recipesPage).overlay.getBounds();
-        }
-
-        return null;
+        return super.charTyped(c, i);
     }
 
     @Override
@@ -146,9 +97,9 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     }
 
     @Override
-    protected boolean hasClickedOutside(double d, double e, int i, int j) {
+    protected boolean hasClickedOutside(double d, double e, int i, int j, int k) {
         boolean bl = d < (double) i || e < (double) j || d >= (double) (i + this.imageWidth) || e >= (double) (j + this.imageHeight);
-        return this._$recipeBookComponent.hasClickedOutside(d, e, this.leftPos, this.topPos, this.imageWidth, this.imageHeight, 0) && bl;
+        return this._$recipeBookComponent.hasClickedOutside(d, e, this.leftPos, this.topPos, this.imageWidth, this.imageHeight, k) && bl;
     }
 
     @Inject(method = "render", at = @At("RETURN"))

@@ -2,13 +2,10 @@ package com.alonie.brbe.mixins;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.BrewingRecipeBookComponent;
-import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBTextures;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ImageButton;
-import net.minecraft.client.input.CharacterEvent;
-import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.BrewingStandScreen;
 import net.minecraft.network.chat.Component;
@@ -59,27 +56,27 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
     }
 
     @Override
-    public boolean keyPressed(KeyEvent event) {
-        if (_$recipeBookComponent.keyPressed(event)) {
+    public boolean keyPressed(int i, int j, int k) {
+        if (_$recipeBookComponent.keyPressed(i, j, k)) {
             return true;
         }
-        return super.keyPressed(event);
+        return super.keyPressed(i, j, k);
     }
 
     @Override
-    public boolean keyReleased(KeyEvent event) {
-        if (_$recipeBookComponent.keyReleased(event)) {
+    public boolean keyReleased(int i, int j, int k) {
+        if (_$recipeBookComponent.keyReleased(i, j, k)) {
             return true;
         }
-        return super.keyReleased(event);
+        return super.keyReleased(i, j, k);
     }
 
     @Override
-    public boolean charTyped(CharacterEvent event) {
-        if (_$recipeBookComponent.charTyped(event)) {
+    public boolean charTyped(char c, int i) {
+        if (_$recipeBookComponent.charTyped(c, i)) {
             return true;
         }
-        return super.charTyped(event);
+        return super.charTyped(c, i);
     }
 
     @Override
@@ -93,9 +90,9 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
     }
 
     @Override
-    protected boolean hasClickedOutside(double d, double e, int i, int j) {
+    protected boolean hasClickedOutside(double d, double e, int i, int j, int k) {
         boolean bl = d < (double) i || e < (double) j || d >= (double) (i + this.imageWidth) || e >= (double) (j + this.imageHeight);
-        return this._$recipeBookComponent.hasClickedOutside(d, e, this.leftPos, this.topPos, this.imageWidth, this.imageHeight, 0) && bl;
+        return this._$recipeBookComponent.hasClickedOutside(d, e, this.leftPos, this.topPos, this.imageWidth, this.imageHeight, k) && bl;
     }
 
     @Inject(method = "render", at = @At("RETURN"))

@@ -2,39 +2,39 @@ package com.alonie.brbe.api;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.util.BRBHelper;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.HashMap;
 import java.util.Map;
 
 public class BRBBookSettings {
-    public static Map<Identifier, TypeSettings> states = new HashMap<>();
+    public static Map<ResourceLocation, TypeSettings> states = new HashMap<>();
 
     public BRBBookSettings() {
         states = new HashMap<>();
     }
 
     public static void registerBook(BRBHelper.Book book) {
-        BetterRecipeBook.LOGGER.info("Registering book {}", book.Identifier);
-        states.put(book.Identifier, new TypeSettings(false, false));
+        BetterRecipeBook.LOGGER.info("Registering book {}", book.resourceLocation);
+        states.put(book.resourceLocation, new TypeSettings(false, false));
     }
 
     public static boolean isOpen(BRBHelper.Book book) {
-        TypeSettings settings = states.get(book.Identifier);
+        TypeSettings settings = states.get(book.resourceLocation);
 
         return settings.open;
     }
 
     public static void setOpen(BRBHelper.Book book, boolean bl) {
-        states.get(book.Identifier).open = bl;
+        states.get(book.resourceLocation).open = bl;
     }
 
     public static boolean isFiltering(BRBHelper.Book book) {
-        return states.get(book.Identifier).filtering;
+        return states.get(book.resourceLocation).filtering;
     }
 
     public static void setFiltering(BRBHelper.Book book, boolean bl) {
-        states.get(book.Identifier).filtering = bl;
+        states.get(book.resourceLocation).filtering = bl;
     }
 
     public int hashCode() {

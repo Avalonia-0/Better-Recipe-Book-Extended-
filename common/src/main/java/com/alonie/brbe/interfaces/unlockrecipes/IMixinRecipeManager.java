@@ -1,6 +1,6 @@
 package com.alonie.brbe.interfaces.unlockrecipes;
 
-import net.minecraft.world.item.crafting.display.RecipeDisplayId;
+import net.minecraft.resources.ResourceLocation;
 
 import java.util.Set;
 
@@ -9,6 +9,6 @@ import java.util.Set;
  */
 public interface IMixinRecipeManager {
 
-    Set<RecipeDisplayId> betterRecipeBook$getServerUnlockedRecipes();
+    Set<ResourceLocation> betterRecipeBook$getServerUnlockedRecipes();
 
 }

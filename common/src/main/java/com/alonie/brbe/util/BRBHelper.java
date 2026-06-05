@@ -3,12 +3,12 @@ package com.alonie.brbe.util;
 import com.mojang.datafixers.util.Pair;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.api.BRBBookSettings;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 public class BRBHelper {
     public static Book createBook(String mod_id, String name) {
-        Identifier location = Identifier.fromNamespaceAndPath(mod_id, name);
+        ResourceLocation location = ResourceLocation.fromNamespaceAndPath(mod_id, name);
 
         String hash = location + "#";
         Pair<String, String> pair = new Pair<>(hash + "isGuiOpen", hash + "isFiltering");
@@ -24,11 +24,11 @@ public class BRBHelper {
     }
 
     static public class Book {
-        public Identifier Identifier;
+        public ResourceLocation resourceLocation;
         public Pair<String, String> pair;
 
-        Book(Identifier Identifier, Pair<String, String> pair) {
-            this.Identifier = Identifier;
+        Book(ResourceLocation resourceLocation, Pair<String, String> pair) {
+            this.resourceLocation = resourceLocation;
             this.pair = pair;
         }
 

@@ -6,6 +6,7 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.BrewableResult;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.item.alchemy.Potion;
+import net.minecraft.world.item.alchemy.PotionBrewing;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,9 +27,9 @@ public class PotionLoader {
     private static void load(ClientLevel level) {
         PotionLoader.clearNoLog();
 
-        List<?> MIXES = getPotionMixes(level);
+        List<PotionBrewing.Mix<Potion>> MIXES = getPotionMixes(level);
 
-        for (Object potionRecipe : MIXES) {
+        for (PotionBrewing.Mix<Potion> potionRecipe : MIXES) {
             POTIONS.add(new BrewableResult(potionRecipe));
         }
 

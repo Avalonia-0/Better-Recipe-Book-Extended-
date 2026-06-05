@@ -1,11 +1,9 @@
 package com.alonie.brbe.mixins.scrollablepages;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.util.ClientCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.components.ImageButton;
-import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.components.StateSwitchingButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -25,34 +23,33 @@ public abstract class RecipeBookPageMixin {
     protected abstract void updateButtonsForPage();
 
     @Shadow
-    private ImageButton forwardButton;
+    private StateSwitchingButton forwardButton;
     @Shadow
-    private ImageButton backButton;
+    private StateSwitchingButton backButton;
 
-    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-    public void mouseClickedBtn(MouseButtonEvent event, int areaLeft, int areaTop, int areaWidth, int areaHeight, boolean widthTooNarrow, CallbackInfoReturnable<Boolean> cir) {
-        if (!BetterRecipeBook.config.scrolling.scrollAround || totalPages <= 1 || event.button() != 0) {
-            return;
-        }
-
-        if (currentPage == totalPages - 1 && ClientCompat.mouseClicked(forwardButton, event.x(), event.y(), event.button())) {
-            currentPage = 0;
-            updateButtonsForPage();
+    @Inject(method = "mouseClicked", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/StateSwitchingButton;mouseClicked(DDI)Z"), cancellable = true)
+    public void mouseClickedBtn(double mouseX, double mouseY, int button, int areaLeft, int areaTop, int areaWidth, int areaHeight, CallbackInfoReturnable<Boolean> cir) {
+        if (forwardButton.mouseClicked(mouseX, mouseY, button)) {
             cir.setReturnValue(true);
-            return;
-        }
-
-        if (currentPage == 0 && ClientCompat.mouseClicked(backButton, event.x(), event.y(), event.button())) {
-            currentPage = totalPages - 1;
+            cir.cancel();
+            if (++currentPage >= totalPages) {
+                currentPage = BetterRecipeBook.config.scrolling.scrollAround ? 0 : totalPages - 1;
+            }
             updateButtonsForPage();
+        } else if (backButton.mouseClicked(mouseX, mouseY, button)) {
             cir.setReturnValue(true);
+            cir.cancel();
+            if (--currentPage < 0) {
+                currentPage = BetterRecipeBook.config.scrolling.scrollAround ? totalPages - 1 : 0;
+            }
+            updateButtonsForPage();
         }
     }
 
-    @Inject(at = @At("RETURN"), method = "render")
+    @Inject(at = @At("HEAD"), method = "render")
     public void render(GuiGraphics gui, int i, int j, int k, int l, float f, CallbackInfo ci) {
         if (BetterRecipeBook.queuedScroll != 0 && BetterRecipeBook.config.scrolling.enableScrolling) {
-            if (isMouseOverRecipeBookPage(k, l, i, j) && totalPages > 1) {
+            if (totalPages > 1) {
                 currentPage += BetterRecipeBook.queuedScroll;
                 if (currentPage >= totalPages) {
                     currentPage = BetterRecipeBook.config.scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;
@@ -67,10 +64,6 @@ public abstract class RecipeBookPageMixin {
         }
     }
 
-    private static boolean isMouseOverRecipeBookPage(int mouseX, int mouseY, int left, int top) {
-        return mouseX >= left && mouseX < left + 147 && mouseY >= top && mouseY < top + 166;
-    }
-
     @Inject(at = @At("RETURN"), method = "init")
     public void init(Minecraft minecraftClient, int parentLeft, int parentTop, CallbackInfo ci) {
         BetterRecipeBook.queuedScroll = 0;
@@ -81,8 +74,6 @@ public abstract class RecipeBookPageMixin {
         if (BetterRecipeBook.config.scrolling.scrollAround && totalPages > 1) {
             forwardButton.visible = true;
             backButton.visible = true;
-            forwardButton.active = true;
-            backButton.active = true;
         }
     }
 }

@@ -13,6 +13,7 @@ public class ClientPacketListenerMixin {
     @Inject(at = @At("TAIL"), method = "handleContainerSetSlot")
     private void onScreenHandlerSlotUpdate(ClientboundContainerSetSlotPacket packet, CallbackInfo ci) {
         if (packet.getSlot() != 0) return;
+        if (packet.getItem() == null) return;
         BetterRecipeBook.instantCraftingManager.onResultSlotUpdated(packet.getItem());
     }
 }

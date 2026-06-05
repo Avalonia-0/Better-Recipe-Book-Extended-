@@ -6,7 +6,7 @@ import com.alonie.brbe.generic.GenericRecipeBookCollection;
 import com.alonie.brbe.generic.pins.Pinnable;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.BrewingStandMenu;
 import net.minecraft.world.inventory.Slot;
 
@@ -34,9 +34,9 @@ public class BrewingRecipeCollection extends GenericRecipeBookCollection<Brewabl
     }
 
     @Override
-    public boolean has(Identifier Identifier) {
+    public boolean has(ResourceLocation resourceLocation) {
         for (BrewableResult recipe : this.recipes) {
-            if (recipe.id().equals(Identifier)) {
+            if (recipe.id().equals(resourceLocation)) {
                 return true;
             }
         }
@@ -53,34 +53,5 @@ public class BrewingRecipeCollection extends GenericRecipeBookCollection<Brewabl
         }
 
         return false;
-    }
-
-    @Override
-    public boolean isCraftable(BrewableResult recipe, NonNullList<Slot> slots) {
-        return recipe.hasMaterials(this.category, slots);
-    }
-
-    @Override
-    public boolean atleastOnePartiallyCraftable(NonNullList<Slot> slots) {
-        for (BrewableResult recipe : this.recipes) {
-            if (recipe.hasPartialMaterials(this.category, slots)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    @Override
-    public List<BrewableResult> getPartiallyCraftableRecipes(NonNullList<Slot> slots) {
-        List<BrewableResult> list = Lists.newArrayList();
-
-        for (BrewableResult recipe : this.recipes) {
-            if (!recipe.hasMaterials(this.category, slots) && recipe.hasPartialMaterials(this.category, slots)) {
-                list.add(recipe);
-            }
-        }
-
-        return list;
     }
 }

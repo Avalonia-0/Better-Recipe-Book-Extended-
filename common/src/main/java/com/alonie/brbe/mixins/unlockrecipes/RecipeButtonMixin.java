@@ -1,34 +1,43 @@
 package com.alonie.brbe.mixins.unlockrecipes;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.util.RecipeUnlockUtil;
+import com.alonie.brbe.interfaces.unlockrecipes.IMixinRecipeManager;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.inventory.AbstractFurnaceMenu;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.display.RecipeDisplayId;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.util.List;
+import java.util.Set;
 
 @Mixin(RecipeButton.class)
 public abstract class RecipeButtonMixin {
     @Shadow
-    public abstract RecipeDisplayId getCurrentRecipe();
+    public abstract RecipeHolder<?> getRecipe();
 
-    @Inject(method = "getTooltipText", at = @At("RETURN"))
-    public void getTooltip(ItemStack itemStack, CallbackInfoReturnable<List<Component>> cir) {
-        // Don't show "craft once to unlock" when unlock-all is enabled
-        if (BetterRecipeBook.config.newRecipes.unlockAll) {
-            return;
-        }
+    @Inject(method = "getTooltipText", locals = LocalCapture.CAPTURE_FAILHARD, at = @At("RETURN"))
+    public void getTooltip(CallbackInfoReturnable<List<Component>> cir, ItemStack itemStack, List<Component> list) {
+        if (!BetterRecipeBook.config.newRecipes.unlockAll) return;
 
-        if (RecipeUnlockUtil.isTemporarilyUnlocked(this.getCurrentRecipe())) {
-            cir.getReturnValue().add(0, Component.translatable("brbe.gui.crafting.lockedRecipe").withStyle(ChatFormatting.GRAY, ChatFormatting.ITALIC));
+        Set<ResourceLocation> serverUnlockedRecipes = ((IMixinRecipeManager) Minecraft.getInstance().getConnection().getRecipeManager()).betterRecipeBook$getServerUnlockedRecipes();
+
+        if (!serverUnlockedRecipes.contains(this.getRecipe().id()) && Minecraft.getInstance().screen != null) {
+            if (((AbstractContainerScreen<?>) Minecraft.getInstance().screen).getMenu() instanceof AbstractFurnaceMenu) {
+                list.add(0, Component.translatable("brb.gui.furnace.lockedRecipe").withStyle(ChatFormatting.GRAY).withStyle(ChatFormatting.ITALIC));
+            } else {
+                list.add(0, Component.translatable("brb.gui.crafting.lockedRecipe").withStyle(ChatFormatting.GRAY).withStyle(ChatFormatting.ITALIC));
+            }
         }
     }
 }

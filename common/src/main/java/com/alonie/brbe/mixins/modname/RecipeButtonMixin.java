@@ -12,10 +12,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 
-/**
- * Adds the source mod name to vanilla crafting recipe button tooltips.
- * Compatible with Jade's i18n format: {@code jade.modName.<MOD_ID>}
- */
 @Mixin(RecipeButton.class)
 public abstract class RecipeButtonMixin {
 

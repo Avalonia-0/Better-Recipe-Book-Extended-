@@ -2,22 +2,24 @@ package com.alonie.brbe.recipe;
 
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.generic.GenericRecipe;
-import com.alonie.brbe.util.ClientCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceKey;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.TooltipFlag;
-import net.minecraft.world.item.equipment.trim.TrimMaterial;
+import net.minecraft.world.item.armortrim.TrimMaterial;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.SmithingRecipe;
 
 import java.util.List;
 
-public interface BRBSmithingRecipe extends GenericRecipe {
+public interface BRBSmithingRecipe extends SmithingRecipe, GenericRecipe {
     ItemStack getResult(RegistryAccess registryAccess, BRBBookCategories.Category category);
 
     ItemStack getResult(ResourceKey<TrimMaterial> trimMaterialResourceKey, RegistryAccess registryAccess, BRBBookCategories.Category category);
@@ -28,29 +30,11 @@ public interface BRBSmithingRecipe extends GenericRecipe {
 
     Ingredient getAddition();
 
-    default boolean requiresTemplate() {
-        return true;
-    }
-
-    default boolean requiresAddition() {
-        return true;
-    }
-
     default boolean hasMaterials(NonNullList<Slot> slots, RegistryAccess registryAccess) {
         return hasTemplate(slots) && hasBase(slots, registryAccess) && hasAddition(slots);
     }
 
-    default boolean hasPartialMaterials(NonNullList<Slot> slots, RegistryAccess registryAccess) {
-        return (this.requiresTemplate() && hasTemplate(slots))
-                || hasBase(slots, registryAccess)
-                || (this.requiresAddition() && hasAddition(slots));
-    }
-
     default boolean hasTemplate(List<Slot> slots) {
-        if (!this.requiresTemplate()) {
-            return true;
-        }
-
         for (Slot slot : slots) {
             if (this.getTemplate().test(slot.getItem())) return true;
         }
@@ -66,10 +50,6 @@ public interface BRBSmithingRecipe extends GenericRecipe {
     }
 
     default boolean hasAddition(List<Slot> slots) {
-        if (!this.requiresAddition()) {
-            return true;
-        }
-
         for (Slot slot : slots) {
             if (getAddition().test(slot.getItem())) return true;
         }
@@ -77,23 +57,12 @@ public interface BRBSmithingRecipe extends GenericRecipe {
     }
 
     default String getTemplateType() {
-        Minecraft minecraft = Minecraft.getInstance();
-        ItemStack templateStack = ClientCompat.firstIngredientItem(getTemplate());
-        if (templateStack.isEmpty()) {
-            return this.getBase().getHoverName().getString();
-        }
+        var tipCtx = Item.TooltipContext.of(Minecraft.getInstance().player.level());
+        return getTemplate().getItems()[0].getTooltipLines(tipCtx, Minecraft.getInstance().player, TooltipFlag.NORMAL).get(1).getString();
+    }
 
-        if (minecraft.player == null || minecraft.level == null || templateStack.isEmpty()) {
-            return templateStack.getHoverName().getString();
-        }
-
-        var tipCtx = Item.TooltipContext.of(minecraft.level);
-        List<net.minecraft.network.chat.Component> lines = templateStack.getTooltipLines(tipCtx, minecraft.player, TooltipFlag.NORMAL);
-        if (lines.size() > 1) {
-            return lines.get(1).getString();
-        }
-
-        return templateStack.getHoverName().getString();
+    default ResourceLocation id() {
+        return BuiltInRegistries.ITEM.getKey(getTemplate().getItems()[0].getItem());
     }
 
     @Override

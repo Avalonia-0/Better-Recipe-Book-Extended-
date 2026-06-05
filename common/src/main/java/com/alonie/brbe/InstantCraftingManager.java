@@ -1,76 +1,68 @@
 package com.alonie.brbe;
 
-import com.alonie.brbe.util.ClientInventoryUtil;
-import com.alonie.brbe.util.RecipeMenuUtil;
 import net.minecraft.client.Minecraft;
-import net.minecraft.world.inventory.AbstractFurnaceMenu;
+import net.minecraft.client.gui.components.StateSwitchingButton;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.inventory.ClickType;
-import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.display.RecipeDisplayId;
+import net.minecraft.world.item.crafting.RecipeHolder;
 
 public class InstantCraftingManager {
-    public Object lastInstantCraftButton = null;
-    public Object lastHoveredCollection = null;
 
-    private boolean awaitingResultSlotUpdate;
-    private boolean craftAll;
-    private boolean applyingInstantCraft;
-    private int containerId = -1;
-    public RecipeDisplayId lastClickedRecipe;
+    // used to signify the last clicked crafted recipe before updateCollections was called
+    public RecipeHolder<?> lastClickedRecipe = null;
+    // updated by RecipeBookPageMixin
+    public RecipeCollection lastHoveredCollection = null;
 
-    public void recipeClicked(RecipeDisplayId recipe, boolean craftAll) {
-        if (!this.isEnabled()) {
-            return;
+    // used to update toggle state of button when config reloads
+    public StateSwitchingButton lastInstantCraftButton = null;
+
+    public ItemStack lastCraftResult;
+    public long lastContainerId = -1;
+
+    public InstantCraftingManager() {
+        BetterRecipeBook.configHolder.registerLoadListener((h, c) -> {
+            if (lastInstantCraftButton != null) lastInstantCraftButton.setStateTriggered(isEnabled());
+            return InteractionResult.SUCCESS;
+        });
+        BetterRecipeBook.configHolder.registerSaveListener((h, c) -> {
+            if (lastInstantCraftButton != null) lastInstantCraftButton.setStateTriggered(isEnabled());
+            return InteractionResult.SUCCESS;
+        });
+    }
+
+    public void recipeClicked(RecipeHolder<?> recipe, RegistryAccess registryAccess) {
+        if (isEnabled()) {
+            Minecraft client = Minecraft.getInstance();
+            if (!(client.screen instanceof AbstractContainerScreen<?> screen)) return;
+
+            // Keep buttons stationary - remember last recipe clicked, so we know which one to display
+            lastClickedRecipe = recipe;
+            // Set last craft for onResultSlotUpdated
+            lastCraftResult = recipe.value().getResultItem(registryAccess);
+            // there is no way to know for sure when (or if) the server will set the result item, so we'll ignore results from different containerIds
+            lastContainerId = screen.getMenu().containerId;
+        } else {
+            // if instantcraft was disabled and another recipe was clicked, clear the last pending instantcraft
+            lastCraftResult = null;
         }
-
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player == null || minecraft.gameMode == null) {
-            return;
-        }
-
-        if (!(minecraft.player.containerMenu instanceof RecipeBookMenu menu) || menu instanceof AbstractFurnaceMenu) {
-            return;
-        }
-
-        this.lastClickedRecipe = recipe;
-        this.awaitingResultSlotUpdate = true;
-        this.craftAll = craftAll;
-        this.containerId = menu.containerId;
     }
 
     public void onResultSlotUpdated(ItemStack itemStack) {
-        if (!this.awaitingResultSlotUpdate || this.applyingInstantCraft || itemStack == null || itemStack.isEmpty()) {
-            return;
-        }
+        Minecraft client = Minecraft.getInstance();
+        if (!isEnabled()
+                || client.gameMode == null
+                || !(client.screen instanceof AbstractContainerScreen<?> screen)) return;
 
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player == null || minecraft.gameMode == null) {
-            this.clearPending();
-            return;
-        }
+        if (lastCraftResult == null
+                || !ItemStack.isSameItemSameComponents(itemStack, lastCraftResult)
+                || lastContainerId != screen.getMenu().containerId) return;
 
-        if (!(minecraft.player.containerMenu instanceof RecipeBookMenu menu) || menu.containerId != this.containerId) {
-            this.clearPending();
-            return;
-        }
-
-        this.applyingInstantCraft = true;
-        try {
-            if (!menu.getCarried().isEmpty()) {
-                ClientInventoryUtil.storeItem(-1, idx -> !RecipeMenuUtil.isCraftingMenuSlot(menu, idx));
-            }
-
-            if (this.craftAll) {
-                minecraft.gameMode.handleInventoryMouseClick(menu.containerId, 0, 0, ClickType.QUICK_MOVE, minecraft.player);
-            } else {
-                minecraft.gameMode.handleInventoryMouseClick(menu.containerId, 0, 0, ClickType.PICKUP, minecraft.player);
-                ClientInventoryUtil.storeItem(-1, idx -> !RecipeMenuUtil.isCraftingMenuSlot(menu, idx));
-            }
-        } finally {
-            this.applyingInstantCraft = false;
-            this.clearPending();
-        }
+        client.gameMode.handleInventoryMouseClick(screen.getMenu().containerId, 0, 0, ClickType.QUICK_MOVE, client.player);
+        lastCraftResult = null;
     }
 
     public boolean toggleEnabled() {
@@ -83,9 +75,4 @@ public class InstantCraftingManager {
         return BetterRecipeBook.config.instantCraft.enabled;
     }
 
-    private void clearPending() {
-        this.awaitingResultSlotUpdate = false;
-        this.craftAll = false;
-        this.containerId = -1;
-    }
 }

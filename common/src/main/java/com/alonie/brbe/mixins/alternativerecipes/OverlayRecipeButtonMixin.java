@@ -1,20 +1,17 @@
 package com.alonie.brbe.mixins.alternativerecipes;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.mixins.accessors.ClientRecipeBookAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonPosAccessor;
+import com.alonie.brbe.mixins.accessors.OverlayRecipeComponentAccessor;
 import com.alonie.brbe.util.BRBTextures;
-import com.alonie.brbe.util.ClientCompat;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
-import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.display.RecipeDisplayId;
-import net.minecraft.world.item.crafting.display.SlotDisplayContext;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -23,7 +20,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
-import java.util.Map;
 
 
 @Mixin(targets = "net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent$OverlayRecipeButton")
@@ -34,11 +30,17 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
     private boolean isCraftable;
     @Final
     @Shadow
-    private RecipeDisplayId recipe;
+    RecipeHolder<?> recipe;
+
+    @Shadow
+    public abstract void renderWidget(GuiGraphics gui, int mouseX, int mouseY, float delta);
 
     @Shadow
     @Final
-    private List<Object> slots;
+    protected List<?> ingredientPos;
+    @Shadow
+    @Final
+    OverlayRecipeComponent field_3113;
 
     public OverlayRecipeButtonMixin(int x, int y, int width, int height, Component message) {
         super(x, y, width, height, message);
@@ -46,45 +48,49 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
 
     @Inject(at = @At("HEAD"), method = "renderWidget", cancellable = true)
     public void renderWidget(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        Identifier Identifier;
+        ResourceLocation resourceLocation;
 
-        Identifier = BRBTextures.RECIPE_BOOK_CRAFTING_OVERLAY_SPRITE.get(this.isCraftable, isHoveredOrFocused());
+        if (((OverlayRecipeComponentAccessor) field_3113).isFurnaceMenu()) {
+            resourceLocation = BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(this.isCraftable, isHoveredOrFocused());
+        } else {
+            resourceLocation = BRBTextures.RECIPE_BOOK_CRAFTING_OVERLAY_SPRITE.get(this.isCraftable, isHoveredOrFocused());
+        }
 
-        ClientCompat.blitSprite(gui, Identifier, getX(), getY(), this.width, this.height);
-        gui.pose().pushMatrix();
+        gui.blitSprite(resourceLocation, getX(), getY(), this.width, this.height);
+        gui.pose().pushPose();
         if (BetterRecipeBook.config.alternativeRecipes.onHover && !this.isHoveredOrFocused()) { // if show alternatives recipe is enabled and recipe is not hovered, show the result item
-            ItemStack recipeOutput = betterRecipeBook$getRecipeOutput();
+            ItemStack recipeOutput = this.recipe.value().getResultItem(field_3113.getRecipeCollection().registryAccess());
             gui.renderItem(recipeOutput, getX() + 4, getY() + 4);
         } else { // otherwise display the crafting recipe
-            gui.pose().translate(this.getX() + 2, this.getY() + 2);
-            for (Object rawPos : this.slots) {
+            gui.pose().translate(this.getX() + 2, this.getY() + 2, 150.0);
+            for (Object rawPos : this.ingredientPos) {
                 OverlayRecipeButtonPosAccessor pos = (OverlayRecipeButtonPosAccessor) rawPos;
-                gui.pose().pushMatrix();
-                gui.pose().translate(pos.betterRecipeBook$getX(), pos.betterRecipeBook$getY());
-                gui.pose().scale(0.375f, 0.375f);
-                gui.pose().translate(-8.0F, -8.0F);
-                gui.renderItem(pos.betterRecipeBook$selectIngredient(0), 0, 0);
-                gui.pose().popMatrix();
+                gui.pose().pushPose();
+                gui.pose().translate(pos.betterRecipeBook$getX(), pos.betterRecipeBook$getY(), 0.0);
+                // if furnace menu, keep items at default scale, so it isn't tiny
+                if (!((OverlayRecipeComponentAccessor) field_3113).isFurnaceMenu()) {
+                    gui.pose().scale(0.375f, 0.375f, 1.0f);
+                }
+                gui.pose().translate(-8.0, -8.0, 0.0);
+                ItemStack[] ingredients = pos.betterRecipeBook$getIngredients();
+                if (ingredients.length > 0) {
+                    gui.renderItem(ingredients[Mth.floor(((OverlayRecipeComponentAccessor) field_3113).getTime() / 30.0f) % ingredients.length], 0, 0);
+                }
+                gui.pose().popPose();
             }
         }
-        gui.pose().popMatrix();
+        gui.pose().popPose();
+
+        // blit pin for pinned recipes
+        if (BetterRecipeBook.config.enablePinning && BetterRecipeBook.pinnedRecipeManager.pinned.contains(recipe.id())) {
+            gui.pose().pushPose();
+            // make sure pin is drawn over the crafting items
+            gui.pose().mulPose(gui.pose().last().pose());
+            gui.blitSprite(BRBTextures.RECIPE_BOOK_OVERLAY_PIN_SPRITE, getX() - 4, getY() - 4, this.width + 8, this.height + 8);
+            gui.pose().popPose();
+        }
 
         ci.cancel();
     }
 
-    private ItemStack betterRecipeBook$getRecipeOutput() {
-        Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft.player == null || minecraft.level == null) {
-            return ItemStack.EMPTY;
-        }
-
-        Map<RecipeDisplayId, RecipeDisplayEntry> known = ((ClientRecipeBookAccessor) minecraft.player.getRecipeBook()).betterRecipeBook$getKnown();
-        RecipeDisplayEntry entry = known.get(this.recipe);
-        if (entry == null) {
-            return ItemStack.EMPTY;
-        }
-
-        List<ItemStack> results = entry.resultItems(SlotDisplayContext.fromLevel(minecraft.level));
-        return results.isEmpty() ? ItemStack.EMPTY : results.get(0);
-    }
 }

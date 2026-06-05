@@ -1,92 +1,55 @@
 package com.alonie.brbe.mixins.pins;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.generic.pins.PinnableRecipeCollection;
+import com.alonie.brbe.PinnedRecipeManager;
+import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeComponentAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor;
-import com.alonie.brbe.util.ClientCompat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen;
-import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
-import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
-import net.minecraft.client.gui.screens.recipebook.RecipeButton;
-import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
-import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.recipebook.*;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-@Mixin(AbstractRecipeBookScreen.class)
+@Mixin(AbstractContainerScreen.class)
 public abstract class AbstractContainerScreenMixin {
-    @Shadow @Final private RecipeBookComponent<?> recipeBookComponent;
-
-    @Inject(method = "mouseClicked", at = @At(value = "HEAD"), cancellable = true)
-    public void betterRecipeBook$clickVisibleOverlayFirst(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
-        RecipeBookComponent<?> book = this.recipeBookComponent;
-        if (!book.isVisible()) {
-            return;
-        }
-
-        OverlayRecipeComponent alternatesWidget = ((RecipeBookPageAccessor) ((RecipeBookComponentAccessor) book).getRecipeBookPage()).getOverlay();
-        if (alternatesWidget.isVisible() && book.mouseClicked(event, doubleClick)) {
-            cir.setReturnValue(true);
-        }
-    }
-
-    @Inject(method = "render", at = @At(value = "RETURN"))
-    public void betterRecipeBook$renderVisibleOverlayOnTop(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
-        RecipeBookComponent<?> book = this.recipeBookComponent;
-        if (!book.isVisible()) {
-            return;
-        }
-
-        OverlayRecipeComponent alternatesWidget = ((RecipeBookPageAccessor) ((RecipeBookComponentAccessor) book).getRecipeBookPage()).getOverlay();
-        if (alternatesWidget.isVisible()) {
-            guiGraphics.nextStratum();
-            alternatesWidget.render(guiGraphics, mouseX, mouseY, partialTick);
-        }
-    }
 
     @Inject(method = "keyPressed", at = @At(value = "HEAD"), cancellable = true)
-    public void onKeyPressed(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+    public void onKeyPressed(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+        if (!(this instanceof RecipeUpdateListener rul)) return;
+
         Minecraft minecraft = Minecraft.getInstance();
-        RecipeBookComponent<?> book = this.recipeBookComponent;
+        RecipeBookComponent book = rul.getRecipeBookComponent();
 
         if (!book.isVisible()) return;
 
         RecipeBookPage page = ((RecipeBookComponentAccessor) book).getRecipeBookPage();
         OverlayRecipeComponent alternatesWidget = ((RecipeBookPageAccessor) page).getOverlay();
+
         EditBox searchBox = ((RecipeBookComponentAccessor) book).getSearchBox();
 
         // when F is pressed, handle pinning/unpinning of recipes except when searchBox is consuming input
-        if (BetterRecipeBook.config.enablePinning && ClientCompat.matches(BetterRecipeBook.PIN_MAPPING, event.key(), event.scancode(), event.modifiers()) && (searchBox == null || !searchBox.canConsumeInput())) {
+        if (BetterRecipeBook.config.enablePinning && BetterRecipeBook.PIN_MAPPING.matches(keyCode, scanCode) && !searchBox.canConsumeInput()) {
+            // handle alternatives widget first
             if (alternatesWidget.isVisible()) {
-                for (AbstractWidget button : ((OverlayRecipeComponentAccessor) alternatesWidget).getRecipeButtons()) {
-                    if (button.isHoveredOrFocused()) {
-                        BetterRecipeBook.pinnedRecipeManager.addOrRemoveFavourite(PinnableRecipeCollection.of(alternatesWidget.getRecipeCollection()));
-                        RecipeBookComponentAccessor accessor = (RecipeBookComponentAccessor) book;
-                        boolean filtering = accessor.isFilteringInvoker();
-                        accessor.updateCollectionsInvoker(false, filtering);
+                for (AbstractWidget alternativeButton : ((OverlayRecipeComponentAccessor) alternatesWidget).getRecipeButtons()) {
+                    if (alternativeButton.isHoveredOrFocused()) {
+                        PinnedRecipeManager.handlePinRecipe(book, page, ((OverlayRecipeButtonAccessor) alternativeButton).getRecipe());
                         cir.setReturnValue(true);
                         return;
                     }
                 }
+                return;
             }
 
             for (RecipeButton button : ((RecipeBookPageAccessor) page).getButtons()) {
                 if (button.isHoveredOrFocused()) {
-                    BetterRecipeBook.pinnedRecipeManager.addOrRemoveFavourite(PinnableRecipeCollection.of(button.getCollection()));
-                    RecipeBookComponentAccessor accessor = (RecipeBookComponentAccessor) book;
-                    boolean filtering = accessor.isFilteringInvoker();
-                    accessor.updateCollectionsInvoker(false, filtering);
+                    PinnedRecipeManager.handlePinRecipe(book, page, button.getRecipe());
                     cir.setReturnValue(true);
                     return;
                 }
@@ -95,7 +58,7 @@ public abstract class AbstractContainerScreenMixin {
 
         // when <chat key> is pressed, focus recipes component for searchBox
         // this also works for BrewingRecipeBookComponent as the super's searchBox is set to the same object
-        if (ClientCompat.matches(minecraft.options.keyChat, event.key(), event.scancode(), event.modifiers())) {
+        if (minecraft.options.keyChat.matches(keyCode, scanCode)) {
             minecraft.screen.setFocused(book);
         }
 

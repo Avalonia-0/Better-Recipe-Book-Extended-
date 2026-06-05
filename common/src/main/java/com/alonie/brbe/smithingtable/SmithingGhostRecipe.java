@@ -2,15 +2,20 @@ package com.alonie.brbe.smithingtable;
 
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.generic.GenericGhostRecipe;
+import com.alonie.brbe.mixins.accessors.HolderReferenceAccessor;
 import com.alonie.brbe.recipe.BRBSmithingRecipe;
 import com.alonie.brbe.recipe.smithing.BRBSmithingTransformRecipe;
+import net.minecraft.core.Holder;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.minecraft.world.item.equipment.trim.TrimMaterials;
+import net.minecraft.world.item.armortrim.*;
 import org.jetbrains.annotations.Nullable;
 
+import java.util.Optional;
 import java.util.function.Consumer;
+import java.util.stream.Stream;
 
 public class SmithingGhostRecipe extends GenericGhostRecipe<BRBSmithingRecipe> {
     public SmithingGhostRecipe(@Nullable Consumer<ItemStack> onGhostUpdate, RegistryAccess registryAccess) {
@@ -24,20 +29,28 @@ public class SmithingGhostRecipe extends GenericGhostRecipe<BRBSmithingRecipe> {
         }
 
         if (this.recipe instanceof BRBSmithingTransformRecipe) {
-            return this.recipe.getResult(this.registryAccess, category);
+            return this.recipe.getResult(registryAccess, category);
         }
 
-        ItemStack materialStack = this.ingredients.isEmpty() ? ItemStack.EMPTY : this.ingredients.get(0).getItem();
-        if (materialStack.is(Items.QUARTZ)) return this.recipe.getResult(TrimMaterials.QUARTZ, this.registryAccess, category);
-        if (materialStack.is(Items.IRON_INGOT)) return this.recipe.getResult(TrimMaterials.IRON, this.registryAccess, category);
-        if (materialStack.is(Items.NETHERITE_INGOT)) return this.recipe.getResult(TrimMaterials.NETHERITE, this.registryAccess, category);
-        if (materialStack.is(Items.COPPER_INGOT)) return this.recipe.getResult(TrimMaterials.COPPER, this.registryAccess, category);
-        if (materialStack.is(Items.GOLD_INGOT)) return this.recipe.getResult(TrimMaterials.GOLD, this.registryAccess, category);
-        if (materialStack.is(Items.EMERALD)) return this.recipe.getResult(TrimMaterials.EMERALD, this.registryAccess, category);
-        if (materialStack.is(Items.DIAMOND)) return this.recipe.getResult(TrimMaterials.DIAMOND, this.registryAccess, category);
-        if (materialStack.is(Items.LAPIS_LAZULI)) return this.recipe.getResult(TrimMaterials.LAPIS, this.registryAccess, category);
-        if (materialStack.is(Items.AMETHYST_SHARD)) return this.recipe.getResult(TrimMaterials.AMETHYST, this.registryAccess, category);
-        if (materialStack.is(Items.RESIN_BRICK)) return this.recipe.getResult(TrimMaterials.RESIN, this.registryAccess, category);
-        return this.recipe.getResult(TrimMaterials.REDSTONE, this.registryAccess, category);
+        ItemStack itemStack = this.recipe.getBase().copy();
+
+        Stream<Holder.Reference<TrimMaterial>> holders = registryAccess.registryOrThrow(Registries.TRIM_MATERIAL).holders();
+
+        Optional<Holder.Reference<TrimMaterial>> currentMaterialReference = TrimMaterials.getFromIngredient(registryAccess, this.ingredients.get(0).getItem());
+
+        if (currentMaterialReference.isEmpty()) {
+            return itemStack;
+        }
+
+        Holder.Reference<TrimMaterial> material = holders.filter(holder -> ((HolderReferenceAccessor<TrimMaterial>) holder).getKey().equals(((HolderReferenceAccessor<TrimMaterial>) currentMaterialReference.get()).getKey())).findFirst().get();
+
+        Optional<Holder.Reference<TrimPattern>> trim = TrimPatterns.getFromTemplate(registryAccess, recipe.getTemplate().getItems()[0]);
+
+        if (trim.isPresent()) {
+            ArmorTrim armorTri = new ArmorTrim(material, trim.get());
+            itemStack.set(DataComponents.TRIM, armorTri);
+        }
+
+        return itemStack;
     }
 }

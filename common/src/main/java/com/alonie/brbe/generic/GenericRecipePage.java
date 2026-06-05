@@ -4,16 +4,11 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
-import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBTextures;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.Minecraft;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.gui.GuiGraphics;
-
-import com.alonie.brbe.widget.StateSwitchingButton;
+import net.minecraft.client.gui.components.StateSwitchingButton;
 import net.minecraft.core.RegistryAccess;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import org.jetbrains.annotations.Nullable;
 
@@ -54,10 +49,8 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
 
         this.forwardButton = new StateSwitchingButton(parentLeft + 93, parentTop + 137, 12, 17, false);
         this.forwardButton.initTextureValues(BRBTextures.RECIPE_BOOK_PAGE_FORWARD_SPRITES);
-        this.forwardButton.active = true;
-        this.backButton = new StateSwitchingButton(parentLeft + 38, parentTop + 137, 12, 17, false);
+        this.backButton = new StateSwitchingButton(parentLeft + 38, parentTop + 137, 12, 17, true);
         this.backButton.initTextureValues(BRBTextures.RECIPE_BOOK_PAGE_BACKWARD_SPRITES);
-        this.backButton.active = true;
 
         for (int k = 0; k < this.buttons.size(); ++k) {
             this.buttons.get(k).setPosition(parentLeft + 11 + 25 * (k % 5), parentTop + 31 + 25 * (k / 5));
@@ -93,7 +86,7 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
             return true;
         } else {
             for (GenericRecipeButton<C, R, M> recipeButton : this.buttons) {
-                if (!ClientCompat.mouseClicked(recipeButton, mouseX, mouseY, button)) continue;
+                if (!recipeButton.mouseClicked(mouseX, mouseY, button)) continue;
                 if (button == 0) {
                     this.lastClickedRecipe = recipeButton.getCurrentDisplayedRecipe();
                     this.lastClickedRecipeCollection = recipeButton.getCollection();
@@ -129,7 +122,7 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
 
     protected void render(GuiGraphics gui, int blitX, int blitY, int mouseX, int mouseY, float delta) {
         if (BetterRecipeBook.queuedScroll != 0 && BetterRecipeBook.config.scrolling.enableScrolling) {
-            if (isMouseOverRecipeBookPage(mouseX, mouseY, blitX, blitY) && totalPages > 1) {
+            if (totalPages > 1) {
                 currentPage += BetterRecipeBook.queuedScroll;
                 if (currentPage >= totalPages) {
                     currentPage = BetterRecipeBook.config.scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;
@@ -160,10 +153,6 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
 
         this.backButton.render(gui, mouseX, mouseY, delta);
         this.forwardButton.render(gui, mouseX, mouseY, delta);
-    }
-
-    private static boolean isMouseOverRecipeBookPage(int mouseX, int mouseY, int left, int top) {
-        return mouseX >= left && mouseX < left + 147 && mouseY >= top && mouseY < top + 166;
     }
 
     public void setResults(List<C> recipeCollection, boolean resetCurrentPage, BRBBookCategories.Category category) {
@@ -200,7 +189,7 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
 
     public void drawTooltip(GuiGraphics gui, int x, int y) {
         if (this.minecraft.screen != null && hoveredButton != null) {
-            ClientCompat.setComponentTooltipForNextFrame(gui, this.hoveredButton.getTooltipText(), x, y);
+            gui.renderComponentTooltip(Minecraft.getInstance().font, this.hoveredButton.getTooltipText(), x, y);
         }
     }
 }

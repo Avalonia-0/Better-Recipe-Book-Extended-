@@ -4,18 +4,16 @@ import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.mixins.accessors.KeyMappingAccessor;
-import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBTextures;
-import com.alonie.brbe.util.ModNameUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
-import net.minecraft.client.input.MouseButtonInfo;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.chat.CommonComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.util.Mth;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.Item;
@@ -47,7 +45,7 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
     }
 
     public void renderWidget(GuiGraphics gui, int mouseX, int mouseY, float delta) {
-        if (!ClientCompat.isControlDown()) {
+        if (!Screen.hasControlDown()) {
             this.time += delta;
         }
 
@@ -60,9 +58,9 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         this.currentIndex = Mth.floor(this.time / 30.0F) % list.size();
 
         // blit outline texture
-        Identifier outlineTexture = collection.isCraftable(getCurrentDisplayedRecipe(), menu.slots) ?
+        ResourceLocation outlineTexture = collection.atleastOneCraftable(menu.slots) ?
                 BRBTextures.RECIPE_BOOK_BUTTON_SLOT_CRAFTABLE_SPRITE : BRBTextures.RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE;
-        ClientCompat.blitSprite(gui, outlineTexture, getX(), getY(), this.width, this.height);
+        gui.blitSprite(outlineTexture, getX(), getY(), this.width, this.height);
 
         ItemStack result = getCurrentDisplayedRecipe().getResult(registryAccess, category);
 
@@ -72,15 +70,12 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
 
         // if pinned recipe, blit the pin texture over it
         if (BetterRecipeBook.config.enablePinning && BetterRecipeBook.pinnedRecipeManager.has(collection)) {
-            ClientCompat.blitSprite(gui, BRBTextures.RECIPE_BOOK_PIN_SPRITE, getX() - 4, getY() - 4, 32, 32);
+            gui.blitSprite(BRBTextures.RECIPE_BOOK_PIN_SPRITE, getX() - 4, getY() - 4, 32, 32);
         }
     }
 
     public R getCurrentDisplayedRecipe() {
         List<R> list = getOrderedRecipes();
-        if (list.isEmpty()) {
-            return null;
-        }
 
         return list.get(currentIndex);
     }
@@ -94,8 +89,6 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
 
         if (!this.filteringSupplier.get()) {
             list.addAll(this.collection.getDisplayRecipes(false));
-        } else if (BetterRecipeBook.config.partialCraftableEqualsCraftable) {
-            list.addAll(this.collection.getPartiallyCraftableRecipes(this.menu.slots));
         }
 
         return list;
@@ -121,30 +114,11 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         return i == 0 || i == 1;
     }
 
-    @Override
-    protected boolean isValidClickButton(MouseButtonInfo button) {
-        return this.isValidClickButton(button.button());
-    }
-
     public List<Component> getTooltipText() {
         List<Component> list = Lists.newArrayList();
-        R recipe = getCurrentDisplayedRecipe();
-        if (recipe == null) {
-            return list;
-        }
 
         var tipCtx = Item.TooltipContext.of(registryAccess);
-        ItemStack result = recipe.getResult(registryAccess, category);
-        list.addAll(result.getTooltipLines(tipCtx, Minecraft.getInstance().player, TooltipFlag.NORMAL));
-
-        // Add source mod name (Jade-compatible format: jade.modName.<MOD_ID>)
-        if (BetterRecipeBook.config.showModName) {
-            Component modName = ModNameUtil.getFormattedModName(result);
-            if (modName != null && !modName.getString().isEmpty()) {
-                list.add(Component.empty());
-                list.add(modName);
-            }
-        }
+        list.addAll(getCurrentDisplayedRecipe().getResult(registryAccess, category).getTooltipLines(tipCtx, Minecraft.getInstance().player, TooltipFlag.NORMAL));
 
         this.addPinTooltip(list);
 
@@ -155,11 +129,10 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         list.add(Component.empty());
 
         if (BetterRecipeBook.config.enablePinning) {
-            String keyName = ((KeyMappingAccessor) BetterRecipeBook.PIN_MAPPING).getKey().getDisplayName().getString();
             if (BetterRecipeBook.pinnedRecipeManager.has(collection)) {
-                list.add(Component.translatable("brbe.gui.pin.remove", keyName));
+                list.add(Component.translatable("brb.gui.pin.remove", ((KeyMappingAccessor) BetterRecipeBook.PIN_MAPPING).getKey().getDisplayName()));
             } else {
-                list.add(Component.translatable("brbe.gui.pin.add", keyName));
+                list.add(Component.translatable("brb.gui.pin.add", ((KeyMappingAccessor) BetterRecipeBook.PIN_MAPPING).getKey().getDisplayName()));
             }
         }
     }

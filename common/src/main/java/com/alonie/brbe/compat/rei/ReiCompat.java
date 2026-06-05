@@ -4,20 +4,16 @@ import com.alonie.brbe.BetterRecipeBook;
 import dev.architectury.platform.Platform;
 import net.minecraft.world.item.ItemStack;
 
-/**
- * Bridge for REI (Roughly Enough Items) integration.
- * Uses a handler pattern so common code can call REI API without REI being on the classpath.
- * The handler is registered via reflection at runtime if REI is loaded.
- */
-public class ReiCompat {
+public final class ReiCompat {
     private static ReiHandler handler;
 
-    /**
-     * Register the REI handler using reflection. No-op if REI is not loaded.
-     * Safe to call early (deferred by platform until mods are initialized).
-     */
+    private ReiCompat() {
+    }
+
     public static void register() {
-        if (!Platform.isModLoaded("roughlyenoughitems")) return;
+        if (!Platform.isModLoaded("roughlyenoughitems")) {
+            return;
+        }
 
         setHandler(new ReiHandler() {
             @Override
@@ -73,6 +69,7 @@ public class ReiCompat {
 
     public interface ReiHandler {
         boolean openRecipeView(ItemStack stack);
+
         boolean openUsageView(ItemStack stack);
     }
 }

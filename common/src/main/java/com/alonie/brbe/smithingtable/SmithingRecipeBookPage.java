@@ -36,7 +36,6 @@ public class SmithingRecipeBookPage extends GenericRecipePage<SmithingMenu, Smit
     public void render(GuiGraphics gui, int x, int y, int mouseX, int mouseY, float delta) {
         super.render(gui, x, y, mouseX, mouseY, delta);
 
-        gui.nextStratum();
         this.overlay.render(gui, mouseX, mouseY, delta);
     }
 

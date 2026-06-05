@@ -2,7 +2,6 @@ package com.alonie.brbe.brewingstand;
 
 import com.google.common.collect.Lists;
 import com.alonie.brbe.generic.GenericRecipeButton;
-import com.alonie.brbe.util.ClientCompat;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
 import net.minecraft.ChatFormatting;
@@ -39,27 +38,32 @@ public class BrewableRecipeButton extends GenericRecipeButton<BrewingRecipeColle
     public List<Component> getTooltipText() {
         List<Component> list = Lists.newArrayList();
 
-        ItemStack resultStack = this.collection.getFirst().getResult(this.registryAccess, this.category);
+        var resultStack = collection.getFirst().getResult(registryAccess, category);
+
         list.add(resultStack.getHoverName());
-        PotionContents.addPotionTooltip(
-                resultStack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY).getAllEffects(),
-                list::add,
-                1F,
-                Minecraft.getInstance().level.tickRateManager().tickrate()
-        );
-        list.add(Component.empty());
+        resultStack.getOrDefault(DataComponents.POTION_CONTENTS, PotionContents.EMPTY)
+                .addPotionTooltip(list::add, 1F, Minecraft.getInstance().level.tickRateManager().tickrate());
+        list.add(Component.literal(""));
 
-        ChatFormatting colour = this.collection.getFirst().hasIngredient(this.menu.slots) ? ChatFormatting.WHITE : ChatFormatting.DARK_GRAY;
-        list.add(Component.literal(ClientCompat.firstIngredientItem(getIngredient(this.collection.getFirst().recipe)).getHoverName().getString()).withStyle(colour));
-        list.add(Component.literal("->").withStyle(ChatFormatting.DARK_GRAY));
+        ChatFormatting colour = ChatFormatting.DARK_GRAY;
+        if (collection.getFirst().hasIngredient(menu.slots)) {
+            colour = ChatFormatting.WHITE;
+        }
 
-        ItemStack inputStack = this.collection.getFirst().inputAsItemStack(this.category);
-        if (!this.collection.getFirst().hasInput(this.category, this.menu.slots)) {
+        list.add(Component.literal(getIngredient(collection.getFirst().recipe).getItems()[0].getHoverName().getString()).withStyle(colour));
+
+        list.add(Component.literal("↓").withStyle(ChatFormatting.DARK_GRAY));
+
+        ItemStack inputStack = this.collection.getFirst().inputAsItemStack(category);
+
+        if (!collection.getFirst().hasInput(category, menu.slots)) {
             colour = ChatFormatting.DARK_GRAY;
         }
+
         list.add(Component.literal(inputStack.getHoverName().getString()).withStyle(colour));
 
         this.addPinTooltip(list);
+
         return list;
     }
 }

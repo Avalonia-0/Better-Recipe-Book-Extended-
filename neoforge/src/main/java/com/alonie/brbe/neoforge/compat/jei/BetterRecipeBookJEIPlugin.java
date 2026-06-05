@@ -10,7 +10,7 @@ import mezz.jei.api.recipe.IFocus;
 import mezz.jei.api.recipe.IFocusFactory;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.runtime.IJeiRuntime;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
@@ -18,10 +18,10 @@ import java.util.Optional;
 
 @JeiPlugin
 public final class BetterRecipeBookJEIPlugin implements IModPlugin {
-    private static final Identifier PLUGIN_UID = Identifier.fromNamespaceAndPath(BetterRecipeBook.MOD_ID, "jei");
+    private static final ResourceLocation PLUGIN_UID = ResourceLocation.fromNamespaceAndPath(BetterRecipeBook.MOD_ID, "jei");
 
     @Override
-    public Identifier getPluginUid() {
+    public ResourceLocation getPluginUid() {
         return PLUGIN_UID;
     }
 

@@ -1,20 +1,19 @@
 package com.alonie.brbe.generic;
 
+import com.mojang.blaze3d.systems.RenderSystem;
 import com.alonie.brbe.api.BRBBookCategories;
-import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBTextures;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.StateSwitchingButton;
 import net.minecraft.client.renderer.entity.ItemRenderer;
-import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 
 public class BRBGroupButtonWidget extends StateSwitchingButton {
     protected BRBBookCategories.Category category;
-    private int iconYOffset;
 
     public BRBGroupButtonWidget(BRBBookCategories.Category category) {
         super(0, 0, 35, 27, false);
@@ -25,13 +24,15 @@ public class BRBGroupButtonWidget extends StateSwitchingButton {
     public void renderWidget(GuiGraphics gui, int mouseX, int mouseY, float delta) {
         Minecraft minecraftClient = Minecraft.getInstance();
 
-        Identifier sprite = this.sprites.get(true, this.isStateTriggered);
+        ResourceLocation sprite = this.sprites.get(true, this.isStateTriggered);
         int x = getX();
         if (this.isStateTriggered) {
             x -= 2;
         }
 
-        ClientCompat.blitSprite(gui, sprite, x, this.getY(), this.width, this.height);
+        RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+        gui.blitSprite(sprite, x, this.getY(), this.width, this.height);
+        RenderSystem.enableDepthTest();
 
         this.renderIcons(gui, minecraftClient.getItemRenderer());
     }
@@ -39,18 +40,13 @@ public class BRBGroupButtonWidget extends StateSwitchingButton {
     private void renderIcons(GuiGraphics guiGraphics, ItemRenderer itemRenderer) {
         List<ItemStack> list = this.category.getItemIcons();
         int i = this.isStateTriggered ? -2 : 0;
-        int iconY = getY() + 5 + this.iconYOffset;
         if (list.size() == 1) {
-            guiGraphics.renderFakeItem(list.get(0), getX() + 9 + i, iconY);
+            guiGraphics.renderFakeItem(list.get(0), getX() + 9 + i, getY() + 5);
         } else if (list.size() == 2) {
-            guiGraphics.renderFakeItem(list.get(0), getX() + 3 + i, iconY);
-            guiGraphics.renderFakeItem(list.get(1), getX() + 14 + i, iconY);
+            guiGraphics.renderFakeItem(list.get(0), getX() + 3 + i, getY() + 5);
+            guiGraphics.renderFakeItem(list.get(1), getX() + 14 + i, getY() + 5);
         }
 
-    }
-
-    public void setIconYOffset(int iconYOffset) {
-        this.iconYOffset = iconYOffset;
     }
 
     public BRBBookCategories.Category getCategory() {

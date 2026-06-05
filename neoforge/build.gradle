@@ -37,19 +37,24 @@ dependencies {
     neoForge "net.neoforged:neoforge:${rootProject.neoforge_version}"
 
     // Architectury API. This is optional, and you can comment it out if you don"t need it.
-    modImplementation "dev.architectury:architectury-neoforge:${rootProject.architectury_version}"
+    modImplementation files("/home/avalonia/Downloads/1.21.1/architectury-13.0.8-neoforge.jar")
 
-    modApi "me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}"
-    include "me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}"
+    modApi files("/home/avalonia/Downloads/1.21.1/cloth-config-15.0.140-neoforge.jar")
 
     def jeiJarCandidates = [
             rootProject.findProperty("jei_neoforge_jar"),
-            "/media/avalonia/data/MinecraftLib/versions/1.21.11-NeoForge/mods/jei-1.21.11-neoforge-27.4.0.22.jar",
-            "/media/avalonia/data/MinecraftLib/versions/1.21.11-Fabric/mods/jei-1.21.11-fabric-27.4.0.22.jar"
+            "/home/avalonia/Downloads/1.21.1/jei-1.21.1-neoforge-19.27.0.340.jar",
+            "/home/avalonia/Downloads/1.21.1/jei-1.21.1-fabric-19.27.0.340.jar"
     ].findAll { it != null }
     def jeiJarPath = jeiJarCandidates.find { file(it).exists() }
     if (jeiJarPath != null) {
         compileOnly files(jeiJarPath)
+    }
+
+    def reiJarPath = rootProject.findProperty("rei_neoforge_jar")
+            ?: "/home/avalonia/Downloads/1.21.1/RoughlyEnoughItems-16.0.799-neoforge.jar"
+    if (file(reiJarPath).exists()) {
+        compileOnly files(reiJarPath)
     }
 
     jeiNeoForgePresent = jeiJarPath != null && jeiJarPath.toString().contains("neoforge")

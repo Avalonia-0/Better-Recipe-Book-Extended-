@@ -51,6 +51,10 @@ allprojects {
         maven {
             url = "https://api.modrinth.com/maven"
         }
+        maven {
+            name = "TerraformersMC"
+            url = "https://maven.terraformersmc.com/"
+        }
     }
 
     tasks.withType(JavaCompile) {

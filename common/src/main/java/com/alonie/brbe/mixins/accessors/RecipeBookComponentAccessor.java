@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins.accessors;
 
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.recipebook.GhostRecipe;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.network.chat.Component;
@@ -11,6 +12,9 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 @Mixin(RecipeBookComponent.class)
 public interface RecipeBookComponentAccessor {
 
+    @Accessor("ghostRecipe")
+    GhostRecipe getGhostRecipe();
+
     @Accessor("recipeBookPage")
     RecipeBookPage getRecipeBookPage();
 
@@ -20,11 +24,8 @@ public interface RecipeBookComponentAccessor {
     @Accessor("searchBox")
     void setSearchBox(EditBox searchBox);
 
-    @Invoker("isFiltering")
-    boolean isFilteringInvoker();
-
     @Invoker("updateCollections")
-    void updateCollectionsInvoker(boolean resetPage, boolean filteringChanged);
+    void updateCollectionsInvoker(boolean b);
 
     @Accessor("xOffset")
     int getXOffset();

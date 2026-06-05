@@ -7,6 +7,5 @@ import net.neoforged.fml.common.Mod;
 public final class BetterRecipeBookNeoForge {
     public BetterRecipeBookNeoForge() {
         BetterRecipeBook.init();
-        BetterRecipeBookClientNeoForge.init();
     }
 }

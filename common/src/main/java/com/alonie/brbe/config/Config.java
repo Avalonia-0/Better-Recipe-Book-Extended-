@@ -4,6 +4,7 @@ import me.shedaniel.autoconfig.ConfigData;
 import me.shedaniel.autoconfig.annotation.ConfigEntry;
 
 @me.shedaniel.autoconfig.annotation.Config(name = "brbe")
+@me.shedaniel.autoconfig.annotation.Config.Gui.Background("minecraft:textures/block/blue_concrete_powder.png")
 public class Config implements ConfigData {
     public boolean enablePinning = true;
 

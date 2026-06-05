@@ -6,13 +6,10 @@ import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.config.Config;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.util.BRBHelper;
-import com.alonie.brbe.util.RecipeUnlockUtil;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.ConfigHolder;
 import me.shedaniel.autoconfig.serializer.Toml4jConfigSerializer;
 import net.minecraft.client.KeyMapping;
-import net.minecraft.resources.Identifier;
-import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.apache.logging.log4j.LogManager;
@@ -32,29 +29,25 @@ public class BetterRecipeBook {
     public static InstantCraftingManager instantCraftingManager;
     public static final Logger LOGGER = LogManager.getLogger(MOD_ID);
 
-    private static final KeyMapping.Category KEY_CATEGORY = KeyMapping.Category.register(
-            Identifier.fromNamespaceAndPath(MOD_ID, "category")
-    );
-
     public static final KeyMapping PIN_MAPPING = new KeyMapping(
             "key.brbe.pin",
             InputConstants.Type.KEYSYM,
             InputConstants.KEY_F,
-            KEY_CATEGORY
+            "category.brbe"
     );
 
     public static final KeyMapping RECIPE_VIEW_MAPPING = new KeyMapping(
             "key.brbe.recipeView",
             InputConstants.Type.KEYSYM,
             InputConstants.KEY_R,
-            KEY_CATEGORY
+            "category.brbe"
     );
 
     public static final KeyMapping USAGE_VIEW_MAPPING = new KeyMapping(
             "key.brbe.usageView",
             InputConstants.Type.KEYSYM,
             InputConstants.KEY_U,
-            KEY_CATEGORY
+            "category.brbe"
     );
 
     public static BRBHelper.Book BREWING = BRBHelper.createBook(MOD_ID, "brewing_stand");
@@ -76,10 +69,6 @@ public class BetterRecipeBook {
         AutoConfig.register(Config.class, Toml4jConfigSerializer::new);
 
         configHolder = AutoConfig.getConfigHolder(Config.class);
-        configHolder.registerSaveListener((holder, config) -> {
-            RecipeUnlockUtil.syncToConfig();
-            return InteractionResult.SUCCESS;
-        });
         config = configHolder.getConfig();
 
         pinnedRecipeManager = new PinnedRecipeManager();

@@ -24,7 +24,7 @@ side = "CLIENT"
 [[dependencies.brbe]]
 modId = "minecraft"
 type = "required"
-versionRange = "[1.21,)"
+versionRange = "[1.21.1,1.21.2)"
 ordering = "NONE"
 side = "CLIENT"
 
@@ -38,7 +38,7 @@ side = "CLIENT"
 [[dependencies.brbe]]
 modId = "jei"
 type = "optional"
-versionRange = "[27,)"
+versionRange = "[19,)"
 ordering = "AFTER"
 side = "CLIENT"
 
@@ -50,3 +50,10 @@ config = "mixins.brbe-common.json"
 
 [[mixins]]
 config = "mixins.brbe-common-compat.json"
+
+[[dependencies.brbe]]
+modId = "roughlyenoughitems"
+type = "optional"
+versionRange = "[16,)"
+ordering = "AFTER"
+side = "CLIENT"

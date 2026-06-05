@@ -9,7 +9,6 @@ import com.alonie.brbe.interfaces.IPinningComponent;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.mixins.accessors.BrewingStandMenuAccessor;
 import com.alonie.brbe.util.BRBHelper;
-import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.ClientInventoryUtil;
 import net.fabricmc.api.EnvType;
 import net.fabricmc.api.Environment;
@@ -38,7 +37,7 @@ import static com.alonie.brbe.brewingstand.PlatformPotionUtil.getIngredient;
 
 @Environment(EnvType.CLIENT)
 public class BrewingRecipeBookComponent extends GenericRecipeBookComponent<BrewingStandMenu, BrewingRecipeCollection, BrewableResult> implements IPinningComponent<BrewingRecipeCollection> {
-    private static final Component ONLY_CRAFTABLES_TOOLTIP = Component.translatable("brbe.gui.togglePotions.brewable");
+    private static final Component ONLY_CRAFTABLES_TOOLTIP = Component.translatable("brb.gui.togglePotions.brewable");
 
     @Override
     public void init(int parentWidth, int parentHeight, Minecraft client, boolean narrow, BrewingStandMenu menu, Consumer<ItemStack> onGhostRecipeUpdate, RegistryAccess registryAccess) {
@@ -85,7 +84,7 @@ public class BrewingRecipeBookComponent extends GenericRecipeBookComponent<Brewi
     public ItemStack getInputStack(BrewableResult result) {
         Potion inputPotion = getFrom(result.recipe);
         Ingredient ingredient = getIngredient(result.recipe);
-        //Identifier identifier = BuiltInRegistries.POTION.getKey(inputPotion);
+        //ResourceLocation identifier = BuiltInRegistries.POTION.getKey(inputPotion);
         ItemStack inputStack;
         if (this.selectedTab.getCategory() == BetterRecipeBook.BREWING_SPLASH_POTION) {
             inputStack = new ItemStack(Items.SPLASH_POTION);
@@ -100,13 +99,13 @@ public class BrewingRecipeBookComponent extends GenericRecipeBookComponent<Brewi
     }
 
     public void setupGhostRecipe(BrewableResult result, List<Slot> slots) {
-        this.ghostRecipe.addIngredient(BrewingStandMenuAccessor.getINGREDIENT_SLOT(), ClientCompat.firstIngredientItem(getIngredient(result.recipe)), slots.get(BrewingStandMenuAccessor.getINGREDIENT_SLOT()).x, slots.get(BrewingStandMenuAccessor.getINGREDIENT_SLOT()).y);
+        this.ghostRecipe.addIngredient(BrewingStandMenuAccessor.getINGREDIENT_SLOT(), Ingredient.of(getIngredient(result.recipe).getItems()[0]), slots.get(BrewingStandMenuAccessor.getINGREDIENT_SLOT()).x, slots.get(BrewingStandMenuAccessor.getINGREDIENT_SLOT()).y);
 
         assert selectedTab != null;
         ItemStack inputStack = result.inputAsItemStack(selectedTab.getCategory());
 
         for (int i = BrewingStandMenuAccessor.getBOTTLE_SLOT_START(); i <= BrewingStandMenuAccessor.getBOTTLE_SLOT_END(); i++) {
-            this.ghostRecipe.addIngredient(i, inputStack.copy(), slots.get(i).x, slots.get(i).y);
+            this.ghostRecipe.addIngredient(i, Ingredient.of(inputStack), slots.get(i).x, slots.get(i).y);
         }
     }
 
@@ -162,7 +161,7 @@ public class BrewingRecipeBookComponent extends GenericRecipeBookComponent<Brewi
                     ClientInventoryUtil.storeItem(-1, i -> i > 4);
                     ++usedInputSlots;
                 }
-            } else if (ClientCompat.firstIngredientItem(ingredient).getItem().equals(slot.getItem().getItem())) {
+            } else if (ingredient.getItems()[0].getItem().equals(slot.getItem().getItem())) {
                 assert Minecraft.getInstance().gameMode != null;
                 ClientInventoryUtil.storeItem(-1, i -> i > 4);
                 Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, menu.getSlot(slotIndex).index, 0, ClickType.PICKUP, Minecraft.getInstance().player);

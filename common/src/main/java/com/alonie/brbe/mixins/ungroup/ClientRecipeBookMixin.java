@@ -2,12 +2,11 @@ package com.alonie.brbe.mixins.ungroup;
 
 import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
 import net.minecraft.client.ClientRecipeBook;
+import net.minecraft.client.RecipeBookCategories;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.stats.RecipeBook;
-import net.minecraft.world.item.crafting.ExtendedRecipeBookCategory;
-import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -21,32 +20,24 @@ import java.util.Map;
 
 @Mixin(ClientRecipeBook.class)
 public class ClientRecipeBookMixin extends RecipeBook {
-    @Shadow private Map<ExtendedRecipeBookCategory, List<RecipeCollection>> collectionsByTab;
+    @Shadow private Map<RecipeBookCategories, List<RecipeCollection>> collectionsByTab;
 
     @Inject(method = "getCollection", locals = LocalCapture.CAPTURE_FAILHARD, at = @At("RETURN"), cancellable = true)
-    private void split(ExtendedRecipeBookCategory category, CallbackInfoReturnable<List<RecipeCollection>> cir) {
+    private void split(RecipeBookCategories category, CallbackInfoReturnable<List<RecipeCollection>> cir) {
         if (BetterRecipeBook.config.alternativeRecipes.noGrouped) {
             List<RecipeCollection> list = Lists.newArrayList(this.collectionsByTab.getOrDefault(category, Collections.emptyList()));
             List<RecipeCollection> list2 = Lists.newArrayList(list);
 
             for (RecipeCollection recipeResultCollection : list) {
                 if (recipeResultCollection.getRecipes().size() > 1) {
-                    List<RecipeDisplayEntry> recipes = recipeResultCollection.getRecipes();
+                    List<RecipeHolder<?>> recipes = recipeResultCollection.getRecipes();
                     list2.remove(recipeResultCollection);
 
-                    for (RecipeDisplayEntry recipe : recipes) {
-                        RecipeCollection splitCollection = new RecipeCollection(Collections.singletonList(recipe));
-                        RecipeCollectionAccessor sourceAccessor = (RecipeCollectionAccessor) recipeResultCollection;
-                        RecipeCollectionAccessor splitAccessor = (RecipeCollectionAccessor) splitCollection;
+                    for (RecipeHolder<?> recipe : recipes) {
+                        RecipeCollection recipeResultCollection1 = new RecipeCollection(recipeResultCollection.registryAccess(), Collections.singletonList(recipe));
+                        recipeResultCollection1.updateKnownRecipes(this);
 
-                        if (sourceAccessor.betterRecipeBook$getSelected().contains(recipe.id())) {
-                            splitAccessor.betterRecipeBook$getSelected().add(recipe.id());
-                        }
-                        if (sourceAccessor.betterRecipeBook$getCraftable().contains(recipe.id())) {
-                            splitAccessor.betterRecipeBook$getCraftable().add(recipe.id());
-                        }
-
-                        list2.add(splitCollection);
+                        list2.add(recipeResultCollection1);
                     }
                 }
             }

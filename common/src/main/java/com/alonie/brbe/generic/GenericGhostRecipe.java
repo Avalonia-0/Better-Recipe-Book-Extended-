@@ -2,10 +2,10 @@ package com.alonie.brbe.generic;
 
 import com.google.common.collect.Lists;
 import com.alonie.brbe.api.BRBBookCategories;
-import com.alonie.brbe.util.ClientCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.renderer.RenderType;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.util.Mth;
 import net.minecraft.world.inventory.AbstractContainerMenu;
@@ -72,10 +72,6 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
         this.ingredients.add(new GenericGhostIngredient(containerSlot, ingredient, i, j));
     }
 
-    public void addIngredient(int containerSlot, ItemStack itemStack, int i, int j) {
-        this.ingredients.add(new GenericGhostIngredient(containerSlot, itemStack, i, j));
-    }
-
     public GenericGhostIngredient get(int i) {
         return this.ingredients.get(i);
     }
@@ -94,7 +90,7 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
     }
 
     public void render(GuiGraphics guiGraphics, Minecraft minecraft, int i, int j, boolean bl, float f, BRBBookCategories.Category category) {
-        if (!ClientCompat.isControlDown()) {
+        if (!Screen.hasControlDown()) {
             this.time += f;
             if (this.onGhostUpdate != null && this.recipe != null) this.onGhostUpdate.accept(this.getCurrentResult(category));
         }
@@ -120,7 +116,7 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
             }
 
             if (shouldRenderBackground) {
-                guiGraphics.fill(l, m, l + 16, m + 16, 822083583);
+                guiGraphics.fill(RenderType.guiGhostRecipeOverlay(), l, m, l + 16, m + 16, 822083583);
             }
 
             if (k == 0) {
@@ -150,15 +146,12 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
         }
 
         if (itemStack != null && Minecraft.getInstance().screen != null) {
-            ClientCompat.setComponentTooltipForNextFrame(gui, Screen.getTooltipFromItem(Minecraft.getInstance(), itemStack), mouseX, mouseY);
+            gui.renderComponentTooltip(Minecraft.getInstance().font, Screen.getTooltipFromItem(Minecraft.getInstance(), itemStack), mouseX, mouseY);
         }
     }
 
     public class GenericGhostIngredient {
-        @Nullable
         private final Ingredient ingredient;
-        @Nullable
-        private final ItemStack[] itemStacks;
         private final int x;
         private final int y;
         private final int containerSlot;
@@ -166,15 +159,6 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
         public GenericGhostIngredient(int containerSlot, Ingredient ingredient, int i, int j) {
             this.containerSlot = containerSlot;
             this.ingredient = ingredient;
-            this.itemStacks = null;
-            this.x = i;
-            this.y = j;
-        }
-
-        public GenericGhostIngredient(int containerSlot, ItemStack itemStack, int i, int j) {
-            this.containerSlot = containerSlot;
-            this.ingredient = null;
-            this.itemStacks = new ItemStack[]{itemStack};
             this.x = i;
             this.y = j;
         }
@@ -188,8 +172,8 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
         }
 
         public ItemStack getItem() {
-            ItemStack[] displayStacks = this.itemStacks != null ? this.itemStacks : ClientCompat.ingredientItems(this.ingredient);
-            return displayStacks.length == 0 ? ItemStack.EMPTY : displayStacks[Mth.floor(GenericGhostRecipe.this.time / 30.0F) % displayStacks.length];
+            ItemStack[] itemStacks = this.ingredient.getItems();
+            return itemStacks.length == 0 ? ItemStack.EMPTY : itemStacks[Mth.floor(GenericGhostRecipe.this.time / 30.0F) % itemStacks.length];
         }
 
         public int getContainerSlot() {

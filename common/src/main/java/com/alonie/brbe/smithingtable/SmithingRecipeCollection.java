@@ -37,33 +37,4 @@ public class SmithingRecipeCollection extends GenericRecipeBookCollection<BRBSmi
 
         return false;
     }
-
-    @Override
-    public boolean isCraftable(BRBSmithingRecipe recipe, NonNullList<Slot> slots) {
-        return recipe.hasMaterials(slots, registryAccess);
-    }
-
-    @Override
-    public boolean atleastOnePartiallyCraftable(NonNullList<Slot> slots) {
-        for (BRBSmithingRecipe recipe : this.recipes) {
-            if (recipe.hasPartialMaterials(slots, registryAccess)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    @Override
-    public List<BRBSmithingRecipe> getPartiallyCraftableRecipes(NonNullList<Slot> slots) {
-        List<BRBSmithingRecipe> list = Lists.newArrayList();
-
-        for (BRBSmithingRecipe recipe : this.recipes) {
-            if (!recipe.hasMaterials(slots, registryAccess) && recipe.hasPartialMaterials(slots, registryAccess)) {
-                list.add(recipe);
-            }
-        }
-
-        return list;
-    }
 }
