@@ -70,6 +70,19 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         int offset = 4;
         gui.renderFakeItem(result, getX() + offset, getY() + offset);
 
+        // red overlay for partially craftable recipes
+        if (BetterRecipeBook.config.partialCraftableEqualsCraftable) {
+            R current = getCurrentDisplayedRecipe();
+            if (current != null) {
+                for (R partial : this.collection.getPartiallyCraftableRecipes()) {
+                    if (partial.id().equals(current.id())) {
+                        gui.fill(getX() + 1, getY() + 1, getX() + this.width - 1, getY() + this.height - 1, 0x60FF3333);
+                        break;
+                    }
+                }
+            }
+        }
+
         // if pinned recipe, blit the pin texture over it
         if (BetterRecipeBook.config.enablePinning && BetterRecipeBook.pinnedRecipeManager.has(collection)) {
             ClientCompat.blitSprite(gui, BRBTextures.RECIPE_BOOK_PIN_SPRITE, getX() - 4, getY() - 4, 32, 32);
