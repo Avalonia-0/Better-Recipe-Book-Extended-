@@ -26,6 +26,11 @@ dependencies {
         exclude group: "net.fabricmc.fabric-api"
     }
     implementation "me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}"
+    def jeiJarPath = rootProject.findProperty("jei_fabric_jar")
+            ?: "/media/avalonia/data/MinecraftLib/versions/26.1.2-Fabric/mods/jei-26.1.2-fabric-29.6.2.31.jar"
+    if (file(jeiJarPath).exists()) {
+        compileOnly files(jeiJarPath)
+    }
     implementation(project(path: ":common"))
 }
 
