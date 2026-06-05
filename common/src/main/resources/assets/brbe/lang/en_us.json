@@ -35,6 +35,6 @@
   "brbe.gui.smithable": "Showing Smithable",
   "category.brbe": "Better Recipe Book",
   "key.brbe.pin": "Pin Recipe",
-  "key.brbe.recipeView": "View Recipe (REI)",
-  "key.brbe.usageView": "View Usage (REI)"
+  "key.brbe.recipeView": "View Recipe",
+  "key.brbe.usageView": "View Usage"
 }

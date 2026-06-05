@@ -34,6 +34,6 @@
   "brbe.gui.smithable": "显示可锻造",
   "category.brbe": "更好的配方书",
   "key.brbe.pin": "固定配方",
-  "key.brbe.recipeView": "查看配方 (REI)",
-  "key.brbe.usageView": "查看用途 (REI)"
+  "key.brbe.recipeView": "查看配方",
+  "key.brbe.usageView": "查看用途"
 }

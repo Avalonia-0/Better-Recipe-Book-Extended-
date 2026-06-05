@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.api.BRBBookSettings;
-import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.interfaces.IPinningComponent;
 import com.alonie.brbe.interfaces.ISettingsButton;
 import com.alonie.brbe.util.ClientCompat;
@@ -235,24 +234,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             }
         }
 
-        // REI integration: open recipe/usage views for hovered item
-        if (ReiCompat.isLoaded()) {
-            // Check recipe buttons first
-            if (this.recipesPage.hoveredButton != null) {
-                R hoveredRecipe = this.recipesPage.hoveredButton.getCurrentDisplayedRecipe();
-                if (hoveredRecipe != null) {
-                    ItemStack hoveredStack = hoveredRecipe.getResult(registryAccess, this.recipesPage.hoveredButton.category);
-                    if (ClientCompat.matches(BetterRecipeBook.RECIPE_VIEW_MAPPING, i, j, k)) {
-                        return ReiCompat.openRecipeView(hoveredStack);
-                    }
-                    if (ClientCompat.matches(BetterRecipeBook.USAGE_VIEW_MAPPING, i, j, k)) {
-                        return ReiCompat.openUsageView(hoveredStack);
-                    }
-                }
-            }
-
-
-        }
 
         return false;
     }

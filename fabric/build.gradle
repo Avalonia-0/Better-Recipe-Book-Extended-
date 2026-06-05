@@ -15,15 +15,13 @@ configurations {
 
 dependencies {
     implementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
-    implementation files(
-        rootProject.file("libs/fabric-api-${rootProject.fabric_api_version}.jar"),
-        rootProject.file("libs/fabric-api-base-2.0.3+ece063234c.jar"),
-        rootProject.file("libs/fabric-lifecycle-events-v1-4.1.0+6d50a0854c.jar"),
-        rootProject.file("libs/fabric-screen-api-v1-5.0.1+d871b99e4c.jar"),
-        rootProject.file("libs/fabric-key-mapping-api-v1-2.0.4+e2bdee784c.jar")
-    )
-    implementation files(rootProject.file("libs/architectury-fabric-${rootProject.architectury_version}.jar"))
-    implementation files(rootProject.file("libs/cloth-config-${rootProject.cloth_config_version}.jar"))
+    implementation("net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}") {
+        exclude group: "net.fabricmc.fabric-api", module: "fabric-api-base"
+    }
+    implementation("dev.architectury:architectury-fabric:${rootProject.architectury_version}") {
+        exclude group: "net.fabricmc.fabric-api"
+    }
+    implementation "me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}"
     implementation(project(path: ":common"))
 }
 

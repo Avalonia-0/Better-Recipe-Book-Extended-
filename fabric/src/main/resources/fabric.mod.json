@@ -30,9 +30,6 @@
     "client": [
       "com.alonie.brbe.fabric.BetterRecipeBookClientFabric"
     ],
-    "rei_client": [
-      "com.alonie.brbe.fabric.compat.rei.BetterRecipeBookREIPlugin"
-    ],
     "modmenu": [
       "com.alonie.brbe.fabric.ModMenuFabric"
     ]

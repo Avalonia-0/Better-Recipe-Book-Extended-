@@ -21,7 +21,6 @@ subprojects {
             compileOnly("dev.architectury:architectury-fabric:${rootProject.architectury_version}") {
                 exclude group: "net.fabricmc.fabric-api"
             }
-            compileOnly files(rootProject.file("libs/cloth-config-${rootProject.cloth_config_version}.jar"))
         }
     }
 

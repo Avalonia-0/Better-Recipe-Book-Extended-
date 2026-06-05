@@ -38,10 +38,10 @@ dependencies {
     compileOnly "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
 
     // Architectury API (local jar)
-    implementation files(rootProject.file("libs/architectury-neoforge-${rootProject.architectury_version}.jar"))
+    implementation("dev.architectury:architectury-neoforge:${rootProject.architectury_version}")
 
     // Cloth Config (NeoForge version — includes neoforge.mods.toml to suppress warning)
-    implementation files(rootProject.file("libs/cloth-config-neoforge-${rootProject.cloth_config_version}.jar"))
+    implementation("me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}")
 
     // Common module (loom-no-remap does not provide namedElements/transformProduction*)
     common(project(path: ":common")) { transitive false }
