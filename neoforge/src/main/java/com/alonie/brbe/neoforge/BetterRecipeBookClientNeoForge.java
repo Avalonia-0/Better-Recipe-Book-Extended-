@@ -6,6 +6,7 @@ import dev.architectury.event.events.client.ClientTickEvent;
 import dev.architectury.platform.Platform;
 import dev.architectury.platform.client.ConfigurationScreenRegistry;
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.brewingstand.neoforge.PlatformPotionUtilImpl;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.config.Config;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
@@ -26,6 +27,9 @@ public class BetterRecipeBookClientNeoForge {
     private static final Set<Screen> registeredScreens = Collections.newSetFromMap(new WeakHashMap<>());
 
     public static void init() {
+        // Register platform provider
+        PlatformPotionUtilImpl.init();
+
         // Register configuration screen for NeoForge built-in mod menu
         ConfigurationScreenRegistry.register(
                 Platform.getMod(BetterRecipeBook.MOD_ID),

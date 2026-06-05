@@ -11,7 +11,6 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.alchemy.Potion;
-import net.minecraft.world.item.alchemy.PotionBrewing;
 import net.minecraft.world.item.alchemy.PotionContents;
 
 import java.util.List;
@@ -19,10 +18,10 @@ import java.util.List;
 import static com.alonie.brbe.brewingstand.PlatformPotionUtil.*;
 
 public class BrewableResult implements GenericRecipe {
-    public PotionBrewing.Mix<Potion> recipe;
+    public Object recipe;
     public Identifier input;
 
-    public BrewableResult(PotionBrewing.Mix<Potion> recipe) {
+    public BrewableResult(Object recipe) {
         this.recipe = recipe;
         this.input = BuiltInRegistries.POTION.getKey(getFrom(recipe));
     }
