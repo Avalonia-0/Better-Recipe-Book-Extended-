@@ -14,7 +14,7 @@ import java.util.List;
 @Mixin(RecipeButton.class)
 public abstract class RecipeButtonMixin {
 
-    @Inject(method = "getTooltipText", locals = LocalCapture.CAPTURE_FAILHARD, at = @At("RETURN"))
+    @Inject(method = "getTooltipText", locals = LocalCapture.CAPTURE_FAILSOFT, at = @At("RETURN"))
     public void getTooltip(CallbackInfoReturnable<List<Component>> cir, ItemStack itemStack, List<Component> list) {
     }
 }

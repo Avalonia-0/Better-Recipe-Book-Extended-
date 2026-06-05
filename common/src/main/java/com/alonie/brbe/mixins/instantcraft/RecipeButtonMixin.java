@@ -33,7 +33,8 @@ public class RecipeButtonMixin {
 
     @Inject(method = "init", at = @At(value = "HEAD"))
     public void init(RecipeCollection collection, RecipeBookPage recipeBookPage, CallbackInfo ci) {
-        if (BetterRecipeBook.instantCraftingManager.lastHoveredCollection == collection) {
+        if (BetterRecipeBook.instantCraftingManager.lastHoveredCollection == collection
+                && BetterRecipeBook.instantCraftingManager.lastClickedRecipe != null) {
             BetterRecipeBook.instantCraftingManager.lastHoveredCollection = null;
             betterRecipeBook$lastClicked = List.of(BetterRecipeBook.instantCraftingManager.lastClickedRecipe);
         }

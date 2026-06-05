@@ -8,6 +8,7 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.inventory.SmithingMenu;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class SmithingRecipeCollection extends GenericRecipeBookCollection<BRBSmithingRecipe, SmithingMenu> {
@@ -51,5 +52,21 @@ public class SmithingRecipeCollection extends GenericRecipeBookCollection<BRBSmi
             }
         }
         return false;
+    }
+
+    @Override
+    public List<BRBSmithingRecipe> getPartiallyCraftableRecipes(NonNullList<Slot> slots) {
+        List<BRBSmithingRecipe> partial = new ArrayList<>();
+        for (BRBSmithingRecipe recipe : this.recipes) {
+            if (!recipe.hasMaterials(slots, registryAccess)) {
+                boolean hasTemplate = recipe.hasTemplate(slots);
+                boolean hasBase = recipe.hasBase(slots, registryAccess);
+                boolean hasAddition = recipe.hasAddition(slots);
+                if ((hasTemplate || hasBase || hasAddition) && !(hasTemplate && hasBase && hasAddition)) {
+                    partial.add(recipe);
+                }
+            }
+        }
+        return partial;
     }
 }

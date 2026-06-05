@@ -46,4 +46,8 @@ public abstract class GenericRecipeBookCollection<R extends GenericRecipe, M ext
     protected boolean atleastOnePartiallyCraftable(NonNullList<Slot> slots) {
         return false;
     }
+
+    public List<R> getPartiallyCraftableRecipes(NonNullList<Slot> slots) {
+        return List.of();
+    }
 }

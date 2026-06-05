@@ -10,6 +10,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.BrewingStandMenu;
 import net.minecraft.world.inventory.Slot;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class BrewingRecipeCollection extends GenericRecipeBookCollection<BrewableResult, BrewingStandMenu> implements Pinnable {
@@ -67,5 +68,20 @@ public class BrewingRecipeCollection extends GenericRecipeBookCollection<Brewabl
             }
         }
         return false;
+    }
+
+    @Override
+    public List<BrewableResult> getPartiallyCraftableRecipes(NonNullList<Slot> slots) {
+        List<BrewableResult> partial = new ArrayList<>();
+        for (BrewableResult recipe : this.recipes) {
+            if (!recipe.hasMaterials(this.category, slots)) {
+                boolean hasIngredient = recipe.hasIngredient(slots);
+                boolean hasInput = recipe.hasInput(this.category, slots);
+                if ((hasIngredient || hasInput) && !(hasIngredient && hasInput)) {
+                    partial.add(recipe);
+                }
+            }
+        }
+        return partial;
     }
 }
