@@ -1,6 +1,7 @@
 package com.alonie.brbe.neoforge;
 
 import dev.architectury.event.events.client.ClientGuiEvent;
+import dev.architectury.event.events.client.ClientLifecycleEvent;
 import dev.architectury.event.events.client.ClientTickEvent;
 import dev.architectury.platform.Platform;
 import dev.architectury.platform.client.ConfigurationScreenRegistry;
@@ -30,8 +31,8 @@ public class BetterRecipeBookClientNeoForge {
                 parent -> AutoConfigClient.getConfigScreen(Config.class, parent).get()
         );
 
-        // Register REI compat handler (checked at runtime)
-        registerReiCompat();
+        // Defer REI compat registration until client starts (after all mods are loaded)
+        ClientLifecycleEvent.CLIENT_STARTED.register(client -> registerReiCompat());
 
         ClientGuiEvent.INIT_POST.register((screen, access) -> {
             if (screen != null) {
