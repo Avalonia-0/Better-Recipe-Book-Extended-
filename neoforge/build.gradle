@@ -82,7 +82,7 @@ sourcesJar {
 }
 
 base {
-    archivesName = "BetterRecipeBookExtended-neoforge-${rootProject.minecraft_version}"
+    archivesName = "${rootProject.archives_base_name}-neoforge-${rootProject.minecraft_version}"
 }
 
 components.java {
