@@ -6,3 +6,4 @@
 # IDE
 neoforge/.gradle/
 neoforge/build/
+.architectury-transformer/debug.log
