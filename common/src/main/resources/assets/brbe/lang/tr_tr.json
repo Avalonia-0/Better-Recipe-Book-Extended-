@@ -24,10 +24,10 @@
   "text.autoconfig.brbe.option.newRecipes.unlockAll": "Bütün tarifleri otomatik olarak aç",
   "text.autoconfig.brbe.option.newRecipes.enableBounce": "Açılma sekme animasyonunu aktif et",
   "text.autoconfig.brbe.option.newRecipes.enableBounce.@Tooltip": "Yeni bir eşya tarifi açtığındaki küçük sekme animasyonunu göster",
-  "brbe.gui.pin.add": "Bu tarifi sabitlemek için F tuşuna bas",
-  "brbe.gui.pin.remove": "Bu tarifin sabitlemesini kaldırmak için için F tuşuna bas",
-  "brbe.gui.togglePotions.brewable": "Üretilebilir İksirler Gösteriliyor",
-  "brbe.gui.instantCraft.on": "Anında üretim açık",
-  "brbe.gui.instantCraft.off": "Anında üretim kapalı",
-  "brbe.gui.settings.open": "Ayarları aç"
+  "brb.gui.pin.add": "Bu tarifi sabitlemek için F tuşuna bas",
+  "brb.gui.pin.remove": "Bu tarifin sabitlemesini kaldırmak için için F tuşuna bas",
+  "brb.gui.togglePotions.brewable": "Üretilebilir İksirler Gösteriliyor",
+  "brb.gui.instantCraft.on": "Anında üretim açık",
+  "brb.gui.instantCraft.off": "Anında üretim kapalı",
+  "brb.gui.settings.open": "Ayarları aç"
 }

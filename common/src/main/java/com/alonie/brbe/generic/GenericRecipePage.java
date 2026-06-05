@@ -121,7 +121,8 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     }
 
     protected void render(GuiGraphics gui, int blitX, int blitY, int mouseX, int mouseY, float delta) {
-        if (BetterRecipeBook.queuedScroll != 0 && BetterRecipeBook.config.scrolling.enableScrolling) {
+        if (BetterRecipeBook.queuedScroll != 0 && BetterRecipeBook.config.scrolling.enableScrolling
+                && mouseX >= blitX - 30 && mouseX < blitX + 147 && mouseY >= blitY && mouseY < blitY + 166) {
             if (totalPages > 1) {
                 currentPage += BetterRecipeBook.queuedScroll;
                 if (currentPage >= totalPages) {

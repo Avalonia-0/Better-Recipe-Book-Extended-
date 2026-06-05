@@ -25,11 +25,11 @@
   "text.autoconfig.brbe.option.newRecipes.unlockAll": "Автоматически разблокировывать все рецепты",
   "text.autoconfig.brbe.option.newRecipes.enableBounce": "Включить анимацию разблокировки",
   "text.autoconfig.brbe.option.newRecipes.enableBounce.@Tooltip": "Анимация маленького подпрыгивания\nпри разблокировке нового предмета",
-  "brbe.gui.pin.add": "§8§oЗакрепить на F",
-  "brbe.gui.pin.remove": "§8§oОткрепить на F",
-  "brbe.gui.togglePotions.brewable": "Доступно к варке",
-  "brbe.gui.instantCraft.on": "Моментальное создание",
-  "brbe.gui.instantCraft.off": "Обычное создание",
-  "brbe.gui.settings.open": "Настройки",
+  "brb.gui.pin.add": "§8§oЗакрепить на F",
+  "brb.gui.pin.remove": "§8§oОткрепить на F",
+  "brb.gui.togglePotions.brewable": "Доступно к варке",
+  "brb.gui.instantCraft.on": "Моментальное создание",
+  "brb.gui.instantCraft.off": "Обычное создание",
+  "brb.gui.settings.open": "Настройки",
   "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§eПодсказка: §7Если вы отключите любой из этих двух параметров, используйте Mod Menu, чтобы снова открыть их."
 }

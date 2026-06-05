@@ -259,12 +259,34 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         }
 
         if (BRBBookSettings.isFiltering(this.getRecipeBookType())) {
-            results.removeIf((result) -> !result.atleastOneCraftable(this.menu.slots));
+            results.removeIf((result) -> !result.atleastOneCraftable(this.menu.slots)
+                    && (!BetterRecipeBook.config.partialCraftableEqualsCraftable || !result.atleastOnePartiallyCraftable(this.menu.slots)));
         }
 
         this.betterRecipeBook$sortByPinsInPlace(results);
 
+        if (BRBBookSettings.isFiltering(this.getRecipeBookType()) && BetterRecipeBook.config.partialCraftableEqualsCraftable) {
+            this.betterRecipeBook$sortCraftableBeforePartial(results);
+        }
+
         this.recipesPage.setResults(results, b, selectedTab.getCategory());
+    }
+
+    private void betterRecipeBook$sortCraftableBeforePartial(List<C> results) {
+        List<C> craftableResults = new ArrayList<>();
+        List<C> partialResults = new ArrayList<>();
+
+        for (C result : results) {
+            if (result.atleastOneCraftable(this.menu.slots)) {
+                craftableResults.add(result);
+            } else {
+                partialResults.add(result);
+            }
+        }
+
+        results.clear();
+        results.addAll(craftableResults);
+        results.addAll(partialResults);
     }
 
     private void pirateSpeechForThePeople(String string) {

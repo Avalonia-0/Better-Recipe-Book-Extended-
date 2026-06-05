@@ -42,4 +42,8 @@ public abstract class GenericRecipeBookCollection<R extends GenericRecipe, M ext
     }
 
     protected abstract boolean atleastOneCraftable(NonNullList<Slot> slots);
+
+    protected boolean atleastOnePartiallyCraftable(NonNullList<Slot> slots) {
+        return false;
+    }
 }

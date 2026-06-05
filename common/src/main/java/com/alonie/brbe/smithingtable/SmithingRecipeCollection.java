@@ -37,4 +37,19 @@ public class SmithingRecipeCollection extends GenericRecipeBookCollection<BRBSmi
 
         return false;
     }
+
+    @Override
+    protected boolean atleastOnePartiallyCraftable(NonNullList<Slot> slots) {
+        for (BRBSmithingRecipe recipe : this.recipes) {
+            if (!recipe.hasMaterials(slots, registryAccess)) {
+                boolean hasTemplate = recipe.hasTemplate(slots);
+                boolean hasBase = recipe.hasBase(slots, registryAccess);
+                boolean hasAddition = recipe.hasAddition(slots);
+                if ((hasTemplate || hasBase || hasAddition) && !(hasTemplate && hasBase && hasAddition)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }
