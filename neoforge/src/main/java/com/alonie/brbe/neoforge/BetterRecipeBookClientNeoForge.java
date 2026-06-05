@@ -6,6 +6,7 @@ import dev.architectury.event.events.client.ClientTickEvent;
 import dev.architectury.platform.Platform;
 import dev.architectury.platform.client.ConfigurationScreenRegistry;
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.config.Config;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import me.shedaniel.autoconfig.AutoConfigClient;
@@ -32,7 +33,7 @@ public class BetterRecipeBookClientNeoForge {
         );
 
         // Defer REI compat registration until client starts (after all mods are loaded)
-        ClientLifecycleEvent.CLIENT_STARTED.register(client -> registerReiCompat());
+        ClientLifecycleEvent.CLIENT_STARTED.register(client -> ReiCompat.register());
 
         ClientGuiEvent.INIT_POST.register((screen, access) -> {
             if (screen != null) {
@@ -52,44 +53,6 @@ public class BetterRecipeBookClientNeoForge {
                     TopLayerOverlayRenderer.render(screen, guiGraphics, mouseX, mouseY, delta);
                 }
             });
-        });
-    }
-
-    private static void registerReiCompat() {
-        if (!Platform.isModLoaded("roughlyenoughitems")) return;
-
-        com.alonie.brbe.compat.rei.ReiCompat.setHandler(new com.alonie.brbe.compat.rei.ReiCompat.ReiHandler() {
-            @Override
-            public boolean openRecipeView(net.minecraft.world.item.ItemStack stack) {
-                try {
-                    Class<?> clientHelperClass = Class.forName("me.shedaniel.rei.api.client.ClientHelper");
-                    Object instance = clientHelperClass.getMethod("getInstance").invoke(null);
-                    Class<?> builderClass = Class.forName("me.shedaniel.rei.api.client.view.ViewSearchBuilder");
-                    Object builder = builderClass.getMethod("builder").invoke(null);
-                    Class<?> entryStacksClass = Class.forName("me.shedaniel.rei.api.common.util.EntryStacks");
-                    Object entryStack = entryStacksClass.getMethod("of", net.minecraft.world.item.ItemStack.class).invoke(null, stack);
-                    builderClass.getMethod("addRecipesFor", entryStack.getClass()).invoke(builder, entryStack);
-                    return (Boolean) clientHelperClass.getMethod("openView", builderClass).invoke(instance, builder);
-                } catch (Exception e) {
-                    return false;
-                }
-            }
-
-            @Override
-            public boolean openUsageView(net.minecraft.world.item.ItemStack stack) {
-                try {
-                    Class<?> clientHelperClass = Class.forName("me.shedaniel.rei.api.client.ClientHelper");
-                    Object instance = clientHelperClass.getMethod("getInstance").invoke(null);
-                    Class<?> builderClass = Class.forName("me.shedaniel.rei.api.client.view.ViewSearchBuilder");
-                    Object builder = builderClass.getMethod("builder").invoke(null);
-                    Class<?> entryStacksClass = Class.forName("me.shedaniel.rei.api.common.util.EntryStacks");
-                    Object entryStack = entryStacksClass.getMethod("of", net.minecraft.world.item.ItemStack.class).invoke(null, stack);
-                    builderClass.getMethod("addUsagesFor", entryStack.getClass()).invoke(builder, entryStack);
-                    return (Boolean) clientHelperClass.getMethod("openView", builderClass).invoke(instance, builder);
-                } catch (Exception e) {
-                    return false;
-                }
-            }
         });
     }
 }
