@@ -35,6 +35,13 @@ versionRange = "[13,)"
 ordering = "AFTER"
 side = "CLIENT"
 
+[[dependencies.brbe]]
+modId = "jei"
+type = "optional"
+versionRange = "[27,)"
+ordering = "AFTER"
+side = "CLIENT"
+
 [[mixins]]
 config = "mixins.brbe.json"
 
@@ -43,4 +50,3 @@ config = "mixins.brbe-common.json"
 
 [[mixins]]
 config = "mixins.brbe-common-compat.json"
-

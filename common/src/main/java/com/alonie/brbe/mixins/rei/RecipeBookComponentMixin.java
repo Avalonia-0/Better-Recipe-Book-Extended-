@@ -1,7 +1,7 @@
 package com.alonie.brbe.mixins.rei;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.compat.rei.ReiCompat;
+import com.alonie.brbe.compat.ItemViewCompat;
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor;
 import com.alonie.brbe.util.ClientCompat;
@@ -31,7 +31,7 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "keyPressed", at = @At("RETURN"), cancellable = true)
     private void betterRecipeBook$handleReiKeys(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
-        if (!ReiCompat.isLoaded()) {
+        if (!ItemViewCompat.isLoaded()) {
             return;
         }
 
@@ -48,9 +48,9 @@ public abstract class RecipeBookComponentMixin {
                 ItemStack hoveredStack = button.getDisplayStack();
                 if (hoveredStack != null && !hoveredStack.isEmpty()) {
                     if (ClientCompat.matches(BetterRecipeBook.RECIPE_VIEW_MAPPING, event.key(), event.scancode(), event.modifiers())) {
-                        cir.setReturnValue(ReiCompat.openRecipeView(hoveredStack));
+                        cir.setReturnValue(ItemViewCompat.openRecipeView(hoveredStack));
                     } else if (ClientCompat.matches(BetterRecipeBook.USAGE_VIEW_MAPPING, event.key(), event.scancode(), event.modifiers())) {
-                        cir.setReturnValue(ReiCompat.openUsageView(hoveredStack));
+                        cir.setReturnValue(ItemViewCompat.openUsageView(hoveredStack));
                     }
                 }
                 return;

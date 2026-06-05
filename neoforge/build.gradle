@@ -40,6 +40,12 @@ dependencies {
     modApi "me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}"
     include "me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}"
 
+    def jeiJarPath = rootProject.findProperty("jei_neoforge_jar")
+            ?: "/media/avalonia/data/MinecraftLib/versions/1.21.11-NeoForge/mods/jei-1.21.11-neoforge-27.4.0.22.jar"
+    if (file(jeiJarPath).exists()) {
+        compileOnly files(jeiJarPath)
+    }
+
     common(project(path: ":common", configuration: "namedElements")) { transitive false }
     shadowBundle project(path: ":common", configuration: "transformProductionNeoForge")
 }
