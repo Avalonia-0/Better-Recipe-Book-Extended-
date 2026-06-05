@@ -15,20 +15,28 @@ public class RecipeUnlockUtil {
         }
     }
 
+    public static void syncToConfig() {
+        if (BetterRecipeBook.config.newRecipes.unlockAll) {
+            unlockRecipes();
+        }
+    }
+
     /**
      * Unlocks all recipes that the RecipeManager knows of, then updates any screen implementing RecipeUpdateListener
      */
     public static void unlockRecipes() {
         Minecraft minecraft = Minecraft.getInstance();
         LocalPlayer player = minecraft.player;
-        if (player != null && player.connection != null) {
-            RecipeManager recipeManager = player.connection.getRecipeManager();
-            ClientRecipeBook recipeBook = player.getRecipeBook();
-            recipeManager.getRecipes().forEach(recipeBook::add);
-            recipeBook.getCollections().forEach(recipeCollection -> recipeCollection.updateKnownRecipes(recipeBook));
-            if (minecraft.screen instanceof RecipeUpdateListener rul) {
-                rul.recipesUpdated();
-            }
+        if (player == null || player.connection == null) {
+            return;
+        }
+
+        RecipeManager recipeManager = player.connection.getRecipeManager();
+        ClientRecipeBook recipeBook = player.getRecipeBook();
+        recipeManager.getRecipes().forEach(recipeBook::add);
+        recipeBook.getCollections().forEach(recipeCollection -> recipeCollection.updateKnownRecipes(recipeBook));
+        if (minecraft.screen instanceof RecipeUpdateListener rul) {
+            rul.recipesUpdated();
         }
     }
 

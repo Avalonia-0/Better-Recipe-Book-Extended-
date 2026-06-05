@@ -11,7 +11,6 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 
 @Mixin(RecipeBookComponent.class)
 public interface RecipeBookComponentAccessor {
-
     @Accessor("ghostRecipe")
     GhostRecipe getGhostRecipe();
 
@@ -39,5 +38,4 @@ public interface RecipeBookComponentAccessor {
     static Component getALL_RECIPES_TOOLTIP() {
         throw new AssertionError();
     }
-
 }

@@ -4,12 +4,15 @@ import com.mojang.blaze3d.platform.InputConstants;
 import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.config.Config;
+import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.util.BRBHelper;
+import com.alonie.brbe.util.RecipeUnlockUtil;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.ConfigHolder;
 import me.shedaniel.autoconfig.serializer.Toml4jConfigSerializer;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import org.apache.logging.log4j.LogManager;
@@ -62,6 +65,7 @@ public class BetterRecipeBook {
 
     public static void init() {
         PotionLoader.init();
+        ReiCompat.register();
 
         queuedScroll = 0;
         isFilteringNone = true;
@@ -69,6 +73,10 @@ public class BetterRecipeBook {
         AutoConfig.register(Config.class, Toml4jConfigSerializer::new);
 
         configHolder = AutoConfig.getConfigHolder(Config.class);
+        configHolder.registerSaveListener((holder, config) -> {
+            RecipeUnlockUtil.syncToConfig();
+            return InteractionResult.SUCCESS;
+        });
         config = configHolder.getConfig();
 
         pinnedRecipeManager = new PinnedRecipeManager();

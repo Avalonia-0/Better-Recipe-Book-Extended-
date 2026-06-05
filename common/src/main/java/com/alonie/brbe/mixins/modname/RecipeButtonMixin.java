@@ -9,20 +9,16 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.util.List;
 
 @Mixin(RecipeButton.class)
 public abstract class RecipeButtonMixin {
 
-    @Inject(method = "getTooltipText", at = @At("RETURN"))
-    private void betterRecipeBook$appendModName(ItemStack itemStack, CallbackInfoReturnable<List<Component>> cir) {
+    @Inject(method = "getTooltipText", locals = LocalCapture.CAPTURE_FAILHARD, at = @At("RETURN"))
+    private void betterRecipeBook$appendModName(CallbackInfoReturnable<List<Component>> cir, ItemStack itemStack, List<Component> list) {
         if (!BetterRecipeBook.config.showModName) {
-            return;
-        }
-
-        List<Component> tooltip = cir.getReturnValue();
-        if (tooltip == null || tooltip.isEmpty()) {
             return;
         }
 
@@ -31,7 +27,7 @@ public abstract class RecipeButtonMixin {
             return;
         }
 
-        tooltip.add(Component.empty());
-        tooltip.add(modName);
+        list.add(Component.empty());
+        list.add(modName);
     }
 }

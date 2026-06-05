@@ -1,4 +1,4 @@
-package com.alonie.brbe.neoforge.mixins.accessors;
+package com.alonie.brbe.neoforge.Mixins.Accessors;
 
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionBrewing;

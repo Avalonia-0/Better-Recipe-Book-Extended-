@@ -1,11 +1,14 @@
 package com.alonie.brbe.mixins;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.interfaces.TopLayerOverlayProvider;
 import com.alonie.brbe.smithingtable.SmithingRecipeBookComponent;
+import com.alonie.brbe.smithingtable.SmithingRecipeBookPage;
 import com.alonie.brbe.util.BRBTextures;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ImageButton;
+import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.screens.inventory.CyclingSlotBackground;
 import net.minecraft.client.gui.screens.inventory.ItemCombinerScreen;
 import net.minecraft.client.gui.screens.inventory.SmithingScreen;
@@ -26,7 +29,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(SmithingScreen.class)
-public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMenu> {
+public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMenu> implements TopLayerOverlayProvider {
     @Shadow
     protected abstract void updateArmorStandPreview(ItemStack itemStack);
 
@@ -87,6 +90,15 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     }
 
     @Override
+    public boolean mouseClicked(double mouseX, double mouseY, int button) {
+        if (this.betterRecipeBook$clickTopLayerOverlay(mouseX, mouseY, button)) {
+            return true;
+        }
+
+        return super.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
     protected void slotClicked(Slot slot, int x, int y, ClickType clickType) {
         // clear ghost recipe if an empty ingredient slot is clicked with no items
         if (BetterRecipeBook.config.enableBook && slot != null && slot.index < 4 && menu.getCarried().isEmpty() && menu.slots.get(slot.index).getItem().isEmpty()) {
@@ -132,5 +144,33 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
         if (i == SmithingMenu.BASE_SLOT || i == SmithingMenu.ADDITIONAL_SLOT || i == SmithingMenu.TEMPLATE_SLOT || i == SmithingMenu.RESULT_SLOT) {
             _$recipeBookComponent.ghostRecipe.clear();
         }
+    }
+
+    @Override
+    public boolean betterRecipeBook$hasTopLayerOverlay() {
+        return this._$recipeBookComponent.isVisible()
+                && this._$recipeBookComponent.recipesPage instanceof SmithingRecipeBookPage page
+                && page.overlayIsVisible();
+    }
+
+    @Override
+    public void betterRecipeBook$renderTopLayerOverlay(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        if (this.betterRecipeBook$hasTopLayerOverlay()) {
+            ((SmithingRecipeBookPage) this._$recipeBookComponent.recipesPage).overlay.render(guiGraphics, mouseX, mouseY, partialTick);
+        }
+    }
+
+    @Override
+    public boolean betterRecipeBook$clickTopLayerOverlay(double mouseX, double mouseY, int button) {
+        return this.betterRecipeBook$hasTopLayerOverlay() && this._$recipeBookComponent.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public ScreenRectangle betterRecipeBook$getTopLayerOverlayBounds() {
+        if (this.betterRecipeBook$hasTopLayerOverlay()) {
+            return ((SmithingRecipeBookPage) this._$recipeBookComponent.recipesPage).overlay.getBounds();
+        }
+
+        return null;
     }
 }

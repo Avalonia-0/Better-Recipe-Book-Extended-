@@ -10,6 +10,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.Renderable;
 import net.minecraft.client.gui.components.events.GuiEventListener;
+import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.network.chat.CommonComponents;
@@ -95,6 +96,30 @@ public class SmithingOverlayRecipeComponent implements Renderable, GuiEventListe
 
     public boolean isFocused() {
         return false;
+    }
+
+    public ScreenRectangle getBounds() {
+        if (this.recipeButtons.isEmpty()) {
+            return null;
+        }
+
+        int left = Integer.MAX_VALUE;
+        int top = Integer.MAX_VALUE;
+        int right = Integer.MIN_VALUE;
+        int bottom = Integer.MIN_VALUE;
+
+        for (OverlayRecipeButton button : this.recipeButtons) {
+            left = Math.min(left, button.getX());
+            top = Math.min(top, button.getY());
+            right = Math.max(right, button.getX() + button.getWidth());
+            bottom = Math.max(bottom, button.getY() + button.getHeight());
+        }
+
+        left -= 4;
+        top -= 5;
+        right += 5;
+        bottom += 4;
+        return new ScreenRectangle(left, top, right - left, bottom - top);
     }
 
     @Override
