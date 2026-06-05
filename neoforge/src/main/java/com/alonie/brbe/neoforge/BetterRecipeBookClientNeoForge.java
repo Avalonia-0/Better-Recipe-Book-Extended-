@@ -2,7 +2,12 @@ package com.alonie.brbe.neoforge;
 
 import dev.architectury.event.events.client.ClientGuiEvent;
 import dev.architectury.event.events.client.ClientTickEvent;
+import dev.architectury.platform.Platform;
+import dev.architectury.platform.client.ConfigurationScreenRegistry;
+import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.config.Config;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
+import me.shedaniel.autoconfig.AutoConfigClient;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 
@@ -19,6 +24,17 @@ public class BetterRecipeBookClientNeoForge {
     private static final Set<Screen> registeredScreens = Collections.newSetFromMap(new WeakHashMap<>());
 
     public static void init() {
+        // Register platform provider
+
+        // Register configuration screen for NeoForge built-in mod menu
+        ConfigurationScreenRegistry.register(
+                Platform.getMod(BetterRecipeBook.MOD_ID),
+                parent -> AutoConfigClient.getConfigScreen(Config.class, parent).get()
+        );
+
+        // Register REI compat handler
+        registerReiCompat();
+
         ClientGuiEvent.INIT_POST.register((screen, firstInit) -> {
             if (screen != null) {
                 registeredScreens.remove(screen);
@@ -37,6 +53,44 @@ public class BetterRecipeBookClientNeoForge {
                     TopLayerOverlayRenderer.render(screen, guiGraphics, mouseX, mouseY, delta);
                 }
             });
+        });
+    }
+
+    private static void registerReiCompat() {
+        if (!Platform.isModLoaded("roughlyenoughitems")) return;
+
+        com.alonie.brbe.compat.rei.ReiCompat.setHandler(new com.alonie.brbe.compat.rei.ReiCompat.ReiHandler() {
+            @Override
+            public boolean openRecipeView(net.minecraft.world.item.ItemStack stack) {
+                try {
+                    Class<?> clientHelperClass = Class.forName("me.shedaniel.rei.api.client.ClientHelper");
+                    Object instance = clientHelperClass.getMethod("getInstance").invoke(null);
+                    Class<?> builderClass = Class.forName("me.shedaniel.rei.api.client.view.ViewSearchBuilder");
+                    Object builder = builderClass.getMethod("builder").invoke(null);
+                    Class<?> entryStacksClass = Class.forName("me.shedaniel.rei.api.common.util.EntryStacks");
+                    Object entryStack = entryStacksClass.getMethod("of", net.minecraft.world.item.ItemStack.class).invoke(null, stack);
+                    builderClass.getMethod("addRecipesFor", entryStack.getClass()).invoke(builder, entryStack);
+                    return (Boolean) clientHelperClass.getMethod("openView", builderClass).invoke(instance, builder);
+                } catch (Exception e) {
+                    return false;
+                }
+            }
+
+            @Override
+            public boolean openUsageView(net.minecraft.world.item.ItemStack stack) {
+                try {
+                    Class<?> clientHelperClass = Class.forName("me.shedaniel.rei.api.client.ClientHelper");
+                    Object instance = clientHelperClass.getMethod("getInstance").invoke(null);
+                    Class<?> builderClass = Class.forName("me.shedaniel.rei.api.client.view.ViewSearchBuilder");
+                    Object builder = builderClass.getMethod("builder").invoke(null);
+                    Class<?> entryStacksClass = Class.forName("me.shedaniel.rei.api.common.util.EntryStacks");
+                    Object entryStack = entryStacksClass.getMethod("of", net.minecraft.world.item.ItemStack.class).invoke(null, stack);
+                    builderClass.getMethod("addUsagesFor", entryStack.getClass()).invoke(builder, entryStack);
+                    return (Boolean) clientHelperClass.getMethod("openView", builderClass).invoke(instance, builder);
+                } catch (Exception e) {
+                    return false;
+                }
+            }
         });
     }
 }
