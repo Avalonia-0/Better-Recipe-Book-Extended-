@@ -26,7 +26,7 @@ public class RecipeButtonMixin {
 
     @Inject(method = "getOrderedRecipes", at = @At(value = "RETURN"), cancellable = true, locals = LocalCapture.CAPTURE_FAILSOFT)
     public void getOrderedRecipes(CallbackInfoReturnable<List<RecipeHolder<?>>> cir, List<RecipeHolder<?>> holders) {
-        if (holders.isEmpty()) {
+        if (holders.isEmpty() && betterRecipeBook$lastClicked != null) {
             cir.setReturnValue(new ArrayList<>(betterRecipeBook$lastClicked));
         }
     }
