@@ -29,21 +29,24 @@ public abstract class RecipeButtonMixin {
         return collection.hasCraftable() || PartialCraftingUtil.hasPartialMaterials(collection);
     }
 
-    @Redirect(method = "getOrderedRecipes", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getRecipes(Z)Ljava/util/List;"))
-    private List<RecipeHolder<?>> betterRecipeBook$includePartialInGetRecipes(RecipeCollection collection, boolean craftable) {
-        List<RecipeHolder<?>> result = new ArrayList<>(collection.getRecipes(craftable));
-        if (craftable && BetterRecipeBook.config.partialCraftableEqualsCraftable) {
-            Set<ResourceLocation> existingIds = new HashSet<>();
-            for (RecipeHolder<?> recipe : result) {
-                existingIds.add(recipe.id());
-            }
-            for (RecipeHolder<?> partial : PartialCraftingUtil.getPartiallyCraftableRecipes(collection)) {
-                if (!existingIds.contains(partial.id())) {
-                    result.add(partial);
-                }
+    @Inject(method = "getOrderedRecipes", at = @At("RETURN"), cancellable = true)
+    private void betterRecipeBook$includePartialInOrderedRecipes(CallbackInfoReturnable<List<RecipeHolder<?>>> cir) {
+        if (!BetterRecipeBook.config.partialCraftableEqualsCraftable) return;
+
+        List<RecipeHolder<?>> partials = PartialCraftingUtil.getPartiallyCraftableRecipes(this.collection);
+        if (partials.isEmpty()) return;
+
+        List<RecipeHolder<?>> result = new ArrayList<>(cir.getReturnValue());
+        Set<ResourceLocation> existing = new HashSet<>();
+        for (RecipeHolder<?> r : result) {
+            existing.add(r.id());
+        }
+        for (RecipeHolder<?> p : partials) {
+            if (!existing.contains(p.id())) {
+                result.add(p);
             }
         }
-        return result;
+        cir.setReturnValue(result);
     }
 
     @Inject(method = "isOnlyOption", at = @At("RETURN"), cancellable = true)
