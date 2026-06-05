@@ -24,18 +24,16 @@ public class BetterRecipeBookClientNeoForge {
     private static final Set<Screen> registeredScreens = Collections.newSetFromMap(new WeakHashMap<>());
 
     public static void init() {
-        // Register platform provider
-
         // Register configuration screen for NeoForge built-in mod menu
         ConfigurationScreenRegistry.register(
                 Platform.getMod(BetterRecipeBook.MOD_ID),
                 parent -> AutoConfigClient.getConfigScreen(Config.class, parent).get()
         );
 
-        // Register REI compat handler
+        // Register REI compat handler (checked at runtime)
         registerReiCompat();
 
-        ClientGuiEvent.INIT_POST.register((screen, firstInit) -> {
+        ClientGuiEvent.INIT_POST.register((screen, access) -> {
             if (screen != null) {
                 registeredScreens.remove(screen);
             }
