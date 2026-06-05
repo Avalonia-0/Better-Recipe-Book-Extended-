@@ -4,6 +4,7 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonPosAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeComponentAccessor;
 import com.alonie.brbe.util.BRBTextures;
+import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
@@ -48,12 +49,15 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
 
     @Inject(at = @At("HEAD"), method = "renderWidget", cancellable = true)
     public void renderWidget(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        boolean effectiveCraftable = this.isCraftable
+                || (BetterRecipeBook.config.partialCraftableEqualsCraftable
+                        && PartialCraftingUtil.isPartiallyCraftable(field_3113.getRecipeCollection(), this.recipe));
         ResourceLocation resourceLocation;
 
         if (((OverlayRecipeComponentAccessor) field_3113).isFurnaceMenu()) {
-            resourceLocation = BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(this.isCraftable, isHoveredOrFocused());
+            resourceLocation = BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(effectiveCraftable, isHoveredOrFocused());
         } else {
-            resourceLocation = BRBTextures.RECIPE_BOOK_CRAFTING_OVERLAY_SPRITE.get(this.isCraftable, isHoveredOrFocused());
+            resourceLocation = BRBTextures.RECIPE_BOOK_CRAFTING_OVERLAY_SPRITE.get(effectiveCraftable, isHoveredOrFocused());
         }
 
         gui.blitSprite(resourceLocation, getX(), getY(), this.width, this.height);

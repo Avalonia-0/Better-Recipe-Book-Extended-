@@ -28,7 +28,6 @@
     "instantcraft.RecipeBookComponentMixin",
     "instantcraft.RecipeBookPageMixin",
     "instantcraft.RecipeButtonMixin",
-    "incompletecrafting.OverlayRecipeComponentMixin",
     "incompletecrafting.RecipeBookComponentMixin",
     "incompletecrafting.RecipeButtonMixin",
     "RecipeBookComponentTabIconOffsetMixin",
