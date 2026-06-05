@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins.ungroup;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
@@ -36,7 +37,16 @@ public class RecipeBookComponentMixin {
             });
 
             if (this.book.isFiltering(this.menu)) {
-                list2.removeIf((recipeCollection) -> !recipeCollection.hasCraftable());
+                if (BetterRecipeBook.config.partialCraftableEqualsCraftable) {
+                    PartialCraftingUtil.beginFilteringUpdate(true);
+                    list2.removeIf((recipeCollection) -> {
+                        PartialCraftingUtil.markPartialMaterials(recipeCollection, this.menu.slots);
+                        return !recipeCollection.hasCraftable() && !PartialCraftingUtil.hasPartialMaterials(recipeCollection);
+                    });
+                    PartialCraftingUtil.sortCraftableBeforePartial(list2);
+                } else {
+                    list2.removeIf((recipeCollection) -> !recipeCollection.hasCraftable());
+                }
             }
 
             this.recipeBookPage.updateCollections(list2, bl);

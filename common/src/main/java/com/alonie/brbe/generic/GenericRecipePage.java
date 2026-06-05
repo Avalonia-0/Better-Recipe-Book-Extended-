@@ -121,9 +121,8 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     }
 
     protected void render(GuiGraphics gui, int blitX, int blitY, int mouseX, int mouseY, float delta) {
-        if (BetterRecipeBook.queuedScroll != 0 && BetterRecipeBook.config.scrolling.enableScrolling
-                && mouseX >= blitX - 30 && mouseX < blitX + 147 && mouseY >= blitY && mouseY < blitY + 166) {
-            if (totalPages > 1) {
+        if (BetterRecipeBook.queuedScroll != 0 && BetterRecipeBook.config.scrolling.enableScrolling) {
+            if (isMouseOverRecipeBookPage(mouseX, mouseY, blitX, blitY) && totalPages > 1) {
                 currentPage += BetterRecipeBook.queuedScroll;
                 if (currentPage >= totalPages) {
                     currentPage = BetterRecipeBook.config.scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;
@@ -154,6 +153,10 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
 
         this.backButton.render(gui, mouseX, mouseY, delta);
         this.forwardButton.render(gui, mouseX, mouseY, delta);
+    }
+
+    private static boolean isMouseOverRecipeBookPage(int mouseX, int mouseY, int left, int top) {
+        return mouseX >= left && mouseX < left + 147 && mouseY >= top && mouseY < top + 166;
     }
 
     public void setResults(List<C> recipeCollection, boolean resetCurrentPage, BRBBookCategories.Category category) {

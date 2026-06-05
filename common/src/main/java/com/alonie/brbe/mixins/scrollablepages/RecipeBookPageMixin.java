@@ -49,7 +49,7 @@ public abstract class RecipeBookPageMixin {
     @Inject(at = @At("HEAD"), method = "render")
     public void render(GuiGraphics gui, int i, int j, int k, int l, float f, CallbackInfo ci) {
         if (BetterRecipeBook.queuedScroll != 0 && BetterRecipeBook.config.scrolling.enableScrolling) {
-            if (totalPages > 1) {
+            if (isMouseOverRecipeBookPage(k, l, i, j) && totalPages > 1) {
                 currentPage += BetterRecipeBook.queuedScroll;
                 if (currentPage >= totalPages) {
                     currentPage = BetterRecipeBook.config.scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;
@@ -62,6 +62,10 @@ public abstract class RecipeBookPageMixin {
             }
             BetterRecipeBook.queuedScroll = 0;
         }
+    }
+
+    private static boolean isMouseOverRecipeBookPage(int mouseX, int mouseY, int left, int top) {
+        return mouseX >= left && mouseX < left + 147 && mouseY >= top && mouseY < top + 166;
     }
 
     @Inject(at = @At("RETURN"), method = "init")
