@@ -11,12 +11,13 @@ import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 
 public class InstantCraftingManager {
     public Object lastInstantCraftButton = null;
+    public Object lastHoveredCollection = null;
 
     private boolean awaitingResultSlotUpdate;
     private boolean craftAll;
     private boolean applyingInstantCraft;
     private int containerId = -1;
-    private RecipeDisplayId lastClickedRecipe;
+    public RecipeDisplayId lastClickedRecipe;
 
     public void recipeClicked(RecipeDisplayId recipe, boolean craftAll) {
         if (!this.isEnabled()) {
