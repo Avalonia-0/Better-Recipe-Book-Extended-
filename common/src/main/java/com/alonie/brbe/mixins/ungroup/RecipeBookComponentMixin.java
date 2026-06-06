@@ -37,14 +37,18 @@ public class RecipeBookComponentMixin {
             });
 
             if (this.book.isFiltering(this.menu)) {
+                PartialCraftingUtil.beginFilteringUpdate(true);
                 if (BetterRecipeBook.config.partialCraftableEqualsCraftable) {
-                    PartialCraftingUtil.beginFilteringUpdate(true);
                     list2.removeIf((recipeCollection) -> {
                         PartialCraftingUtil.markPartialMaterials(recipeCollection, this.menu.slots);
                         return !recipeCollection.hasCraftable() && !PartialCraftingUtil.hasPartialMaterials(recipeCollection);
                     });
                     PartialCraftingUtil.sortCraftableBeforePartial(list2);
                 } else {
+                    // Mark partial materials even when config is OFF (for red overlay)
+                    for (RecipeCollection collection : list2) {
+                        PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
+                    }
                     list2.removeIf((recipeCollection) -> !recipeCollection.hasCraftable());
                 }
             }

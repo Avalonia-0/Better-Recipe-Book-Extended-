@@ -50,8 +50,7 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
     @Inject(at = @At("HEAD"), method = "renderWidget", cancellable = true)
     public void renderWidget(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         boolean effectiveCraftable = this.isCraftable
-                || (BetterRecipeBook.config.partialCraftableEqualsCraftable
-                        && PartialCraftingUtil.isPartiallyCraftable(field_3113.getRecipeCollection(), this.recipe));
+                || PartialCraftingUtil.isPartiallyCraftable(field_3113.getRecipeCollection(), this.recipe);
         ResourceLocation resourceLocation;
 
         if (((OverlayRecipeComponentAccessor) field_3113).isFurnaceMenu()) {

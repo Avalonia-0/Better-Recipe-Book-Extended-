@@ -38,18 +38,18 @@ public abstract class RecipeBookComponentMixin {
     private boolean betterRecipeBook$trackFiltering(ClientRecipeBook instance, RecipeBookMenu<?, ?> menu) {
         boolean filtering = instance.isFiltering(menu);
         betterRecipeBook$isCraftableFiltering = filtering && BetterRecipeBook.config.partialCraftableEqualsCraftable;
-        PartialCraftingUtil.beginFilteringUpdate(betterRecipeBook$isCraftableFiltering);
+        PartialCraftingUtil.beginFilteringUpdate(filtering);
         return filtering;
     }
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z"))
     private boolean betterRecipeBook$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
-        if (!betterRecipeBook$isCraftableFiltering) {
-            return collections.removeIf(predicate);
-        }
-
         for (RecipeCollection collection : collections) {
             PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
+        }
+
+        if (!betterRecipeBook$isCraftableFiltering) {
+            return collections.removeIf(predicate);
         }
 
         boolean removed = collections.removeIf(collection ->
