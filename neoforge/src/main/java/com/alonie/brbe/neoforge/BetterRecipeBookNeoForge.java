@@ -1,6 +1,7 @@
 package com.alonie.brbe.neoforge;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.brewingstand.neoforge.PlatformPotionUtilImpl;
 import com.alonie.brbe.config.Config;
 import me.shedaniel.autoconfig.AutoConfig;
 import net.neoforged.api.distmarker.Dist;
@@ -13,6 +14,7 @@ import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 @Mod(BetterRecipeBook.MOD_ID)
 public final class BetterRecipeBookNeoForge {
     public BetterRecipeBookNeoForge() {
+        PlatformPotionUtilImpl.init();
         BetterRecipeBook.init();
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
