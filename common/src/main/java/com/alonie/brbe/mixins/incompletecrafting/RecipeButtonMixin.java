@@ -40,6 +40,9 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Redirect(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
     private boolean betterRecipeBook$renderCurrentRecipeCraftability(RecipeCollection collection, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        if (!BetterRecipeBook.config.partialCraftableEqualsCraftable) {
+            return collection.hasCraftable();
+        }
         RecipeDisplayId currentRecipe = this.getCurrentRecipe();
         return collection.isCraftable(currentRecipe) && !PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
     }
