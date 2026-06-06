@@ -39,7 +39,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         return collection.hasCraftable() || PartialCraftingUtil.hasPartialMaterials(collection);
     }
 
-    @Inject(method = "renderWidget", at = @At("TAIL"))
+    @Inject(method = "renderWidget", at = @At("HEAD"))
     private void betterRecipeBook$renderPartialOverlay(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         List<RecipeHolder<?>> recipes = this.collection.getRecipes();
         if (recipes.isEmpty()) return;

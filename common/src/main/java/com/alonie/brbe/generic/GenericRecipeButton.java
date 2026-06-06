@@ -62,13 +62,7 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
                 BRBTextures.RECIPE_BOOK_BUTTON_SLOT_CRAFTABLE_SPRITE : BRBTextures.RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE;
         gui.blitSprite(outlineTexture, getX(), getY(), this.width, this.height);
 
-        ItemStack result = getCurrentDisplayedRecipe().getResult(registryAccess, category);
-
-        // render ingredient item
-        int offset = 4;
-        gui.renderFakeItem(result, getX() + offset, getY() + offset);
-
-        // red overlay for partially craftable recipes (always active, independent of config)
+        // red overlay for partially craftable recipes (always active, drawn before item so item shows on top)
         {
             R current = getCurrentDisplayedRecipe();
             for (R partial : this.collection.getPartiallyCraftableRecipes(this.menu.slots)) {
@@ -78,6 +72,12 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
                 }
             }
         }
+
+        ItemStack result = getCurrentDisplayedRecipe().getResult(registryAccess, category);
+
+        // render ingredient item (on top of red overlay)
+        int offset = 4;
+        gui.renderFakeItem(result, getX() + offset, getY() + offset);
 
         // if pinned recipe, blit the pin texture over it
         if (BetterRecipeBook.config.enablePinning && BetterRecipeBook.pinnedRecipeManager.has(collection)) {
