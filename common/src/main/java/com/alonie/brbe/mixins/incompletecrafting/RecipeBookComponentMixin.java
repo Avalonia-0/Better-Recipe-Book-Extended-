@@ -24,19 +24,21 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "updateCollections", at = @At("HEAD"))
     private void betterRecipeBook$trackPartialFilteringUpdate(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
-        PartialCraftingUtil.beginFilteringUpdate(BetterRecipeBook.config.partialCraftableEqualsCraftable && isFiltering);
+        PartialCraftingUtil.beginFilteringUpdate(isFiltering);
     }
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z", ordinal = 2))
     private boolean betterRecipeBook$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
+        for (RecipeCollection collection : collections) {
+            PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
+        }
+
         if (!BetterRecipeBook.config.partialCraftableEqualsCraftable) {
             return collections.removeIf(predicate);
         }
 
-        boolean removed = collections.removeIf(collection -> {
-            PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
-            return predicate.test(collection) && !PartialCraftingUtil.hasPartialMaterials(collection);
-        });
+        boolean removed = collections.removeIf(collection ->
+                predicate.test(collection) && !PartialCraftingUtil.hasPartialMaterials(collection));
         PartialCraftingUtil.sortCraftableBeforePartial(collections);
         return removed;
     }

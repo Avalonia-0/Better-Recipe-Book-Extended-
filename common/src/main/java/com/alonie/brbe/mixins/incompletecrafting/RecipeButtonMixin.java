@@ -61,8 +61,6 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Inject(method = "renderWidget", at = @At("TAIL"))
     private void betterRecipeBook$renderPartialOverlay(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (!BetterRecipeBook.config.partialCraftableEqualsCraftable) return;
-
         RecipeDisplayId currentRecipe = this.getCurrentRecipe();
         if (currentRecipe == null) return;
 

@@ -70,8 +70,8 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         int offset = 4;
         gui.renderFakeItem(result, getX() + offset, getY() + offset);
 
-        // red overlay for partially craftable recipes
-        if (BetterRecipeBook.config.partialCraftableEqualsCraftable) {
+        // red overlay for partially craftable recipes (always active, independent of config)
+        {
             R current = getCurrentDisplayedRecipe();
             if (current != null) {
                 for (R partial : this.collection.getPartiallyCraftableRecipes()) {
