@@ -56,7 +56,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         }
     }
 
-    @Inject(method = "renderWidget", at = @At("HEAD"))
+    @Inject(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderFakeItem(Lnet/minecraft/world/item/ItemStack;II)V", shift = At.Shift.BEFORE))
     private void betterRecipeBook$renderPartialOverlay(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         RecipeDisplayId currentRecipe = this.getCurrentRecipe();
         if (currentRecipe == null) return;
