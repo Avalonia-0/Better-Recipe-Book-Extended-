@@ -27,7 +27,7 @@ public abstract class RecipeBookComponentMixin {
         PartialCraftingUtil.beginFilteringUpdate(isFiltering);
     }
 
-    @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z", ordinal = 2))
+    @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z"))
     private boolean betterRecipeBook$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
         for (RecipeCollection collection : collections) {
             PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
