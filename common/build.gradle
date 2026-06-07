@@ -12,4 +12,18 @@ dependencies {
         exclude group: "net.fabricmc.fabric-api"
     }
     modCompileOnly "me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}"
+
+    // JEI compile-only for JEI overlay mixin (optional compat)
+    def jeiJar = rootProject.file("libs/jei-${rootProject.minecraft_version}-fabric-27.4.0.22.jar")
+    if (jeiJar.exists()) {
+        compileOnly files(jeiJar.absolutePath)
+    } else {
+        // Fallback: try version-less or any JEI fabric jar in libs
+        def fallback = rootProject.file("libs").listFiles()?.find { f ->
+            f.name.startsWith("jei-") && f.name.contains("fabric") && f.name.endsWith(".jar")
+        }
+        if (fallback != null) {
+            compileOnly files(fallback.absolutePath)
+        }
+    }
 }

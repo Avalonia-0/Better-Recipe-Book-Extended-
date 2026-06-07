@@ -25,7 +25,6 @@ public class CompatMixinPlugin implements IMixinConfigPlugin {
             try {
                 return Platform.isModLoaded("mousewheelie");
             } catch (Exception e) {
-                // On NeoForge, ModList may not be initialized yet during mixin setup
                 return false;
             }
         }
