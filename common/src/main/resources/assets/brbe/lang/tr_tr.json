@@ -6,6 +6,8 @@
   "text.autoconfig.brbe.option.enablePinning": "Tarif sabitlemeyi aktifleştir",
   "text.autoconfig.brbe.option.settingsButton": "Ayarlar butonunu aktifleştir",
   "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§eİpucu: §7Bu iki ayardan herhangi birini kapatırsanız, Mod Menu'den tekrar açabilirsiniz.",
+  "text.autoconfig.brbe.option.hideReiJeiOverlay": "REI/JEI arayüzünü gizle",
+  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "Envanter ekranlarında REI/JEI katmanlarını gizler. Tarif/kullanım arama (R/U tuşları) hâlâ çalışır.",
   "text.autoconfig.brbe.category.instantCraft": "Anında Üretim Ayarları",
   "text.autoconfig.brbe.option.instantCraft.showButton": "Anında üretim butonu göster",
   "text.autoconfig.brbe.option.instantCraft.enabled": "Anında Zanaat Etkin",

@@ -15,6 +15,9 @@ public class Config implements ConfigData {
     @ConfigEntry.Gui.Tooltip()
     public boolean partialCraftableEqualsCraftable = false;
 
+    @ConfigEntry.Gui.Tooltip()
+    public boolean hideReiJeiOverlay = false;
+
     @ConfigEntry.Category("newRecipes")
     @ConfigEntry.Gui.TransitiveObject()
     public NewRecipes newRecipes = new NewRecipes();

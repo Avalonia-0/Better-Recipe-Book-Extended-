@@ -8,6 +8,8 @@
   "text.autoconfig.brbe.option.showModName.@Tooltip": "显示物品的来源模组，与 Jade 类似。",
   "text.autoconfig.brbe.option.partialCraftableEqualsCraftable": "不隐藏缺少部分材料的配方",
   "text.autoconfig.brbe.option.partialCraftableEqualsCraftable.@Tooltip": "当「仅显示可合成」开启时，缺少部分材料的配方将不会隐藏",
+  "text.autoconfig.brbe.option.hideReiJeiOverlay": "隐藏 REI/JEI 界面",
+  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "在物品栏屏幕中隐藏 REI/JEI 的界面。合成/用途查询（R/U 键）仍然可用。",
   "text.autoconfig.brbe.option.settingsButton": "显示设置按钮",
   "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§e提示：§7如果你禁用了以下两个选项，需要通过模组菜单来重新打开它们。",
   "text.autoconfig.brbe.category.instantCraft": "一键制作设置",

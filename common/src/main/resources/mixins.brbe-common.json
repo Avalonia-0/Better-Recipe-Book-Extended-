@@ -23,6 +23,8 @@
     "accessors.RecipeBookComponentAccessor",
     "accessors.RecipeBookPageAccessor",
     "accessors.ServerRecipeBookAccessor",
+    "hideoverlay.AbstractContainerScreenMixin",
+    "search.RecipeBookComponentMixin",
     "alternativerecipes.OverlayRecipeButtonMixin",
     "incompletecrafting.OverlayRecipeComponentMixin",
     "incompletecrafting.RecipeButtonMixin",

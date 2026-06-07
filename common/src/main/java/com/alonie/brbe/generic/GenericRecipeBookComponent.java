@@ -6,6 +6,8 @@ import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.api.BRBBookSettings;
 import com.alonie.brbe.interfaces.IPinningComponent;
 import com.alonie.brbe.interfaces.ISettingsButton;
+import com.alonie.brbe.search.SearchCache;
+import com.alonie.brbe.search.SearchQuery;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.util.BRBTextures;
@@ -287,7 +289,19 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
         String string = this.searchBox.getValue();
         if (!string.isEmpty()) {
-            results.removeIf(collection -> !collection.getFirst().getSearchString(selectedTab.getCategory()).toLowerCase(Locale.ROOT).contains(string.toLowerCase(Locale.ROOT)));
+            // Parse search syntax (@mod $tag #tooltip r/regex/ "quotes" | OR -negation)
+            // Checks all recipes in the collection, not just getFirst()
+            SearchQuery query = SearchQuery.parse(string);
+            SearchCache cache = new SearchCache();
+            results.removeIf(collection -> {
+                for (R recipe : collection.getRecipes()) {
+                    ItemStack result = recipe.getResult(registryAccess, selectedTab.getCategory());
+                    if (result != null && !result.isEmpty() && query.matches(result, cache)) {
+                        return false; // Keep collection — at least one recipe matches
+                    }
+                }
+                return true; // Remove collection — no recipes match
+            });
         }
 
         if (BRBBookSettings.isFiltering(this.getRecipeBookType())) {
