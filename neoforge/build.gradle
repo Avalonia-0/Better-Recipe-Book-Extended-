@@ -42,12 +42,13 @@ dependencies {
     modApi "me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}"
     include "me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}"
 
-    def jeiJarCandidates = [
-            rootProject.findProperty("jei_neoforge_jar"),
-            "/media/avalonia/data/MinecraftLib/versions/1.21.11-NeoForge/mods/jei-1.21.11-neoforge-27.4.0.22.jar",
-            "/media/avalonia/data/MinecraftLib/versions/1.21.11-Fabric/mods/jei-1.21.11-fabric-27.4.0.22.jar"
-    ].findAll { it != null }
-    def jeiJarPath = jeiJarCandidates.find { file(it).exists() }
+    def jeiJarPath = rootProject.findProperty("jei_neoforge_jar")?.toString()
+    if (jeiJarPath == null || !file(jeiJarPath).exists()) {
+        jeiJarPath = rootProject.file("libs/jei-1.21.11-neoforge-27.4.0.22.jar").absolutePath
+    }
+    if (jeiJarPath == null || !file(jeiJarPath).exists()) {
+        jeiJarPath = rootProject.file("libs/jei-1.21.11-fabric-27.4.0.22.jar").absolutePath
+    }
     if (jeiJarPath != null) {
         compileOnly files(jeiJarPath)
     }

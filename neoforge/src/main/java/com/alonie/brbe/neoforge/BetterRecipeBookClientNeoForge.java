@@ -7,6 +7,7 @@ import dev.architectury.platform.Platform;
 import dev.architectury.platform.client.ConfigurationScreenRegistry;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.neoforge.PlatformPotionUtilImpl;
+import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.config.Config;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
@@ -42,6 +43,8 @@ public class BetterRecipeBookClientNeoForge {
         ClientGuiEvent.INIT_POST.register((screen, access) -> {
             if (screen != null) {
                 registeredScreens.remove(screen);
+                // Apply overlay hide state immediately when screen opens (no flash)
+                OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
             }
         });
 

@@ -28,7 +28,7 @@ public class ModNameUtil {
         return Component.literal(modName).withStyle(ChatFormatting.BLUE, ChatFormatting.ITALIC);
     }
 
-    private static String resolveModName(String namespace) {
+    public static String resolveModName(String namespace) {
         // Priority 1: i18n via Jade's translation key format (jade.modName.{MOD_ID})
         // Works with Jade installed or any resource pack providing these keys
         String jadeKey = "jade.modName." + namespace;

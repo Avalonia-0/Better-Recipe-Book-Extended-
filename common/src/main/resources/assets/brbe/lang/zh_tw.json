@@ -8,6 +8,8 @@
   "text.autoconfig.brbe.option.enablePinning": "啟用配方釘選",
   "text.autoconfig.brbe.option.settingsButton": "啟用設定按鈕",
   "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§e提示：§7如果你禁用了以下两个选项，需要通过模组菜单来重新打开它们。",
+  "text.autoconfig.brbe.option.hideReiJeiOverlay": "隱藏 REI/JEI 介面",
+  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "在物品欄畫面中隱藏 REI/JEI 的介面。合成/用途查詢（R/U 鍵）仍然可用。",
   "text.autoconfig.brbe.category.instantCraft": "立即合成設定",
   "text.autoconfig.brbe.option.instantCraft.showButton": "顯示立即合成按鈕",
   "text.autoconfig.brbe.category.scrolling": "捲動設定",

@@ -21,6 +21,12 @@ configurations {
     developmentFabric.extendsFrom common
 }
 
+def jeiFabricJarPath = rootProject.findProperty("jei_fabric_jar")?.toString()
+if (jeiFabricJarPath == null || !file(jeiFabricJarPath).exists()) {
+    jeiFabricJarPath = rootProject.file("libs/jei-1.21.11-fabric-27.4.0.22.jar").absolutePath
+}
+def jeiFabricPresent = file(jeiFabricJarPath).exists()
+
 dependencies {
     modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
     modImplementation("net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}") {
@@ -33,13 +39,17 @@ dependencies {
 
     modCompileOnly files(rootProject.file("libs/modmenu-17.0.0.jar"))
 
-    def jeiJarPath = rootProject.findProperty("jei_fabric_jar")
-            ?: "/media/avalonia/data/MinecraftLib/versions/1.21.11-Fabric/mods/jei-1.21.11-fabric-27.4.0.22.jar"
-    if (file(jeiJarPath).exists()) {
-        modCompileOnly files(jeiJarPath)
+    if (jeiFabricPresent) {
+        modCompileOnly files(jeiFabricJarPath)
     }
 
     common(project(path: ":common", configuration: "namedElements")) { transitive false }
+}
+
+tasks.named("compileJava") {
+    if (!jeiFabricPresent) {
+        exclude("com/alonie/brbe/fabric/compat/jei/BetterRecipeBookJEIPlugin.java")
+    }
 }
 
 // Include common module (classes + resources)

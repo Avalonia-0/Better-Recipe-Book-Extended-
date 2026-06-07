@@ -62,3 +62,42 @@ allprojects {
         withSourcesJar()
     }
 }
+
+// Ensure JEI library jars are available in libs/ for compilation.
+// If a jar is missing locally, copies it from the test instance mods folders.
+// Run manually: ./gradlew setupLibs
+tasks.register("setupLibs") {
+    doLast {
+        def libsDir = rootProject.file("libs")
+        libsDir.mkdirs()
+
+        def jeiEntries = [
+                "jei-1.21.11-fabric-27.4.0.22.jar":
+                        "/media/avalonia/data/MinecraftLib/versions/1.21.11-Fabric/mods/jei-1.21.11-fabric-27.4.0.22.jar.disabled",
+                "jei-1.21.11-neoforge-27.4.0.22.jar":
+                        "/media/avalonia/data/MinecraftLib/versions/1.21.11-NeoForge/mods/jei-1.21.11-neoforge-27.4.0.22.jar.disabled"
+        ]
+
+        jeiEntries.each { fileName, sourcePath ->
+            def targetFile = new File(libsDir, fileName)
+            if (!targetFile.exists()) {
+                def sourceFile = new File(sourcePath)
+                if (sourceFile.exists()) {
+                    logger.lifecycle("Copying {} → libs/", fileName)
+                    targetFile.bytes = sourceFile.bytes
+                } else {
+                    logger.warn("Source not found: {}. {} will be excluded from compilation.", sourcePath, fileName)
+                }
+            }
+        }
+    }
+}
+
+// Auto-run setupLibs before any compile task
+gradle.projectsEvaluated {
+    subprojects {
+        tasks.matching { it.name == "compileJava" || it.name == "classes" }.configureEach {
+            dependsOn rootProject.tasks.named("setupLibs")
+        }
+    }
+}

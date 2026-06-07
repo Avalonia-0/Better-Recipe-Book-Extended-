@@ -6,6 +6,8 @@
   "text.autoconfig.brbe.option.statusEffects": "Показывать эффекты при открытой книге рецептов",
   "text.autoconfig.brbe.option.settingsButton": "Показывать кнопку настроек",
   "text.autoconfig.brbe.option.settingsButton.@Tooltip": "Без неё вам придётся пользоваться ModMenu,\nчтобы снова попасть сюда.",
+  "text.autoconfig.brbe.option.hideReiJeiOverlay": "Скрыть интерфейс REI/JEI",
+  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "Скрывает наложения REI/JEI в экранах инвентаря. Поиск рецептов/применения (клавиши R/U) всё ещё работает.",
   "text.autoconfig.brbe.category.instantCraft": "Моментальное создание",
   "text.autoconfig.brbe.option.instantCraft.instantCraft": "Создавать моментально по умолчанию",
   "text.autoconfig.brbe.option.instantCraft.showButton": "Показывать кнопку моментального крафта",
