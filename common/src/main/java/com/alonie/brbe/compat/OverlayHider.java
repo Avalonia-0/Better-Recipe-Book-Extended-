@@ -1,85 +1,57 @@
 package com.alonie.brbe.compat;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.compat.jei.JeiCompat;
+import com.alonie.brbe.compat.rei.ReiCompat;
 
 /**
  * Utility for hiding/showing REI and/or JEI overlays on container screens.
  * <p>
  * Uses reflection to avoid compile-time dependencies on either mod.
  * All state changes are in-memory only — no config files are modified.
- * Self-contained: detects REI/JEI by checking for their runtime classes.
  */
 public class OverlayHider {
 
-    private static final String REI_CONFIG_CLASS = "me.shedaniel.rei.api.client.config.ConfigObject";
-    private static final String JEI_INTERNAL_CLASS = "mezz.jei.common.Internal";
-
-    private static boolean shouldHide = false;
     private static boolean reiHidden = false;
-    private static Boolean reiChecked;
     private static boolean jeiOverlayToggled = false;
     private static boolean jeiBookmarkToggled = false;
-    private static Boolean jeiChecked;
+    private static boolean jeiCheatToggled = false;
 
     /**
      * Returns true if either REI or JEI is loaded and can be controlled.
      */
     public static boolean isApplicable() {
-        return isReiLoaded() || isJeiLoaded();
-    }
-
-    private static boolean isReiLoaded() {
-        if (reiChecked == null) {
-            try {
-                Class.forName(REI_CONFIG_CLASS);
-                reiChecked = true;
-            } catch (ClassNotFoundException e) {
-                reiChecked = false;
-            }
-        }
-        return reiChecked;
-    }
-
-    private static boolean isJeiLoaded() {
-        if (jeiChecked == null) {
-            try {
-                Class.forName(JEI_INTERNAL_CLASS);
-                jeiChecked = true;
-            } catch (ClassNotFoundException e) {
-                jeiChecked = false;
-            }
-        }
-        return jeiChecked;
+        try {
+            Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
+            return true;
+        } catch (ClassNotFoundException ignored) {}
+        try {
+            Class.forName("mezz.jei.common.Internal");
+            return true;
+        } catch (ClassNotFoundException ignored) {}
+        return false;
     }
 
     /**
-     * Sets whether overlays should be hidden. Tracks internal state to avoid
-     * redundant API calls. Safe to call on every screen init.
+     * Applies the configured overlay hide state. Called on every screen init.
+     * Does NOT use a global shouldHide guard — each mod's own state tracking
+     * (reiHidden/jeiOverlayToggled) prevents redundant API calls. This ensures
+     * hides are re-attempted until the target mod is fully loaded.
      */
     public static void setOverlaysHidden(boolean hide) {
-        if (hide == shouldHide) return;
-        shouldHide = hide;
         if (hide) {
-            hideOverlays();
+            hideReiOverlay();
+            hideJeiOverlay();
         } else {
-            showOverlays();
+            showReiOverlay();
+            showJeiOverlay();
         }
     }
 
-    private static void hideOverlays() {
-        hideReiOverlay();
-        hideJeiOverlay();
-    }
-
-    private static void showOverlays() {
-        showReiOverlay();
-        showJeiOverlay();
-    }
-
     private static void hideReiOverlay() {
-        if (!isReiLoaded() || reiHidden) return;
+        if (!ReiCompat.isLoaded() || reiHidden) return;
         try {
-            Class<?> configObjectClass = Class.forName(REI_CONFIG_CLASS);
+            Class<?> configObjectClass = Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
             Object instance = configObjectClass.getMethod("getInstance").invoke(null);
             configObjectClass.getMethod("setOverlayVisible", boolean.class).invoke(instance, false);
             reiHidden = true;
@@ -90,9 +62,9 @@ public class OverlayHider {
     }
 
     private static void showReiOverlay() {
-        if (!isReiLoaded() || !reiHidden) return;
+        if (!ReiCompat.isLoaded() || !reiHidden) return;
         try {
-            Class<?> configObjectClass = Class.forName(REI_CONFIG_CLASS);
+            Class<?> configObjectClass = Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
             Object instance = configObjectClass.getMethod("getInstance").invoke(null);
             configObjectClass.getMethod("setOverlayVisible", boolean.class).invoke(instance, true);
             reiHidden = false;
@@ -103,9 +75,9 @@ public class OverlayHider {
     }
 
     private static void hideJeiOverlay() {
-        if (!isJeiLoaded()) return;
+        if (!JeiCompat.isLoaded()) return;
         try {
-            Class<?> internalClass = Class.forName(JEI_INTERNAL_CLASS);
+            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
             Object toggleState = internalClass.getMethod("getClientToggleState").invoke(null);
 
             if (!jeiOverlayToggled) {
@@ -124,9 +96,9 @@ public class OverlayHider {
     }
 
     private static void showJeiOverlay() {
-        if (!isJeiLoaded()) return;
+        if (!JeiCompat.isLoaded()) return;
         try {
-            Class<?> internalClass = Class.forName(JEI_INTERNAL_CLASS);
+            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
             Object toggleState = internalClass.getMethod("getClientToggleState").invoke(null);
 
             if (jeiOverlayToggled) {
