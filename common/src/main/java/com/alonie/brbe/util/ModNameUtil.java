@@ -21,7 +21,7 @@ public final class ModNameUtil {
         return Component.literal(modName).withStyle(ChatFormatting.BLUE, ChatFormatting.ITALIC);
     }
 
-    private static String resolveModName(String namespace) {
+    public static String resolveModName(String namespace) {
         String jadeKey = "jade.modName." + namespace;
         if (I18n.exists(jadeKey)) {
             return I18n.get(jadeKey);

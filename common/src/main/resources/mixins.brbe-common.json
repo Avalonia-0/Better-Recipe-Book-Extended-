@@ -21,6 +21,8 @@
     "accessors.RecipeBookPageAccessor",
     "accessors.smithing.SmithingTransformRecipeAccessor",
     "accessors.smithing.SmithingTrimRecipeAccessor",
+    "hideoverlay.AbstractContainerScreenMixin",
+    "search.RecipeBookComponentMixin",
     "alternativerecipes.OverlayRecipeButtonMixin",
     "centered.RecipeBookComponentMixin",
     "instantcraft.ClientPacketListenerMixin",
