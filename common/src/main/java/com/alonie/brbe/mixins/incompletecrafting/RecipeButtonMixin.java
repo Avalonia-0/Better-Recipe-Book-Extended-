@@ -40,8 +40,12 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Redirect(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
     private boolean betterRecipeBook$renderCurrentRecipeCraftability(RecipeCollection collection, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        RecipeDisplayId currentRecipe = this.getCurrentRecipe();
-        return collection.isCraftable(currentRecipe) || PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
+        try {
+            RecipeDisplayId currentRecipe = this.getCurrentRecipe();
+            return collection.isCraftable(currentRecipe) || PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
+        } catch (ArithmeticException e) {
+            return collection.hasCraftable();
+        }
     }
 
     @Inject(method = "isOnlyOption", at = @At("RETURN"), cancellable = true)
@@ -58,7 +62,12 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Inject(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderFakeItem(Lnet/minecraft/world/item/ItemStack;II)V", shift = At.Shift.BEFORE))
     private void betterRecipeBook$renderPartialOverlay(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        RecipeDisplayId currentRecipe = this.getCurrentRecipe();
+        RecipeDisplayId currentRecipe;
+        try {
+            currentRecipe = this.getCurrentRecipe();
+        } catch (ArithmeticException e) {
+            return;
+        }
         if (currentRecipe == null) return;
 
         if (PartialCraftingUtil.isPartiallyCraftable(this.collection, currentRecipe)) {
