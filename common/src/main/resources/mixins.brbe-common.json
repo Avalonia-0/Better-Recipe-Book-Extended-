@@ -27,6 +27,7 @@
     "alternativerecipes.OverlayRecipeButtonMixin",
     "incompletecrafting.OverlayRecipeComponentMixin",
     "incompletecrafting.RecipeButtonMixin",
+    "incompletecrafting.RecipeButtonSafetyMixin",
     "incompletecrafting.RecipeBookComponentMixin",
     "search.RecipeBookComponentMixin",
     "instantcraft.ClientPacketListenerMixin",

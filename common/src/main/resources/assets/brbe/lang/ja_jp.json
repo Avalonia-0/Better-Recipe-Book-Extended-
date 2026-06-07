@@ -10,6 +10,8 @@
   "text.autoconfig.brbe.option.enableBook": "レシピ本を有効にする",
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "REI/JEI オーバーレイを隠す",
   "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "インベントリ画面で REI/JEI のオーバーレイを非表示にします。レシピ/用途検索（R/Uキー）は引き続き使用できます。",
+  "text.autoconfig.brbe.option.enableRecipeBookIsPain": "Recipe Book is Pain",
+  "text.autoconfig.brbe.option.enableRecipeBookIsPain.@Tooltip": "作業台のレシピブックタブグループをクリエイティブモードのタブと同期します。ゲームの再起動が必要です。",
   "text.autoconfig.brbe.category.instantCraft": "即時クラフト設定",
   "text.autoconfig.brbe.option.instantCraft.showButton": "即時クラフト切替えボタンを表示する",
   "text.autoconfig.brbe.option.instantCraft.enabled": "即時クラフトが有効",

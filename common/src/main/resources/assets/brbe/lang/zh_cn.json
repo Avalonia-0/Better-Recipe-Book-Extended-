@@ -10,6 +10,8 @@
   "text.autoconfig.brbe.option.partialCraftableEqualsCraftable.@Tooltip": "当「仅显示可合成」开启时，缺少部分材料的配方将不会隐藏",
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "隐藏 REI/JEI 界面",
   "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "在物品栏屏幕中隐藏 REI/JEI 的界面。合成/用途查询（R/U 键）仍然可用。",
+  "text.autoconfig.brbe.option.enableRecipeBookIsPain": "Recipe Book is Pain",
+  "text.autoconfig.brbe.option.enableRecipeBookIsPain.@Tooltip": "将工作台配方书标签页的分组逻辑与创造模式物品栏同步。需要重启游戏。",
   "text.autoconfig.brbe.option.settingsButton": "显示设置按钮",
   "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§e提示：§7如果你禁用了以下两个选项，需要通过模组菜单来重新打开它们。",
   "text.autoconfig.brbe.category.instantCraft": "一键制作设置",
