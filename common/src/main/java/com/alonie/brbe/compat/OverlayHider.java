@@ -12,48 +12,40 @@ import com.alonie.brbe.compat.rei.ReiCompat;
  */
 public class OverlayHider {
 
-    private static boolean shouldHide = false;
     private static boolean reiHidden = false;
     private static boolean jeiOverlayToggled = false;
     private static boolean jeiBookmarkToggled = false;
+    private static boolean jeiCheatToggled = false;
 
     /**
      * Returns true if either REI or JEI is loaded and can be controlled.
      */
     public static boolean isApplicable() {
-        return ReiCompat.isLoaded() || JeiCompat.isLoaded();
+        try {
+            Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
+            return true;
+        } catch (ClassNotFoundException ignored) {}
+        try {
+            Class.forName("mezz.jei.common.Internal");
+            return true;
+        } catch (ClassNotFoundException ignored) {}
+        return false;
     }
 
     /**
-     * Sets whether overlays should be hidden. Tracks internal state to avoid
-     * redundant API calls. Safe to call on every screen init.
+     * Applies the configured overlay hide state. Called on every screen init.
+     * Does NOT use a global shouldHide guard — each mod's own state tracking
+     * (reiHidden/jeiOverlayToggled) prevents redundant API calls. This ensures
+     * hides are re-attempted until the target mod is fully loaded.
      */
     public static void setOverlaysHidden(boolean hide) {
-        if (hide == shouldHide) return;
-        shouldHide = hide;
         if (hide) {
-            hideOverlays();
+            hideReiOverlay();
+            hideJeiOverlay();
         } else {
-            showOverlays();
+            showReiOverlay();
+            showJeiOverlay();
         }
-    }
-
-    /**
-     * Hides REI and/or JEI overlays. Safe to call repeatedly.
-     * Uses reflection and in-memory state only.
-     */
-    private static void hideOverlays() {
-        hideReiOverlay();
-        hideJeiOverlay();
-    }
-
-    /**
-     * Shows (restores) REI and/or JEI overlays. Safe to call repeatedly.
-     * Reverses the effects of {@link #hideOverlays()}.
-     */
-    private static void showOverlays() {
-        showReiOverlay();
-        showJeiOverlay();
     }
 
     private static void hideReiOverlay() {
