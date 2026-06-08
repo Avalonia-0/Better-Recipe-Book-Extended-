@@ -1,7 +1,9 @@
 package com.alonie.brbe.fabric;
 
+import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.config.Config;
 import me.shedaniel.autoconfig.AutoConfigClient;
+import me.shedaniel.autoconfig.gui.ConfigScreenProvider;
 
 import java.util.function.Function;
 
@@ -11,6 +13,17 @@ import java.util.function.Function;
  */
 public class ModMenuFabric {
     public static Function<net.minecraft.client.gui.screens.Screen, net.minecraft.client.gui.screens.Screen> getConfigScreenFactory() {
-        return parent -> AutoConfigClient.getConfigScreen(Config.class, parent).get();
+        return parent -> {
+            java.util.function.Supplier<net.minecraft.client.gui.screens.Screen> supplier =
+                    AutoConfigClient.getConfigScreen(Config.class, parent);
+            // Hide hideReiJeiOverlay option when neither JEI nor REI is installed
+            if (!OverlayHider.isApplicable() && supplier instanceof ConfigScreenProvider<?> provider) {
+                provider.setOptionFunction((configId, field) -> {
+                    if ("hideReiJeiOverlay".equals(field.getName())) return null;
+                    return "option." + configId + "." + field.getName();
+                });
+            }
+            return supplier.get();
+        };
     }
 }

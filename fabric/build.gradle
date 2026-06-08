@@ -30,6 +30,10 @@ dependencies {
     if (jeiJarPath == null || !file(jeiJarPath).exists()) {
         jeiJarPath = "/media/avalonia/data/MinecraftLib/versions/26.1.2-Fabric/mods/jei-26.1.2-fabric-29.6.2.31.jar"
     }
+    // User may have disabled JEI via HMCL (appends .disabled to file name)
+    if (!file(jeiJarPath).exists()) {
+        jeiJarPath = "/media/avalonia/data/MinecraftLib/versions/26.1.2-Fabric/mods/jei-26.1.2-fabric-29.6.2.31.jar.disabled"
+    }
     if (file(jeiJarPath).exists()) {
         compileOnly files(jeiJarPath)
     }
