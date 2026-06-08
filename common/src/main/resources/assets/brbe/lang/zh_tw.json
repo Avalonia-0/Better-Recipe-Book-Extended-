@@ -35,5 +35,6 @@
   "brbe.gui.settings.open": "開啟設定",
   "brbe.gui.smithable": "已列出可鍛造項目",
   "category.brbe": "更好的配方手冊｜Better Recipe Book",
-  "key.brbe.pin": "釘選配方"
+  "key.brbe.pin": "釘選配方",
+  "brbe.gui.environmentIncompatible": "目前無法合成"
 }

@@ -38,5 +38,6 @@
   "category.brbe": "Better Recipe Book",
   "key.brbe.pin": "Pin Recipe",
   "key.brbe.recipeView": "View Recipe",
-  "key.brbe.usageView": "View Usage"
+  "key.brbe.usageView": "View Usage",
+  "brbe.gui.environmentIncompatible": "Cannot be crafted currently"
 }

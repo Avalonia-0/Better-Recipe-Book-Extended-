@@ -33,5 +33,6 @@
   "brbe.gui.instantCraft.on": "Моментальное создание",
   "brbe.gui.instantCraft.off": "Обычное создание",
   "brbe.gui.settings.open": "Настройки",
-  "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§eПодсказка: §7Если вы отключите любой из этих двух параметров, используйте Mod Menu, чтобы снова открыть их."
+  "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§eПодсказка: §7Если вы отключите любой из этих двух параметров, используйте Mod Menu, чтобы снова открыть их.",
+  "brbe.gui.environmentIncompatible": "Невозможно создать сейчас"
 }

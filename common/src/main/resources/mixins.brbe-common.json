@@ -24,6 +24,8 @@
     "accessors.RecipeBookPageAccessor",
     "accessors.ServerRecipeBookAccessor",
     "hideoverlay.AbstractContainerScreenMixin",
+    "incompatibleenvironment.CraftingRecipeBookComponentMixin",
+    "incompatibleenvironment.RecipeButtonMixin",
     "search.RecipeBookComponentMixin",
     "alternativerecipes.OverlayRecipeButtonMixin",
     "incompletecrafting.OverlayRecipeComponentMixin",

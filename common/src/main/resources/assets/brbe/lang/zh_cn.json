@@ -37,5 +37,6 @@
   "category.brbe": "更好的配方书",
   "key.brbe.pin": "固定配方",
   "key.brbe.recipeView": "查看配方",
-  "key.brbe.usageView": "查看用途"
+  "key.brbe.usageView": "查看用途",
+  "brbe.gui.environmentIncompatible": "当前无法合成"
 }

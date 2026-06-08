@@ -1,7 +1,10 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.inventory.RecipeBookMenu;
@@ -18,28 +21,51 @@ import java.util.function.Predicate;
 
 @Mixin(RecipeBookComponent.class)
 public abstract class RecipeBookComponentMixin {
-    @Shadow
-    @Final
+    @Shadow @Final
     protected RecipeBookMenu menu;
+
+    @Shadow @Final
+    protected Minecraft minecraft;
 
     @Inject(method = "updateCollections", at = @At("HEAD"))
     private void betterRecipeBook$trackPartialFilteringUpdate(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
         PartialCraftingUtil.beginFilteringUpdate(isFiltering);
+
+        boolean retainIncompatible = !isFiltering
+                && this.minecraft != null
+                && this.minecraft.screen instanceof InventoryScreen;
+        IncompatibleCraftingUtil.beginFiltering(retainIncompatible);
     }
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z"))
     private boolean betterRecipeBook$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
+        boolean onInventoryScreen = this.minecraft != null
+                && this.minecraft.screen instanceof InventoryScreen;
+
         for (RecipeCollection collection : collections) {
             PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
+            if (onInventoryScreen) {
+                IncompatibleCraftingUtil.markIncompatibleRecipes(collection);
+            }
         }
 
-        if (!BetterRecipeBook.config.partialCraftableEqualsCraftable) {
+        boolean hasPartial = BetterRecipeBook.config.partialCraftableEqualsCraftable;
+        boolean retainIncompatible = onInventoryScreen && IncompatibleCraftingUtil.isActive();
+
+        if (!hasPartial && !retainIncompatible) {
             return collections.removeIf(predicate);
         }
 
-        boolean removed = collections.removeIf(collection ->
-                predicate.test(collection) && !PartialCraftingUtil.hasPartialMaterials(collection));
-        PartialCraftingUtil.sortCraftableBeforePartial(collections);
+        boolean removed = collections.removeIf(collection -> {
+            if (!predicate.test(collection)) return false;
+            if (hasPartial && PartialCraftingUtil.hasPartialMaterials(collection)) return false;
+            if (retainIncompatible && IncompatibleCraftingUtil.hasIncompatibleRecipes(collection)) return false;
+            return true;
+        });
+
+        if (hasPartial) {
+            PartialCraftingUtil.sortCraftableBeforePartial(collections);
+        }
         return removed;
     }
 }

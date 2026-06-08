@@ -31,5 +31,6 @@
   "brbe.gui.togglePotions.brewable": "Üretilebilir İksirler Gösteriliyor",
   "brbe.gui.instantCraft.on": "Anında üretim açık",
   "brbe.gui.instantCraft.off": "Anında üretim kapalı",
-  "brbe.gui.settings.open": "Ayarları aç"
+  "brbe.gui.settings.open": "Ayarları aç",
+  "brbe.gui.environmentIncompatible": "Şu anda üretilemez"
 }
