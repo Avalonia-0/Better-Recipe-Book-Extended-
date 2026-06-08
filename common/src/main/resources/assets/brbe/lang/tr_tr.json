@@ -29,7 +29,7 @@
   "brb.gui.togglePotions.brewable": "Üretilebilir İksirler Gösteriliyor",
   "brb.gui.instantCraft.on": "Anında üretim açık",
   "brb.gui.instantCraft.off": "Anında üretim kapalı",
-  "brb.gui.settings.open": "Ayarları aç"
+  "brb.gui.settings.open": "Ayarları aç",
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "REI/JEI Arayüzünü Gizle",
-  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "Envanter ekranlarında REI/JEI katmanlarını gizler. Tarif/kullanım araması (R/U tuşları) çalışmaya devam eder.",
+  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "Envanter ekranlarında REI/JEI katmanlarını gizler. Tarif/kullanım araması (R/U tuşları) çalışmaya devam eder."
 }

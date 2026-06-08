@@ -33,7 +33,7 @@
   "brb.gui.settings.open": "開啟設定",
   "brb.gui.smithable": "已列出可鍛造項目",
   "category.brbe": "更好的配方手冊｜Better Recipe Book",
-  "key.brbe.pin": "釘選配方"
+  "key.brbe.pin": "釘選配方",
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "隱藏 REI/JEI 界面",
-  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "在物品欄界面隱藏 REI/JEI 覆蓋層。配方/用途查看（R/U 鍵）仍可正常使用。",
+  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "在物品欄界面隱藏 REI/JEI 覆蓋層。配方/用途查看（R/U 鍵）仍可正常使用。"
 }

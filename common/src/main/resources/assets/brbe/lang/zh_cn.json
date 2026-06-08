@@ -35,7 +35,7 @@
   "category.brbe": "更好的配方书",
   "key.brbe.pin": "固定配方",
   "key.brbe.recipeView": "查看配方 (REI)",
-  "key.brbe.usageView": "查看用途 (REI)"
+  "key.brbe.usageView": "查看用途 (REI)",
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "隐藏 REI/JEI 界面",
-  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "在物品栏界面隐藏 REI/JEI 覆盖层。配方/用途查看（R/U 键）仍可正常使用。",
+  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "在物品栏界面隐藏 REI/JEI 覆盖层。配方/用途查看（R/U 键）仍可正常使用。"
 }
