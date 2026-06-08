@@ -30,6 +30,9 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             Screen screen = client.screen;
+            if (BetterRecipeBook.config.hideReiJeiOverlay && screen != null) {
+                OverlayHider.retryJeiButtonHide();
+            }
             if (screen == null || this.registeredScreens.contains(screen) || !TopLayerOverlayRenderer.hasOverlay(screen)) {
                 return;
             }

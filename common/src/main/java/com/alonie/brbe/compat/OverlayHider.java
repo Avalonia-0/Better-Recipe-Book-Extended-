@@ -16,6 +16,9 @@ public class OverlayHider {
     private static boolean jeiOverlayToggled = false;
     private static boolean jeiBookmarkToggled = false;
     private static boolean jeiCheatToggled = false;
+    private static boolean jeiButtonsHidden = false;
+    private static int jeiRetryTick = 0;
+    private static final int JEI_MAX_RETRY_TICKS = 100; // ~5 seconds at 20 tps
 
     /**
      * Returns true if either REI or JEI is loaded and can be controlled.
@@ -106,10 +109,8 @@ public class OverlayHider {
                 jeiCheatToggled = true;
             }
 
-            // Hide JEI's config button (gear icon) — it's drawn unconditionally
-            hideJeiConfigButton();
-            // Hide JEI's bookmark and history bottom buttons (bookmark star, history clock)
-            hideJeiBookmarkButtons();
+            // JEI icon button hiding is handled by retryJeiButtonHide() tick loop
+            // because JEI runtime may not be available yet at this point
         } catch (ReflectiveOperationException e) {
             BetterRecipeBook.LOGGER.warn("Failed to hide JEI overlay", e);
         }
@@ -200,10 +201,13 @@ public class OverlayHider {
                 jeiCheatToggled = false;
             }
 
-            // Restore JEI config button visibility
+            // Flip toggleState back first, then restore buttons
             showJeiConfigButton();
-            // Restore JEI bookmark and history buttons
             showJeiBookmarkButtons();
+
+            // Reset retry tracking so next hide attempt starts fresh
+            jeiButtonsHidden = false;
+            jeiRetryTick = 0;
         } catch (ReflectiveOperationException e) {
             BetterRecipeBook.LOGGER.warn("Failed to show JEI overlay", e);
         }
@@ -225,13 +229,40 @@ public class OverlayHider {
     }
 
     /**
-     * Retry hiding JEI config/bookmark/history buttons.
-     * Safe to call multiple times — method handles null runtime gracefully.
-     * Use when JEI runtime may not have been ready during the initial hide attempt.
+     * Retry hiding JEI config/bookmark/history buttons until successful.
+     * Call from a tick handler so it retries at 20 tps.
+     *
+     * @return true if all buttons are now hidden (stop retrying)
      */
-    public static void retryJeiButtonHide() {
-        hideJeiConfigButton();
-        hideJeiBookmarkButtons();
+    public static boolean retryJeiButtonHide() {
+        if (jeiButtonsHidden) return true;
+        if (jeiRetryTick >= JEI_MAX_RETRY_TICKS) return true; // give up after ~5s
+        jeiRetryTick++;
+
+        // Try to get JEI runtime
+        try {
+            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
+            Object runtime = internalClass.getMethod("getJeiRuntime").invoke(null);
+            if (runtime == null) return false;
+
+            // Bookmark buttons
+            Object bookmarkOv = runtime.getClass().getMethod("getBookmarkOverlay").invoke(runtime);
+            if (bookmarkOv != null) {
+                setJeiIconButtonVisible(bookmarkOv, "bookmarkButton", false);
+                setJeiIconButtonVisible(bookmarkOv, "historyButton", false);
+            }
+
+            // Config button
+            Object overlay = runtime.getClass().getMethod("getIngredientListOverlay").invoke(runtime);
+            if (overlay != null) {
+                setJeiIconButtonVisible(overlay, "configButton", false);
+            }
+
+            jeiButtonsHidden = true;
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     /**

@@ -36,6 +36,10 @@ dependencies {
     implementation(project(path: ":common"))
 }
 
+tasks.named("compileJava") {
+    exclude("com/alonie/brbe/fabric/compat/jei/BetterRecipeBookJEIPlugin.java")
+}
+
 // Include common module (classes + resources) — loom-no-remap doesn't auto-merge
 jar {
     from project(":common").sourceSets.main.output

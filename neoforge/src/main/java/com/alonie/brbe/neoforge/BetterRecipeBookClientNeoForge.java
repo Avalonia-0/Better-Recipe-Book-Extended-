@@ -40,13 +40,15 @@ public class BetterRecipeBookClientNeoForge {
                 registeredScreens.remove(screen);
                 // Apply overlay hide state immediately when screen opens (no flash)
                 OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
-                // Retry JEI button hide (handles timing where JEI runtime isn't ready yet)
-                OverlayHider.retryJeiButtonHide();
             }
         });
 
         ClientTickEvent.CLIENT_POST.register(client -> {
             Screen screen = client.screen;
+            // Tick-level retry for JEI icon button hiding (runtime may not be ready at INIT_POST)
+            if (BetterRecipeBook.config.hideReiJeiOverlay && screen != null) {
+                OverlayHider.retryJeiButtonHide();
+            }
             if (screen == null || registeredScreens.contains(screen) || !TopLayerOverlayRenderer.hasOverlay(screen)) {
                 return;
             }
