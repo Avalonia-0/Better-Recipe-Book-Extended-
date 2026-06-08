@@ -18,7 +18,7 @@ public class Config implements ConfigData {
     @ConfigEntry.Gui.Tooltip()
     public boolean hideReiJeiOverlay = false;
 
-    @ConfigEntry.Gui.Tooltip()
+    @ConfigEntry.Gui.Excluded()
     public boolean enableRecipeBookIsPain = true;
 
     @ConfigEntry.Category("newRecipes")
