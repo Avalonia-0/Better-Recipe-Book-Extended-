@@ -1,30 +1,20 @@
 package com.alonie.brbe.compat.rei;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.compat.ItemViewCompat;
 import dev.architectury.platform.Platform;
 import net.minecraft.world.item.ItemStack;
 
-/**
- * Bridge for REI (Roughly Enough Items) integration.
- * Uses a handler pattern so common code can call REI API without REI being on the classpath.
- * The handler is registered via reflection at runtime if REI is loaded.
- */
 public class ReiCompat {
+    private static ReiHandler handler;
 
-    /**
-     * Register the REI handler using reflection. No-op if REI is not loaded.
-     * Safe to call early (deferred by platform until mods are initialized).
-     */
     public static void register() {
         if (!Platform.isModLoaded("roughlyenoughitems")) return;
 
-        ItemViewCompat.setHandler(new ReiHandler() {
+        setHandler(new ReiHandler() {
             @Override
             public boolean openRecipeView(ItemStack stack) {
                 return openView("addRecipesFor", stack);
             }
-
             @Override
             public boolean openUsageView(ItemStack stack) {
                 return openView("addUsagesFor", stack);
@@ -50,19 +40,25 @@ public class ReiCompat {
     }
 
     public static void setHandler(ReiHandler h) {
-        ItemViewCompat.setHandler(h);
+        handler = h;
     }
 
     public static boolean isLoaded() {
-        return ItemViewCompat.isLoaded();
+        return handler != null;
     }
 
     public static boolean openRecipeView(ItemStack stack) {
-        return ItemViewCompat.openRecipeView(stack);
+        if (handler != null) {
+            return handler.openRecipeView(stack);
+        }
+        return false;
     }
 
     public static boolean openUsageView(ItemStack stack) {
-        return ItemViewCompat.openUsageView(stack);
+        if (handler != null) {
+            return handler.openUsageView(stack);
+        }
+        return false;
     }
 
     public interface ReiHandler {
