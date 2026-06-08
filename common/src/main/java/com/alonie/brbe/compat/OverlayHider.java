@@ -4,6 +4,8 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.compat.jei.JeiCompat;
 import com.alonie.brbe.compat.rei.ReiCompat;
 
+import java.lang.reflect.Field;
+
 /**
  * Utility for hiding/showing REI and/or JEI overlays on container screens.
  * <p>
@@ -90,8 +92,41 @@ public class OverlayHider {
                 jeiBookmarkToggled = true;
                 BetterRecipeBook.LOGGER.debug("JEI bookmarks hidden via toggleBookmarkEnabled()");
             }
+
+            if (!jeiCheatToggled) {
+                toggleState.getClass().getMethod("toggleCheatItemsEnabled").invoke(toggleState);
+                jeiCheatToggled = true;
+            }
+
+            // Hide JEI's config button (gear icon) — it's drawn unconditionally
+            hideJeiConfigButton();
         } catch (ReflectiveOperationException e) {
             BetterRecipeBook.LOGGER.warn("Failed to hide JEI overlay", e);
+        }
+    }
+
+    private static void hideJeiConfigButton() {
+        try {
+            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
+            Object runtime = internalClass.getMethod("getJeiRuntime").invoke(null);
+            if (runtime == null) return;
+
+            Object overlay = runtime.getClass().getMethod("getIngredientListOverlay").invoke(runtime);
+            if (overlay == null) return;
+
+            Field configButtonField = overlay.getClass().getDeclaredField("configButton");
+            configButtonField.setAccessible(true);
+            Object iconButton = configButtonField.get(overlay);
+            if (iconButton == null) return;
+
+            Field internalButtonField = iconButton.getClass().getDeclaredField("button");
+            internalButtonField.setAccessible(true);
+            Object internalButton = internalButtonField.get(iconButton);
+            if (internalButton == null) return;
+
+            internalButton.getClass().getMethod("setVisible", boolean.class).invoke(internalButton, false);
+        } catch (Exception e) {
+            // Silently ignore — the config button is non-critical
         }
     }
 
@@ -109,10 +144,41 @@ public class OverlayHider {
             if (jeiBookmarkToggled) {
                 toggleState.getClass().getMethod("toggleBookmarkEnabled").invoke(toggleState);
                 jeiBookmarkToggled = false;
-                BetterRecipeBook.LOGGER.debug("JEI bookmarks restored via toggleBookmarkEnabled()");
             }
+            if (jeiCheatToggled) {
+                toggleState.getClass().getMethod("toggleCheatItemsEnabled").invoke(toggleState);
+                jeiCheatToggled = false;
+            }
+
+            // Restore JEI config button visibility
+            showJeiConfigButton();
         } catch (ReflectiveOperationException e) {
             BetterRecipeBook.LOGGER.warn("Failed to show JEI overlay", e);
+        }
+    }
+
+    private static void showJeiConfigButton() {
+        try {
+            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
+            Object runtime = internalClass.getMethod("getJeiRuntime").invoke(null);
+            if (runtime == null) return;
+
+            Object overlay = runtime.getClass().getMethod("getIngredientListOverlay").invoke(runtime);
+            if (overlay == null) return;
+
+            Field configButtonField = overlay.getClass().getDeclaredField("configButton");
+            configButtonField.setAccessible(true);
+            Object iconButton = configButtonField.get(overlay);
+            if (iconButton == null) return;
+
+            Field internalButtonField = iconButton.getClass().getDeclaredField("button");
+            internalButtonField.setAccessible(true);
+            Object internalButton = internalButtonField.get(iconButton);
+            if (internalButton == null) return;
+
+            internalButton.getClass().getMethod("setVisible", boolean.class).invoke(internalButton, true);
+        } catch (Exception e) {
+            // Silently ignore
         }
     }
 
@@ -123,5 +189,6 @@ public class OverlayHider {
         reiHidden = false;
         jeiOverlayToggled = false;
         jeiBookmarkToggled = false;
+        jeiCheatToggled = false;
     }
 }
