@@ -1,6 +1,7 @@
 package com.alonie.brbe.compat.rei;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.compat.ItemViewCompat;
 import dev.architectury.platform.Platform;
 import net.minecraft.world.item.ItemStack;
 
@@ -10,7 +11,6 @@ import net.minecraft.world.item.ItemStack;
  * The handler is registered via reflection at runtime if REI is loaded.
  */
 public class ReiCompat {
-    private static ReiHandler handler;
 
     /**
      * Register the REI handler using reflection. No-op if REI is not loaded.
@@ -19,7 +19,7 @@ public class ReiCompat {
     public static void register() {
         if (!Platform.isModLoaded("roughlyenoughitems")) return;
 
-        setHandler(new ReiHandler() {
+        ItemViewCompat.setHandler(new ReiHandler() {
             @Override
             public boolean openRecipeView(ItemStack stack) {
                 return openView("addRecipesFor", stack);
@@ -50,25 +50,19 @@ public class ReiCompat {
     }
 
     public static void setHandler(ReiHandler h) {
-        handler = h;
+        ItemViewCompat.setHandler(h);
     }
 
     public static boolean isLoaded() {
-        return handler != null;
+        return ItemViewCompat.isLoaded();
     }
 
     public static boolean openRecipeView(ItemStack stack) {
-        if (handler != null) {
-            return handler.openRecipeView(stack);
-        }
-        return false;
+        return ItemViewCompat.openRecipeView(stack);
     }
 
     public static boolean openUsageView(ItemStack stack) {
-        if (handler != null) {
-            return handler.openUsageView(stack);
-        }
-        return false;
+        return ItemViewCompat.openUsageView(stack);
     }
 
     public interface ReiHandler {
