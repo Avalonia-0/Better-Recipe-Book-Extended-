@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "brbe",
-  "version": "1.0.2",
+  "version": "1.0.3.1",
   "name": "Better Recipe Book (Extended)",
   "description": "Adds some quality of life changes to the recipe book",
   "authors": [
@@ -23,6 +23,9 @@
   "license": "MIT",
   "icon": "assets/brbe/icon.png",
   "environment": "client",
+  "jars": [{
+    "file": "META-INF/jars/recipe-book-is-pain-extended-1.0.2-1.21.11-local.jar"
+  }],
   "entrypoints": {
     "main": [
       "com.alonie.brbe.fabric.BetterRecipeBookFabric"
@@ -40,11 +43,12 @@
   "mixins": [
     "mixins.brbe.json",
     "mixins.brbe-common.json",
-    "mixins.brbe-common-compat.json"
+    "mixins.brbe-common-compat.json",
+    "mixins.brbe-jei.json"
   ],
   "depends": {
     "fabric-api": "*",
-    "minecraft": ">=26.1",
-    "architectury": ">=20"
+    "minecraft": ">=1.21.11",
+    "architectury": ">=19"
   }
 }
