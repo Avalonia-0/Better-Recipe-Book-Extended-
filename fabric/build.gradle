@@ -29,14 +29,18 @@ dependencies {
 
     modCompileOnly "com.terraformersmc:modmenu:${rootProject.modmenu_version}"
 
-    def jeiJarPath = rootProject.findProperty("jei_fabric_jar")
-            ?: "/home/avalonia/Downloads/1.21.1/jei-1.21.1-fabric-19.27.0.340.jar"
+    def jeiJarPath = rootProject.findProperty("jei_fabric_jar")?.toString()
+    if (jeiJarPath == null || !file(jeiJarPath).exists()) {
+        jeiJarPath = rootProject.file("libs/jei-1.21.1-fabric-19.27.0.340.jar").absolutePath
+    }
     if (file(jeiJarPath).exists()) {
         modCompileOnly files(jeiJarPath)
     }
 
     def reiJarPath = rootProject.findProperty("rei_fabric_jar")
-            ?: "/home/avalonia/Downloads/1.21.1/RoughlyEnoughItems-16.0.799-fabric.jar"
+    if (reiJarPath == null || !file(reiJarPath).exists()) {
+        reiJarPath = rootProject.file("libs/jei-1.21.1-fabric-19.27.0.340.jar").absolutePath
+    }
     if (file(reiJarPath).exists()) {
         modCompileOnly files(reiJarPath)
     }
