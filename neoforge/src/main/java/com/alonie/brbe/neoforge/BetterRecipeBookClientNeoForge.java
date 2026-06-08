@@ -45,9 +45,9 @@ public class BetterRecipeBookClientNeoForge {
 
         ClientTickEvent.CLIENT_POST.register(client -> {
             Screen screen = client.screen;
-            // Tick-level retry for JEI icon button hiding (runtime may not be ready at INIT_POST)
+            // Per-tick JEI state enforcement — reads real JEI state, no internal tracking
             if (BetterRecipeBook.config.hideReiJeiOverlay && screen != null) {
-                OverlayHider.retryJeiButtonHide();
+                OverlayHider.ensureJeiOverlayHidden();
             }
             if (screen == null || registeredScreens.contains(screen) || !TopLayerOverlayRenderer.hasOverlay(screen)) {
                 return;
