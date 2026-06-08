@@ -39,5 +39,8 @@
   "brbe.gui.settings.open": "設定を開く",
   "brbe.gui.smithable": "鍛冶可能なアイテムを表示中",
   "category.brbe": "Better Recipe Book",
-  "key.brbe.pin": "レシピのお気に入り登録・解除"
+  "key.brbe.pin": "レシピのお気に入り登録・解除",
+  "text.autoconfig.brbe.option.showIncompatibleRecipes": "2×2グリッドで3×3レシピを表示",
+  "text.autoconfig.brbe.option.showIncompatibleRecipes.@Tooltip": "インベントリの2×2作業グリッドのレシピブックに、3×3作業台が必要なレシピを表示します。互換性のないレシピは赤色で表示されます。",
+  "brbe.gui.environmentIncompatible": "この環境では作成できません"
 }

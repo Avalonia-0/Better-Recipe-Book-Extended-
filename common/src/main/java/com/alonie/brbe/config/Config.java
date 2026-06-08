@@ -16,6 +16,9 @@ public class Config implements ConfigData {
     public boolean partialCraftableEqualsCraftable = false;
 
     @ConfigEntry.Gui.Tooltip()
+    public boolean showIncompatibleRecipes = false;
+
+    @ConfigEntry.Gui.Tooltip()
     public boolean hideReiJeiOverlay = false;
 
     public boolean enableRecipeBookIsPain = true;

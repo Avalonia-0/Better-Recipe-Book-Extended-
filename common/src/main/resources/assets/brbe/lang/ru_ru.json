@@ -35,5 +35,8 @@
   "brbe.gui.instantCraft.on": "Моментальное создание",
   "brbe.gui.instantCraft.off": "Обычное создание",
   "brbe.gui.settings.open": "Настройки",
-  "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§eПодсказка: §7Если вы отключите любой из этих двух параметров, используйте Mod Menu, чтобы снова открыть их."
+  "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§eПодсказка: §7Если вы отключите любой из этих двух параметров, используйте Mod Menu, чтобы снова открыть их.",
+  "text.autoconfig.brbe.option.showIncompatibleRecipes": "Показать рецепты 3×3 в сетке 2×2",
+  "text.autoconfig.brbe.option.showIncompatibleRecipes.@Tooltip": "Показывает рецепты, требующие верстак 3×3, в книге рецептов инвентарной сетки 2×2. Несовместимые рецепты отмечены красным.",
+  "brbe.gui.environmentIncompatible": "Невозможно создать в этой среде"
 }
