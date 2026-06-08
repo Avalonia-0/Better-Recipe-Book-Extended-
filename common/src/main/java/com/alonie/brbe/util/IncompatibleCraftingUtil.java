@@ -24,6 +24,10 @@ public final class IncompatibleCraftingUtil {
 
     private IncompatibleCraftingUtil() {}
 
+    public static boolean isActive() {
+        return filteringActive;
+    }
+
     public static void beginFiltering(boolean active) {
         filteringActive = active;
         if (active) {
