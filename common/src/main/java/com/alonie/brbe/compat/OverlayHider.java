@@ -12,215 +12,217 @@ import java.lang.reflect.Field;
  */
 public class OverlayHider {
 
+    // --- Class cache (one-time resolution) ---
+    private static Class<?> reiConfigClass;
+    private static Class<?> jeiToggleStateClass;
+    private static Class<?> jeiRuntimeClass;
+    private static boolean classCacheResolved;
+
+    // --- REI state ---
     private static boolean reiHidden = false;
-    private static boolean jeiOverlayToggled = false;
-    private static boolean jeiBookmarkToggled = false;
-    private static boolean jeiCheatToggled = false;
 
     /**
-     * Returns true if either REI or JEI is loaded and can be controlled.
+     * Call on every tick while a screen is open and config says hide.
+     * Reads JEI's actual toggle state each tick and enforces our desired state.
+     * Stateless — no internal tracking for JEI, just reads reality.
      */
+    public static void ensureJeiOverlayHidden() {
+        Class<?> tsClass = getJeiToggleStateClass();
+        if (tsClass == null) return;
+
+        try {
+            Object ts = Class.forName("mezz.jei.common.Internal")
+                    .getMethod("getClientToggleState").invoke(null);
+            if (ts == null) return;
+
+            // Force overlayEnabled = false
+            if ((Boolean) tsClass.getMethod("isOverlayEnabled").invoke(ts)) {
+                tsClass.getMethod("toggleOverlayEnabled").invoke(ts);
+            }
+            // Force bookmarkOverlayEnabled = false
+            if ((Boolean) tsClass.getMethod("isBookmarkOverlayEnabled").invoke(ts)) {
+                tsClass.getMethod("toggleBookmarkEnabled").invoke(ts);
+            }
+            // Force cheatItemsEnabled = false
+            if ((Boolean) tsClass.getMethod("isCheatItemsEnabled").invoke(ts)) {
+                tsClass.getMethod("toggleCheatItemsEnabled").invoke(ts);
+            }
+
+            // Also deeply hide the three IconButton instances via setVisible(false)
+            hideJeiIconButtons();
+        } catch (Exception e) {
+            // JEI not ready yet — will retry next tick
+        }
+    }
+
+    /**
+     * Call once when config says show. Restores JEI state.
+     */
+    public static void restoreJeiOverlay() {
+        Class<?> tsClass = getJeiToggleStateClass();
+        if (tsClass == null) return;
+
+        try {
+            Object ts = Class.forName("mezz.jei.common.Internal")
+                    .getMethod("getClientToggleState").invoke(null);
+            if (ts == null) return;
+
+            // Restore overlayEnabled = true
+            if (!(Boolean) tsClass.getMethod("isOverlayEnabled").invoke(ts)) {
+                tsClass.getMethod("toggleOverlayEnabled").invoke(ts);
+            }
+            // Restore bookmarkOverlayEnabled = true
+            if (!(Boolean) tsClass.getMethod("isBookmarkOverlayEnabled").invoke(ts)) {
+                tsClass.getMethod("toggleBookmarkEnabled").invoke(ts);
+            }
+            // Restore cheatItemsEnabled = true
+            if (!(Boolean) tsClass.getMethod("isCheatItemsEnabled").invoke(ts)) {
+                tsClass.getMethod("toggleCheatItemsEnabled").invoke(ts);
+            }
+
+            showJeiIconButtons();
+        } catch (Exception e) {
+            // Silently ignore
+        }
+    }
+
+    // --- REI control (unchanged) ---
+
+    public static void hideReiOverlay() {
+        if (!isReiLoaded() || reiHidden) return;
+        try {
+            Object instance = getReiConfigClass().getMethod("getInstance").invoke(null);
+            getReiConfigClass().getMethod("setOverlayVisible", boolean.class).invoke(instance, false);
+            reiHidden = true;
+        } catch (ReflectiveOperationException e) {
+            // Silently ignore
+        }
+    }
+
+    public static void showReiOverlay() {
+        if (!isReiLoaded() || !reiHidden) return;
+        try {
+            Object instance = getReiConfigClass().getMethod("getInstance").invoke(null);
+            getReiConfigClass().getMethod("setOverlayVisible", boolean.class).invoke(instance, true);
+            reiHidden = false;
+        } catch (ReflectiveOperationException e) {
+            // Silently ignore
+        }
+    }
+
+    // --- Convenience methods for client initializers ---
+
     public static boolean isApplicable() {
-        return isReiLoaded() || isJeiLoaded();
+        return isReiLoaded() || (getJeiToggleStateClass() != null);
     }
 
-    private static boolean isReiLoaded() {
-        try {
-            Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
-    }
-
-    private static boolean isJeiLoaded() {
-        try {
-            Class.forName("mezz.jei.common.Internal");
-            return true;
-        } catch (ClassNotFoundException e) {
-            return false;
-        }
-    }
-
-    /**
-     * Applies the configured overlay hide state. Called on every screen init.
-     * Does NOT use a global shouldHide guard — each mod's own state tracking
-     * (reiHidden/jeiOverlayToggled) prevents redundant API calls. This ensures
-     * hides are re-attempted until the target mod is fully loaded.
-     */
     public static void setOverlaysHidden(boolean hide) {
         if (hide) {
             hideReiOverlay();
-            hideJeiOverlay();
+            ensureJeiOverlayHidden();
         } else {
             showReiOverlay();
-            showJeiOverlay();
+            restoreJeiOverlay();
         }
     }
 
-    private static void hideReiOverlay() {
-        if (!isReiLoaded() || reiHidden) return;
-        try {
-            Class<?> configObjectClass = Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
-            Object instance = configObjectClass.getMethod("getInstance").invoke(null);
-            configObjectClass.getMethod("setOverlayVisible", boolean.class).invoke(instance, false);
-            reiHidden = true;
-            BetterRecipeBook.LOGGER.debug("REI overlay hidden via ConfigObject.setOverlayVisible(false)");
-        } catch (ReflectiveOperationException e) {
-            BetterRecipeBook.LOGGER.warn("Failed to hide REI overlay", e);
-        }
-    }
+    // === Internal: JEI button hiding via reflection ===
 
-    private static void showReiOverlay() {
-        if (!isReiLoaded() || !reiHidden) return;
-        try {
-            Class<?> configObjectClass = Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
-            Object instance = configObjectClass.getMethod("getInstance").invoke(null);
-            configObjectClass.getMethod("setOverlayVisible", boolean.class).invoke(instance, true);
-            reiHidden = false;
-            BetterRecipeBook.LOGGER.debug("REI overlay restored via ConfigObject.setOverlayVisible(true)");
-        } catch (ReflectiveOperationException e) {
-            BetterRecipeBook.LOGGER.warn("Failed to show REI overlay", e);
-        }
-    }
-
-    private static void hideJeiOverlay() {
-        if (!isJeiLoaded()) return;
-        try {
-            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
-            Object toggleState = internalClass.getMethod("getClientToggleState").invoke(null);
-
-            if (!jeiOverlayToggled) {
-                toggleState.getClass().getMethod("toggleOverlayEnabled").invoke(toggleState);
-                jeiOverlayToggled = true;
-                BetterRecipeBook.LOGGER.debug("JEI overlay hidden via toggleOverlayEnabled()");
-            }
-            if (!jeiBookmarkToggled) {
-                toggleState.getClass().getMethod("toggleBookmarkEnabled").invoke(toggleState);
-                jeiBookmarkToggled = true;
-                BetterRecipeBook.LOGGER.debug("JEI bookmarks hidden via toggleBookmarkEnabled()");
-            }
-
-            if (!jeiCheatToggled) {
-                toggleState.getClass().getMethod("toggleCheatItemsEnabled").invoke(toggleState);
-                jeiCheatToggled = true;
-            }
-
-            // Hide JEI's config button (gear icon) — it's drawn unconditionally
-            hideJeiConfigButton();
-            // Hide JEI's bookmark and history bottom buttons (bookmark star, history clock)
-            hideJeiBookmarkButtons();
-        } catch (ReflectiveOperationException e) {
-            BetterRecipeBook.LOGGER.warn("Failed to hide JEI overlay", e);
-        }
-    }
-
-    private static void hideJeiBookmarkButtons() {
+    private static void hideJeiIconButtons() {
         try {
             Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
             Object runtime = internalClass.getMethod("getJeiRuntime").invoke(null);
             if (runtime == null) return;
 
-            Object bookmarkOv = runtime.getClass().getMethod("getBookmarkOverlay").invoke(runtime);
-            if (bookmarkOv == null) return;
+            Object overlay = runtime.getClass().getMethod("getIngredientListOverlay").invoke(runtime);
+            if (overlay != null) {
+                setIconButtonVisible(overlay, "configButton", false);
+            }
 
-            setJeiIconButtonVisible(bookmarkOv, "bookmarkButton", false);
-            setJeiIconButtonVisible(bookmarkOv, "historyButton", false);
+            Object bookmarkOv = runtime.getClass().getMethod("getBookmarkOverlay").invoke(runtime);
+            if (bookmarkOv != null) {
+                setIconButtonVisible(bookmarkOv, "bookmarkButton", false);
+                setIconButtonVisible(bookmarkOv, "historyButton", false);
+            }
         } catch (Exception e) {
-            // Silently ignore
+            // Runtime not ready yet — will retry next tick
         }
     }
 
-    private static void showJeiBookmarkButtons() {
+    private static void showJeiIconButtons() {
         try {
             Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
             Object runtime = internalClass.getMethod("getJeiRuntime").invoke(null);
             if (runtime == null) return;
 
-            Object bookmarkOv = runtime.getClass().getMethod("getBookmarkOverlay").invoke(runtime);
-            if (bookmarkOv == null) return;
+            Object overlay = runtime.getClass().getMethod("getIngredientListOverlay").invoke(runtime);
+            if (overlay != null) {
+                setIconButtonVisible(overlay, "configButton", true);
+            }
 
-            setJeiIconButtonVisible(bookmarkOv, "bookmarkButton", true);
-            setJeiIconButtonVisible(bookmarkOv, "historyButton", true);
+            Object bookmarkOv = runtime.getClass().getMethod("getBookmarkOverlay").invoke(runtime);
+            if (bookmarkOv != null) {
+                setIconButtonVisible(bookmarkOv, "bookmarkButton", true);
+                setIconButtonVisible(bookmarkOv, "historyButton", true);
+            }
         } catch (Exception e) {
             // Silently ignore
         }
     }
 
-    private static void setJeiIconButtonVisible(Object owningObject, String fieldName, boolean visible) {
+    /**
+     * Reflectively calls InternalIconButton.setVisible(boolean).
+     */
+    private static void setIconButtonVisible(Object owningObject, String fieldName, boolean visible) {
         try {
-            Field iconField = owningObject.getClass().getDeclaredField(fieldName);
-            iconField.setAccessible(true);
-            Object iconButton = iconField.get(owningObject);
+            Field f = owningObject.getClass().getDeclaredField(fieldName);
+            f.setAccessible(true);
+            Object iconButton = f.get(owningObject);
             if (iconButton == null) return;
 
-            Field internalBtnField = iconButton.getClass().getDeclaredField("button");
-            internalBtnField.setAccessible(true);
-            Object internalButton = internalBtnField.get(iconButton);
-            if (internalButton == null) return;
+            Field btnField = iconButton.getClass().getDeclaredField("button");
+            btnField.setAccessible(true);
+            Object internalBtn = btnField.get(iconButton);
+            if (internalBtn == null) return;
 
-            internalButton.getClass().getMethod("setVisible", boolean.class).invoke(internalButton, visible);
+            internalBtn.getClass().getMethod("setVisible", boolean.class).invoke(internalBtn, visible);
         } catch (Exception e) {
             // Silently ignore
         }
     }
 
-    private static void hideJeiConfigButton() {
-        try {
-            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
-            Object runtime = internalClass.getMethod("getJeiRuntime").invoke(null);
-            if (runtime == null) return;
+    // === Internal: class resolution (lazy, one-time) ===
 
-            Object overlay = runtime.getClass().getMethod("getIngredientListOverlay").invoke(runtime);
-            if (overlay == null) return;
-
-            setJeiIconButtonVisible(overlay, "configButton", false);
-        } catch (Exception e) {
-            // Silently ignore
-        }
+    private static boolean isReiLoaded() {
+        return getReiConfigClass() != null;
     }
 
-    private static void showJeiOverlay() {
-        if (!isJeiLoaded()) return;
-        try {
-            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
-            Object toggleState = internalClass.getMethod("getClientToggleState").invoke(null);
-
-            if (jeiOverlayToggled) {
-                toggleState.getClass().getMethod("toggleOverlayEnabled").invoke(toggleState);
-                jeiOverlayToggled = false;
-                BetterRecipeBook.LOGGER.debug("JEI overlay restored via toggleOverlayEnabled()");
-            }
-            if (jeiBookmarkToggled) {
-                toggleState.getClass().getMethod("toggleBookmarkEnabled").invoke(toggleState);
-                jeiBookmarkToggled = false;
-            }
-            if (jeiCheatToggled) {
-                toggleState.getClass().getMethod("toggleCheatItemsEnabled").invoke(toggleState);
-                jeiCheatToggled = false;
-            }
-
-            // Restore JEI config button visibility
-            showJeiConfigButton();
-            // Restore JEI bookmark and history buttons
-            showJeiBookmarkButtons();
-        } catch (ReflectiveOperationException e) {
-            BetterRecipeBook.LOGGER.warn("Failed to show JEI overlay", e);
+    private static Class<?> getReiConfigClass() {
+        if (reiConfigClass == null && !classCacheResolved) {
+            try {
+                reiConfigClass = Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
+            } catch (ClassNotFoundException ignored) {}
         }
+        return reiConfigClass;
     }
 
-    private static void showJeiConfigButton() {
+    private static Class<?> getJeiToggleStateClass() {
+        if (jeiToggleStateClass == null) {
+            resolveClassCache();
+        }
+        return jeiToggleStateClass;
+    }
+
+    private static synchronized void resolveClassCache() {
+        if (classCacheResolved) return;
+        classCacheResolved = true;
         try {
-            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
-            Object runtime = internalClass.getMethod("getJeiRuntime").invoke(null);
-            if (runtime == null) return;
-
-            Object overlay = runtime.getClass().getMethod("getIngredientListOverlay").invoke(runtime);
-            if (overlay == null) return;
-
-            setJeiIconButtonVisible(overlay, "configButton", true);
-        } catch (Exception e) {
-            // Silently ignore
+            Class.forName("mezz.jei.common.Internal");
+            jeiToggleStateClass = Class.forName("mezz.jei.common.config.IClientToggleState");
+            jeiRuntimeClass = Class.forName("mezz.jei.api.runtime.IJeiRuntime");
+        } catch (ClassNotFoundException e) {
+            jeiToggleStateClass = null;
+            jeiRuntimeClass = null;
         }
     }
 
@@ -229,8 +231,5 @@ public class OverlayHider {
      */
     public static void reset() {
         reiHidden = false;
-        jeiOverlayToggled = false;
-        jeiBookmarkToggled = false;
-        jeiCheatToggled = false;
     }
 }
