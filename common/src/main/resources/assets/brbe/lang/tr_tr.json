@@ -34,5 +34,5 @@
   "brbe.gui.instantCraft.on": "Anında üretim açık",
   "brbe.gui.instantCraft.off": "Anında üretim kapalı",
   "brbe.gui.settings.open": "Ayarları aç",
-  "brbe.gui.environmentIncompatible": "Bu ortamda üretilemez"
+  "brbe.gui.environmentIncompatible": "Şu anda üretilemez"
 }

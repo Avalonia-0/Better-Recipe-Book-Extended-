@@ -40,5 +40,5 @@
   "brbe.gui.smithable": "鍛冶可能なアイテムを表示中",
   "category.brbe": "Better Recipe Book",
   "key.brbe.pin": "レシピのお気に入り登録・解除",
-  "brbe.gui.environmentIncompatible": "この環境では作成できません"
+  "brbe.gui.environmentIncompatible": "現在の環境では作成できません"
 }

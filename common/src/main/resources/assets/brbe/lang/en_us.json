@@ -41,5 +41,5 @@
   "key.brbe.pin": "Pin Recipe",
   "key.brbe.recipeView": "View Recipe (REI)",
   "key.brbe.usageView": "View Usage (REI)",
-  "brbe.gui.environmentIncompatible": "Cannot be crafted in this environment"
+  "brbe.gui.environmentIncompatible": "Cannot be crafted currently"
 }
