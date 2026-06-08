@@ -1,18 +1,17 @@
 package com.alonie.brbe.compat.rei;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.compat.ItemViewCompat;
 import dev.architectury.platform.Platform;
 import net.minecraft.world.item.ItemStack;
 
 public class ReiCompat {
-    private static ReiHandler handler;
     private static volatile boolean registered;
 
-    /** Called from platform-specific init (deferred via ClientLifecycleEvent.CLIENT_STARTED). */
     public static void register() {
         if (!Platform.isModLoaded("roughlyenoughitems")) return;
 
-        setHandler(new ReiHandler() {
+        ItemViewCompat.setHandler(new ReiHandler() {
             @Override
             public boolean openRecipeView(ItemStack stack) {
                 return openView("addRecipesFor", stack);
@@ -25,7 +24,6 @@ public class ReiCompat {
         registered = true;
     }
 
-    /** Lazy fallback: called on first isLoaded() check if register() wasn't called yet. */
     private static void ensureRegistered() {
         if (registered) return;
         registered = true;
@@ -50,30 +48,23 @@ public class ReiCompat {
     }
 
     public static void setHandler(ReiHandler h) {
-        handler = h;
+        ItemViewCompat.setHandler(h);
     }
 
     public static boolean isLoaded() {
         ensureRegistered();
-        return handler != null;
+        return ItemViewCompat.isLoaded();
     }
 
     public static boolean openRecipeView(ItemStack stack) {
-        if (handler != null) {
-            return handler.openRecipeView(stack);
-        }
-        return false;
+        return ItemViewCompat.openRecipeView(stack);
     }
 
     public static boolean openUsageView(ItemStack stack) {
-        if (handler != null) {
-            return handler.openUsageView(stack);
-        }
-        return false;
+        return ItemViewCompat.openUsageView(stack);
     }
 
-    public interface ReiHandler {
-        boolean openRecipeView(ItemStack stack);
-        boolean openUsageView(ItemStack stack);
+    public interface ReiHandler extends ItemViewCompat.Handler {
+        // inherits openRecipeView(ItemStack) and openUsageView(ItemStack)
     }
 }

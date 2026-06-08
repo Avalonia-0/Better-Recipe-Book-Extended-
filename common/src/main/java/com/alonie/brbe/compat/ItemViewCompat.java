@@ -4,60 +4,42 @@ import net.minecraft.world.item.ItemStack;
 
 /**
  * Bridge for JEI/REI recipe/usage view key handling.
- * Uses {@code Class.forName()} at every call to avoid compile-time and
- * class-loading dependencies on JeiCompat/ReiCompat.
+ * <p>
+ * This class is a <b>pure handler container</b> with zero imports of
+ * {@code JeiCompat} or {@code ReiCompat}. The actual JEI/REI handler is
+ * injected by the platform-specific compat layer
+ * ({@code JeiCompat#setHandler} / {@code ReiCompat#setHandler}).
+ * <p>
+ * This keeps the module dependency one-way: JeiCompat → ItemViewCompat,
+ * ReiCompat → ItemViewCompat. Mixin code only references ItemViewCompat
+ * and never transitively depends on JEI/REI classes.
  */
 public final class ItemViewCompat {
 
+    private static Handler handler;
+
     private ItemViewCompat() {}
 
-    // --- Class name constants ---
-    private static final String JEI_COMPAT = "com.alonie.brbe.compat.jei.JeiCompat";
-    private static final String REI_COMPAT = "com.alonie.brbe.compat.rei.ReiCompat";
+    /** Injected by {@code JeiCompat} or {@code ReiCompat} at runtime. */
+    public static void setHandler(Handler h) {
+        handler = h;
+    }
 
     public static boolean isLoaded() {
-        try {
-            Class<?> jc = Class.forName(JEI_COMPAT);
-            return (boolean) jc.getMethod("isLoaded").invoke(null);
-        } catch (Exception ignored) {}
-        try {
-            Class<?> rc = Class.forName(REI_COMPAT);
-            return (boolean) rc.getMethod("isLoaded").invoke(null);
-        } catch (Exception ignored) {}
-        return false;
+        return handler != null;
     }
 
     public static boolean openRecipeView(ItemStack stack) {
-        if (stack.isEmpty()) return false;
-        try {
-            Class<?> jc = Class.forName(JEI_COMPAT);
-            if ((boolean) jc.getMethod("isLoaded").invoke(null)) {
-                return (boolean) jc.getMethod("openRecipeView", ItemStack.class).invoke(null, stack);
-            }
-        } catch (Exception ignored) {}
-        try {
-            Class<?> rc = Class.forName(REI_COMPAT);
-            if ((boolean) rc.getMethod("isLoaded").invoke(null)) {
-                return (boolean) rc.getMethod("openRecipeView", ItemStack.class).invoke(null, stack);
-            }
-        } catch (Exception ignored) {}
-        return false;
+        return handler != null && handler.openRecipeView(stack);
     }
 
     public static boolean openUsageView(ItemStack stack) {
-        if (stack.isEmpty()) return false;
-        try {
-            Class<?> jc = Class.forName(JEI_COMPAT);
-            if ((boolean) jc.getMethod("isLoaded").invoke(null)) {
-                return (boolean) jc.getMethod("openUsageView", ItemStack.class).invoke(null, stack);
-            }
-        } catch (Exception ignored) {}
-        try {
-            Class<?> rc = Class.forName(REI_COMPAT);
-            if ((boolean) rc.getMethod("isLoaded").invoke(null)) {
-                return (boolean) rc.getMethod("openUsageView", ItemStack.class).invoke(null, stack);
-            }
-        } catch (Exception ignored) {}
-        return false;
+        return handler != null && handler.openUsageView(stack);
+    }
+
+    /** Common interface implemented by both JEI and REI handlers. */
+    public interface Handler {
+        boolean openRecipeView(ItemStack stack);
+        boolean openUsageView(ItemStack stack);
     }
 }
