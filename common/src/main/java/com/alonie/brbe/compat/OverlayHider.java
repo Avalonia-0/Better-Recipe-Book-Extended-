@@ -109,8 +109,32 @@ public class OverlayHider {
 
     // --- Convenience methods for client initializers ---
 
+    /**
+     * Returns {@code true} if either JEI or REI is actually loaded as a mod.
+     * Uses platform APIs ({@code Platform.isModLoaded}) rather than class-path
+     * heuristics so that disabled / absent mods are detected correctly.
+     */
     public static boolean isApplicable() {
-        return isReiLoaded() || (getJeiToggleStateClass() != null);
+        try {
+            return isJeiModLoaded() || isReiModLoaded();
+        } catch (Exception e) {
+            // Fall back to class-path check if platform API is unavailable
+            return isReiLoaded() || (getJeiToggleStateClass() != null);
+        }
+    }
+
+    /**
+     * Returns {@code true} if JEI is present in the mod list (Fabric or NeoForge).
+     */
+    public static boolean isJeiModLoaded() {
+        return dev.architectury.platform.Platform.isModLoaded("jei");
+    }
+
+    /**
+     * Returns {@code true} if REI is present in the mod list.
+     */
+    public static boolean isReiModLoaded() {
+        return dev.architectury.platform.Platform.isModLoaded("roughlyenoughitems");
     }
 
     public static void setOverlaysHidden(boolean hide) {
