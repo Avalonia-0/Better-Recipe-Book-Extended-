@@ -3,13 +3,8 @@ package com.alonie.brbe.fabric;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.fabric.PlatformPotionUtilImpl;
 import com.alonie.brbe.compat.OverlayHider;
-import com.alonie.brbe.config.Config;
 import com.alonie.brbe.fabric.compat.rei.ReiCompatHandler;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
-import dev.architectury.platform.Platform;
-import dev.architectury.platform.client.ConfigurationScreenRegistry;
-import me.shedaniel.autoconfig.AutoConfigClient;
-import me.shedaniel.autoconfig.gui.ConfigScreenProvider;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -29,22 +24,6 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
         // Register optional compat handlers
         ReiCompatHandler.register();
-
-        // Register config screen via Architectury so setOptionFunction hook is applied
-        ConfigurationScreenRegistry.register(
-                Platform.getMod(BetterRecipeBook.MOD_ID),
-                parent -> {
-                    java.util.function.Supplier<Screen> supplier =
-                            AutoConfigClient.getConfigScreen(Config.class, parent);
-                    if (!OverlayHider.isApplicable() && supplier instanceof ConfigScreenProvider<?> provider) {
-                        provider.setOptionFunction((configId, field) -> {
-                            if ("hideReiJeiOverlay".equals(field.getName())) return null;
-                            return "option." + configId + "." + field.getName();
-                        });
-                    }
-                    return supplier.get();
-                }
-        );
         
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             this.registeredScreens.remove(screen);
