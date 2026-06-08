@@ -1,26 +1,20 @@
 package com.alonie.brbe.compat.rei;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.compat.ItemViewCompat;
 import dev.architectury.platform.Platform;
 import net.minecraft.world.item.ItemStack;
 
-public final class ReiCompat {
-
-    private ReiCompat() {
-    }
+public class ReiCompat {
+    private static ReiHandler handler;
 
     public static void register() {
-        if (!Platform.isModLoaded("roughlyenoughitems")) {
-            return;
-        }
+        if (!Platform.isModLoaded("roughlyenoughitems")) return;
 
         setHandler(new ReiHandler() {
             @Override
             public boolean openRecipeView(ItemStack stack) {
                 return openView("addRecipesFor", stack);
             }
-
             @Override
             public boolean openUsageView(ItemStack stack) {
                 return openView("addUsagesFor", stack);
@@ -46,24 +40,29 @@ public final class ReiCompat {
     }
 
     public static void setHandler(ReiHandler h) {
-        ItemViewCompat.setHandler(h);
+        handler = h;
     }
 
     public static boolean isLoaded() {
-        return ItemViewCompat.isLoaded();
+        return handler != null;
     }
 
     public static boolean openRecipeView(ItemStack stack) {
-        return ItemViewCompat.openRecipeView(stack);
+        if (handler != null) {
+            return handler.openRecipeView(stack);
+        }
+        return false;
     }
 
     public static boolean openUsageView(ItemStack stack) {
-        return ItemViewCompat.openUsageView(stack);
+        if (handler != null) {
+            return handler.openUsageView(stack);
+        }
+        return false;
     }
 
     public interface ReiHandler {
         boolean openRecipeView(ItemStack stack);
-
         boolean openUsageView(ItemStack stack);
     }
 }

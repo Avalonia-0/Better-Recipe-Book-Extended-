@@ -3,50 +3,60 @@ package com.alonie.brbe.compat;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * Self-contained bridge for JEI/REI recipe/usage view key handling.
- * <p>
- * Stores a single {@code handler} object (either {@code JeiCompat.JeiHandler}
- * or {@code ReiCompat.ReiHandler}) and invokes its {@code openRecipeView} /
- * {@code openUsageView} methods reflectively. This avoids compile-time and
- * class-loading dependencies on {@code JeiCompat} / {@code ReiCompat} so that
- * mixin classes which call {@link #isLoaded()} do not trigger
- * {@link NoClassDefFoundError} when JEI/REI classes are absent from the
- * classloader.
+ * Bridge for JEI/REI recipe/usage view key handling.
+ * Uses {@code Class.forName()} at every call to avoid compile-time and
+ * class-loading dependencies on JeiCompat/ReiCompat.
  */
 public final class ItemViewCompat {
 
-    private static Object handler;
-
     private ItemViewCompat() {}
 
-    /** Called by {@code JeiCompat} or {@code ReiCompat} when a handler is ready. */
-    public static void setHandler(Object h) {
-        handler = h;
-    }
+    private static final String JEI_COMPAT = "com.alonie.brbe.compat.jei.JeiCompat";
+    private static final String REI_COMPAT = "com.alonie.brbe.compat.rei.ReiCompat";
 
     public static boolean isLoaded() {
-        return handler != null;
+        try {
+            Class<?> jc = Class.forName(JEI_COMPAT);
+            return (boolean) jc.getMethod("isLoaded").invoke(null);
+        } catch (Exception ignored) {}
+        try {
+            Class<?> rc = Class.forName(REI_COMPAT);
+            return (boolean) rc.getMethod("isLoaded").invoke(null);
+        } catch (Exception ignored) {}
+        return false;
     }
 
     public static boolean openRecipeView(ItemStack stack) {
-        if (handler == null || stack.isEmpty()) return false;
+        if (stack.isEmpty()) return false;
         try {
-            return (boolean) handler.getClass()
-                    .getMethod("openRecipeView", ItemStack.class)
-                    .invoke(handler, stack);
-        } catch (Exception e) {
-            return false;
-        }
+            Class<?> jc = Class.forName(JEI_COMPAT);
+            if ((boolean) jc.getMethod("isLoaded").invoke(null)) {
+                return (boolean) jc.getMethod("openRecipeView", ItemStack.class).invoke(null, stack);
+            }
+        } catch (Exception ignored) {}
+        try {
+            Class<?> rc = Class.forName(REI_COMPAT);
+            if ((boolean) rc.getMethod("isLoaded").invoke(null)) {
+                return (boolean) rc.getMethod("openRecipeView", ItemStack.class).invoke(null, stack);
+            }
+        } catch (Exception ignored) {}
+        return false;
     }
 
     public static boolean openUsageView(ItemStack stack) {
-        if (handler == null || stack.isEmpty()) return false;
+        if (stack.isEmpty()) return false;
         try {
-            return (boolean) handler.getClass()
-                    .getMethod("openUsageView", ItemStack.class)
-                    .invoke(handler, stack);
-        } catch (Exception e) {
-            return false;
-        }
+            Class<?> jc = Class.forName(JEI_COMPAT);
+            if ((boolean) jc.getMethod("isLoaded").invoke(null)) {
+                return (boolean) jc.getMethod("openUsageView", ItemStack.class).invoke(null, stack);
+            }
+        } catch (Exception ignored) {}
+        try {
+            Class<?> rc = Class.forName(REI_COMPAT);
+            if ((boolean) rc.getMethod("isLoaded").invoke(null)) {
+                return (boolean) rc.getMethod("openUsageView", ItemStack.class).invoke(null, stack);
+            }
+        } catch (Exception ignored) {}
+        return false;
     }
 }
