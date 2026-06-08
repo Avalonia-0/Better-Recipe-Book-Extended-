@@ -48,7 +48,7 @@ public class BetterRecipeBookClientNeoForge {
             registeredScreens.add(screen);
             ClientGuiEvent.RENDER_POST.register((scr, guiGraphics, mouseX, mouseY, delta) -> {
                 if (scr == screen) {
-                    TopLayerOverlayRenderer.render(screen, guiGraphics, mouseX, mouseY, delta);
+                    TopLayerOverlayRenderer.render(screen, guiGraphics, mouseX, mouseY, delta.getGameTimeDeltaPartialTick(true));
                 }
             });
         });
