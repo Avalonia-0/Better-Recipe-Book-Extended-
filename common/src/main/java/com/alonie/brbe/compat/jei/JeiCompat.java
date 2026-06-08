@@ -23,8 +23,7 @@ public final class JeiCompat {
         return ItemViewCompat.openUsageView(stack);
     }
 
-    public interface JeiHandler {
-        boolean openRecipeView(ItemStack stack);
-        boolean openUsageView(ItemStack stack);
+    public interface JeiHandler extends ItemViewCompat.Handler {
+        // inherits openRecipeView(ItemStack) and openUsageView(ItemStack)
     }
 }

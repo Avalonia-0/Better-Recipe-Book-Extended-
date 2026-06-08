@@ -3,24 +3,25 @@ package com.alonie.brbe.compat;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * Self-contained bridge for JEI/REI recipe/usage view key handling.
+ * Bridge for JEI/REI recipe/usage view key handling.
  * <p>
- * Stores a single {@code handler} object (either {@code JeiCompat.JeiHandler}
- * or {@code ReiCompat.ReiHandler}) and invokes its {@code openRecipeView} /
- * {@code openUsageView} methods reflectively. This avoids compile-time and
- * class-loading dependencies on {@code JeiCompat} / {@code ReiCompat} so that
- * mixin classes which call {@link #isLoaded()} do not trigger
- * {@link NoClassDefFoundError} when JEI/REI classes are absent from the
- * classloader.
+ * This class is a <b>pure handler container</b> with zero imports of
+ * {@code JeiCompat} or {@code ReiCompat}. The actual JEI/REI handler is
+ * injected by the platform-specific compat layer
+ * ({@code JeiCompat#setHandler} / {@code ReiCompat#setHandler}).
+ * <p>
+ * This keeps the module dependency one-way: JeiCompat → ItemViewCompat,
+ * ReiCompat → ItemViewCompat. Mixin code only references ItemViewCompat
+ * and never transitively depends on JEI/REI classes.
  */
 public final class ItemViewCompat {
 
-    private static Object handler;
+    private static Handler handler;
 
     private ItemViewCompat() {}
 
-    /** Called by {@code JeiCompat} or {@code ReiCompat} when a handler is ready. */
-    public static void setHandler(Object h) {
+    /** Injected by {@code JeiCompat} or {@code ReiCompat} at runtime. */
+    public static void setHandler(Handler h) {
         handler = h;
     }
 
@@ -29,24 +30,16 @@ public final class ItemViewCompat {
     }
 
     public static boolean openRecipeView(ItemStack stack) {
-        if (handler == null || stack.isEmpty()) return false;
-        try {
-            return (boolean) handler.getClass()
-                    .getMethod("openRecipeView", ItemStack.class)
-                    .invoke(handler, stack);
-        } catch (Exception e) {
-            return false;
-        }
+        return handler != null && handler.openRecipeView(stack);
     }
 
     public static boolean openUsageView(ItemStack stack) {
-        if (handler == null || stack.isEmpty()) return false;
-        try {
-            return (boolean) handler.getClass()
-                    .getMethod("openUsageView", ItemStack.class)
-                    .invoke(handler, stack);
-        } catch (Exception e) {
-            return false;
-        }
+        return handler != null && handler.openUsageView(stack);
+    }
+
+    /** Common interface implemented by both JEI and REI handlers. */
+    public interface Handler {
+        boolean openRecipeView(ItemStack stack);
+        boolean openUsageView(ItemStack stack);
     }
 }
