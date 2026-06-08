@@ -100,8 +100,60 @@ public class OverlayHider {
 
             // Hide JEI's config button (gear icon) — it's drawn unconditionally
             hideJeiConfigButton();
+            // Hide JEI's bookmark and history bottom buttons (bookmark star, history clock)
+            hideJeiBookmarkButtons();
         } catch (ReflectiveOperationException e) {
             BetterRecipeBook.LOGGER.warn("Failed to hide JEI overlay", e);
+        }
+    }
+
+    private static void hideJeiBookmarkButtons() {
+        try {
+            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
+            Object runtime = internalClass.getMethod("getJeiRuntime").invoke(null);
+            if (runtime == null) return;
+
+            Object bookmarkOv = runtime.getClass().getMethod("getBookmarkOverlay").invoke(runtime);
+            if (bookmarkOv == null) return;
+
+            setJeiIconButtonVisible(bookmarkOv, "bookmarkButton", false);
+            setJeiIconButtonVisible(bookmarkOv, "historyButton", false);
+        } catch (Exception e) {
+            // Silently ignore
+        }
+    }
+
+    private static void showJeiBookmarkButtons() {
+        try {
+            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
+            Object runtime = internalClass.getMethod("getJeiRuntime").invoke(null);
+            if (runtime == null) return;
+
+            Object bookmarkOv = runtime.getClass().getMethod("getBookmarkOverlay").invoke(runtime);
+            if (bookmarkOv == null) return;
+
+            setJeiIconButtonVisible(bookmarkOv, "bookmarkButton", true);
+            setJeiIconButtonVisible(bookmarkOv, "historyButton", true);
+        } catch (Exception e) {
+            // Silently ignore
+        }
+    }
+
+    private static void setJeiIconButtonVisible(Object owningObject, String fieldName, boolean visible) {
+        try {
+            Field iconField = owningObject.getClass().getDeclaredField(fieldName);
+            iconField.setAccessible(true);
+            Object iconButton = iconField.get(owningObject);
+            if (iconButton == null) return;
+
+            Field internalBtnField = iconButton.getClass().getDeclaredField("button");
+            internalBtnField.setAccessible(true);
+            Object internalButton = internalBtnField.get(iconButton);
+            if (internalButton == null) return;
+
+            internalButton.getClass().getMethod("setVisible", boolean.class).invoke(internalButton, visible);
+        } catch (Exception e) {
+            // Silently ignore
         }
     }
 
@@ -114,19 +166,9 @@ public class OverlayHider {
             Object overlay = runtime.getClass().getMethod("getIngredientListOverlay").invoke(runtime);
             if (overlay == null) return;
 
-            Field configButtonField = overlay.getClass().getDeclaredField("configButton");
-            configButtonField.setAccessible(true);
-            Object iconButton = configButtonField.get(overlay);
-            if (iconButton == null) return;
-
-            Field internalButtonField = iconButton.getClass().getDeclaredField("button");
-            internalButtonField.setAccessible(true);
-            Object internalButton = internalButtonField.get(iconButton);
-            if (internalButton == null) return;
-
-            internalButton.getClass().getMethod("setVisible", boolean.class).invoke(internalButton, false);
+            setJeiIconButtonVisible(overlay, "configButton", false);
         } catch (Exception e) {
-            // Silently ignore — the config button is non-critical
+            // Silently ignore
         }
     }
 
@@ -152,6 +194,8 @@ public class OverlayHider {
 
             // Restore JEI config button visibility
             showJeiConfigButton();
+            // Restore JEI bookmark and history buttons
+            showJeiBookmarkButtons();
         } catch (ReflectiveOperationException e) {
             BetterRecipeBook.LOGGER.warn("Failed to show JEI overlay", e);
         }
@@ -166,17 +210,7 @@ public class OverlayHider {
             Object overlay = runtime.getClass().getMethod("getIngredientListOverlay").invoke(runtime);
             if (overlay == null) return;
 
-            Field configButtonField = overlay.getClass().getDeclaredField("configButton");
-            configButtonField.setAccessible(true);
-            Object iconButton = configButtonField.get(overlay);
-            if (iconButton == null) return;
-
-            Field internalButtonField = iconButton.getClass().getDeclaredField("button");
-            internalButtonField.setAccessible(true);
-            Object internalButton = internalButtonField.get(iconButton);
-            if (internalButton == null) return;
-
-            internalButton.getClass().getMethod("setVisible", boolean.class).invoke(internalButton, true);
+            setJeiIconButtonVisible(overlay, "configButton", true);
         } catch (Exception e) {
             // Silently ignore
         }
