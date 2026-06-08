@@ -6,7 +6,9 @@ import net.minecraft.world.item.ItemStack;
 
 public class ReiCompat {
     private static ReiHandler handler;
+    private static volatile boolean registered;
 
+    /** Called from platform-specific init (deferred via ClientLifecycleEvent.CLIENT_STARTED). */
     public static void register() {
         if (!Platform.isModLoaded("roughlyenoughitems")) return;
 
@@ -20,6 +22,14 @@ public class ReiCompat {
                 return openView("addUsagesFor", stack);
             }
         });
+        registered = true;
+    }
+
+    /** Lazy fallback: called on first isLoaded() check if register() wasn't called yet. */
+    private static void ensureRegistered() {
+        if (registered) return;
+        registered = true;
+        register();
     }
 
     private static boolean openView(String methodName, ItemStack stack) {
@@ -44,6 +54,7 @@ public class ReiCompat {
     }
 
     public static boolean isLoaded() {
+        ensureRegistered();
         return handler != null;
     }
 
