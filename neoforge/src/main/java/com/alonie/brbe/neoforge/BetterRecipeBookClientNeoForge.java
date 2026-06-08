@@ -3,16 +3,11 @@ package com.alonie.brbe.neoforge;
 import dev.architectury.event.events.client.ClientGuiEvent;
 import dev.architectury.event.events.client.ClientLifecycleEvent;
 import dev.architectury.event.events.client.ClientTickEvent;
-import dev.architectury.platform.Platform;
-import dev.architectury.platform.client.ConfigurationScreenRegistry;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.neoforge.PlatformPotionUtilImpl;
 import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.compat.rei.ReiCompat;
-import com.alonie.brbe.config.Config;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
-import me.shedaniel.autoconfig.AutoConfigClient;
-import me.shedaniel.autoconfig.gui.ConfigScreenProvider;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 
@@ -31,23 +26,6 @@ public class BetterRecipeBookClientNeoForge {
     public static void init() {
         // Register platform provider
         PlatformPotionUtilImpl.init();
-
-        // Register configuration screen for NeoForge built-in mod menu
-        ConfigurationScreenRegistry.register(
-                Platform.getMod(BetterRecipeBook.MOD_ID),
-                parent -> {
-                    java.util.function.Supplier<Screen> supplier =
-                            AutoConfigClient.getConfigScreen(Config.class, parent);
-                    if (supplier instanceof ConfigScreenProvider<?> provider) {
-                        provider.setOptionFunction((configId, field) -> {
-                            // RBIP is Fabric-only (jar-in-jar), hide on NeoForge
-                            if ("enableRecipeBookIsPain".equals(field.getName())) return null;
-                            return "option." + configId + "." + field.getName();
-                        });
-                    }
-                    return supplier.get();
-                }
-        );
 
         // Defer REI compat registration until client starts (after all mods are loaded)
         ClientLifecycleEvent.CLIENT_STARTED.register(client -> ReiCompat.register());
