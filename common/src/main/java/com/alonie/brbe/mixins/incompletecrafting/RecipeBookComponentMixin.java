@@ -33,36 +33,34 @@ public abstract class RecipeBookComponentMixin {
     private void betterRecipeBook$trackPartialFilteringUpdate(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
         PartialCraftingUtil.beginFilteringUpdate(BetterRecipeBook.config.partialCraftableEqualsCraftable && isFiltering);
 
-        boolean showIncompatible = BetterRecipeBook.config.showIncompatibleRecipes
-                && isFiltering
+        boolean inInventory = isFiltering
                 && this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
-        IncompatibleCraftingUtil.beginFiltering(showIncompatible);
+        IncompatibleCraftingUtil.beginFiltering(inInventory);
     }
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z"))
     private boolean betterRecipeBook$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
-        boolean showIncompatible = BetterRecipeBook.config.showIncompatibleRecipes
-                && this.minecraft != null
+        boolean inInventory = this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
 
         for (RecipeCollection collection : collections) {
             PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
-            if (showIncompatible) {
+            if (inInventory) {
                 IncompatibleCraftingUtil.markIncompatibleRecipes(collection);
             }
         }
 
         boolean hasPartial = BetterRecipeBook.config.partialCraftableEqualsCraftable;
 
-        if (!hasPartial && !showIncompatible) {
+        if (!hasPartial && !inInventory) {
             return collections.removeIf(predicate);
         }
 
         boolean removed = collections.removeIf(collection -> {
             if (!predicate.test(collection)) return false;
             if (hasPartial && PartialCraftingUtil.hasPartialMaterials(collection)) return false;
-            if (showIncompatible && IncompatibleCraftingUtil.hasIncompatibleRecipes(collection)) return false;
+            if (inInventory && IncompatibleCraftingUtil.hasIncompatibleRecipes(collection)) return false;
             return true;
         });
 

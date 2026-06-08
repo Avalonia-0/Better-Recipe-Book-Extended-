@@ -1,6 +1,5 @@
 package com.alonie.brbe.mixins.incompatibleenvironment;
 
-import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -31,10 +30,6 @@ public abstract class RecipeButtonMixin {
     private void betterRecipeBook$appendIncompatibleWarning(
             ItemStack itemStack,
             CallbackInfoReturnable<List<Component>> cir) {
-
-        if (!BetterRecipeBook.config.showIncompatibleRecipes) {
-            return;
-        }
 
         Minecraft mc = Minecraft.getInstance();
         if (!(mc.screen instanceof InventoryScreen)) {

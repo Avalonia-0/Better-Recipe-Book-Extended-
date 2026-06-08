@@ -41,7 +41,5 @@
   "key.brbe.pin": "Pin Recipe",
   "key.brbe.recipeView": "View Recipe (REI)",
   "key.brbe.usageView": "View Usage (REI)",
-  "text.autoconfig.brbe.option.showIncompatibleRecipes": "Show 3x3 recipes in 2x2 grid",
-  "text.autoconfig.brbe.option.showIncompatibleRecipes.@Tooltip": "Shows recipes requiring a 3×3 crafting table in the 2×2 inventory crafting grid recipe book. Incompatible recipes are marked red.",
   "brbe.gui.environmentIncompatible": "Cannot be crafted in this environment"
 }

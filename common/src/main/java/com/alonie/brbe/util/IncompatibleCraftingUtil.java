@@ -5,8 +5,10 @@ import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 import java.util.WeakHashMap;
 
@@ -76,5 +78,15 @@ public final class IncompatibleCraftingUtil {
     public static boolean hasIncompatibleRecipes(RecipeCollection collection) {
         Set<RecipeDisplayId> set = INCOMPATIBLE_RECIPES.get(collection);
         return set != null && !set.isEmpty();
+    }
+
+    public static List<RecipeDisplayEntry> getIncompatibleRecipes(RecipeCollection collection) {
+        Set<RecipeDisplayId> set = INCOMPATIBLE_RECIPES.get(collection);
+        if (set == null || set.isEmpty()) return Collections.emptyList();
+        List<RecipeDisplayEntry> result = new ArrayList<>();
+        for (RecipeDisplayEntry entry : collection.getRecipes()) {
+            if (set.contains(entry.id())) result.add(entry);
+        }
+        return result;
     }
 }

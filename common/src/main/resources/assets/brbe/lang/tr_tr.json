@@ -34,7 +34,5 @@
   "brbe.gui.instantCraft.on": "Anında üretim açık",
   "brbe.gui.instantCraft.off": "Anında üretim kapalı",
   "brbe.gui.settings.open": "Ayarları aç",
-  "text.autoconfig.brbe.option.showIncompatibleRecipes": "2×2 ızgarada 3×3 tarifleri göster",
-  "text.autoconfig.brbe.option.showIncompatibleRecipes.@Tooltip": "Envanter 2×2 üretim ızgarasının tarif kitabında 3×3 çalışma masası gerektiren tarifleri gösterir. Uyumsuz tarifler kırmızı ile işaretlenir.",
   "brbe.gui.environmentIncompatible": "Bu ortamda üretilemez"
 }

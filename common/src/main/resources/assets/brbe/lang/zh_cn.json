@@ -40,7 +40,5 @@
   "key.brbe.pin": "固定配方",
   "key.brbe.recipeView": "查看配方 (REI)",
   "key.brbe.usageView": "查看用途 (REI)",
-  "text.autoconfig.brbe.option.showIncompatibleRecipes": "在 2×2 合成台中显示 3×3 配方",
-  "text.autoconfig.brbe.option.showIncompatibleRecipes.@Tooltip": "在背包 2×2 合成格的配方书中显示需要 3×3 工作台的配方。不兼容的配方会以红色标记。",
   "brbe.gui.environmentIncompatible": "此环境无法合成"
 }

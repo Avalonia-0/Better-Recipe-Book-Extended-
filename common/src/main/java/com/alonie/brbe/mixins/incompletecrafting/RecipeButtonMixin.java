@@ -1,9 +1,12 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
@@ -19,6 +22,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Mixin(RecipeButton.class)
@@ -35,7 +39,23 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Redirect(method = "init", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;"))
     private List<RecipeDisplayEntry> betterRecipeBook$getSelectedRecipes(RecipeCollection collection, RecipeCollection.CraftableStatus status, RecipeCollection originalCollection, boolean filteringCraftable, RecipeBookPage recipeBookPage, ContextMap contextMap) {
-        return PartialCraftingUtil.getSelectedRecipes(collection, status);
+        List<RecipeDisplayEntry> selected = PartialCraftingUtil.getSelectedRecipes(collection, status);
+
+        // Always append 3x3 recipes when in 2x2 inventory grid — they are
+        // not craftable here but should still be visible (with red tooltip).
+        if (status == RecipeCollection.CraftableStatus.CRAFTABLE
+                && Minecraft.getInstance().screen instanceof InventoryScreen) {
+            List<RecipeDisplayEntry> incompatible = IncompatibleCraftingUtil.getIncompatibleRecipes(collection);
+            if (!incompatible.isEmpty()) {
+                List<RecipeDisplayEntry> combined = new ArrayList<>(selected);
+                for (RecipeDisplayEntry entry : incompatible) {
+                    if (!selected.contains(entry)) combined.add(entry);
+                }
+                return combined;
+            }
+        }
+
+        return selected;
     }
 
     @Redirect(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
