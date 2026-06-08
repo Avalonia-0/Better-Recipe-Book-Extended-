@@ -1,21 +1,21 @@
 package com.alonie.brbe.compat;
 
-import com.alonie.brbe.BetterRecipeBook;
-
-import java.lang.reflect.Field;
-
 /**
  * Utility for hiding/showing REI and/or JEI overlays on container screens.
  * <p>
  * Uses reflection to avoid compile-time dependencies on either mod.
  * All state changes are in-memory only — no config files are modified.
+ * <p>
+ * JEI button <em>rendering</em> is handled by {@code IconButtonMixin} which cancels
+ * {@code IconButton.draw()} when {@code hideReiJeiOverlay} is enabled. This class
+ * only manages JEI's toggle state (overlay, bookmark, cheat items) to prevent
+ * input processing and tooltip display.
  */
 public class OverlayHider {
 
     // --- Class cache (one-time resolution) ---
     private static Class<?> reiConfigClass;
     private static Class<?> jeiToggleStateClass;
-    private static Class<?> jeiRuntimeClass;
     private static boolean classCacheResolved;
 
     // --- REI state ---
@@ -25,6 +25,8 @@ public class OverlayHider {
      * Call on every tick while a screen is open and config says hide.
      * Reads JEI's actual toggle state each tick and enforces our desired state.
      * Stateless — no internal tracking for JEI, just reads reality.
+     * <p>
+     * IconButton visual hiding is handled by {@code IconButtonMixin}.
      */
     public static void ensureJeiOverlayHidden() {
         Class<?> tsClass = getJeiToggleStateClass();
@@ -35,7 +37,7 @@ public class OverlayHider {
                     .getMethod("getClientToggleState").invoke(null);
             if (ts == null) return;
 
-            // Force overlayEnabled = false
+            // Force overlayEnabled = false (hides ingredient list + search bar)
             if ((Boolean) tsClass.getMethod("isOverlayEnabled").invoke(ts)) {
                 tsClass.getMethod("toggleOverlayEnabled").invoke(ts);
             }
@@ -47,9 +49,6 @@ public class OverlayHider {
             if ((Boolean) tsClass.getMethod("isCheatItemsEnabled").invoke(ts)) {
                 tsClass.getMethod("toggleCheatItemsEnabled").invoke(ts);
             }
-
-            // Also deeply hide the three IconButton instances via setVisible(false)
-            hideJeiIconButtons();
         } catch (Exception e) {
             // JEI not ready yet — will retry next tick
         }
@@ -79,14 +78,12 @@ public class OverlayHider {
             if (!(Boolean) tsClass.getMethod("isCheatItemsEnabled").invoke(ts)) {
                 tsClass.getMethod("toggleCheatItemsEnabled").invoke(ts);
             }
-
-            showJeiIconButtons();
         } catch (Exception e) {
             // Silently ignore
         }
     }
 
-    // --- REI control (unchanged) ---
+    // --- REI control ---
 
     public static void hideReiOverlay() {
         if (!isReiLoaded() || reiHidden) return;
@@ -126,71 +123,6 @@ public class OverlayHider {
         }
     }
 
-    // === Internal: JEI button hiding via reflection ===
-
-    private static void hideJeiIconButtons() {
-        try {
-            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
-            Object runtime = internalClass.getMethod("getJeiRuntime").invoke(null);
-            if (runtime == null) return;
-
-            Object overlay = runtime.getClass().getMethod("getIngredientListOverlay").invoke(runtime);
-            if (overlay != null) {
-                setIconButtonVisible(overlay, "configButton", false);
-            }
-
-            Object bookmarkOv = runtime.getClass().getMethod("getBookmarkOverlay").invoke(runtime);
-            if (bookmarkOv != null) {
-                setIconButtonVisible(bookmarkOv, "bookmarkButton", false);
-                setIconButtonVisible(bookmarkOv, "historyButton", false);
-            }
-        } catch (Exception e) {
-            // Runtime not ready yet — will retry next tick
-        }
-    }
-
-    private static void showJeiIconButtons() {
-        try {
-            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
-            Object runtime = internalClass.getMethod("getJeiRuntime").invoke(null);
-            if (runtime == null) return;
-
-            Object overlay = runtime.getClass().getMethod("getIngredientListOverlay").invoke(runtime);
-            if (overlay != null) {
-                setIconButtonVisible(overlay, "configButton", true);
-            }
-
-            Object bookmarkOv = runtime.getClass().getMethod("getBookmarkOverlay").invoke(runtime);
-            if (bookmarkOv != null) {
-                setIconButtonVisible(bookmarkOv, "bookmarkButton", true);
-                setIconButtonVisible(bookmarkOv, "historyButton", true);
-            }
-        } catch (Exception e) {
-            // Silently ignore
-        }
-    }
-
-    /**
-     * Reflectively calls InternalIconButton.setVisible(boolean).
-     */
-    private static void setIconButtonVisible(Object owningObject, String fieldName, boolean visible) {
-        try {
-            Field f = owningObject.getClass().getDeclaredField(fieldName);
-            f.setAccessible(true);
-            Object iconButton = f.get(owningObject);
-            if (iconButton == null) return;
-
-            Field btnField = iconButton.getClass().getDeclaredField("button");
-            btnField.setAccessible(true);
-            Object internalBtn = btnField.get(iconButton);
-            if (internalBtn == null) return;
-
-            internalBtn.getClass().getMethod("setVisible", boolean.class).invoke(internalBtn, visible);
-        } catch (Exception e) {
-            // Silently ignore
-        }
-    }
-
     // === Internal: class resolution (lazy, one-time) ===
 
     private static boolean isReiLoaded() {
@@ -219,10 +151,8 @@ public class OverlayHider {
         try {
             Class.forName("mezz.jei.common.Internal");
             jeiToggleStateClass = Class.forName("mezz.jei.common.config.IClientToggleState");
-            jeiRuntimeClass = Class.forName("mezz.jei.api.runtime.IJeiRuntime");
         } catch (ClassNotFoundException e) {
             jeiToggleStateClass = null;
-            jeiRuntimeClass = null;
         }
     }
 
