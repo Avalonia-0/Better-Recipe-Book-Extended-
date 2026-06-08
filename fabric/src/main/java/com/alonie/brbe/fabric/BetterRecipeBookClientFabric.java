@@ -4,7 +4,6 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.fabric.PlatformPotionUtilImpl;
 import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.config.Config;
-import com.alonie.brbe.fabric.compat.rei.ReiCompatHandler;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import dev.architectury.platform.Platform;
 import dev.architectury.platform.client.ConfigurationScreenRegistry;
@@ -26,9 +25,6 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
     public void onInitializeClient() {
         // Register platform provider
         PlatformPotionUtilImpl.init();
-
-        // Register optional compat handlers
-        ReiCompatHandler.register();
 
         // Register config screen via Architectury so setOptionFunction hook is applied
         ConfigurationScreenRegistry.register(
