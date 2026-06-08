@@ -10,7 +10,6 @@ import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.config.Config;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import me.shedaniel.autoconfig.AutoConfigClient;
-import me.shedaniel.autoconfig.gui.ConfigScreenProvider;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 
@@ -33,18 +32,7 @@ public class BetterRecipeBookClientNeoForge {
         // Register configuration screen for NeoForge built-in mod menu
         ConfigurationScreenRegistry.register(
                 Platform.getMod(BetterRecipeBook.MOD_ID),
-                parent -> {
-                    java.util.function.Supplier<Screen> supplier =
-                            AutoConfigClient.getConfigScreen(Config.class, parent);
-                    // Hide hideReiJeiOverlay option when neither JEI nor REI is installed
-                    if (!OverlayHider.isApplicable() && supplier instanceof ConfigScreenProvider<?> provider) {
-                        provider.setOptionFunction((configId, field) -> {
-                            if ("hideReiJeiOverlay".equals(field.getName())) return null;
-                            return "option." + configId + "." + field.getName();
-                        });
-                    }
-                    return supplier.get();
-                }
+                parent -> AutoConfigClient.getConfigScreen(Config.class, parent).get()
         );
 
         ClientGuiEvent.INIT_POST.register((screen, firstInit) -> {
