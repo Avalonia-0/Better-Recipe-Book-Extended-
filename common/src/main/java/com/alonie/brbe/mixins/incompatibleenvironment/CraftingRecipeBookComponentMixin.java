@@ -7,6 +7,7 @@ import net.minecraft.client.gui.screens.recipebook.GhostSlots;
 import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
 import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
+import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -23,7 +24,12 @@ public abstract class CraftingRecipeBookComponentMixin {
 
     @Inject(method = "canDisplay", at = @At("RETURN"), cancellable = true)
     private void betterRecipeBook$showAllRecipes(RecipeDisplay recipeDisplay, CallbackInfoReturnable<Boolean> cir) {
-        if (!cir.getReturnValue() && Minecraft.getInstance().screen instanceof InventoryScreen) {
+        // Only override for crafting recipes (shaped or shapeless).
+        // Non-crafting recipes (furnace, etc.) should remain filtered out.
+        if (!cir.getReturnValue()
+                && Minecraft.getInstance().screen instanceof InventoryScreen
+                && (recipeDisplay instanceof ShapedCraftingRecipeDisplay
+                    || recipeDisplay instanceof ShapelessCraftingRecipeDisplay)) {
             cir.setReturnValue(true);
         }
     }
