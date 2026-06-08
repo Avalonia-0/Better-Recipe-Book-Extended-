@@ -1,9 +1,5 @@
 package com.alonie.brbe.compat;
 
-import com.alonie.brbe.BetterRecipeBook;
-
-import java.lang.reflect.Field;
-
 /**
  * Utility for hiding/showing REI and/or JEI overlays on container screens.
  * <p>
@@ -15,7 +11,6 @@ public class OverlayHider {
     // --- Class cache (one-time resolution) ---
     private static Class<?> reiConfigClass;
     private static Class<?> jeiToggleStateClass;
-    private static Class<?> jeiRuntimeClass;
     private static boolean classCacheResolved;
 
     // --- REI state ---
@@ -48,8 +43,6 @@ public class OverlayHider {
                 tsClass.getMethod("toggleCheatItemsEnabled").invoke(ts);
             }
 
-            // Also deeply hide the three IconButton instances via setVisible(false)
-            hideJeiIconButtons();
         } catch (Exception e) {
             // JEI not ready yet — will retry next tick
         }
@@ -79,8 +72,6 @@ public class OverlayHider {
             if (!(Boolean) tsClass.getMethod("isCheatItemsEnabled").invoke(ts)) {
                 tsClass.getMethod("toggleCheatItemsEnabled").invoke(ts);
             }
-
-            showJeiIconButtons();
         } catch (Exception e) {
             // Silently ignore
         }
@@ -112,8 +103,32 @@ public class OverlayHider {
 
     // --- Convenience methods for client initializers ---
 
+    /**
+     * Returns {@code true} if either JEI or REI is actually loaded as a mod.
+     * Uses platform APIs ({@code Platform.isModLoaded}) rather than class-path
+     * heuristics so that disabled / absent mods are detected correctly.
+     */
     public static boolean isApplicable() {
-        return isReiLoaded() || (getJeiToggleStateClass() != null);
+        try {
+            return isJeiModLoaded() || isReiModLoaded();
+        } catch (Exception e) {
+            // Fall back to class-path check if platform API is unavailable
+            return isReiLoaded() || (getJeiToggleStateClass() != null);
+        }
+    }
+
+    /**
+     * Returns {@code true} if JEI is present in the mod list (Fabric or NeoForge).
+     */
+    public static boolean isJeiModLoaded() {
+        return dev.architectury.platform.Platform.isModLoaded("jei");
+    }
+
+    /**
+     * Returns {@code true} if REI is present in the mod list.
+     */
+    public static boolean isReiModLoaded() {
+        return dev.architectury.platform.Platform.isModLoaded("roughlyenoughitems");
     }
 
     public static void setOverlaysHidden(boolean hide) {
@@ -123,71 +138,6 @@ public class OverlayHider {
         } else {
             showReiOverlay();
             restoreJeiOverlay();
-        }
-    }
-
-    // === Internal: JEI button hiding via reflection ===
-
-    private static void hideJeiIconButtons() {
-        try {
-            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
-            Object runtime = internalClass.getMethod("getJeiRuntime").invoke(null);
-            if (runtime == null) return;
-
-            Object overlay = runtime.getClass().getMethod("getIngredientListOverlay").invoke(runtime);
-            if (overlay != null) {
-                setIconButtonVisible(overlay, "configButton", false);
-            }
-
-            Object bookmarkOv = runtime.getClass().getMethod("getBookmarkOverlay").invoke(runtime);
-            if (bookmarkOv != null) {
-                setIconButtonVisible(bookmarkOv, "bookmarkButton", false);
-                setIconButtonVisible(bookmarkOv, "historyButton", false);
-            }
-        } catch (Exception e) {
-            // Runtime not ready yet — will retry next tick
-        }
-    }
-
-    private static void showJeiIconButtons() {
-        try {
-            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
-            Object runtime = internalClass.getMethod("getJeiRuntime").invoke(null);
-            if (runtime == null) return;
-
-            Object overlay = runtime.getClass().getMethod("getIngredientListOverlay").invoke(runtime);
-            if (overlay != null) {
-                setIconButtonVisible(overlay, "configButton", true);
-            }
-
-            Object bookmarkOv = runtime.getClass().getMethod("getBookmarkOverlay").invoke(runtime);
-            if (bookmarkOv != null) {
-                setIconButtonVisible(bookmarkOv, "bookmarkButton", true);
-                setIconButtonVisible(bookmarkOv, "historyButton", true);
-            }
-        } catch (Exception e) {
-            // Silently ignore
-        }
-    }
-
-    /**
-     * Reflectively calls InternalIconButton.setVisible(boolean).
-     */
-    private static void setIconButtonVisible(Object owningObject, String fieldName, boolean visible) {
-        try {
-            Field f = owningObject.getClass().getDeclaredField(fieldName);
-            f.setAccessible(true);
-            Object iconButton = f.get(owningObject);
-            if (iconButton == null) return;
-
-            Field btnField = iconButton.getClass().getDeclaredField("button");
-            btnField.setAccessible(true);
-            Object internalBtn = btnField.get(iconButton);
-            if (internalBtn == null) return;
-
-            internalBtn.getClass().getMethod("setVisible", boolean.class).invoke(internalBtn, visible);
-        } catch (Exception e) {
-            // Silently ignore
         }
     }
 
@@ -219,10 +169,8 @@ public class OverlayHider {
         try {
             Class.forName("mezz.jei.common.Internal");
             jeiToggleStateClass = Class.forName("mezz.jei.common.config.IClientToggleState");
-            jeiRuntimeClass = Class.forName("mezz.jei.api.runtime.IJeiRuntime");
         } catch (ClassNotFoundException e) {
             jeiToggleStateClass = null;
-            jeiRuntimeClass = null;
         }
     }
 
