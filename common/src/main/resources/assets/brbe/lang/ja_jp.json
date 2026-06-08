@@ -36,4 +36,6 @@
   "brb.gui.smithable": "鍛冶可能なアイテムを表示中",
   "category.brbe": "Better Recipe Book",
   "key.brbe.pin": "レシピのお気に入り登録・解除"
+  "text.autoconfig.brbe.option.hideReiJeiOverlay": "REI/JEIインターフェースを非表示",
+  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "インベントリ画面でREI/JEIオーバーレイを非表示にします。レシピ/用途の検索（R/Uキー）は引き続き機能します。",
 }

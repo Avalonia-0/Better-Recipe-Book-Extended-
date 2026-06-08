@@ -1,38 +1,30 @@
 package com.alonie.brbe.compat.jei;
 
+import com.alonie.brbe.compat.ItemViewCompat;
 import net.minecraft.world.item.ItemStack;
 
 public final class JeiCompat {
-    private static JeiHandler handler;
 
-    private JeiCompat() {
-    }
+    private JeiCompat() {}
 
     public static void setHandler(JeiHandler h) {
-        handler = h;
+        ItemViewCompat.setHandler(h);
     }
 
     public static boolean isLoaded() {
-        return handler != null;
+        return ItemViewCompat.isLoaded();
     }
 
     public static boolean openRecipeView(ItemStack stack) {
-        if (handler != null) {
-            return handler.openRecipeView(stack);
-        }
-        return false;
+        return ItemViewCompat.openRecipeView(stack);
     }
 
     public static boolean openUsageView(ItemStack stack) {
-        if (handler != null) {
-            return handler.openUsageView(stack);
-        }
-        return false;
+        return ItemViewCompat.openUsageView(stack);
     }
 
     public interface JeiHandler {
         boolean openRecipeView(ItemStack stack);
-
         boolean openUsageView(ItemStack stack);
     }
 }
