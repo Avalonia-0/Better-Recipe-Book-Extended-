@@ -31,7 +31,7 @@ dependencies {
         jeiJarPath = rootProject.file("libs/jei-26.1.2-fabric-29.6.2.31.jar").absolutePath
     }
     if (file(jeiJarPath).exists()) {
-        modCompileOnly files(jeiJarPath)
+        compileOnly files(jeiJarPath)
     }
     implementation(project(path: ":common"))
 }

@@ -225,6 +225,16 @@ public class OverlayHider {
     }
 
     /**
+     * Retry hiding JEI config/bookmark/history buttons.
+     * Safe to call multiple times — method handles null runtime gracefully.
+     * Use when JEI runtime may not have been ready during the initial hide attempt.
+     */
+    public static void retryJeiButtonHide() {
+        hideJeiConfigButton();
+        hideJeiBookmarkButtons();
+    }
+
+    /**
      * Reset all tracked state (e.g., on game restart or screen manager reset).
      */
     public static void reset() {
