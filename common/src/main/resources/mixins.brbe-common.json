@@ -22,6 +22,7 @@
     "accessors.smithing.SmithingTransformRecipeAccessor",
     "accessors.smithing.SmithingTrimRecipeAccessor",
     "hideoverlay.AbstractContainerScreenMixin",
+    "incompatibleenvironment.RecipeButtonMixin",
     "search.RecipeBookComponentMixin",
     "alternativerecipes.OverlayRecipeButtonMixin",
     "centered.RecipeBookComponentMixin",

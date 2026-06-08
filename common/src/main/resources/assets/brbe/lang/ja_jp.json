@@ -37,5 +37,6 @@
   "category.brbe": "Better Recipe Book",
   "key.brbe.pin": "レシピのお気に入り登録・解除",
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "REI/JEIインターフェースを非表示",
-  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "インベントリ画面でREI/JEIオーバーレイを非表示にします。レシピ/用途の検索（R/Uキー）は引き続き機能します。"
+  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "インベントリ画面でREI/JEIオーバーレイを非表示にします。レシピ/用途の検索（R/Uキー）は引き続き機能します。",
+  "brbe.gui.environmentIncompatible": "現在の環境では作成できません"
 }

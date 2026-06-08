@@ -1,8 +1,11 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.ClientRecipeBook;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.inventory.RecipeBookMenu;
@@ -23,6 +26,9 @@ public abstract class RecipeBookComponentMixin {
     @Shadow @Final
     protected RecipeBookMenu<?, ?> menu;
 
+    @Shadow @Final
+    protected Minecraft minecraft;
+
     @Shadow
     private ClientRecipeBook book;
 
@@ -39,13 +45,27 @@ public abstract class RecipeBookComponentMixin {
         boolean filtering = instance.isFiltering(menu);
         betterRecipeBook$isCraftableFiltering = filtering && BetterRecipeBook.config.partialCraftableEqualsCraftable;
         PartialCraftingUtil.beginFilteringUpdate(filtering);
+
+        // Incompatible (3x3) recipes are marked regardless of filtering state,
+        // but retained at the collection level only when NOT filtering.
+        boolean onInventory = !filtering
+                && this.minecraft != null
+                && this.minecraft.screen instanceof InventoryScreen;
+        IncompatibleCraftingUtil.beginFiltering(onInventory);
+
         return filtering;
     }
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z"))
     private boolean betterRecipeBook$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
+        boolean onInventoryScreen = this.minecraft != null
+                && this.minecraft.screen instanceof InventoryScreen;
+
         for (RecipeCollection collection : collections) {
             PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
+            if (onInventoryScreen) {
+                IncompatibleCraftingUtil.markIncompatibleRecipes(collection);
+            }
         }
 
         if (!betterRecipeBook$isCraftableFiltering) {

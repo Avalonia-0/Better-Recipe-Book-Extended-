@@ -31,5 +31,6 @@
   "brb.gui.instantCraft.off": "Natychmiastowe wytwarzanie jest wyłączone",
   "brb.gui.settings.open": "Otwórz ustawienia",
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "Ukryj interfejs REI/JEI",
-  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "Ukrywa nakładki REI/JEI w ekranach ekwipunku. Wyszukiwanie receptur/zastosowań (klawisze R/U) nadal działa."
+  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "Ukrywa nakładki REI/JEI w ekranach ekwipunku. Wyszukiwanie receptur/zastosowań (klawisze R/U) nadal działa.",
+  "brbe.gui.environmentIncompatible": "Nie można teraz wytworzyć"
 }

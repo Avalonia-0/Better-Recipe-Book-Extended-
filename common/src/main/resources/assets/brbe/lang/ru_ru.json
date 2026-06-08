@@ -33,5 +33,6 @@
   "brb.gui.settings.open": "Настройки",
   "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§eПодсказка: §7Если вы отключите любой из этих двух параметров, используйте Mod Menu, чтобы снова открыть их.",
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "Скрыть интерфейс REI/JEI",
-  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "Скрывает оверлеи REI/JEI на экранах инвентаря. Просмотр рецептов/использования (клавиши R/U) продолжает работать."
+  "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "Скрывает оверлеи REI/JEI на экранах инвентаря. Просмотр рецептов/использования (клавиши R/U) продолжает работать.",
+  "brbe.gui.environmentIncompatible": "Невозможно создать сейчас"
 }
