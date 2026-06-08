@@ -1,8 +1,6 @@
 package com.alonie.brbe.compat;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.compat.jei.JeiCompat;
-import com.alonie.brbe.compat.rei.ReiCompat;
 
 import java.lang.reflect.Field;
 
@@ -23,15 +21,25 @@ public class OverlayHider {
      * Returns true if either REI or JEI is loaded and can be controlled.
      */
     public static boolean isApplicable() {
+        return isReiLoaded() || isJeiLoaded();
+    }
+
+    private static boolean isReiLoaded() {
         try {
             Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
             return true;
-        } catch (ClassNotFoundException ignored) {}
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
+    }
+
+    private static boolean isJeiLoaded() {
         try {
             Class.forName("mezz.jei.common.Internal");
             return true;
-        } catch (ClassNotFoundException ignored) {}
-        return false;
+        } catch (ClassNotFoundException e) {
+            return false;
+        }
     }
 
     /**
@@ -51,7 +59,7 @@ public class OverlayHider {
     }
 
     private static void hideReiOverlay() {
-        if (!ReiCompat.isLoaded() || reiHidden) return;
+        if (!isReiLoaded() || reiHidden) return;
         try {
             Class<?> configObjectClass = Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
             Object instance = configObjectClass.getMethod("getInstance").invoke(null);
@@ -64,7 +72,7 @@ public class OverlayHider {
     }
 
     private static void showReiOverlay() {
-        if (!ReiCompat.isLoaded() || !reiHidden) return;
+        if (!isReiLoaded() || !reiHidden) return;
         try {
             Class<?> configObjectClass = Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
             Object instance = configObjectClass.getMethod("getInstance").invoke(null);
@@ -77,7 +85,7 @@ public class OverlayHider {
     }
 
     private static void hideJeiOverlay() {
-        if (!JeiCompat.isLoaded()) return;
+        if (!isJeiLoaded()) return;
         try {
             Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
             Object toggleState = internalClass.getMethod("getClientToggleState").invoke(null);
@@ -173,7 +181,7 @@ public class OverlayHider {
     }
 
     private static void showJeiOverlay() {
-        if (!JeiCompat.isLoaded()) return;
+        if (!isJeiLoaded()) return;
         try {
             Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
             Object toggleState = internalClass.getMethod("getClientToggleState").invoke(null);
