@@ -58,6 +58,9 @@ public final class IncompatibleCraftingUtil {
             } else {
                 if (incompatible == null) incompatible = new HashSet<>();
                 incompatible.add(entry.id());
+            } else {
+                if (incompatible == null) incompatible = new HashSet<>();
+                incompatible.add(entry.id());
             }
         }
 
