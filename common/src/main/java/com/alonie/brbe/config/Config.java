@@ -20,6 +20,7 @@ public class Config implements ConfigData {
 
     public boolean showAllRecipesInSurvival = true;
 
+    @ConfigEntry.Gui.Tooltip()
     public boolean enableRecipeBookIsPain = true;
 
     @ConfigEntry.Category("newRecipes")
