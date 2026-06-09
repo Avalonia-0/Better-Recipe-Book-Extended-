@@ -4,48 +4,41 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
-import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.injection.ModifyVariable;
 
 import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Ensures incompatible (3x3) recipes are included in RecipeButton's
- * ordered recipe list. Intercepts getOrderedRecipes() at RETURN.
+ * Modifies the return value of RecipeCollection.getRecipes(boolean) to include
+ * incompatible (3x3) recipes when showAllRecipesInSurvival is enabled on the
+ * inventory screen.
  *
- * In 1.21.1, RecipeButton.getOrderedRecipes() calls
- * collection.getRecipes(book.isFiltering(menu)) which returns recipes
- * only from the fitsDimensions set (when not filtering). 3x3 recipes
- * don't fit the 2x2 grid, so they're absent → empty list → crash in
- * renderWidget (currentIndex % 0).
- *
- * When filtering by craftable-only, we skip adding incompatible recipes.
+ * This ensures:
+ * 1. RecipeButton.init() gets a non-empty recipe list → no div-by-zero crash
+ * 2. Search filter finds incompatible recipes matching the query
+ * 3. getOrderedRecipes() returns incompatible recipes via getRecipes(bool)
  */
-@Mixin(RecipeButton.class)
+@Mixin(RecipeCollection.class)
 public abstract class RecipeCollectionMixin {
 
-    @Shadow private RecipeCollection collection;
+    @ModifyVariable(method = "getRecipes", at = @At("RETURN"), ordinal = 0)
+    private List<RecipeHolder<?>> betterRecipeBook$includeIncompatibleRecipes(
+            List<RecipeHolder<?>> recipes) {
+        if (!BetterRecipeBook.config.showAllRecipesInSurvival) return recipes;
+        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return recipes;
+        if (recipes == null) return recipes;
 
-    @Inject(method = "getOrderedRecipes", at = @At("RETURN"), cancellable = true)
-    private void betterRecipeBook$includeIncompatibleRecipes(
-            CallbackInfoReturnable<List<RecipeHolder<?>>> cir) {
-        if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
-        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
+        RecipeCollection self = (RecipeCollection) (Object) this;
 
-        List<RecipeHolder<?>> recipes = cir.getReturnValue();
-        if (recipes == null) return;
-
-        // Add incompatible (3x3) recipes not already in the list
         List<RecipeHolder<?>> extras = null;
-        for (RecipeHolder<?> holder : this.collection.getRecipes()) {
-            if (IncompatibleCraftingUtil.checkIncompatible(this.collection, holder.id())
+        for (RecipeHolder<?> holder : self.getRecipes()) {
+            if (IncompatibleCraftingUtil.checkIncompatible(self, holder.id())
                     && !recipes.contains(holder)) {
                 if (extras == null) extras = new ArrayList<>();
                 extras.add(holder);
@@ -55,7 +48,8 @@ public abstract class RecipeCollectionMixin {
         if (extras != null) {
             List<RecipeHolder<?>> combined = new ArrayList<>(recipes);
             combined.addAll(extras);
-            cir.setReturnValue(combined);
+            return combined;
         }
+        return recipes;
     }
 }
