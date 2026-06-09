@@ -38,5 +38,7 @@
   "key.brbe.pin": "固定配方",
   "key.brbe.recipeView": "查看配方",
   "key.brbe.usageView": "查看用途",
-  "brbe.gui.environmentIncompatible": "当前无法合成"
+  "brbe.gui.environmentIncompatible": "当前无法合成",
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "在生存模式配方书显示所有已解锁配方",
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival.@Tooltip": "在背包 2×2 合成格的配方书中显示需要 3×3 工作台的配方。不兼容的配方会以红色“当前无法合成”提示。"
 }

@@ -32,5 +32,7 @@
   "brbe.gui.instantCraft.on": "Anında üretim açık",
   "brbe.gui.instantCraft.off": "Anında üretim kapalı",
   "brbe.gui.settings.open": "Ayarları aç",
-  "brbe.gui.environmentIncompatible": "Şu anda üretilemez"
+  "brbe.gui.environmentIncompatible": "Şu anda üretilemez",
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "Hayatta kalma tarif kitabında tüm açılmış tarifleri göster",
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival.@Tooltip": "Envanter 2×2 üretim ızgarasının tarif kitabında 3×3 çalışma masası tariflerini gösterir. Uyumsuz tarifler kırmızı ile işaretlenir."
 }

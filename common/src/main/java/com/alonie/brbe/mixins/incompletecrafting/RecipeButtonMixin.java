@@ -40,7 +40,8 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     private List<RecipeDisplayEntry> betterRecipeBook$getSelectedRecipes(RecipeCollection collection, RecipeCollection.CraftableStatus status, RecipeCollection originalCollection, boolean filteringCraftable, RecipeBookPage recipeBookPage, ContextMap contextMap) {
         // In the 2x2 inventory grid when NOT filtering, show ALL selected recipes,
         // filtering out any with unresolvable results (would render as air).
-        if (status == RecipeCollection.CraftableStatus.CRAFTABLE
+        if (BetterRecipeBook.config.showAllRecipesInSurvival
+                && status == RecipeCollection.CraftableStatus.CRAFTABLE
                 && !filteringCraftable
                 && Minecraft.getInstance().screen instanceof InventoryScreen) {
             List<RecipeDisplayEntry> any = PartialCraftingUtil.getSelectedRecipes(collection, RecipeCollection.CraftableStatus.ANY);

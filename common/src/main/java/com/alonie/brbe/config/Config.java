@@ -18,6 +18,9 @@ public class Config implements ConfigData {
     @ConfigEntry.Gui.Tooltip()
     public boolean hideReiJeiOverlay = false;
 
+    @ConfigEntry.Gui.Tooltip()
+    public boolean showAllRecipesInSurvival = true;
+
     @ConfigEntry.Category("newRecipes")
     @ConfigEntry.Gui.TransitiveObject()
     public NewRecipes newRecipes = new NewRecipes();

@@ -31,7 +31,8 @@ public abstract class RecipeBookComponentMixin {
     private void betterRecipeBook$trackPartialFilteringUpdate(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
         PartialCraftingUtil.beginFilteringUpdate(isFiltering);
 
-        boolean retainIncompatible = !isFiltering
+        boolean retainIncompatible = BetterRecipeBook.config.showAllRecipesInSurvival
+                && !isFiltering
                 && this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
         IncompatibleCraftingUtil.beginFiltering(retainIncompatible);
@@ -39,7 +40,8 @@ public abstract class RecipeBookComponentMixin {
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z"))
     private boolean betterRecipeBook$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
-        boolean onInventoryScreen = this.minecraft != null
+        boolean onInventoryScreen = BetterRecipeBook.config.showAllRecipesInSurvival
+                && this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
 
         for (RecipeCollection collection : collections) {
