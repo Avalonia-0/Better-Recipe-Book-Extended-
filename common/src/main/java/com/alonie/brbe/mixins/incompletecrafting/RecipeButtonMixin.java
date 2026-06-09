@@ -37,11 +37,8 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Redirect(method = "init", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;"))
     private List<RecipeDisplayEntry> betterRecipeBook$getSelectedRecipes(RecipeCollection collection, RecipeCollection.CraftableStatus status, RecipeCollection originalCollection, boolean filteringCraftable, RecipeBookPage recipeBookPage, ContextMap contextMap) {
-        // In the 2x2 inventory grid, show ALL selected recipes (including 3x3)
-        // but ONLY when filtering ("only show craftable") is NOT active.
-        // When filtering is active, the normal CRAFTABLE filter applies and
-        // 3x3 recipes are correctly hidden (they aren't craftable in 2x2).
-        if (status == RecipeCollection.CraftableStatus.CRAFTABLE
+        if (BetterRecipeBook.config.showAllRecipesInSurvival
+                && status == RecipeCollection.CraftableStatus.CRAFTABLE
                 && !filteringCraftable
                 && Minecraft.getInstance().screen instanceof InventoryScreen) {
             List<RecipeDisplayEntry> any = PartialCraftingUtil.getSelectedRecipes(collection, RecipeCollection.CraftableStatus.ANY);

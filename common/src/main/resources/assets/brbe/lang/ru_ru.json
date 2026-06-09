@@ -36,5 +36,7 @@
   "brbe.gui.instantCraft.off": "Обычное создание",
   "brbe.gui.settings.open": "Настройки",
   "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§eПодсказка: §7Если вы отключите любой из этих двух параметров, используйте Mod Menu, чтобы снова открыть их.",
-  "brbe.gui.environmentIncompatible": "Невозможно создать сейчас"
+  "brbe.gui.environmentIncompatible": "Невозможно создать сейчас",
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "Показать все разблокированные рецепты в книге выживания",
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival.@Tooltip": "Показывает рецепты верстака 3×3 в книге рецептов инвентарной сетки 2×2. Несовместимые рецепты отмечены красным «Невозможно создать сейчас»."
 }

@@ -36,7 +36,8 @@ public abstract class RecipeBookComponentMixin {
         // Incompatible (3x3) recipes should show ONLY when the "only show craftable"
         // filter is OFF.  When filtering is ON, incompatible collections would have
         // no craftable entries and render as air — so we don't retain them.
-        boolean retainIncompatible = !isFiltering
+        boolean retainIncompatible = BetterRecipeBook.config.showAllRecipesInSurvival
+                && !isFiltering
                 && this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
         IncompatibleCraftingUtil.beginFiltering(retainIncompatible);
@@ -44,7 +45,8 @@ public abstract class RecipeBookComponentMixin {
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z"))
     private boolean betterRecipeBook$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
-        boolean onInventoryScreen = this.minecraft != null
+        boolean onInventoryScreen = BetterRecipeBook.config.showAllRecipesInSurvival
+                && this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
 
         for (RecipeCollection collection : collections) {

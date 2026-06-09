@@ -1,5 +1,6 @@
 package com.alonie.brbe.mixins.incompatibleenvironment;
 
+import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -20,43 +21,28 @@ import java.util.List;
 @Mixin(RecipeButton.class)
 public abstract class RecipeButtonMixin {
 
-    @Shadow
-    private RecipeCollection collection;
-
-    @Shadow
-    public abstract RecipeDisplayId getCurrentRecipe();
+    @Shadow private RecipeCollection collection;
+    @Shadow public abstract RecipeDisplayId getCurrentRecipe();
 
     @Inject(method = "getTooltipText", at = @At("RETURN"))
     private void betterRecipeBook$appendIncompatibleWarning(
             ItemStack itemStack,
             CallbackInfoReturnable<List<Component>> cir) {
-
-        Minecraft mc = Minecraft.getInstance();
-        if (!(mc.screen instanceof InventoryScreen)) {
-            return;
-        }
+        if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
+        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
 
         List<Component> tooltip = cir.getReturnValue();
-        if (tooltip == null || tooltip.isEmpty()) {
-            return;
-        }
+        if (tooltip == null || tooltip.isEmpty()) return;
 
         RecipeDisplayId currentRecipe;
-        try {
-            currentRecipe = this.getCurrentRecipe();
-        } catch (ArithmeticException e) {
-            return;
-        }
-        if (currentRecipe == null) {
-            return;
-        }
+        try { currentRecipe = this.getCurrentRecipe(); }
+        catch (ArithmeticException e) { return; }
+        if (currentRecipe == null) return;
 
         if (IncompatibleCraftingUtil.isIncompatible(this.collection, currentRecipe)) {
             tooltip.add(Component.empty());
-            tooltip.add(
-                Component.translatable("brbe.gui.environmentIncompatible")
-                    .withStyle(ChatFormatting.RED)
-            );
+            tooltip.add(Component.translatable("brbe.gui.environmentIncompatible")
+                    .withStyle(ChatFormatting.RED));
         }
     }
 }
