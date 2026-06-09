@@ -12,7 +12,6 @@ import net.minecraft.world.inventory.RecipeBookMenu;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -30,31 +29,17 @@ public abstract class RecipeBookComponentMixin {
     protected Minecraft minecraft;
 
     @Shadow
-    private ClientRecipeBook book;
-
-    @Unique
-    private boolean betterRecipeBook$isCraftableFiltering;
+    private net.minecraft.client.gui.components.EditBox searchBox;
 
     @Inject(method = "updateCollections", at = @At("HEAD"))
-    private void betterRecipeBook$resetFilteringState(boolean resetPageNumber, CallbackInfo ci) {
-        betterRecipeBook$isCraftableFiltering = false;
-    }
+    private void betterRecipeBook$trackPartialFilteringUpdate(boolean resetPageNumber, CallbackInfo ci) {
+        PartialCraftingUtil.beginFilteringUpdate(BetterRecipeBook.config.partialCraftableEqualsCraftable && resetPageNumber);
 
-    @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/ClientRecipeBook;isFiltering(Lnet/minecraft/world/inventory/RecipeBookMenu;)Z"))
-    private boolean betterRecipeBook$trackFiltering(ClientRecipeBook instance, RecipeBookMenu<?, ?> menu) {
-        boolean filtering = instance.isFiltering(menu);
-        betterRecipeBook$isCraftableFiltering = filtering && BetterRecipeBook.config.partialCraftableEqualsCraftable;
-        PartialCraftingUtil.beginFilteringUpdate(filtering);
-
-        // Incompatible (3x3) recipes are marked regardless of filtering state,
-        // but retained at the collection level only when NOT filtering.
-        boolean onInventory = BetterRecipeBook.config.showAllRecipesInSurvival
-                && !filtering
+        boolean retainIncompatible = BetterRecipeBook.config.showAllRecipesInSurvival
+                && !resetPageNumber
                 && this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
-        IncompatibleCraftingUtil.beginFiltering(onInventory);
-
-        return filtering;
+        IncompatibleCraftingUtil.beginFiltering(retainIncompatible);
     }
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z"))
@@ -70,14 +55,26 @@ public abstract class RecipeBookComponentMixin {
             }
         }
 
-        if (!betterRecipeBook$isCraftableFiltering) {
+        boolean hasSearchActive = searchBox != null && !searchBox.getValue().isEmpty();
+        boolean hasPartial = BetterRecipeBook.config.partialCraftableEqualsCraftable && !hasSearchActive;
+        boolean retainIncompatible = onInventoryScreen
+                && IncompatibleCraftingUtil.isActive()
+                && !hasSearchActive;
+
+        if (!hasPartial && !retainIncompatible) {
             return collections.removeIf(predicate);
         }
 
-        boolean removed = collections.removeIf(collection ->
-                predicate.test(collection) && !PartialCraftingUtil.hasPartialMaterials(collection));
+        boolean removed = collections.removeIf(collection -> {
+            if (!predicate.test(collection)) return false;
+            if (hasPartial && PartialCraftingUtil.hasPartialMaterials(collection)) return false;
+            if (retainIncompatible && IncompatibleCraftingUtil.hasIncompatibleRecipes(collection)) return false;
+            return true;
+        });
 
-        PartialCraftingUtil.sortCraftableBeforePartial(collections);
+        if (hasPartial) {
+            PartialCraftingUtil.sortCraftableBeforePartial(collections);
+        }
         return removed;
     }
 }
