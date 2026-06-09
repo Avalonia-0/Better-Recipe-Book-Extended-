@@ -69,7 +69,12 @@ public final class IncompatibleCraftingUtil {
     /** Call when a collection is split (ungroup) to preserve the incompatible mark. */
     public static void markIncompatibleOnCollection(RecipeCollection collection, RecipeDisplayId id) {
         CHECKED_COLLECTIONS.put(collection, filteringGeneration);
-        INCOMPATIBLE_RECIPES.put(collection, new HashSet<>(Collections.singleton(id)));
+        Set<RecipeDisplayId> existing = INCOMPATIBLE_RECIPES.get(collection);
+        if (existing != null) {
+            existing.add(id);
+        } else {
+            INCOMPATIBLE_RECIPES.put(collection, new HashSet<>(Collections.singleton(id)));
+        }
     }
 
     public static boolean wasChecked(RecipeCollection collection) {
