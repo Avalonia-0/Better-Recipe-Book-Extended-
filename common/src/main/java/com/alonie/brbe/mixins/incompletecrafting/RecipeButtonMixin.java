@@ -95,7 +95,8 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         }
         if (currentRecipe == null) return;
 
-        if (PartialCraftingUtil.isPartiallyCraftable(this.collection, currentRecipe)) {
+        if (PartialCraftingUtil.isPartiallyCraftable(this.collection, currentRecipe)
+                && !IncompatibleCraftingUtil.isIncompatible(this.collection, currentRecipe)) {
             gui.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + height - 1, 0x60FF3333);
         }
     }
