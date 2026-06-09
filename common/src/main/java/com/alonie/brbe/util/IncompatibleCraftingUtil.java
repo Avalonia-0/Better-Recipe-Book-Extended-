@@ -51,13 +51,11 @@ public final class IncompatibleCraftingUtil {
                     incompatible.add(entry.id());
                 }
             } else if (entry.display() instanceof ShapelessCraftingRecipeDisplay shapeless) {
+                // 2×2 grid holds 4 items; shapeless recipes with >4 ingredients need 3×3
                 if (shapeless.ingredients().size() > 4) {
                     if (incompatible == null) incompatible = new HashSet<>();
                     incompatible.add(entry.id());
                 }
-            } else {
-                if (incompatible == null) incompatible = new HashSet<>();
-                incompatible.add(entry.id());
             }
         }
 
