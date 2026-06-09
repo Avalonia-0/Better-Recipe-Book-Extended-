@@ -33,5 +33,5 @@
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "REI/JEI Arayüzünü Gizle",
   "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "Envanter ekranlarında REI/JEI katmanlarını gizler. Tarif/kullanım araması (R/U tuşları) çalışmaya devam eder.",
   "brbe.gui.environmentIncompatible": "Şu anda üretilemez",
-  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "Hayatta kalma tarif kitabında tüm açılmış tarifleri göster",
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "Hayatta kalma tarif kitabında tüm açılmış tarifleri göster"
 }

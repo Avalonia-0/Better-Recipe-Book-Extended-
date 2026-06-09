@@ -37,5 +37,5 @@
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "隱藏 REI/JEI 界面",
   "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "在物品欄界面隱藏 REI/JEI 覆蓋層。配方/用途查看（R/U 鍵）仍可正常使用。",
   "brbe.gui.environmentIncompatible": "目前無法合成",
-  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "在生存模式配方書顯示所有已解鎖配方",
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "在生存模式配方書顯示所有已解鎖配方"
 }

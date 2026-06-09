@@ -39,5 +39,5 @@
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "REI/JEIインターフェースを非表示",
   "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "インベントリ画面でREI/JEIオーバーレイを非表示にします。レシピ/用途の検索（R/Uキー）は引き続き機能します。",
   "brbe.gui.environmentIncompatible": "現在の環境では作成できません",
-  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "サバイバルモードのレシピブックに全解除済みレシピを表示",
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "サバイバルモードのレシピブックに全解除済みレシピを表示"
 }

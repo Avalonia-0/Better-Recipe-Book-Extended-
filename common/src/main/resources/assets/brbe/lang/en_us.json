@@ -40,5 +40,5 @@
   "key.brbe.recipeView": "View Recipe (REI)",
   "key.brbe.usageView": "View Usage (REI)",
   "brbe.gui.environmentIncompatible": "Cannot be crafted currently",
-  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "Show all unlocked recipes in survival recipe book",
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "Show all unlocked recipes in survival recipe book"
 }
