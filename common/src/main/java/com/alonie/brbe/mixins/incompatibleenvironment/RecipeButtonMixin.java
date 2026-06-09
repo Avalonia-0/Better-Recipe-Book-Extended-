@@ -9,7 +9,6 @@ import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -27,7 +26,10 @@ public abstract class RecipeButtonMixin {
 
     @Shadow private RecipeCollection collection;
     @Shadow private int currentIndex;
-    @Shadow private List<RecipeHolder<?>> recipes;
+    @Shadow
+    private List<RecipeHolder<?>> getOrderedRecipes() {
+        throw new AssertionError();
+    }
 
     @Inject(method = "init", at = @At("TAIL"))
     private void betterRecipeBook$appendIncompatibleRecipes(
@@ -36,27 +38,23 @@ public abstract class RecipeButtonMixin {
             CallbackInfo ci) {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
-        if (this.recipes == null) return;
+
+        List<RecipeHolder<?>> ordered = this.getOrderedRecipes();
+        if (ordered == null) return;
 
         List<RecipeHolder<?>> extras = null;
         for (RecipeHolder<?> holder : collection.getRecipes()) {
             if (IncompatibleCraftingUtil.checkIncompatible(collection, holder.id())
-                    && !this.recipes.contains(holder)) {
+                    && !ordered.contains(holder)) {
                 if (extras == null) extras = new ArrayList<>();
                 extras.add(holder);
             }
-        }
-
-        if (extras != null) {
-            List<RecipeHolder<?>> combined = new ArrayList<>(this.recipes);
-            combined.addAll(extras);
-            this.recipes = combined;
         }
     }
 
     @Inject(method = "getTooltipText", locals = LocalCapture.CAPTURE_FAILHARD, at = @At("RETURN"))
     private void betterRecipeBook$appendIncompatibleWarning(
-            CallbackInfoReturnable<List<Component>> cir, ItemStack itemStack, List<Component> list) {
+            CallbackInfoReturnable<List<Component>> cir, net.minecraft.world.item.ItemStack itemStack, List<Component> list) {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
         if (list == null || list.isEmpty()) return;
