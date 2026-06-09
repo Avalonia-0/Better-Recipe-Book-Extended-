@@ -46,9 +46,12 @@ public class ClientRecipeBookMixin extends RecipeBook {
                         if (sourceAccessor.betterRecipeBook$getCraftable().contains(recipe.id())) {
                             splitAccessor.betterRecipeBook$getCraftable().add(recipe.id());
                         }
+
+                        // Transfer incompatible marking to the split collection
                         if (IncompatibleCraftingUtil.isIncompatible(recipeResultCollection, recipe.id())) {
                             IncompatibleCraftingUtil.markIncompatibleOnCollection(splitCollection, recipe.id());
                         }
+
                         list2.add(splitCollection);
                     }
                 }
