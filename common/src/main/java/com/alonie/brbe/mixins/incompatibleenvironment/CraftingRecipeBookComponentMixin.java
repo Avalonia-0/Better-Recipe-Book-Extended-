@@ -14,28 +14,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Overrides grid-size filtering and ghost-recipe rendering for the 2×2
- * inventory crafting grid so that 3×3 recipes are visible in the recipe
- * book but cannot have ghost items placed in the undersized grid.
- */
-import com.alonie.brbe.util.IncompatibleCraftingUtil;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
-import net.minecraft.client.gui.screens.recipebook.CraftingRecipeBookComponent;
-import net.minecraft.client.gui.screens.recipebook.GhostSlots;
-import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
-import net.minecraft.util.context.ContextMap;
-import net.minecraft.world.item.crafting.display.RecipeDisplay;
-import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
-import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
-import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
-import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-
 @Mixin(CraftingRecipeBookComponent.class)
 public abstract class CraftingRecipeBookComponentMixin {
 
@@ -56,16 +34,6 @@ public abstract class CraftingRecipeBookComponentMixin {
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
         if (display instanceof ShapedCraftingRecipeDisplay shaped
                 && (shaped.width() > 2 || shaped.height() > 2)) {
-            ci.cancel();
-        }
-    }
-
-    @Inject(method = "recipesClicked", at = @At("HEAD"), cancellable = true)
-    private void betterRecipeBook$preventIncompatibleRecipePlacement(
-            RecipeDisplayEntry entry, RecipeCollection collection, boolean filtering,
-            CallbackInfo ci) {
-        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
-        if (IncompatibleCraftingUtil.isIncompatible(collection, entry.id())) {
             ci.cancel();
         }
     }
