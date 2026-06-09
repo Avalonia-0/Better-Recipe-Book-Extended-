@@ -51,15 +51,13 @@ public final class IncompatibleCraftingUtil {
                     incompatible.add(entry.id());
                 }
             } else if (entry.display() instanceof ShapelessCraftingRecipeDisplay shapeless) {
-                // 2×2 grid holds 4 items; shapeless recipes with >4 ingredients need 3×3
                 if (shapeless.ingredients().size() > 4) {
                     if (incompatible == null) incompatible = new HashSet<>();
                     incompatible.add(entry.id());
                 }
             } else {
-                // Everything else (special crafting displays, etc.): vanilla canDisplay
-                // returns false for these on ANY grid size, so they can never be crafted
-                // in the 2×2 inventory grid.
+                // Unknown display type — canDisplay returns false for these on any
+                // grid size (vanilla behaviour), so they are inherently incompatible.
                 if (incompatible == null) incompatible = new HashSet<>();
                 incompatible.add(entry.id());
             }
