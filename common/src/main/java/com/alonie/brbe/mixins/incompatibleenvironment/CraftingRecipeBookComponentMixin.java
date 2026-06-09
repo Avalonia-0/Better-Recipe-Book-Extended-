@@ -6,7 +6,6 @@ import net.minecraft.client.gui.screens.recipebook.CraftingRecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.GhostSlots;
 import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
-import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 import org.spongepowered.asm.mixin.Mixin;
@@ -39,13 +38,4 @@ public abstract class CraftingRecipeBookComponentMixin {
         }
     }
 
-    @Inject(method = "recipesClicked", at = @At("HEAD"), cancellable = true)
-    private void betterRecipeBook$preventIncompatibleRecipePlacement(
-            RecipeDisplayEntry entry, boolean isFiltering, CallbackInfo ci) {
-        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
-        if (entry.display() instanceof ShapedCraftingRecipeDisplay shaped
-                && (shaped.width() > 2 || shaped.height() > 2)) {
-            ci.cancel();
-        }
-    }
 }
