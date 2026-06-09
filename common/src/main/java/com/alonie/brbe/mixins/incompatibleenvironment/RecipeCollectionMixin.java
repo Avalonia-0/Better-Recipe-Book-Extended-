@@ -15,20 +15,28 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Ensures incompatible (3×3) recipes are included in the display list
- * when showAllRecipesInSurvival is enabled on the inventory screen.
+ * Ensures incompatible (3×3) recipes are included in getRecipes(boolean)
+ * return value so buttons have a non-empty recipe list.
  *
- * Uses the public API {@link RecipeCollection#getDisplayRecipes(boolean)}
- * instead of targeting private fields or methods on RecipeButton.
+ * In 1.21.1, RecipeButton.init() calls collection.getRecipes(isFiltering)
+ * NOT getDisplayRecipes(). When isFiltering=false, getRecipes returns only
+ * recipes that fit the grid (fitsDimensions set). 3×3 recipes don't fit
+ * the 2×2 inventory grid, so the list would be empty → crash in
+ * renderWidget (currentIndex % 0).
+ *
+ * When isFiltering=true (craftable-only), we skip adding incompatible
+ * recipes since they are not craftable.
  */
 @Mixin(RecipeCollection.class)
 public abstract class RecipeCollectionMixin {
 
-    @Inject(method = "getDisplayRecipes", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "getRecipes(Z)Ljava/util/List;", at = @At("RETURN"), cancellable = true)
     private void betterRecipeBook$includeIncompatibleRecipes(
             boolean craftableOnly, CallbackInfoReturnable<List<RecipeHolder<?>>> cir) {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
+        // When filtering by craftable-only, don't add incompatible recipes
+        if (craftableOnly) return;
 
         List<RecipeHolder<?>> recipes = cir.getReturnValue();
         if (recipes == null) return;
