@@ -4,6 +4,7 @@ import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
+import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -46,9 +47,13 @@ public final class IncompatibleCraftingUtil {
         for (RecipeDisplayEntry entry : collection.getRecipes()) {
             if (entry.display() instanceof ShapedCraftingRecipeDisplay shaped) {
                 if (shaped.width() > 2 || shaped.height() > 2) {
-                    if (incompatible == null) {
-                        incompatible = new HashSet<>();
-                    }
+                    if (incompatible == null) incompatible = new HashSet<>();
+                    incompatible.add(entry.id());
+                }
+            } else if (entry.display() instanceof ShapelessCraftingRecipeDisplay shapeless) {
+                // 2×2 grid holds 4 items; shapeless recipes with >4 ingredients need 3×3
+                if (shapeless.ingredients().size() > 4) {
+                    if (incompatible == null) incompatible = new HashSet<>();
                     incompatible.add(entry.id());
                 }
             }
