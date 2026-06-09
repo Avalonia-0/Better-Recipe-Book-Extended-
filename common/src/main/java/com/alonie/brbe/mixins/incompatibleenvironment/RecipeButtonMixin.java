@@ -13,6 +13,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
@@ -25,6 +26,29 @@ public abstract class RecipeButtonMixin {
 
     @Shadow
     public abstract RecipeDisplayId getCurrentRecipe();
+
+    /**
+     * Prevents clicking incompatible (3×3) recipes in the 2×2 inventory grid.
+     * When a recipe is marked incompatible, the click does nothing — no items
+     * are moved to the crafting grid.
+     */
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void betterRecipeBook$preventIncompatibleClick(
+            double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
+        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
+
+        RecipeDisplayId currentRecipe;
+        try {
+            currentRecipe = this.getCurrentRecipe();
+        } catch (ArithmeticException e) {
+            return;
+        }
+        if (currentRecipe == null) return;
+
+        if (IncompatibleCraftingUtil.isIncompatible(this.collection, currentRecipe)) {
+            cir.setReturnValue(true); // consume the click, do nothing
+        }
+    }
 
     @Inject(method = "getTooltipText", at = @At("RETURN"))
     private void betterRecipeBook$appendIncompatibleWarning(
