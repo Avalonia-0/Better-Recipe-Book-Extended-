@@ -41,5 +41,4 @@
   "key.brbe.usageView": "View Usage",
   "brbe.gui.environmentIncompatible": "Cannot be crafted currently",
   "text.autoconfig.brbe.option.showAllRecipesInSurvival": "Show all unlocked recipes in survival recipe book",
-  "text.autoconfig.brbe.option.showAllRecipesInSurvival.@Tooltip": "Shows 3×3 crafting table recipes in the 2×2 inventory crafting grid’s recipe book. Incompatible recipes are marked with a red “Cannot be crafted currently” tooltip."
 }

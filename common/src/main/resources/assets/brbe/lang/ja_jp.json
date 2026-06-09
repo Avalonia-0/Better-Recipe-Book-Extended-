@@ -40,5 +40,4 @@
   "key.brbe.pin": "レシピのお気に入り登録・解除",
   "brbe.gui.environmentIncompatible": "現在の環境では作成できません",
   "text.autoconfig.brbe.option.showAllRecipesInSurvival": "サバイバルモードのレシピブックに全解除済みレシピを表示",
-  "text.autoconfig.brbe.option.showAllRecipesInSurvival.@Tooltip": "インベントリの2×2作業グリッドのレシピブックに3×3作業台のレシピを表示します。互換性のないレシピは赤色で「現在の環境では作成できません」と表示されます。"
 }
