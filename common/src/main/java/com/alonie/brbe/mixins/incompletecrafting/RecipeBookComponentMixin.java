@@ -59,13 +59,11 @@ public abstract class RecipeBookComponentMixin {
             }
         }
 
-        boolean hasPartial = BetterRecipeBook.config.partialCraftableEqualsCraftable;
-        // Never retain incompatible recipes when a search is active — the search
-        // predicate takes priority, and retaining incompatible collections would
-        // break the search filter (showing recipes that don't match the query).
+        boolean hasSearchActive = searchBox != null && !searchBox.getValue().isEmpty();
+        boolean hasPartial = BetterRecipeBook.config.partialCraftableEqualsCraftable && !hasSearchActive;
         boolean retainIncompatible = onInventoryScreen
                 && IncompatibleCraftingUtil.isActive()
-                && (searchBox == null || searchBox.getValue().isEmpty());
+                && !hasSearchActive;
 
         if (!hasPartial && !retainIncompatible) {
             return collections.removeIf(predicate);
