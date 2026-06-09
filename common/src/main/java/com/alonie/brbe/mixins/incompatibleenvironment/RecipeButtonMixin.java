@@ -16,7 +16,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +32,7 @@ public abstract class RecipeButtonMixin {
 
     @Inject(method = "init", at = @At("TAIL"))
     private void betterRecipeBook$appendIncompatibleRecipes(
-            RecipeCollection collection, boolean isFiltering,
+            RecipeCollection collection,
             net.minecraft.client.gui.screens.recipebook.RecipeBookPage page,
             CallbackInfo ci) {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
@@ -52,11 +51,13 @@ public abstract class RecipeButtonMixin {
         }
     }
 
-    @Inject(method = "getTooltipText", locals = LocalCapture.CAPTURE_FAILHARD, at = @At("RETURN"))
+    @Inject(method = "getTooltipText", at = @At("RETURN"))
     private void betterRecipeBook$appendIncompatibleWarning(
-            CallbackInfoReturnable<List<Component>> cir, net.minecraft.world.item.ItemStack itemStack, List<Component> list) {
+            CallbackInfoReturnable<List<Component>> cir) {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
+
+        List<Component> list = cir.getReturnValue();
         if (list == null || list.isEmpty()) return;
 
         List<RecipeHolder<?>> recipeList = this.collection.getRecipes();
