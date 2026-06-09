@@ -32,5 +32,7 @@
   "brb.gui.settings.open": "Otwórz ustawienia",
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "Ukryj interfejs REI/JEI",
   "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "Ukrywa nakładki REI/JEI w ekranach ekwipunku. Wyszukiwanie receptur/zastosowań (klawisze R/U) nadal działa.",
-  "brbe.gui.environmentIncompatible": "Nie można teraz wytworzyć"
+  "brbe.gui.environmentIncompatible": "Nie można teraz wytworzyć",
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "Pokaż wszystkie odblokowane przepisy w książce survivalowej",
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival.@Tooltip": "Wyświetla przepisy stołu rzemieślniczego 3×3 w książce przepisów siatki ekwipunku 2×2. Niezgodne przepisy są oznaczone na czerwono."
 }

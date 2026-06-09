@@ -1,5 +1,6 @@
 package com.alonie.brbe.mixins.incompatibleenvironment;
 
+import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -39,6 +40,7 @@ public abstract class RecipeButtonMixin {
             RecipeCollection collection, boolean isFiltering,
             net.minecraft.client.gui.screens.recipebook.RecipeBookPage page,
             CallbackInfo ci) {
+        if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
         if (this.recipes == null) return;
 
@@ -61,6 +63,7 @@ public abstract class RecipeButtonMixin {
     @Inject(method = "getTooltipText", locals = LocalCapture.CAPTURE_FAILHARD, at = @At("RETURN"))
     private void betterRecipeBook$appendIncompatibleWarning(
             CallbackInfoReturnable<List<Component>> cir, ItemStack itemStack, List<Component> list) {
+        if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
         if (list == null || list.isEmpty()) return;
 

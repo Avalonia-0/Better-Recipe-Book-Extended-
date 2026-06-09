@@ -1,5 +1,6 @@
 package com.alonie.brbe.mixins.incompatibleenvironment;
 
+import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -17,6 +18,7 @@ public abstract class RecipeBookComponentMixin {
     @Inject(method = "recipesClicked", at = @At("HEAD"), cancellable = true)
     private void betterRecipeBook$preventIncompatibleRecipeClick(
             RecipeHolder<?> recipe, boolean isFiltering, CallbackInfo ci) {
+        if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
 
         RecipeCollection collection = this.getRecipeCollection(recipe);

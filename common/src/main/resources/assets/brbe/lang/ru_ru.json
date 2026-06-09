@@ -34,5 +34,7 @@
   "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§eПодсказка: §7Если вы отключите любой из этих двух параметров, используйте Mod Menu, чтобы снова открыть их.",
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "Скрыть интерфейс REI/JEI",
   "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "Скрывает оверлеи REI/JEI на экранах инвентаря. Просмотр рецептов/использования (клавиши R/U) продолжает работать.",
-  "brbe.gui.environmentIncompatible": "Невозможно создать сейчас"
+  "brbe.gui.environmentIncompatible": "Невозможно создать сейчас",
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "Показать все разблокированные рецепты в книге выживания",
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival.@Tooltip": "Показывает рецепты верстака 3×3 в книге рецептов инвентарной сетки 2×2. Несовместимые рецепты отмечены красным «Невозможно создать сейчас»."
 }

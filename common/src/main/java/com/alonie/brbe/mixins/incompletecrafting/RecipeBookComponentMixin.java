@@ -48,7 +48,8 @@ public abstract class RecipeBookComponentMixin {
 
         // Incompatible (3x3) recipes are marked regardless of filtering state,
         // but retained at the collection level only when NOT filtering.
-        boolean onInventory = !filtering
+        boolean onInventory = BetterRecipeBook.config.showAllRecipesInSurvival
+                && !filtering
                 && this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
         IncompatibleCraftingUtil.beginFiltering(onInventory);
@@ -58,7 +59,8 @@ public abstract class RecipeBookComponentMixin {
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z"))
     private boolean betterRecipeBook$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
-        boolean onInventoryScreen = this.minecraft != null
+        boolean onInventoryScreen = BetterRecipeBook.config.showAllRecipesInSurvival
+                && this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
 
         for (RecipeCollection collection : collections) {
