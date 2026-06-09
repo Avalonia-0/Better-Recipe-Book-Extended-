@@ -24,7 +24,6 @@
     "hideoverlay.AbstractContainerScreenMixin",
     "incompatibleenvironment.RecipeBookComponentMixin",
     "incompatibleenvironment.RecipeButtonMixin",
-    "incompatibleenvironment.RecipeCollectionMixin",
     "search.RecipeBookComponentMixin",
     "alternativerecipes.OverlayRecipeButtonMixin",
     "centered.RecipeBookComponentMixin",
