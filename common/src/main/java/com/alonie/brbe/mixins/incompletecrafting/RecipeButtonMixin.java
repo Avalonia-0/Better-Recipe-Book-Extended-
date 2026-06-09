@@ -61,10 +61,9 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     private boolean betterRecipeBook$renderCurrentRecipeCraftability(RecipeCollection collection, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         try {
             RecipeDisplayId currentRecipe = this.getCurrentRecipe();
-            // A recipe incompatible with the current grid (e.g. 3×3 recipe
-            // in a 2×2 grid) is never craftable — prevent green border and
-            // ghost placement even when materials are sufficient.
-            if (IncompatibleCraftingUtil.isIncompatible(collection, currentRecipe)) {
+            // Incompatible (grid-too-small) recipes are NEVER craftable, regardless
+            // of material availability. This prevents the green border and click-to-place.
+            if (IncompatibleCraftingUtil.isIncompatible(this.collection, currentRecipe)) {
                 return false;
             }
             return collection.isCraftable(currentRecipe) || PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
