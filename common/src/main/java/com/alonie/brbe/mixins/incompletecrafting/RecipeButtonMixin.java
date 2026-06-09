@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -60,7 +61,12 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     private boolean betterRecipeBook$renderCurrentRecipeCraftability(RecipeCollection collection, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         try {
             RecipeDisplayId currentRecipe = this.getCurrentRecipe();
-            return collection.isCraftable(currentRecipe) || PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
+            boolean craftable = collection.isCraftable(currentRecipe);
+            boolean partial = PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
+            boolean incompatible = IncompatibleCraftingUtil.isIncompatible(collection, currentRecipe);
+            // Incompatible recipes (3×3 in 2×2) must never show as craftable,
+            // even if materials are available — the grid size is the constraint.
+            return (craftable || partial) && !incompatible;
         } catch (ArithmeticException e) {
             return collection.hasCraftable();
         }
@@ -88,7 +94,8 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         }
         if (currentRecipe == null) return;
 
-        if (PartialCraftingUtil.isPartiallyCraftable(this.collection, currentRecipe)) {
+        if (PartialCraftingUtil.isPartiallyCraftable(this.collection, currentRecipe)
+                && !IncompatibleCraftingUtil.isIncompatible(this.collection, currentRecipe)) {
             gui.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + height - 1, 0x60FF3333);
         }
     }
