@@ -44,7 +44,13 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         if (status == RecipeCollection.CraftableStatus.CRAFTABLE
                 && !filteringCraftable
                 && Minecraft.getInstance().screen instanceof InventoryScreen) {
-            return PartialCraftingUtil.getSelectedRecipes(collection, RecipeCollection.CraftableStatus.ANY);
+            List<RecipeDisplayEntry> any = PartialCraftingUtil.getSelectedRecipes(collection, RecipeCollection.CraftableStatus.ANY);
+            // Guard: recipes with no resolvable result item would render as air.
+            // This can happen with certain modded special displays or edge cases
+            // that were previously hidden by the grid-size filter.
+            return any.stream()
+                    .filter(e -> !e.resultItems(contextMap).isEmpty())
+                    .toList();
         }
 
         return PartialCraftingUtil.getSelectedRecipes(collection, status);
