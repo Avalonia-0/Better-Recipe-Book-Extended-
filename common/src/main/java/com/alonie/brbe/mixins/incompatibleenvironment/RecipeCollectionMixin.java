@@ -30,7 +30,7 @@ import java.util.List;
 @Mixin(RecipeCollection.class)
 public abstract class RecipeCollectionMixin {
 
-    @Inject(method = "getRecipes(Z)Ljava/util/List;", at = @At("RETURN"), cancellable = true)
+    @Inject(method = "getRecipes(boolean)", at = @At("RETURN"), cancellable = true)
     private void betterRecipeBook$includeIncompatibleRecipes(
             boolean craftableOnly, CallbackInfoReturnable<List<RecipeHolder<?>>> cir) {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
