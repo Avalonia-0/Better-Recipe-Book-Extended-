@@ -9,7 +9,7 @@ import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(RecipeBookComponent.class)
 public abstract class RecipeBookComponentMixin {
@@ -17,12 +17,12 @@ public abstract class RecipeBookComponentMixin {
     @Inject(method = "tryPlaceRecipe", at = @At("HEAD"), cancellable = true)
     private void betterRecipeBook$preventIncompatiblePlacement(
             RecipeCollection collection, RecipeDisplayId id, boolean isFiltering,
-            CallbackInfo ci) {
+            CallbackInfoReturnable<Boolean> cir) {
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
         if (collection == null) return;
 
         if (IncompatibleCraftingUtil.isIncompatible(collection, id)) {
-            ci.cancel();
+            cir.setReturnValue(false);
         }
     }
 }
