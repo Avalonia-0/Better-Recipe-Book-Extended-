@@ -4,6 +4,7 @@ import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.world.item.crafting.ShapelessRecipe;
 
 import java.util.Collections;
 import java.util.HashSet;
@@ -34,6 +35,11 @@ public final class IncompatibleCraftingUtil {
         for (RecipeHolder<?> holder : collection.getRecipes()) {
             if (holder.value() instanceof ShapedRecipe shaped) {
                 if (shaped.getWidth() > 2 || shaped.getHeight() > 2) {
+                    if (incompatible == null) incompatible = new HashSet<>();
+                    incompatible.add(holder.id());
+                }
+            } else if (holder.value() instanceof ShapelessRecipe shapeless) {
+                if (shapeless.getIngredients().size() > 4) {
                     if (incompatible == null) incompatible = new HashSet<>();
                     incompatible.add(holder.id());
                 }
