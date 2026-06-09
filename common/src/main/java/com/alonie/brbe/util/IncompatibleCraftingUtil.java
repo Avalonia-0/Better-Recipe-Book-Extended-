@@ -1,5 +1,6 @@
 package com.alonie.brbe.util;
 
+import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -31,17 +32,20 @@ public final class IncompatibleCraftingUtil {
     public static void markIncompatibleRecipes(RecipeCollection collection) {
         CHECKED_COLLECTIONS.put(collection, filteringGeneration);
         Set<ResourceLocation> incompatible = null;
+        RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
 
         for (RecipeHolder<?> holder : collection.getRecipes()) {
             if (holder.value() instanceof ShapedRecipe shaped) {
                 if (shaped.getWidth() > 2 || shaped.getHeight() > 2) {
                     if (incompatible == null) incompatible = new HashSet<>();
                     incompatible.add(holder.id());
+                    accessor.getFitsDimensions().add(holder);
                 }
             } else if (holder.value() instanceof ShapelessRecipe shapeless) {
                 if (shapeless.getIngredients().size() > 4) {
                     if (incompatible == null) incompatible = new HashSet<>();
                     incompatible.add(holder.id());
+                    accessor.getFitsDimensions().add(holder);
                 }
             }
         }

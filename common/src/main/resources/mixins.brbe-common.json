@@ -18,6 +18,7 @@
     "accessors.OverlayRecipeButtonPosAccessor",
     "accessors.OverlayRecipeComponentAccessor",
     "accessors.RecipeBookComponentAccessor",
+    "accessors.RecipeCollectionAccessor",
     "accessors.RecipeBookPageAccessor",
     "accessors.smithing.SmithingTransformRecipeAccessor",
     "accessors.smithing.SmithingTrimRecipeAccessor",
