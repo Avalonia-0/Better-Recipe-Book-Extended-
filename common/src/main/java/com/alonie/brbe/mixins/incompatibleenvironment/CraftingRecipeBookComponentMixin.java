@@ -6,7 +6,6 @@ import net.minecraft.client.gui.screens.recipebook.CraftingRecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.GhostSlots;
 import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
-import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 import org.spongepowered.asm.mixin.Mixin;
@@ -34,16 +33,6 @@ public abstract class CraftingRecipeBookComponentMixin {
             CallbackInfo ci) {
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
         if (isIncompatibleShape(display)) {
-            ci.cancel();
-        }
-    }
-
-    /** Block recipe placement for incompatible recipes in the 2x2 grid. */
-    @Inject(method = "recipesClicked", at = @At("HEAD"), cancellable = true)
-    private void betterRecipeBook$blockIncompatibleRecipePlacement(
-            RecipeDisplayEntry entry, boolean isFiltering, CallbackInfo ci) {
-        if (Minecraft.getInstance().screen instanceof InventoryScreen
-                && isIncompatibleShape(entry.display())) {
             ci.cancel();
         }
     }
