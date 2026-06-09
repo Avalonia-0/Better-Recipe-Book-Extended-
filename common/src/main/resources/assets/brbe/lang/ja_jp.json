@@ -41,5 +41,5 @@
   "category.brbe": "Better Recipe Book",
   "key.brbe.pin": "レシピのお気に入り登録・解除",
   "brbe.gui.environmentIncompatible": "現在の環境では作成できません",
-  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "サバイバルモードのレシピブックに全解除済みレシピを表示",
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "サバイバルモードのレシピブックに全解除済みレシピを表示"
 }
