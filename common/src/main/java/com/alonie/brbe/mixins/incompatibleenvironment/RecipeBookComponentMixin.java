@@ -1,10 +1,11 @@
 package com.alonie.brbe.mixins.incompatibleenvironment;
 
+import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
+import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
-import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -14,12 +15,17 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "recipesClicked", at = @At("HEAD"), cancellable = true)
-    private void betterRecipeBook$blockIncompatibleRecipePlacement(
+    private void betterRecipeBook$preventIncompatibleGhostRecipe(
             RecipeDisplayEntry entry, boolean isFiltering, CallbackInfo ci) {
-        if (Minecraft.getInstance().screen instanceof InventoryScreen
-                && entry.display() instanceof ShapedCraftingRecipeDisplay shaped
-                && (shaped.width() > 2 || shaped.height() > 2)) {
+        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
+
+        RecipeCollection collection = this.getRecipeCollection(entry);
+        if (collection == null) return;
+
+        if (IncompatibleCraftingUtil.isIncompatible(collection, entry.id())) {
             ci.cancel();
         }
     }
+
+    public abstract RecipeCollection getRecipeCollection(RecipeDisplayEntry entry);
 }
