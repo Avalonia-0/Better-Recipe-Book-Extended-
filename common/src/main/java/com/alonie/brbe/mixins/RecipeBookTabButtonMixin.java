@@ -13,10 +13,10 @@ public abstract class RecipeBookTabButtonMixin implements RecipeBookTabButtonIco
     private int betterRecipeBook$iconYOffset;
 
     @ModifyArg(
-            method = "renderIcon",
+            method = "extractIcon",
             at = @At(
                     value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/GuiGraphics;renderFakeItem(Lnet/minecraft/world/item/ItemStack;II)V"
+                    target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fakeItem(Lnet/minecraft/world/item/ItemStack;II)V"
             ),
             index = 2
     )

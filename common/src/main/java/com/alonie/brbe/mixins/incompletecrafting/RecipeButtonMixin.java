@@ -1,9 +1,10 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
@@ -37,27 +38,29 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Redirect(method = "init", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;"))
     private List<RecipeDisplayEntry> betterRecipeBook$getSelectedRecipes(RecipeCollection collection, RecipeCollection.CraftableStatus status, RecipeCollection originalCollection, boolean filteringCraftable, RecipeBookPage recipeBookPage, ContextMap contextMap) {
+        // In the 2x2 inventory grid when NOT filtering, show ALL selected recipes,
+        // filtering out any with unresolvable results (would render as air).
         if (BetterRecipeBook.config.showAllRecipesInSurvival
                 && status == RecipeCollection.CraftableStatus.CRAFTABLE
                 && !filteringCraftable
                 && Minecraft.getInstance().screen instanceof InventoryScreen) {
             List<RecipeDisplayEntry> any = PartialCraftingUtil.getSelectedRecipes(collection, RecipeCollection.CraftableStatus.ANY);
-            // Guard: recipes with no resolvable result item would render as air.
-            // This can happen with certain modded special displays or edge cases
-            // that were previously hidden by the grid-size filter.
             return any.stream()
                     .filter(e -> !e.resultItems(contextMap).isEmpty())
                     .toList();
         }
-
         return PartialCraftingUtil.getSelectedRecipes(collection, status);
     }
 
-    @Redirect(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
-    private boolean betterRecipeBook$renderCurrentRecipeCraftability(RecipeCollection collection, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    @Redirect(method = "extractWidgetRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
+    private boolean betterRecipeBook$renderCurrentRecipeCraftability(RecipeCollection collection, GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+        // Guard against MC-26.1.2 vanilla bug: getCurrentRecipe divides by zero
         try {
             RecipeDisplayId currentRecipe = this.getCurrentRecipe();
-            return collection.isCraftable(currentRecipe) || PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
+            boolean craftable = collection.isCraftable(currentRecipe);
+            boolean partial = PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
+            boolean incompatible = IncompatibleCraftingUtil.checkIncompatible(collection, currentRecipe);
+            return (craftable || partial) && !incompatible;
         } catch (ArithmeticException e) {
             return collection.hasCraftable();
         }
@@ -75,8 +78,8 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         }
     }
 
-    @Inject(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderFakeItem(Lnet/minecraft/world/item/ItemStack;II)V", shift = At.Shift.BEFORE))
-    private void betterRecipeBook$renderPartialOverlay(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(method = "extractWidgetRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fakeItem(Lnet/minecraft/world/item/ItemStack;II)V", shift = At.Shift.BEFORE))
+    private void betterRecipeBook$renderPartialOverlay(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         RecipeDisplayId currentRecipe;
         try {
             currentRecipe = this.getCurrentRecipe();
@@ -85,7 +88,8 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         }
         if (currentRecipe == null) return;
 
-        if (PartialCraftingUtil.isPartiallyCraftable(this.collection, currentRecipe)) {
+        if (PartialCraftingUtil.isPartiallyCraftable(this.collection, currentRecipe)
+                && !IncompatibleCraftingUtil.checkIncompatible(this.collection, currentRecipe)) {
             gui.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + height - 1, 0x60FF3333);
         }
     }

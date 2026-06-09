@@ -9,7 +9,7 @@ import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.Minecraft;
 import com.alonie.brbe.widget.StateSwitchingButton;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 
 import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.core.RegistryAccess;
@@ -127,7 +127,7 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         return false;
     }
 
-    protected void render(GuiGraphics gui, int blitX, int blitY, int mouseX, int mouseY, float delta) {
+    protected void render(GuiGraphicsExtractor gui, int blitX, int blitY, int mouseX, int mouseY, float delta) {
         if (BetterRecipeBook.queuedScroll != 0 && BetterRecipeBook.config.scrolling.enableScrolling) {
             if (isMouseOverRecipeBookPage(mouseX, mouseY, blitX, blitY) && totalPages > 1) {
                 currentPage += BetterRecipeBook.queuedScroll;
@@ -146,20 +146,20 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         if (this.totalPages > 1) {
             String string = this.currentPage + 1 + "/" + this.totalPages;
             int width = this.minecraft.font.width(string);
-            gui.drawString(this.minecraft.font, string, blitX - width / 2 + 73, blitY + 141, -1, false);
+            gui.text(this.minecraft.font, string, blitX - width / 2 + 73, blitY + 141, -1, false);
         }
 
         this.hoveredButton = null;
 
         for (var button : this.buttons) {
-            button.render(gui, mouseX, mouseY, delta);
+            button.extractRenderState(gui, mouseX, mouseY, delta);
             if (button.visible && button.isHoveredOrFocused()) {
                 this.hoveredButton = button;
             }
         }
 
-        this.backButton.render(gui, mouseX, mouseY, delta);
-        this.forwardButton.render(gui, mouseX, mouseY, delta);
+        this.backButton.extractRenderState(gui, mouseX, mouseY, delta);
+        this.forwardButton.extractRenderState(gui, mouseX, mouseY, delta);
     }
 
     private static boolean isMouseOverRecipeBookPage(int mouseX, int mouseY, int left, int top) {
@@ -198,7 +198,7 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         }
     }
 
-    public void drawTooltip(GuiGraphics gui, int x, int y) {
+    public void drawTooltip(GuiGraphicsExtractor gui, int x, int y) {
         if (this.minecraft.screen != null && hoveredButton != null) {
             ClientCompat.setComponentTooltipForNextFrame(gui, this.hoveredButton.getTooltipText(), x, y);
         }

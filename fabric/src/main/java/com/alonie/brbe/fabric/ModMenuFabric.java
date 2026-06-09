@@ -1,13 +1,16 @@
 package com.alonie.brbe.fabric;
 
-import com.terraformersmc.modmenu.api.ConfigScreenFactory;
-import com.terraformersmc.modmenu.api.ModMenuApi;
 import com.alonie.brbe.config.Config;
-import me.shedaniel.autoconfig.AutoConfig;
+import me.shedaniel.autoconfig.AutoConfigClient;
 
-public class ModMenuFabric implements ModMenuApi {
-    @Override
-    public ConfigScreenFactory<?> getModConfigScreenFactory() {
-        return parent -> AutoConfig.getConfigScreen(Config.class, parent).get();
+import java.util.function.Function;
+
+/**
+ * ModMenu integration.
+ * Uses ModMenu API via reflection at runtime where possible; otherwise provides config screen directly.
+ */
+public class ModMenuFabric {
+    public static Function<net.minecraft.client.gui.screens.Screen, net.minecraft.client.gui.screens.Screen> getConfigScreenFactory() {
+        return parent -> AutoConfigClient.getConfigScreen(Config.class, parent).get();
     }
 }

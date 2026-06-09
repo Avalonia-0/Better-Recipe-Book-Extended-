@@ -7,10 +7,6 @@ base {
     archivesName = "${rootProject.archives_base_name}-fabric-${rootProject.minecraft_version}"
 }
 
-loom {
-    accessWidenerPath = project(":common").file("src/main/resources/brbe.common.accesswidener")
-}
-
 configurations {
     common {
         canBeResolved = true
@@ -21,39 +17,36 @@ configurations {
     developmentFabric.extendsFrom common
 }
 
-def jeiFabricJarPath = rootProject.findProperty("jei_fabric_jar")?.toString()
-if (jeiFabricJarPath == null || !file(jeiFabricJarPath).exists()) {
-    jeiFabricJarPath = rootProject.file("libs/jei-1.21.11-fabric-27.4.0.22.jar").absolutePath
-}
-def jeiFabricPresent = file(jeiFabricJarPath).exists()
-
 dependencies {
-    modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
-    modImplementation("net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}") {
+    implementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+    implementation("net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}") {
         exclude group: "net.fabricmc.fabric-api", module: "fabric-api-base"
     }
-    modImplementation("dev.architectury:architectury-fabric:${rootProject.architectury_version}") {
+    implementation("dev.architectury:architectury-fabric:${rootProject.architectury_version}") {
         exclude group: "net.fabricmc.fabric-api"
     }
-    modImplementation "me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}"
-
-    modCompileOnly files(rootProject.file("libs/modmenu-17.0.0.jar"))
-
-    if (jeiFabricPresent) {
-        modCompileOnly files(jeiFabricJarPath)
+    implementation "me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}"
+    def jeiJarPath = rootProject.findProperty("jei_fabric_jar")?.toString()
+    if (jeiJarPath == null || !file(jeiJarPath).exists()) {
+        jeiJarPath = "/media/avalonia/data/MinecraftLib/versions/26.1.2-Fabric/mods/jei-26.1.2-fabric-29.6.2.31.jar"
     }
-
-    common(project(path: ":common", configuration: "namedElements")) { transitive false }
+    // User may have disabled JEI via HMCL (appends .disabled to file name)
+    if (!file(jeiJarPath).exists()) {
+        jeiJarPath = "/media/avalonia/data/MinecraftLib/versions/26.1.2-Fabric/mods/jei-26.1.2-fabric-29.6.2.31.jar.disabled"
+    }
+    if (file(jeiJarPath).exists()) {
+        implementation files(jeiJarPath)
+    }
+    implementation(project(path: ":common"))
 }
 
-tasks.named("compileJava") {
-    if (!jeiFabricPresent) {
-        exclude("com/alonie/brbe/fabric/compat/jei/BetterRecipeBookJEIPlugin.java")
-    }
-}
-
-// Include common module (classes + resources)
+// Include common module (classes + resources) — loom-no-remap doesn't auto-merge
 jar {
     from project(":common").sourceSets.main.output
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.named("compileJava") {
+    excludes.add("com/alonie/brbe/fabric/mixin/JeiIngredientListOverlayMixin.java")
+    excludes.add("com/alonie/brbe/fabric/mixin/JeiBookmarkOverlayMixin.java")
 }

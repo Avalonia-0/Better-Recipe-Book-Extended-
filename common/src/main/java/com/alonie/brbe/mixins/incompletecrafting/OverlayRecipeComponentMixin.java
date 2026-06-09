@@ -44,7 +44,7 @@ public class OverlayRecipeComponentMixin {
         return AlternativeOverlayLayout.columnsFor(recipeCount);
     }
 
-    @ModifyVariable(method = "render", index = 5, at = @At("STORE"))
+    @ModifyVariable(method = "extractRenderState", index = 5, at = @At("STORE"))
     private int betterRecipeBook$renderExpandedColumnsAfterFiveRows(int columns) {
         return AlternativeOverlayLayout.columnsFor(this.recipeButtons.size());
     }

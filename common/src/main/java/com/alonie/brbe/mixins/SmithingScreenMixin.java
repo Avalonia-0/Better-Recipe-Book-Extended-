@@ -170,8 +170,8 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
         // pass, cancel render of onboarding tip slots if there is a ghost recipe
     }
 
-    @Inject(method = "renderOnboardingTooltips", at = @At(value = "HEAD"), cancellable = true)
-    public void renderOnboardingTooltips(GuiGraphicsExtractor guiGraphics, int i, int j, CallbackInfo ci) {
+    @Inject(method = "extractOnboardingTooltips", at = @At(value = "HEAD"), cancellable = true)
+    public void extractOnboardingTooltips(GuiGraphicsExtractor guiGraphics, int i, int j, CallbackInfo ci) {
         if (BetterRecipeBook.config.enableBook && _$recipeBookComponent.isShowingGhostRecipe()) {
             ci.cancel();
         }
