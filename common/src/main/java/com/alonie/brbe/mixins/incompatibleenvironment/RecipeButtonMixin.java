@@ -20,17 +20,26 @@ import java.util.List;
 @Mixin(RecipeButton.class)
 public abstract class RecipeButtonMixin {
 
-    @Shadow private RecipeCollection collection;
-    @Shadow public abstract RecipeDisplayId getCurrentRecipe();
+    @Shadow
+    private RecipeCollection collection;
+
+    @Shadow
+    public abstract RecipeDisplayId getCurrentRecipe();
 
     @Inject(method = "getTooltipText", at = @At("RETURN"))
     private void betterRecipeBook$appendIncompatibleWarning(
             ItemStack itemStack,
             CallbackInfoReturnable<List<Component>> cir) {
-        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
+
+        Minecraft mc = Minecraft.getInstance();
+        if (!(mc.screen instanceof InventoryScreen)) {
+            return;
+        }
 
         List<Component> tooltip = cir.getReturnValue();
-        if (tooltip == null || tooltip.isEmpty()) return;
+        if (tooltip == null || tooltip.isEmpty()) {
+            return;
+        }
 
         RecipeDisplayId currentRecipe;
         try {
@@ -38,7 +47,9 @@ public abstract class RecipeButtonMixin {
         } catch (ArithmeticException e) {
             return;
         }
-        if (currentRecipe == null) return;
+        if (currentRecipe == null) {
+            return;
+        }
 
         if (IncompatibleCraftingUtil.isIncompatible(this.collection, currentRecipe)) {
             tooltip.add(Component.empty());
