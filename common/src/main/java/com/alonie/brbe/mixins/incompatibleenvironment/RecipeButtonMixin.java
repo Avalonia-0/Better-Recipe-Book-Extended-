@@ -8,13 +8,11 @@ import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.network.chat.Component;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
@@ -24,30 +22,40 @@ import java.util.List;
 public abstract class RecipeButtonMixin {
 
     @Shadow private RecipeCollection collection;
-    @Shadow private int currentIndex;
+
     @Shadow
     private List<RecipeHolder<?>> getOrderedRecipes() {
         throw new AssertionError();
     }
 
-    @Inject(method = "init", at = @At("TAIL"))
+    /**
+     * Intercept getOrderedRecipes() return value to append incompatible (3x3) recipes.
+     * In 1.21.1, getOrderedRecipes() is a private method on RecipeButton that returns
+     * the list of recipes to render. We inject at RETURN to add incompatible recipes
+     * that would otherwise be excluded by the 2x2 grid filter.
+     */
+    @Inject(method = "getOrderedRecipes", at = @At("RETURN"), cancellable = true)
     private void betterRecipeBook$appendIncompatibleRecipes(
-            RecipeCollection collection,
-            net.minecraft.client.gui.screens.recipebook.RecipeBookPage page,
-            CallbackInfo ci) {
+            CallbackInfoReturnable<List<RecipeHolder<?>>> cir) {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
 
-        List<RecipeHolder<?>> ordered = this.getOrderedRecipes();
+        List<RecipeHolder<?>> ordered = cir.getReturnValue();
         if (ordered == null) return;
 
         List<RecipeHolder<?>> extras = null;
-        for (RecipeHolder<?> holder : collection.getRecipes()) {
-            if (IncompatibleCraftingUtil.checkIncompatible(collection, holder.id())
+        for (RecipeHolder<?> holder : this.collection.getRecipes()) {
+            if (IncompatibleCraftingUtil.checkIncompatible(this.collection, holder.id())
                     && !ordered.contains(holder)) {
                 if (extras == null) extras = new ArrayList<>();
                 extras.add(holder);
             }
+        }
+
+        if (extras != null) {
+            List<RecipeHolder<?>> combined = new ArrayList<>(ordered);
+            combined.addAll(extras);
+            cir.setReturnValue(combined);
         }
     }
 
@@ -60,14 +68,17 @@ public abstract class RecipeButtonMixin {
         List<Component> list = cir.getReturnValue();
         if (list == null || list.isEmpty()) return;
 
-        List<RecipeHolder<?>> recipeList = this.collection.getRecipes();
-        if (recipeList.isEmpty()) return;
+        List<RecipeHolder<?>> ordered = this.getOrderedRecipes();
+        if (ordered == null || ordered.isEmpty()) return;
 
-        ResourceLocation currentId = recipeList.get(this.currentIndex % recipeList.size()).id();
-        if (IncompatibleCraftingUtil.checkIncompatible(this.collection, currentId)) {
-            list.add(Component.empty());
-            list.add(Component.translatable("brbe.gui.environmentIncompatible")
-                    .withStyle(ChatFormatting.RED));
+        // Use the first incompatible recipe's tooltip
+        for (RecipeHolder<?> holder : ordered) {
+            if (IncompatibleCraftingUtil.checkIncompatible(this.collection, holder.id())) {
+                list.add(Component.empty());
+                list.add(Component.translatable("brbe.gui.environmentIncompatible")
+                        .withStyle(ChatFormatting.RED));
+                return;
+            }
         }
     }
 }
