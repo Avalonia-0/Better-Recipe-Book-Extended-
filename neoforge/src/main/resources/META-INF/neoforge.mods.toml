@@ -54,6 +54,9 @@ config = "mixins.brbe-common-compat.json"
 [[mixins]]
 config = "mixins.brbe-jei.json"
 
+[[mixins]]
+config = "mixins.brbe-rei-common.json"
+
 [[dependencies.brbe]]
 modId = "roughlyenoughitems"
 type = "optional"
