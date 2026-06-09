@@ -60,6 +60,12 @@ public final class IncompatibleCraftingUtil {
                 // grid size (vanilla behaviour), so they are inherently incompatible.
                 if (incompatible == null) incompatible = new HashSet<>();
                 incompatible.add(entry.id());
+            } else {
+                if (incompatible == null) incompatible = new HashSet<>();
+                incompatible.add(entry.id());
+            } else {
+                if (incompatible == null) incompatible = new HashSet<>();
+                incompatible.add(entry.id());
             }
         }
 
