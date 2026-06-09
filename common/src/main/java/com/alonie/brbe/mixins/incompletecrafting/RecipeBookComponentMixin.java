@@ -35,11 +35,10 @@ public abstract class RecipeBookComponentMixin {
     private void betterRecipeBook$trackPartialFilteringUpdate(boolean resetPageNumber, CallbackInfo ci) {
         PartialCraftingUtil.beginFilteringUpdate(BetterRecipeBook.config.partialCraftableEqualsCraftable && resetPageNumber);
 
-        boolean retainIncompatible = BetterRecipeBook.config.showAllRecipesInSurvival
-                && !resetPageNumber
+        boolean onInventory = BetterRecipeBook.config.showAllRecipesInSurvival
                 && this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
-        IncompatibleCraftingUtil.beginFiltering(retainIncompatible);
+        IncompatibleCraftingUtil.beginFiltering(onInventory);
     }
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z"))
