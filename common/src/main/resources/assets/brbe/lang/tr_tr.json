@@ -34,5 +34,4 @@
   "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "Envanter ekranlarında REI/JEI katmanlarını gizler. Tarif/kullanım araması (R/U tuşları) çalışmaya devam eder.",
   "brbe.gui.environmentIncompatible": "Şu anda üretilemez",
   "text.autoconfig.brbe.option.showAllRecipesInSurvival": "Hayatta kalma tarif kitabında tüm açılmış tarifleri göster",
-  "text.autoconfig.brbe.option.showAllRecipesInSurvival.@Tooltip": "Envanter 2×2 üretim ızgarasının tarif kitabında 3×3 çalışma masası tariflerini gösterir. Uyumsuz tarifler kırmızı ile işaretlenir."
 }
