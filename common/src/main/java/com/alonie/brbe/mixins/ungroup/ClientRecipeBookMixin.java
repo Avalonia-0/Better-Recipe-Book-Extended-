@@ -9,6 +9,8 @@ import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.stats.RecipeBook;
 import net.minecraft.world.item.crafting.ExtendedRecipeBookCategory;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
+import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
+import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -47,8 +49,13 @@ public class ClientRecipeBookMixin extends RecipeBook {
                             splitAccessor.betterRecipeBook$getCraftable().add(recipe.id());
                         }
 
-                        // Transfer incompatible marking to the split collection
-                        if (IncompatibleCraftingUtil.isIncompatible(recipeResultCollection, recipe.id())) {
+                        // Mark incompatible directly (original collection hasn't been
+                        // processed by IncompatibleCraftingUtil yet at this point).
+                        if (recipe.display() instanceof ShapedCraftingRecipeDisplay shaped
+                                && (shaped.width() > 2 || shaped.height() > 2)) {
+                            IncompatibleCraftingUtil.markIncompatibleOnCollection(splitCollection, recipe.id());
+                        } else if (recipe.display() instanceof ShapelessCraftingRecipeDisplay shapeless
+                                && shapeless.ingredients().size() > 4) {
                             IncompatibleCraftingUtil.markIncompatibleOnCollection(splitCollection, recipe.id());
                         }
 
