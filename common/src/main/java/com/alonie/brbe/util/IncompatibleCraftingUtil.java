@@ -36,8 +36,11 @@ public final class IncompatibleCraftingUtil {
      * A recipe is incompatible if it's shaped and requires a grid larger than 2×2.
      */
     public static boolean isIncompatibleDisplay(RecipeDisplay display) {
-        return display instanceof ShapedCraftingRecipeDisplay shaped
-                && (shaped.width() > 2 || shaped.height() > 2);
+        if (display instanceof ShapedCraftingRecipeDisplay shaped)
+            return shaped.width() > 2 || shaped.height() > 2;
+        if (display instanceof ShapelessCraftingRecipeDisplay shapeless)
+            return shapeless.ingredients().size() > 4;
+        return false;
     }
 
     public static void markIncompatibleRecipes(RecipeCollection collection) {
