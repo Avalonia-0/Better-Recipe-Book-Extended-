@@ -6,6 +6,7 @@ import net.minecraft.client.gui.screens.recipebook.CraftingRecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.GhostSlots;
 import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
+import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,18 +15,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Overrides grid-size filtering and ghost-recipe rendering for the 2×2
- * inventory crafting grid so that 3×3 recipes are visible in the recipe
- * book but cannot have ghost items placed in the undersized grid.
- */
 @Mixin(CraftingRecipeBookComponent.class)
 public abstract class CraftingRecipeBookComponentMixin {
 
     @Inject(method = "canDisplay", at = @At("RETURN"), cancellable = true)
     private void betterRecipeBook$showAllRecipes(RecipeDisplay recipeDisplay, CallbackInfoReturnable<Boolean> cir) {
-        // Only override for crafting recipes (shaped or shapeless).
-        // Non-crafting recipes (furnace, etc.) should remain filtered out.
         if (!cir.getReturnValue()
                 && Minecraft.getInstance().screen instanceof InventoryScreen
                 && (recipeDisplay instanceof ShapedCraftingRecipeDisplay
@@ -38,14 +32,29 @@ public abstract class CraftingRecipeBookComponentMixin {
     private void betterRecipeBook$skipGhostRecipeForIncompatible(
             GhostSlots ghostSlots, RecipeDisplay display, ContextMap contextMap,
             CallbackInfo ci) {
-        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) {
-            return;
-        }
-        // A ShapedCraftingRecipeDisplay wider or taller than 2×2 doesn't fit
-        // in the inventory crafting grid — skip ghost preview entirely.
-        if (display instanceof ShapedCraftingRecipeDisplay shaped
-                && (shaped.width() > 2 || shaped.height() > 2)) {
+        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
+        if (isIncompatibleShape(display)) {
             ci.cancel();
         }
+    }
+
+    /** Block recipe placement for incompatible recipes in the 2x2 grid. */
+    @Inject(method = "recipesClicked", at = @At("HEAD"), cancellable = true)
+    private void betterRecipeBook$blockIncompatibleRecipePlacement(
+            RecipeDisplayEntry entry, boolean isFiltering, CallbackInfo ci) {
+        if (Minecraft.getInstance().screen instanceof InventoryScreen
+                && isIncompatibleShape(entry.display())) {
+            ci.cancel();
+        }
+    }
+
+    private static boolean isIncompatibleShape(RecipeDisplay display) {
+        if (display instanceof ShapedCraftingRecipeDisplay shaped) {
+            return shaped.width() > 2 || shaped.height() > 2;
+        }
+        if (display instanceof ShapelessCraftingRecipeDisplay shapeless) {
+            return shapeless.ingredients().size() > 4;
+        }
+        return false;
     }
 }
