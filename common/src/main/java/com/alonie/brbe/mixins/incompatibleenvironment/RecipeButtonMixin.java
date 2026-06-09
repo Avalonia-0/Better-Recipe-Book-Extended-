@@ -23,6 +23,24 @@ public abstract class RecipeButtonMixin {
     @Shadow private RecipeCollection collection;
     @Shadow public abstract RecipeDisplayId getCurrentRecipe();
 
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void betterRecipeBook$preventIncompatibleClick(
+            double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
+        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
+
+        RecipeDisplayId currentRecipe;
+        try {
+            currentRecipe = this.getCurrentRecipe();
+        } catch (ArithmeticException e) {
+            return;
+        }
+        if (currentRecipe == null) return;
+
+        if (IncompatibleCraftingUtil.isIncompatible(this.collection, currentRecipe)) {
+            cir.setReturnValue(true);
+        }
+    }
+
     @Inject(method = "getTooltipText", at = @At("RETURN"))
     private void betterRecipeBook$appendIncompatibleWarning(
             ItemStack itemStack,
