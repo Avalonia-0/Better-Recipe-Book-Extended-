@@ -1,9 +1,2 @@
-
-# build output everywhere
-**/build/
-**/.gradle/
-
-# IDE
-neoforge/.gradle/
-neoforge/build/
-.architectury-transformer/debug.log
+# Library jars for compile-time dependencies
+/libs/

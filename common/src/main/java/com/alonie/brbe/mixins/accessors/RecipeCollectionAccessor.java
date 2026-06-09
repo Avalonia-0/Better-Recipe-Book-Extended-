@@ -11,4 +11,7 @@ import java.util.Set;
 public interface RecipeCollectionAccessor {
     @Accessor("fitsDimensions")
     Set<RecipeHolder<?>> getFitsDimensions();
+
+    @Accessor("craftable")
+    Set<RecipeHolder<?>> betterRecipeBook$getCraftable();
 }
