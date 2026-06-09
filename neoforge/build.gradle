@@ -78,6 +78,11 @@ shadowJar {
 
     configurations = [project.configurations.shadowBundle]
     archiveClassifier = "dev-shadow"
+
+    // Bundle RBIP jar-in-jar
+    from(rootProject.file("libs/rbipe-neoforge-1.21.11-2.0.jar")) {
+        into "META-INF/jars/"
+    }
 }
 
 remapJar {

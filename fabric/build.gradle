@@ -52,8 +52,11 @@ tasks.named("compileJava") {
     }
 }
 
-// Include common module (classes + resources)
+// Include common module (classes + resources) + RBIP jar-in-jar
 jar {
     from project(":common").sourceSets.main.output
+    from(rootProject.file("libs/rbipe-fabric-1.21.11-2.0.jar")) {
+        into "META-INF/jars/"
+    }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }

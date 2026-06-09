@@ -24,7 +24,7 @@
   "icon": "assets/brbe/icon.png",
   "environment": "client",
   "jars": [{
-    "file": "META-INF/jars/recipe-book-is-pain-extended-1.0.2-1.21.11-local.jar"
+    "file": "META-INF/jars/rbipe-fabric-1.21.11-2.0.jar"
   }],
   "entrypoints": {
     "main": [
