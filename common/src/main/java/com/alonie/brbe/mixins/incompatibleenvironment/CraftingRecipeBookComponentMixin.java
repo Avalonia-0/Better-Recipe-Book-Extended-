@@ -1,50 +1,31 @@
 package com.alonie.brbe.mixins.incompatibleenvironment;
 
-import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.CraftingRecipeBookComponent;
-import net.minecraft.client.gui.screens.recipebook.GhostSlots;
-import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
 import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Overrides grid-size filtering and ghost-recipe rendering for the 2×2
- * inventory crafting grid so that 3×3 recipes are visible in the recipe
- * book but cannot have ghost items placed in the undersized grid.
+ * Removes grid-size filter on the 2×2 inventory crafting grid so
+ * 3×3 recipes appear in the recipe book.  Ghost-recipe prevention
+ * is handled by {@link RecipeBookComponentMixin}.
  */
 @Mixin(CraftingRecipeBookComponent.class)
 public abstract class CraftingRecipeBookComponentMixin {
 
     @Inject(method = "canDisplay", at = @At("RETURN"), cancellable = true)
     private void betterRecipeBook$showAllRecipes(RecipeDisplay recipeDisplay, CallbackInfoReturnable<Boolean> cir) {
-        // Only override for crafting recipes (shaped or shapeless).
-        // Non-crafting recipes (furnace, etc.) should remain filtered out.
         if (!cir.getReturnValue()
                 && Minecraft.getInstance().screen instanceof InventoryScreen
                 && (recipeDisplay instanceof ShapedCraftingRecipeDisplay
                     || recipeDisplay instanceof ShapelessCraftingRecipeDisplay)) {
             cir.setReturnValue(true);
-        }
-    }
-
-    @Inject(method = "fillGhostRecipe", at = @At("HEAD"), cancellable = true)
-    private void betterRecipeBook$skipGhostRecipeForIncompatible(
-            GhostSlots ghostSlots, RecipeDisplay display, ContextMap contextMap,
-            CallbackInfo ci) {
-        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) {
-            return;
-        }
-        // Only skip if the recipe carries the "incompatible" tag
-        if (IncompatibleCraftingUtil.isIncompatibleDisplay(display)) {
-            ci.cancel();
         }
     }
 }

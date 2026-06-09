@@ -1,7 +1,6 @@
 package com.alonie.brbe.util;
 
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
-import net.minecraft.world.item.crafting.display.RecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
@@ -45,11 +44,13 @@ public final class IncompatibleCraftingUtil {
         Set<RecipeDisplayId> incompatible = null;
 
         for (RecipeDisplayEntry entry : collection.getRecipes()) {
-            if (isIncompatibleDisplay(entry.display())) {
-                if (incompatible == null) {
-                    incompatible = new HashSet<>();
+            if (entry.display() instanceof ShapedCraftingRecipeDisplay shaped) {
+                if (shaped.width() > 2 || shaped.height() > 2) {
+                    if (incompatible == null) {
+                        incompatible = new HashSet<>();
+                    }
+                    incompatible.add(entry.id());
                 }
-                incompatible.add(entry.id());
             }
         }
 
@@ -74,16 +75,6 @@ public final class IncompatibleCraftingUtil {
     public static boolean isIncompatible(RecipeCollection collection, RecipeDisplayId id) {
         Set<RecipeDisplayId> set = INCOMPATIBLE_RECIPES.get(collection);
         return set != null && set.contains(id);
-    }
-
-    /**
-     * Checks whether a {@link RecipeDisplay} meets the incompatibility criteria
-     * (ShapedCraftingRecipeDisplay with width &gt; 2 or height &gt; 2).
-     * Used by ghost-recipe prevention where only the display is available.
-     */
-    public static boolean isIncompatibleDisplay(RecipeDisplay display) {
-        return display instanceof ShapedCraftingRecipeDisplay shaped
-                && (shaped.width() > 2 || shaped.height() > 2);
     }
 
     public static boolean hasIncompatibleRecipes(RecipeCollection collection) {
