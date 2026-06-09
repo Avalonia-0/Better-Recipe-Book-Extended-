@@ -29,6 +29,9 @@ public abstract class RecipeBookComponentMixin {
     @Final
     protected Minecraft minecraft;
 
+    @Shadow
+    private net.minecraft.client.gui.components.EditBox searchBox;
+
     @Inject(method = "updateCollections", at = @At("HEAD"))
     private void betterRecipeBook$trackPartialFilteringUpdate(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
         PartialCraftingUtil.beginFilteringUpdate(BetterRecipeBook.config.partialCraftableEqualsCraftable && isFiltering);
@@ -57,7 +60,12 @@ public abstract class RecipeBookComponentMixin {
         }
 
         boolean hasPartial = BetterRecipeBook.config.partialCraftableEqualsCraftable;
-        boolean retainIncompatible = onInventoryScreen && IncompatibleCraftingUtil.isActive();
+        // Never retain incompatible recipes when a search is active — the search
+        // predicate takes priority, and retaining incompatible collections would
+        // break the search filter (showing recipes that don't match the query).
+        boolean retainIncompatible = onInventoryScreen
+                && IncompatibleCraftingUtil.isActive()
+                && (searchBox == null || searchBox.getValue().isEmpty());
 
         if (!hasPartial && !retainIncompatible) {
             return collections.removeIf(predicate);
