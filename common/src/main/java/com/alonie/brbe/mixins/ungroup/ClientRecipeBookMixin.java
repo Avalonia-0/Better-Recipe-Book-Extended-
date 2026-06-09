@@ -3,6 +3,7 @@ package com.alonie.brbe.mixins.ungroup;
 import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
+import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.stats.RecipeBook;
@@ -45,7 +46,9 @@ public class ClientRecipeBookMixin extends RecipeBook {
                         if (sourceAccessor.betterRecipeBook$getCraftable().contains(recipe.id())) {
                             splitAccessor.betterRecipeBook$getCraftable().add(recipe.id());
                         }
-
+                        if (IncompatibleCraftingUtil.isIncompatible(recipeResultCollection, recipe.id())) {
+                            IncompatibleCraftingUtil.markIncompatibleOnCollection(splitCollection, recipe.id());
+                        }
                         list2.add(splitCollection);
                     }
                 }
