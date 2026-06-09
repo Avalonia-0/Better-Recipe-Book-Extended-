@@ -1,5 +1,6 @@
 package com.alonie.brbe.mixins.incompatibleenvironment;
 
+import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.CraftingRecipeBookComponent;
@@ -14,18 +15,11 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-/**
- * Overrides grid-size filtering and ghost-recipe rendering for the 2×2
- * inventory crafting grid so that 3×3 recipes are visible in the recipe
- * book but cannot have ghost items placed in the undersized grid.
- */
 @Mixin(CraftingRecipeBookComponent.class)
 public abstract class CraftingRecipeBookComponentMixin {
 
     @Inject(method = "canDisplay", at = @At("RETURN"), cancellable = true)
     private void betterRecipeBook$showAllRecipes(RecipeDisplay recipeDisplay, CallbackInfoReturnable<Boolean> cir) {
-        // Only override for crafting recipes (shaped or shapeless).
-        // Non-crafting recipes (furnace, etc.) should remain filtered out.
         if (!cir.getReturnValue()
                 && Minecraft.getInstance().screen instanceof InventoryScreen
                 && (recipeDisplay instanceof ShapedCraftingRecipeDisplay
@@ -39,8 +33,7 @@ public abstract class CraftingRecipeBookComponentMixin {
             GhostSlots ghostSlots, RecipeDisplay display, ContextMap contextMap,
             CallbackInfo ci) {
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
-        if (display instanceof ShapedCraftingRecipeDisplay shaped
-                && (shaped.width() > 2 || shaped.height() > 2)) {
+        if (IncompatibleCraftingUtil.isIncompatibleDisplay(display)) {
             ci.cancel();
         }
     }
