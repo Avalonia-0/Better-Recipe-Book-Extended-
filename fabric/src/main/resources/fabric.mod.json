@@ -41,6 +41,7 @@
     "mixins.brbe.json",
     "mixins.brbe-common.json",
     "mixins.brbe-common-compat.json",
+    "mixins.brbe-jei.json",
     "mixins.brbe-rei-common.json"
   ],
   "depends": {

@@ -46,7 +46,4 @@ jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
-tasks.named("compileJava") {
-    excludes.add("com/alonie/brbe/fabric/mixin/JeiIngredientListOverlayMixin.java")
-    excludes.add("com/alonie/brbe/fabric/mixin/JeiBookmarkOverlayMixin.java")
-}
+// JEI overlay mixins are compiled now — JEI jar is available via implementation files(jeiJarPath)

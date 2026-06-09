@@ -2,7 +2,7 @@ package com.alonie.brbe.fabric.mixin;
 
 import com.alonie.brbe.BetterRecipeBook;
 import mezz.jei.gui.elements.IconButton;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -18,8 +18,8 @@ public abstract class JeiIngredientListOverlayMixin {
 
     @Redirect(method = "drawScreen",
             at = @At(value = "INVOKE",
-                    target = "Lmezz/jei/gui/elements/IconButton;draw(Lnet/minecraft/client/gui/GuiGraphics;IIF)V"))
-    private void betterRecipeBook$hideConfigButton(IconButton button, GuiGraphics gui, int mouseX, int mouseY, float delta) {
+                    target = "Lmezz/jei/gui/elements/IconButton;draw(Lnet/minecraft/client/gui/GuiGraphicsExtractor;IIF)V"))
+    private void betterRecipeBook$hideConfigButton(IconButton button, GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta) {
         if (!BetterRecipeBook.config.hideReiJeiOverlay) {
             button.draw(gui, mouseX, mouseY, delta);
         }
