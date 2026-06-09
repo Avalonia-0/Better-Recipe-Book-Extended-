@@ -56,6 +56,12 @@ public final class IncompatibleCraftingUtil {
                     if (incompatible == null) incompatible = new HashSet<>();
                     incompatible.add(entry.id());
                 }
+            } else {
+                // Everything else (special crafting displays, etc.): vanilla canDisplay
+                // returns false for these on ANY grid size, so they can never be crafted
+                // in the 2×2 inventory grid.
+                if (incompatible == null) incompatible = new HashSet<>();
+                incompatible.add(entry.id());
             }
         }
 
