@@ -58,8 +58,7 @@ public abstract class RecipeBookComponentMixin {
         boolean hasSearchActive = searchBox != null && !searchBox.getValue().isEmpty();
         boolean hasPartial = BetterRecipeBook.config.partialCraftableEqualsCraftable && !hasSearchActive;
         boolean retainIncompatible = onInventoryScreen
-                && IncompatibleCraftingUtil.isActive()
-                && !hasSearchActive;
+                && IncompatibleCraftingUtil.isActive();
 
         if (!hasPartial && !retainIncompatible) {
             return collections.removeIf(predicate);
