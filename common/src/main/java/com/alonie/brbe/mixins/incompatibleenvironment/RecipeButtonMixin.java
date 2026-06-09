@@ -44,12 +44,10 @@ public abstract class RecipeButtonMixin {
 
         List<RecipeHolder<?>> extras = null;
         for (RecipeHolder<?> holder : collection.getRecipes()) {
-            if (holder.value() instanceof ShapedRecipe shaped
-                    && (shaped.getWidth() > 2 || shaped.getHeight() > 2)) {
-                if (!this.recipes.contains(holder)) {
-                    if (extras == null) extras = new ArrayList<>();
-                    extras.add(holder);
-                }
+            if (IncompatibleCraftingUtil.isIncompatible(collection, holder.id())
+                    && !this.recipes.contains(holder)) {
+                if (extras == null) extras = new ArrayList<>();
+                extras.add(holder);
             }
         }
 
