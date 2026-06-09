@@ -6,11 +6,6 @@ import net.minecraft.world.item.crafting.Ingredient;
 
 import java.util.List;
 
-/**
- * Utility for accessing PotionBrewing.Mix data across platforms.
- * Replaces @ExpectPlatform pattern (not available with loom-no-remap).
- * Each platform registers its own provider at startup.
- */
 public class PlatformPotionUtil {
     private static PotionUtilProvider provider;
 

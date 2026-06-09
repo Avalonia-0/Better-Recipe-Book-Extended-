@@ -8,6 +8,8 @@
   "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§eWskazówka: §7Jeśli wyłączysz którąś z tych dwóch opcji, użyj Mod Menu, aby je ponownie włączyć.",
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "Ukryj interfejs REI/JEI",
   "text.autoconfig.brbe.option.hideReiJeiOverlay.@Tooltip": "Ukrywa nakładki REI/JEI na ekranach ekwipunku. Wyszukiwanie przepisów/zastosowań (klawisze R/U) nadal działa.",
+  "text.autoconfig.brbe.option.enableRecipeBookIsPain": "Recipe Book is Pain",
+  "text.autoconfig.brbe.option.enableRecipeBookIsPain.@Tooltip": "Synchronizuje grupy zakładek książki receptur z zakładkami trybu kreatywnego. Wymaga restartu gry.",
   "text.autoconfig.brbe.category.instantCraft": "Ustawienia natychmiastowego wytwarzania",
   "text.autoconfig.brbe.option.instantCraft.showButton": "Pokaż przycisk natychmiastowego wytwarzania",
   "text.autoconfig.brbe.option.instantCraft.enabled": "Włączona funkcja natychmiastowego rzemiosła",

@@ -3,6 +3,7 @@ package com.alonie.brbe.fabric;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.fabric.PlatformPotionUtilImpl;
 import com.alonie.brbe.compat.OverlayHider;
+import com.alonie.brbe.fabric.compat.rei.ReiCompatHandler;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -21,6 +22,9 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         // Register platform-specific providers
         PlatformPotionUtilImpl.init();
 
+        // Register optional compat handlers
+        ReiCompatHandler.register();
+        
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             this.registeredScreens.remove(screen);
             // Apply overlay hide state immediately when screen opens (no flash)
@@ -36,7 +40,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             }
 
             this.registeredScreens.add(screen);
-            ScreenEvents.afterExtract(screen).register(TopLayerOverlayRenderer::render);
+            ScreenEvents.afterRender(screen).register(TopLayerOverlayRenderer::render);
         });
     }
 }

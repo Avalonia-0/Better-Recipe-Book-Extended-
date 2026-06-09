@@ -27,20 +27,21 @@
     "incompatibleenvironment.CraftingRecipeBookComponentMixin",
     "incompatibleenvironment.RecipeBookComponentMixin",
     "incompatibleenvironment.RecipeButtonMixin",
-    "search.RecipeBookComponentMixin",
     "alternativerecipes.OverlayRecipeButtonMixin",
     "incompletecrafting.OverlayRecipeComponentMixin",
     "incompletecrafting.RecipeButtonMixin",
+    "incompletecrafting.RecipeButtonSafetyMixin",
     "incompletecrafting.RecipeBookComponentMixin",
+    "search.RecipeBookComponentMixin",
     "instantcraft.ClientPacketListenerMixin",
     "instantcraft.MultiPlayerGameModeMixin",
     "instantcraft.RecipeBookComponentMixin",
-    "jei.RecipeBookComponentMixin",
     "modname.RecipeButtonMixin",
     "pins.AbstractContainerScreenMixin",
     "pins.RecipeBookComponentMixin",
     "pins.RecipeBookPageMixin",
     "pins.RecipeButtonMixin",
+    "rei.RecipeBookComponentMixin",
     "scrollablepages.RecipeBookPageMixin",
     "settings.RecipeBookComponentMixin",
     "centered.RecipeBookComponentMixin",
@@ -51,7 +52,6 @@
     "unlockrecipes.RecipeButtonMixin"
   ],
   "injectors": {
-    "defaultRequire": 0
-  },
-  "refmap": "mixins.brbe-common.refmap.json"
+    "defaultRequire": 1
+  }
 }

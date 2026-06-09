@@ -3,7 +3,7 @@ package com.alonie.brbe.mixins.scrollablepages;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.util.ClientCompat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
@@ -49,8 +49,8 @@ public abstract class RecipeBookPageMixin {
         }
     }
 
-    @Inject(at = @At("RETURN"), method = "extractRenderState")
-    public void render(GuiGraphicsExtractor gui, int i, int j, int k, int l, float f, CallbackInfo ci) {
+    @Inject(at = @At("RETURN"), method = "render")
+    public void render(GuiGraphics gui, int i, int j, int k, int l, float f, CallbackInfo ci) {
         if (BetterRecipeBook.queuedScroll != 0 && BetterRecipeBook.config.scrolling.enableScrolling) {
             if (isMouseOverRecipeBookPage(k, l, i, j) && totalPages > 1) {
                 currentPage += BetterRecipeBook.queuedScroll;

@@ -5,6 +5,8 @@ import dev.architectury.event.events.common.LifecycleEvent;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.BrewableResult;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.item.alchemy.Potion;
+
 import java.util.ArrayList;
 import java.util.List;
 

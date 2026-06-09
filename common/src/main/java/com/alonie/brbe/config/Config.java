@@ -20,6 +20,8 @@ public class Config implements ConfigData {
 
     public boolean showAllRecipesInSurvival = true;
 
+    public boolean enableRecipeBookIsPain = true;
+
     @ConfigEntry.Category("newRecipes")
     @ConfigEntry.Gui.TransitiveObject()
     public NewRecipes newRecipes = new NewRecipes();
