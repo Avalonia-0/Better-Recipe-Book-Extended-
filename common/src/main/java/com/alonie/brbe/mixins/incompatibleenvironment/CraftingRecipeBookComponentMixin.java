@@ -14,11 +14,18 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+/**
+ * Overrides grid-size filtering and ghost-recipe rendering for the 2×2
+ * inventory crafting grid so that 3×3 recipes are visible in the recipe
+ * book but cannot have ghost items placed in the undersized grid.
+ */
 @Mixin(CraftingRecipeBookComponent.class)
 public abstract class CraftingRecipeBookComponentMixin {
 
     @Inject(method = "canDisplay", at = @At("RETURN"), cancellable = true)
     private void betterRecipeBook$showAllRecipes(RecipeDisplay recipeDisplay, CallbackInfoReturnable<Boolean> cir) {
+        // Only override for crafting recipes (shaped or shapeless).
+        // Non-crafting recipes (furnace, etc.) should remain filtered out.
         if (!cir.getReturnValue()
                 && Minecraft.getInstance().screen instanceof InventoryScreen
                 && (recipeDisplay instanceof ShapedCraftingRecipeDisplay
@@ -37,5 +44,4 @@ public abstract class CraftingRecipeBookComponentMixin {
             ci.cancel();
         }
     }
-
 }
