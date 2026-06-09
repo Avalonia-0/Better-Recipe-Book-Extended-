@@ -87,6 +87,23 @@ public final class IncompatibleCraftingUtil {
         return set != null && set.contains(id);
     }
 
+    /**
+     * Checks dimensions directly against the recipe display, without relying on
+     * the cached marking map. Used by the tooltip and ghost-recipe prevention
+     * where the map may not be populated yet (e.g., after ungroup splitting).
+     */
+    public static boolean checkIncompatible(RecipeCollection collection, RecipeDisplayId id) {
+        for (RecipeDisplayEntry entry : collection.getRecipes()) {
+            if (!entry.id().equals(id)) continue;
+            if (entry.display() instanceof ShapedCraftingRecipeDisplay shaped)
+                return shaped.width() > 2 || shaped.height() > 2;
+            if (entry.display() instanceof ShapelessCraftingRecipeDisplay shapeless)
+                return shapeless.ingredients().size() > 4;
+            return false;
+        }
+        return false;
+    }
+
     public static boolean hasIncompatibleRecipes(RecipeCollection collection) {
         Set<RecipeDisplayId> set = INCOMPATIBLE_RECIPES.get(collection);
         return set != null && !set.isEmpty();

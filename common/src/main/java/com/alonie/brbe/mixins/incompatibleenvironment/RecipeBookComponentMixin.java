@@ -23,7 +23,7 @@ public abstract class RecipeBookComponentMixin {
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
         if (collection == null) return;
 
-        if (IncompatibleCraftingUtil.isIncompatible(collection, id)) {
+        if (IncompatibleCraftingUtil.checkIncompatible(collection, id)) {
             cir.setReturnValue(false);
         }
     }
