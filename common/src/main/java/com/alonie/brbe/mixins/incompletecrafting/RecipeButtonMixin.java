@@ -61,13 +61,13 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     private boolean betterRecipeBook$renderCurrentRecipeCraftability(RecipeCollection collection, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         try {
             RecipeDisplayId currentRecipe = this.getCurrentRecipe();
-            // An incompatible recipe (3x3 in 2x2 grid) is never craftable,
-            // regardless of whether materials are available.
+            // A recipe incompatible with the current grid (e.g. 3×3 recipe
+            // in a 2×2 grid) is never craftable — prevent green border and
+            // ghost placement even when materials are sufficient.
             if (IncompatibleCraftingUtil.isIncompatible(collection, currentRecipe)) {
                 return false;
             }
-            return collection.isCraftable(currentRecipe)
-                    || PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
+            return collection.isCraftable(currentRecipe) || PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
         } catch (ArithmeticException e) {
             return collection.hasCraftable();
         }
@@ -95,8 +95,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         }
         if (currentRecipe == null) return;
 
-        if (PartialCraftingUtil.isPartiallyCraftable(this.collection, currentRecipe)
-                && !IncompatibleCraftingUtil.isIncompatible(this.collection, currentRecipe)) {
+        if (PartialCraftingUtil.isPartiallyCraftable(this.collection, currentRecipe)) {
             gui.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + height - 1, 0x60FF3333);
         }
     }
