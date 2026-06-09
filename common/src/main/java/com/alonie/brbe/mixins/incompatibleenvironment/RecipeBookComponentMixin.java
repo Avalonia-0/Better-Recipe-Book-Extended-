@@ -6,28 +6,25 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
-import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 @Mixin(RecipeBookComponent.class)
 public abstract class RecipeBookComponentMixin {
 
-    @Inject(method = "recipesClicked", at = @At("HEAD"), cancellable = true)
-    private void betterRecipeBook$preventIncompatibleRecipeClick(
-            RecipeHolder<?> recipe, boolean isFiltering, CallbackInfo ci) {
+    @Inject(method = "tryPlaceRecipe", at = @At("HEAD"), cancellable = true)
+    private void betterRecipeBook$preventIncompatiblePlacement(
+            RecipeCollection collection, RecipeDisplayId id, boolean isFiltering,
+            CallbackInfoReturnable<Boolean> cir) {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
-
-        RecipeCollection collection = this.getRecipeCollection(recipe);
         if (collection == null) return;
 
-        if (IncompatibleCraftingUtil.isIncompatible(collection, recipe.id())) {
-            ci.cancel();
+        if (IncompatibleCraftingUtil.checkIncompatible(collection, id)) {
+            cir.setReturnValue(false);
         }
     }
-
-    public abstract RecipeCollection getRecipeCollection(RecipeHolder<?> recipe);
 }
