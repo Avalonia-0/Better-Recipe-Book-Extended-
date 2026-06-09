@@ -1,7 +1,6 @@
 package com.alonie.brbe.util;
 
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
-import net.minecraft.world.item.crafting.display.RecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
@@ -12,6 +11,12 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.WeakHashMap;
 
+/**
+ * Tracks which recipes in a RecipeCollection require a 3×3 crafting grid
+ * and are therefore incompatible with the 2×2 inventory crafting grid.
+ * <p>
+ * Follows the same {@link WeakHashMap} pattern as {@link PartialCraftingUtil}.
+ */
 public final class IncompatibleCraftingUtil {
     private static final WeakHashMap<RecipeCollection, Set<RecipeDisplayId>> INCOMPATIBLE_RECIPES = new WeakHashMap<>();
     private static final WeakHashMap<RecipeCollection, Integer> CHECKED_COLLECTIONS = new WeakHashMap<>();
@@ -32,25 +37,25 @@ public final class IncompatibleCraftingUtil {
     }
 
     /**
-     * The single source of truth for the "incompatible" tag.
-     * A recipe is incompatible if it's shaped and requires a grid larger than 2×2.
+     * Scans a RecipeCollection for recipes that need a 3×3 grid
+     * ({@code ShapedCraftingRecipeDisplay} with width &gt; 2 or height &gt; 2).
      */
-    public static boolean isIncompatibleDisplay(RecipeDisplay display) {
-        if (display instanceof ShapedCraftingRecipeDisplay shaped)
-            return shaped.width() > 2 || shaped.height() > 2;
-        if (display instanceof ShapelessCraftingRecipeDisplay shapeless)
-            return shapeless.ingredients().size() > 4;
-        return false;
-    }
-
     public static void markIncompatibleRecipes(RecipeCollection collection) {
         CHECKED_COLLECTIONS.put(collection, filteringGeneration);
         Set<RecipeDisplayId> incompatible = null;
 
         for (RecipeDisplayEntry entry : collection.getRecipes()) {
-            if (isIncompatibleDisplay(entry.display())) {
-                if (incompatible == null) incompatible = new HashSet<>();
-                incompatible.add(entry.id());
+            if (entry.display() instanceof ShapedCraftingRecipeDisplay shaped) {
+                if (shaped.width() > 2 || shaped.height() > 2) {
+                    if (incompatible == null) incompatible = new HashSet<>();
+                    incompatible.add(entry.id());
+                }
+            } else if (entry.display() instanceof ShapelessCraftingRecipeDisplay shapeless) {
+                // 2×2 grid holds 4 items; shapeless recipes with >4 ingredients need 3×3
+                if (shapeless.ingredients().size() > 4) {
+                    if (incompatible == null) incompatible = new HashSet<>();
+                    incompatible.add(entry.id());
+                }
             }
         }
 
@@ -61,9 +66,15 @@ public final class IncompatibleCraftingUtil {
         }
     }
 
+    /** Call when a collection is split (ungroup) to preserve the incompatible mark. */
     public static void markIncompatibleOnCollection(RecipeCollection collection, RecipeDisplayId id) {
         CHECKED_COLLECTIONS.put(collection, filteringGeneration);
         INCOMPATIBLE_RECIPES.put(collection, new HashSet<>(Collections.singleton(id)));
+    }
+
+    public static boolean wasChecked(RecipeCollection collection) {
+        Integer generation = CHECKED_COLLECTIONS.get(collection);
+        return filteringActive && generation != null && generation == filteringGeneration;
     }
 
     public static boolean isIncompatible(RecipeCollection collection, RecipeDisplayId id) {

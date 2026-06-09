@@ -21,10 +21,12 @@ import java.util.function.Predicate;
 
 @Mixin(RecipeBookComponent.class)
 public abstract class RecipeBookComponentMixin {
-    @Shadow @Final
+    @Shadow
+    @Final
     protected RecipeBookMenu menu;
 
-    @Shadow @Final
+    @Shadow
+    @Final
     protected Minecraft minecraft;
 
     @Shadow
@@ -32,8 +34,11 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "updateCollections", at = @At("HEAD"))
     private void betterRecipeBook$trackPartialFilteringUpdate(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
-        PartialCraftingUtil.beginFilteringUpdate(isFiltering);
+        PartialCraftingUtil.beginFilteringUpdate(BetterRecipeBook.config.partialCraftableEqualsCraftable && isFiltering);
 
+        // Incompatible (3x3) recipes should show ONLY when the "only show craftable"
+        // filter is OFF.  When filtering is ON, incompatible collections would have
+        // no craftable entries and render as air — so we don't retain them.
         boolean retainIncompatible = BetterRecipeBook.config.showAllRecipesInSurvival
                 && !isFiltering
                 && this.minecraft != null
@@ -56,7 +61,8 @@ public abstract class RecipeBookComponentMixin {
 
         boolean hasSearchActive = searchBox != null && !searchBox.getValue().isEmpty();
         boolean hasPartial = BetterRecipeBook.config.partialCraftableEqualsCraftable && !hasSearchActive;
-        boolean retainIncompatible = onInventoryScreen && IncompatibleCraftingUtil.isActive()
+        boolean retainIncompatible = onInventoryScreen
+                && IncompatibleCraftingUtil.isActive()
                 && !hasSearchActive;
 
         if (!hasPartial && !retainIncompatible) {

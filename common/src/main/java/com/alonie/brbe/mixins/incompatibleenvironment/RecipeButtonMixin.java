@@ -35,19 +35,14 @@ public abstract class RecipeButtonMixin {
         if (tooltip == null || tooltip.isEmpty()) return;
 
         RecipeDisplayId currentRecipe;
-        try {
-            currentRecipe = this.getCurrentRecipe();
-        } catch (ArithmeticException e) {
-            return;
-        }
+        try { currentRecipe = this.getCurrentRecipe(); }
+        catch (ArithmeticException e) { return; }
         if (currentRecipe == null) return;
 
         if (IncompatibleCraftingUtil.isIncompatible(this.collection, currentRecipe)) {
             tooltip.add(Component.empty());
-            tooltip.add(
-                Component.translatable("brbe.gui.environmentIncompatible")
-                    .withStyle(ChatFormatting.RED)
-            );
+            tooltip.add(Component.translatable("brbe.gui.environmentIncompatible")
+                    .withStyle(ChatFormatting.RED));
         }
     }
 }
