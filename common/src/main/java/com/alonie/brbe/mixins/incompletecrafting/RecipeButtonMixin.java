@@ -1,7 +1,6 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -61,11 +60,6 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     private boolean betterRecipeBook$renderCurrentRecipeCraftability(RecipeCollection collection, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         try {
             RecipeDisplayId currentRecipe = this.getCurrentRecipe();
-            // Incompatible (grid-too-small) recipes are NEVER craftable, regardless
-            // of material availability. This prevents the green border and click-to-place.
-            if (IncompatibleCraftingUtil.isIncompatible(this.collection, currentRecipe)) {
-                return false;
-            }
             return collection.isCraftable(currentRecipe) || PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
         } catch (ArithmeticException e) {
             return collection.hasCraftable();
