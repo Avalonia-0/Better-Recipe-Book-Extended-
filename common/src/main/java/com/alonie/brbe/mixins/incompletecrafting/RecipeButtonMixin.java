@@ -37,11 +37,15 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Redirect(method = "init", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;"))
     private List<RecipeDisplayEntry> betterRecipeBook$getSelectedRecipes(RecipeCollection collection, RecipeCollection.CraftableStatus status, RecipeCollection originalCollection, boolean filteringCraftable, RecipeBookPage recipeBookPage, ContextMap contextMap) {
-        // In the 2x2 inventory grid when NOT filtering, show ALL selected recipes
+        // In the 2x2 inventory grid when NOT filtering, show ALL selected recipes,
+        // filtering out any with unresolvable results (would render as air).
         if (status == RecipeCollection.CraftableStatus.CRAFTABLE
                 && !filteringCraftable
                 && Minecraft.getInstance().screen instanceof InventoryScreen) {
-            return PartialCraftingUtil.getSelectedRecipes(collection, RecipeCollection.CraftableStatus.ANY);
+            List<RecipeDisplayEntry> any = PartialCraftingUtil.getSelectedRecipes(collection, RecipeCollection.CraftableStatus.ANY);
+            return any.stream()
+                    .filter(e -> !e.resultItems(contextMap).isEmpty())
+                    .toList();
         }
         return PartialCraftingUtil.getSelectedRecipes(collection, status);
     }
