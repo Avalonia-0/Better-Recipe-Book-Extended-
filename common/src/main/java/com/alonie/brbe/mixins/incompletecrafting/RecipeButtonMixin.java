@@ -5,6 +5,7 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
+import net.minecraft.client.gui.screens.recipebook.SlotSelectTime;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
@@ -17,6 +18,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 @Mixin(RecipeButton.class)
@@ -29,16 +31,17 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     private RecipeCollection collection;
 
     @Shadow
+    private SlotSelectTime slotSelectTime;
+
+    @Shadow
     public abstract RecipeDisplayId getCurrentRecipe();
 
     /**
-     * Reorders the result of getSelectedRecipes so that the button cycles
-     * through craftable recipes first, then partially-craftable recipes,
-     * then any remaining alternatives.
-     *
-     * Uses bare method name (no descriptor) so Mixin resolves the target
-     * through the refmap, making this work in both dev (Mojang) and
-     * production (intermediary) environments.
+     * Reorders getSelectedRecipes result so the button cycles through
+     * craftable recipes first, then partially-craftable, then the rest.
+     * Also rotates the list so that the currently-displayed recipe
+     * (determined by the shared slotSelectTime timer) is always a
+     * craftable or partially-craftable one when available.
      */
     @Redirect(
         method = "init",
@@ -49,44 +52,54 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
             RecipeCollection collection, RecipeCollection.CraftableStatus status) {
         List<RecipeDisplayEntry> result = collection.getSelectedRecipes(status);
 
-        // Log diagnostic at most once per second
-        if (result.size() > 1) {
-            System.err.println("[BRBE] cycling reorder: collection has " + result.size()
-                + " recipes, craftable=" + collection.hasCraftable()
-                + " hasPartial=" + PartialCraftingUtil.hasPartialMaterials(collection));
-        }
-
         if (result.size() <= 1) {
             return result;
         }
 
         // Three-pass stable reorder: fully-craftable → partial → rest
         List<RecipeDisplayEntry> reordered = new ArrayList<>(result.size());
-        int craftable = 0, partial = 0, other = 0;
 
         for (RecipeDisplayEntry e : result) {
             RecipeDisplayId id = e.id();
             if (collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
                 reordered.add(e);
-                craftable++;
             }
         }
         for (RecipeDisplayEntry e : result) {
             if (PartialCraftingUtil.isPartiallyCraftable(collection, e.id())) {
                 reordered.add(e);
-                partial++;
             }
         }
         for (RecipeDisplayEntry e : result) {
             RecipeDisplayId id = e.id();
             if (!collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
                 reordered.add(e);
-                other++;
             }
         }
 
-        System.err.println("[BRBE] cycling reorder result: craftable=" + craftable
-            + " partial=" + partial + " other=" + other);
+        // Rotate so that the first craftable/partial entry lands on the
+        // current timer slot.  Without this, the shared slotSelectTime
+        // may point to an "other" entry and the prioritised order is
+        // invisible until the timer wraps around naturally.
+        int timerIndex = this.slotSelectTime.currentIndex() % reordered.size();
+        int firstPreferred = -1;
+        for (int i = 0; i < reordered.size(); i++) {
+            RecipeDisplayId id = reordered.get(i).id();
+            if ((collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id))
+                    || PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
+                firstPreferred = i;
+                break;
+            }
+        }
+
+        if (firstPreferred >= 0 && firstPreferred != timerIndex) {
+            int distance = timerIndex - firstPreferred;
+            if (distance < 0) distance += reordered.size();
+            if (distance > 0) {
+                Collections.rotate(reordered, distance);
+            }
+        }
+
         return reordered;
     }
 
