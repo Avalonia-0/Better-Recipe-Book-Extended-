@@ -36,6 +36,10 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     @Shadow
     public abstract RecipeDisplayId getCurrentRecipe();
 
+    /**
+     * Supports the hasCraftable check in renderWidget — treat partially-craftable
+     * recipes as craftable for sprite display purposes.
+     */
     @Redirect(method = "init", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;"))
     private List<RecipeDisplayEntry> betterRecipeBook$getSelectedRecipes(RecipeCollection collection, RecipeCollection.CraftableStatus status, RecipeCollection originalCollection, boolean filteringCraftable, RecipeBookPage recipeBookPage, ContextMap contextMap) {
         List<RecipeDisplayEntry> result;
@@ -43,6 +47,8 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
                 && status == RecipeCollection.CraftableStatus.CRAFTABLE
                 && !filteringCraftable
                 && Minecraft.getInstance().screen instanceof InventoryScreen) {
+            // When not filtering but "CRAFTABLE" was requested, show ALL recipes
+            // (the button init was called with CRAFTABLE but filtering is off)
             List<RecipeDisplayEntry> any = PartialCraftingUtil.getSelectedRecipes(collection, RecipeCollection.CraftableStatus.ANY);
             result = any.stream()
                     .filter(e -> !e.resultItems(contextMap).isEmpty())
@@ -51,26 +57,27 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
             result = PartialCraftingUtil.getSelectedRecipes(collection, status);
         }
 
-        // Reorder: craftable first, then partial, then others (for cycling display)
-        // Check partial BEFORE craftable because partial recipes are added to the
-        // craftable set (accessor), making isCraftable() return true for them too.
-        List<RecipeDisplayEntry> craftable = new ArrayList<>();
-        List<RecipeDisplayEntry> partial = new ArrayList<>();
-        List<RecipeDisplayEntry> other = new ArrayList<>();
-        for (RecipeDisplayEntry entry : result) {
-            RecipeDisplayId id = entry.id();
+        // Reorder: craftable first, then partial, then others (for cycling display).
+        // Partial check must precede isCraftable because partial recipes are
+        // added to the craftable set via RecipeCollectionAccessor.
+        List<RecipeDisplayEntry> reordered = new ArrayList<>(result.size());
+        for (RecipeDisplayEntry e : result) {
+            RecipeDisplayId id = e.id();
             if (collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
-                craftable.add(entry);
-            } else if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
-                partial.add(entry);
-            } else {
-                other.add(entry);
+                reordered.add(e);
             }
         }
-        List<RecipeDisplayEntry> reordered = new ArrayList<>();
-        reordered.addAll(craftable);
-        reordered.addAll(partial);
-        reordered.addAll(other);
+        for (RecipeDisplayEntry e : result) {
+            if (PartialCraftingUtil.isPartiallyCraftable(collection, e.id())) {
+                reordered.add(e);
+            }
+        }
+        for (RecipeDisplayEntry e : result) {
+            RecipeDisplayId id = e.id();
+            if (!collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
+                reordered.add(e);
+            }
+        }
         return reordered;
     }
 
