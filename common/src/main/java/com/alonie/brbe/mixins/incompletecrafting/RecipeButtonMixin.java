@@ -38,31 +38,24 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Redirect(method = "init", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;"))
     private List<RecipeDisplayEntry> betterRecipeBook$getSelectedRecipes(RecipeCollection collection, RecipeCollection.CraftableStatus status, RecipeCollection originalCollection, boolean filteringCraftable, RecipeBookPage recipeBookPage, ContextMap contextMap) {
+        List<RecipeDisplayEntry> result;
         if (BetterRecipeBook.config.showAllRecipesInSurvival
                 && status == RecipeCollection.CraftableStatus.CRAFTABLE
                 && !filteringCraftable
                 && Minecraft.getInstance().screen instanceof InventoryScreen) {
             List<RecipeDisplayEntry> any = PartialCraftingUtil.getSelectedRecipes(collection, RecipeCollection.CraftableStatus.ANY);
-            // Guard: recipes with no resolvable result item would render as air.
-            // This can happen with certain modded special displays or edge cases
-            // that were previously hidden by the grid-size filter.
-            return any.stream()
+            result = any.stream()
                     .filter(e -> !e.resultItems(contextMap).isEmpty())
                     .toList();
+        } else {
+            result = PartialCraftingUtil.getSelectedRecipes(collection, status);
         }
 
-        return PartialCraftingUtil.getSelectedRecipes(collection, status);
-    }
-
-    @Redirect(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;"))
-    private List<RecipeDisplayEntry> betterRecipeBook$reorderCycling(
-            RecipeCollection collection, RecipeCollection.CraftableStatus status) {
-        List<RecipeDisplayEntry> recipes = collection.getSelectedRecipes(status);
         // Reorder: craftable first, then partial, then others (for cycling display)
         List<RecipeDisplayEntry> craftable = new ArrayList<>();
         List<RecipeDisplayEntry> partial = new ArrayList<>();
         List<RecipeDisplayEntry> other = new ArrayList<>();
-        for (RecipeDisplayEntry entry : recipes) {
+        for (RecipeDisplayEntry entry : result) {
             RecipeDisplayId id = entry.id();
             if (collection.isCraftable(id)) {
                 craftable.add(entry);
