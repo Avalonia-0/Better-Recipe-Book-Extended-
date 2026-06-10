@@ -42,10 +42,8 @@ public class SmithingOverlayRecipeComponent implements Renderable, GuiEventListe
         BetterRecipeBook.ensureCategories();
         if (!BRBBookSettings.isFiltering(BetterRecipeBook.SMITHING)) {
             unlockedRecipes = recipeCollection.getDisplayRecipes(false);
-        } else if (BetterRecipeBook.config.partialCraftableEqualsCraftable) {
-            unlockedRecipes = recipeCollection.getPartiallyCraftableRecipes();
         } else {
-            unlockedRecipes = Collections.emptyList();
+            unlockedRecipes = recipeCollection.getPartiallyCraftableRecipes();
         }
         int lockedRecipeCount = lockedRecipes.size();
         int totalRecipeCount = lockedRecipeCount + unlockedRecipes.size();

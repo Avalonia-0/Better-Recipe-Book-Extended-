@@ -13,9 +13,6 @@ public class Config implements ConfigData {
     public boolean showModName = false;
 
     @ConfigEntry.Gui.Tooltip()
-    public boolean partialCraftableEqualsCraftable = false;
-
-    @ConfigEntry.Gui.Tooltip()
     public boolean hideReiJeiOverlay = false;
 
     public boolean showAllRecipesInSurvival = true;

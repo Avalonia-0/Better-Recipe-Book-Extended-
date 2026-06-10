@@ -306,11 +306,11 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
         if (BRBBookSettings.isFiltering(this.getRecipeBookType())) {
             results.removeIf((result) -> !result.atleastOneCraftable(this.menu.slots)
-                    && (!BetterRecipeBook.config.partialCraftableEqualsCraftable || !result.atleastOnePartiallyCraftable(this.menu.slots)));
+                    && !result.atleastOnePartiallyCraftable(this.menu.slots));
         }
 
         this.betterRecipeBook$sortByPinsInPlace(results);
-        if (BRBBookSettings.isFiltering(this.getRecipeBookType()) && BetterRecipeBook.config.partialCraftableEqualsCraftable) {
+        if (BRBBookSettings.isFiltering(this.getRecipeBookType())) {
             this.betterRecipeBook$sortCraftableBeforePartial(results);
         }
 

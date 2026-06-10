@@ -31,8 +31,8 @@ public class RecipeBookComponentMixin {
             }
 
             RecipeCollectionAccessor source = (RecipeCollectionAccessor) collection;
-            boolean restrictToCraftableOrPartial = BetterRecipeBook.config.partialCraftableEqualsCraftable
-                    && PartialCraftingUtil.wasCheckedForPartialMaterials(collection);
+            boolean restrictToCraftableOrPartial = PartialCraftingUtil.hasPartialMaterials(collection)
+                    || collection.hasCraftable();
             boolean addedAny = false;
             for (RecipeDisplayEntry recipe : recipes) {
                 if (!source.betterRecipeBook$getSelected().contains(recipe.id())) {
