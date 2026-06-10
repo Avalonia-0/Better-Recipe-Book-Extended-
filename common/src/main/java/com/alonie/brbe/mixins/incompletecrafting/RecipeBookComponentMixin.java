@@ -37,8 +37,6 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "updateCollections", at = @At("HEAD"))
     private void betterRecipeBook$trackPartialFilteringUpdate(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
-        PartialCraftingUtil.beginFilteringUpdate(BetterRecipeBook.config.partialCraftableEqualsCraftable && isFiltering);
-
         boolean retainIncompatible = BetterRecipeBook.config.showAllRecipesInSurvival
                 && !isFiltering
                 && this.minecraft != null
@@ -58,9 +56,8 @@ public abstract class RecipeBookComponentMixin {
                 IncompatibleCraftingUtil.markIncompatibleRecipes(collection);
             }
 
-            // Also add partial recipes to craftable set so filter retains them
-            if (BetterRecipeBook.config.partialCraftableEqualsCraftable
-                    && PartialCraftingUtil.hasPartialMaterials(collection)) {
+            // Add partial recipes to craftable set so they are treated as craftable
+            if (PartialCraftingUtil.hasPartialMaterials(collection)) {
                 RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
                 for (RecipeDisplayEntry entry : collection.getRecipes()) {
                     RecipeDisplayId id = entry.id();
@@ -72,7 +69,7 @@ public abstract class RecipeBookComponentMixin {
         }
 
         boolean hasSearchActive = searchBox != null && !searchBox.getValue().isEmpty();
-        boolean hasPartial = BetterRecipeBook.config.partialCraftableEqualsCraftable && !hasSearchActive;
+        boolean hasPartial = !hasSearchActive;
         boolean retainIncompatible = onInventoryScreen
                 && IncompatibleCraftingUtil.isActive()
                 && !hasSearchActive;
@@ -94,26 +91,24 @@ public abstract class RecipeBookComponentMixin {
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;ZZ)V"))
     private void betterRecipeBook$sortCraftableBeforePartial(
             RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber, boolean isFiltering) {
-        if (BetterRecipeBook.config.partialCraftableEqualsCraftable) {
-            List<RecipeCollection> craftable = new ArrayList<>();
-            List<RecipeCollection> partial = new ArrayList<>();
-            List<RecipeCollection> other = new ArrayList<>();
-            for (RecipeCollection c : list) {
-                boolean hasCraftable = c.hasCraftable();
-                boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(c);
-                if (hasCraftable && !hasPartial) {
-                    craftable.add(c);
-                } else if (hasPartial) {
-                    partial.add(c);
-                } else {
-                    other.add(c);
-                }
+        List<RecipeCollection> craftable = new ArrayList<>();
+        List<RecipeCollection> partial = new ArrayList<>();
+        List<RecipeCollection> other = new ArrayList<>();
+        for (RecipeCollection c : list) {
+            boolean hasCraftable = c.hasCraftable();
+            boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(c);
+            if (hasCraftable && !hasPartial) {
+                craftable.add(c);
+            } else if (hasPartial) {
+                partial.add(c);
+            } else {
+                other.add(c);
             }
-            list.clear();
-            list.addAll(craftable);
-            list.addAll(partial);
-            list.addAll(other);
         }
+        list.clear();
+        list.addAll(craftable);
+        list.addAll(partial);
+        list.addAll(other);
         page.updateCollections(list, resetPageNumber, isFiltering);
     }
 }
