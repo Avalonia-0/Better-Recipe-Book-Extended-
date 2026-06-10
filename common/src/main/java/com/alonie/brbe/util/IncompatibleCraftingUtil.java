@@ -1,6 +1,5 @@
 package com.alonie.brbe.util;
 
-import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
@@ -62,8 +61,6 @@ public final class IncompatibleCraftingUtil {
 
         if (incompatible != null && !incompatible.isEmpty()) {
             INCOMPATIBLE_RECIPES.put(collection, incompatible);
-            // Add to fitsDimensions so getRecipes(false) returns them naturally
-            ((RecipeCollectionAccessor) collection).getFitsDimensions().addAll(incompatible);
         } else {
             INCOMPATIBLE_RECIPES.remove(collection);
         }
