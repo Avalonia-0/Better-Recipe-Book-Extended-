@@ -55,10 +55,8 @@ public abstract class RecipeBookComponentMixin {
             // Step 2: Mark partial materials
             PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
 
-            // Step 3: If enabled, add partial recipes to craftable set so the
-            //         craftable filter doesn't remove them
-            if (BetterRecipeBook.config.partialCraftableEqualsCraftable
-                    && PartialCraftingUtil.hasPartialMaterials(collection)) {
+            // Step 3: Add partial recipes to craftable set so they are treated as craftable
+            if (PartialCraftingUtil.hasPartialMaterials(collection)) {
                 RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
                 for (RecipeHolder<?> holder : collection.getRecipes()) {
                     if (PartialCraftingUtil.isPartiallyCraftable(collection, holder.id())) {
@@ -82,30 +80,27 @@ public abstract class RecipeBookComponentMixin {
      */
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;Z)V"))
     private void betterRecipeBook$sortBeforePageUpdate(RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber) {
-        if (BetterRecipeBook.config.partialCraftableEqualsCraftable) {
-            List<RecipeCollection> craftable = new ArrayList<>();
-            List<RecipeCollection> partial = new ArrayList<>();
-            List<RecipeCollection> other = new ArrayList<>();
+        List<RecipeCollection> craftable = new ArrayList<>();
+        List<RecipeCollection> partial = new ArrayList<>();
+        List<RecipeCollection> other = new ArrayList<>();
 
-            for (RecipeCollection c : list) {
-                boolean hasCraftable = c.hasCraftable();
-                boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(c);
+        for (RecipeCollection c : list) {
+            boolean hasCraftable = c.hasCraftable();
+            boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(c);
 
-                if (hasCraftable && !hasPartial) {
-                    craftable.add(c);
-                } else if (hasPartial) {
-                    partial.add(c);
-                } else {
-                    other.add(c);
-                }
+            if (hasCraftable && !hasPartial) {
+                craftable.add(c);
+            } else if (hasPartial) {
+                partial.add(c);
+            } else {
+                other.add(c);
             }
-
-            list.clear();
-            list.addAll(craftable);
-            list.addAll(partial);
-            list.addAll(other);
         }
 
+        list.clear();
+        list.addAll(craftable);
+        list.addAll(partial);
+        list.addAll(other);
         page.updateCollections(list, resetPageNumber);
     }
 }

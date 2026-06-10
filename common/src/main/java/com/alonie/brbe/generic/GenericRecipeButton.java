@@ -100,7 +100,7 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
 
         if (!this.filteringSupplier.get()) {
             list.addAll(this.collection.getDisplayRecipes(false));
-        } else if (BetterRecipeBook.config.partialCraftableEqualsCraftable) {
+        } else {
             list.addAll((List<R>) this.collection.getPartiallyCraftableRecipes(this.menu.slots));
         }
 

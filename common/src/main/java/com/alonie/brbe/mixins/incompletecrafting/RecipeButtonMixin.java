@@ -77,8 +77,8 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     private void betterRecipeBook$filterOrderedRecipes(CallbackInfoReturnable<List<RecipeHolder<?>>> cir) {
         List<RecipeHolder<?>> result = new ArrayList<>(cir.getReturnValue());
 
-        // Step 1: add partially-craftable recipes (if enabled).
-        if (BetterRecipeBook.config.partialCraftableEqualsCraftable) {
+        // Step 1: add partially-craftable recipes.
+        {
             List<RecipeHolder<?>> partials = PartialCraftingUtil.getPartiallyCraftableRecipes(this.collection);
             if (!partials.isEmpty()) {
                 Set<ResourceLocation> existing = new HashSet<>();
