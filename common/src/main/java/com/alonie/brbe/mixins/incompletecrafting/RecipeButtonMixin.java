@@ -3,9 +3,11 @@ package com.alonie.brbe.mixins.incompletecrafting;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import org.spongepowered.asm.mixin.Mixin;
@@ -27,6 +29,12 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     }
     @Shadow
     private RecipeCollection collection;
+
+    @Shadow
+    private List<?> selectedEntries;
+
+    @Shadow
+    private boolean allRecipesHaveSameResultDisplay;
 
     @Shadow
     public abstract RecipeDisplayId getCurrentRecipe();
@@ -127,6 +135,27 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         if (this.collection.getSelectedRecipes(RecipeCollection.CraftableStatus.ANY).size() > 1
                 && (this.collection.hasCraftable() || PartialCraftingUtil.hasPartialMaterials(this.collection))) {
             cir.setReturnValue(true);
+        }
+    }
+
+    /**
+     * Prevents the vanilla "stacking" render effect when hasMultipleRecipes()
+     * is true but selectedEntries has only 1 entry.
+     *
+     * Vanilla renderWidget renders the item at two offset positions to create
+     * a visual stack when {@code hasMultipleRecipes() && allRecipesHaveSameResultDisplay}.
+     * With our filter trimming the list to 1 entry this double-render causes
+     * the same item to appear overlapped with itself.
+     */
+    @Inject(method = "init", at = @At("TAIL"))
+    private void betterRecipeBook$suppressStackingWithSingleEntry(
+            RecipeCollection collection, boolean filteringCraftable,
+            RecipeBookPage recipeBookPage, ContextMap contextMap, CallbackInfo ci) {
+        if (this.allRecipesHaveSameResultDisplay
+                && this.selectedEntries != null
+                && this.selectedEntries.size() == 1
+                && collection.getSelectedRecipes(RecipeCollection.CraftableStatus.ANY).size() > 1) {
+            this.allRecipesHaveSameResultDisplay = false;
         }
     }
 
