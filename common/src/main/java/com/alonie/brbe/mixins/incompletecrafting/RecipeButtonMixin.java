@@ -5,7 +5,6 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
-import net.minecraft.client.gui.screens.recipebook.SlotSelectTime;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
@@ -18,7 +17,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 @Mixin(RecipeButton.class)
@@ -31,24 +29,26 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     private RecipeCollection collection;
 
     @Shadow
-    private SlotSelectTime slotSelectTime;
-
-    @Shadow
     public abstract RecipeDisplayId getCurrentRecipe();
 
     /**
-     * Reorders getSelectedRecipes result so the button cycles through
-     * craftable recipes first, then partially-craftable, then the rest.
-     * Also rotates the list so that the currently-displayed recipe
-     * (determined by the shared slotSelectTime timer) is always a
-     * craftable or partially-craftable one when available.
+     * Filters getSelectedRecipes result so the button only cycles through
+     * craftable and partially-craftable recipes when any exist.
+     *
+     * When the collection has at least one craftable or partially-craftable
+     * recipe, completely uncraftable recipes are excluded from cycling.
+     * When ALL recipes in the collection are completely uncraftable, the
+     * full list is returned unchanged (no filtering possible).
+     *
+     * Within the returned list craftable recipes come before partially-
+     * craftable ones.
      */
     @Redirect(
         method = "init",
         at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;"),
         require = 1
     )
-    private List<RecipeDisplayEntry> betterRecipeBook$reorderSelectedRecipes(
+    private List<RecipeDisplayEntry> betterRecipeBook$filterSelectedRecipes(
             RecipeCollection collection, RecipeCollection.CraftableStatus status) {
         List<RecipeDisplayEntry> result = collection.getSelectedRecipes(status);
 
@@ -56,51 +56,32 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
             return result;
         }
 
-        // Three-pass stable reorder: fully-craftable → partial → rest
-        List<RecipeDisplayEntry> reordered = new ArrayList<>(result.size());
+        // Determine whether there are any craftable or partial recipes.
+        // hasCraftable() covers both fully-craftable and partial recipes
+        // (partial IDs are injected into the craftable set beforehand).
+        boolean hasAnyCraftable = collection.hasCraftable();
+        boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(collection);
 
+        if (!hasAnyCraftable && !hasPartial) {
+            // Every recipe is completely uncraftable — return all.
+            return result;
+        }
+
+        // Filter: only keep craftable or partially-craftable entries,
+        // put fully-craftable before partial in the returned list.
+        List<RecipeDisplayEntry> filtered = new ArrayList<>(result.size());
         for (RecipeDisplayEntry e : result) {
             RecipeDisplayId id = e.id();
             if (collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
-                reordered.add(e);
+                filtered.add(e);
             }
         }
         for (RecipeDisplayEntry e : result) {
             if (PartialCraftingUtil.isPartiallyCraftable(collection, e.id())) {
-                reordered.add(e);
+                filtered.add(e);
             }
         }
-        for (RecipeDisplayEntry e : result) {
-            RecipeDisplayId id = e.id();
-            if (!collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
-                reordered.add(e);
-            }
-        }
-
-        // Rotate so that the first craftable/partial entry lands on the
-        // current timer slot.  Without this, the shared slotSelectTime
-        // may point to an "other" entry and the prioritised order is
-        // invisible until the timer wraps around naturally.
-        int timerIndex = this.slotSelectTime.currentIndex() % reordered.size();
-        int firstPreferred = -1;
-        for (int i = 0; i < reordered.size(); i++) {
-            RecipeDisplayId id = reordered.get(i).id();
-            if ((collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id))
-                    || PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
-                firstPreferred = i;
-                break;
-            }
-        }
-
-        if (firstPreferred >= 0 && firstPreferred != timerIndex) {
-            int distance = timerIndex - firstPreferred;
-            if (distance < 0) distance += reordered.size();
-            if (distance > 0) {
-                Collections.rotate(reordered, distance);
-            }
-        }
-
-        return reordered;
+        return filtered;
     }
 
     @Redirect(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
