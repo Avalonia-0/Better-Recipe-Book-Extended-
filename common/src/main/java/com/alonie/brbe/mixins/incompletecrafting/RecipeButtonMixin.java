@@ -1,16 +1,11 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
-import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.util.PartialCraftingUtil;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
-import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import org.spongepowered.asm.mixin.Mixin;
@@ -37,47 +32,53 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     public abstract RecipeDisplayId getCurrentRecipe();
 
     /**
-     * Supports the hasCraftable check in renderWidget — treat partially-craftable
-     * recipes as craftable for sprite display purposes.
+     * Reorders the result of getSelectedRecipes so that the button cycles
+     * through craftable recipes first, then partially-craftable recipes,
+     * then any remaining alternatives.
+     *
+     * Uses full-method descriptor to ensure unambiguous Mixin matching.
+     * The enclosing init() params (filteringCraftable, page, contextMap) are
+     * NOT captured because they are not needed for reordering.
      */
-    @Redirect(method = "init", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;"))
-    private List<RecipeDisplayEntry> betterRecipeBook$getSelectedRecipes(RecipeCollection collection, RecipeCollection.CraftableStatus status, RecipeCollection originalCollection, boolean filteringCraftable, RecipeBookPage recipeBookPage, ContextMap contextMap) {
-        List<RecipeDisplayEntry> result;
-        if (BetterRecipeBook.config.showAllRecipesInSurvival
-                && status == RecipeCollection.CraftableStatus.CRAFTABLE
-                && !filteringCraftable
-                && Minecraft.getInstance().screen instanceof InventoryScreen) {
-            // When not filtering but "CRAFTABLE" was requested, show ALL recipes
-            // (the button init was called with CRAFTABLE but filtering is off)
-            List<RecipeDisplayEntry> any = PartialCraftingUtil.getSelectedRecipes(collection, RecipeCollection.CraftableStatus.ANY);
-            result = any.stream()
-                    .filter(e -> !e.resultItems(contextMap).isEmpty())
-                    .toList();
-        } else {
-            result = PartialCraftingUtil.getSelectedRecipes(collection, status);
+    @Redirect(
+        method = "init(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;ZLnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;Lnet/minecraft/util/context/ContextMap;)V",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;")
+    )
+    private List<RecipeDisplayEntry> betterRecipeBook$reorderSelectedRecipes(RecipeCollection collection, RecipeCollection.CraftableStatus status) {
+        // Collect the entries to reorder. At this point status is always ANY
+        // because DisableCraftableFilter makes isFiltering() always return false.
+        List<RecipeDisplayEntry> result = collection.getSelectedRecipes(status);
+
+        if (result.size() <= 1) {
+            return result;
         }
 
-        // Reorder: craftable first, then partial, then others (for cycling display).
-        // Partial check must precede isCraftable because partial recipes are
-        // added to the craftable set via RecipeCollectionAccessor.
+        // Three-pass stable reorder: fully-craftable → partial → rest
         List<RecipeDisplayEntry> reordered = new ArrayList<>(result.size());
+
+        // Pass 1: recipes that are craftable and NOT partially-craftable
         for (RecipeDisplayEntry e : result) {
             RecipeDisplayId id = e.id();
             if (collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
                 reordered.add(e);
             }
         }
+
+        // Pass 2: recipes that ARE partially-craftable
         for (RecipeDisplayEntry e : result) {
             if (PartialCraftingUtil.isPartiallyCraftable(collection, e.id())) {
                 reordered.add(e);
             }
         }
+
+        // Pass 3: everything else (neither craftable nor partial)
         for (RecipeDisplayEntry e : result) {
             RecipeDisplayId id = e.id();
             if (!collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
                 reordered.add(e);
             }
         }
+
         return reordered;
     }
 
