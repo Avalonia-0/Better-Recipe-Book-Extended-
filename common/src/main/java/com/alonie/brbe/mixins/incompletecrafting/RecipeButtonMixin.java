@@ -52,12 +52,14 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         }
 
         // Reorder: craftable first, then partial, then others (for cycling display)
+        // Check partial BEFORE craftable because partial recipes are added to the
+        // craftable set (accessor), making isCraftable() return true for them too.
         List<RecipeDisplayEntry> craftable = new ArrayList<>();
         List<RecipeDisplayEntry> partial = new ArrayList<>();
         List<RecipeDisplayEntry> other = new ArrayList<>();
         for (RecipeDisplayEntry entry : result) {
             RecipeDisplayId id = entry.id();
-            if (collection.isCraftable(id)) {
+            if (collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
                 craftable.add(entry);
             } else if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
                 partial.add(entry);
