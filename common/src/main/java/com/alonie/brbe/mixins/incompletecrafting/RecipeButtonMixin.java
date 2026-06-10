@@ -8,6 +8,8 @@ import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.stats.RecipeBook;
+import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -34,6 +36,27 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     @Shadow
     private int currentIndex;
 
+    /**
+     * Disables the crafting filter so all recipes are always visible.
+     * 1.21.1 checks filtering via book.isFiltering(menu) on RecipeBook,
+     * not via a method on RecipeBookComponent.
+     */
+    @Redirect(
+        method = "getOrderedRecipes",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/stats/RecipeBook;isFiltering(Lnet/minecraft/world/inventory/RecipeBookMenu;)Z")
+    )
+    private boolean betterRecipeBook$disableFilteringInOrdered(RecipeBook book, RecipeBookMenu<?, ?> menu) {
+        return false;
+    }
+
+    @Redirect(
+        method = "renderWidget",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/stats/RecipeBook;isFiltering(Lnet/minecraft/world/inventory/RecipeBookMenu;)Z")
+    )
+    private boolean betterRecipeBook$disableFilteringInRender(RecipeBook book, RecipeBookMenu<?, ?> menu) {
+        return false;
+    }
+
     @Redirect(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
     private boolean betterRecipeBook$renderPartiallyCraftableAsCraftable(RecipeCollection collection, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         return collection.hasCraftable() || PartialCraftingUtil.hasPartialMaterials(collection);
@@ -51,31 +74,58 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     }
 
     @Inject(method = "getOrderedRecipes", at = @At("RETURN"), cancellable = true)
-    private void betterRecipeBook$includePartialInOrderedRecipes(CallbackInfoReturnable<List<RecipeHolder<?>>> cir) {
-        if (!BetterRecipeBook.config.partialCraftableEqualsCraftable) return;
-
-        List<RecipeHolder<?>> partials = PartialCraftingUtil.getPartiallyCraftableRecipes(this.collection);
-        if (partials.isEmpty()) return;
-
+    private void betterRecipeBook$filterOrderedRecipes(CallbackInfoReturnable<List<RecipeHolder<?>>> cir) {
         List<RecipeHolder<?>> result = new ArrayList<>(cir.getReturnValue());
-        Set<ResourceLocation> existing = new HashSet<>();
-        for (RecipeHolder<?> r : result) {
-            existing.add(r.id());
-        }
-        for (RecipeHolder<?> p : partials) {
-            if (!existing.contains(p.id())) {
-                result.add(p);
+
+        // Step 1: add partially-craftable recipes (if enabled).
+        if (BetterRecipeBook.config.partialCraftableEqualsCraftable) {
+            List<RecipeHolder<?>> partials = PartialCraftingUtil.getPartiallyCraftableRecipes(this.collection);
+            if (!partials.isEmpty()) {
+                Set<ResourceLocation> existing = new HashSet<>();
+                for (RecipeHolder<?> r : result) {
+                    existing.add(r.id());
+                }
+                for (RecipeHolder<?> p : partials) {
+                    if (!existing.contains(p.id())) {
+                        result.add(p);
+                    }
+                }
             }
         }
-        cir.setReturnValue(result);
+
+        // Step 2: if any craftable or partially-craftable recipes exist,
+        // drop the completely uncraftable ones from cycling.
+        boolean hasCraftable = this.collection.hasCraftable();
+        boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(this.collection);
+
+        if ((hasCraftable || hasPartial) && result.size() > 1) {
+            List<RecipeHolder<?>> filtered = new ArrayList<>(result.size());
+            for (RecipeHolder<?> r : result) {
+                if (this.collection.isCraftable(r) && !PartialCraftingUtil.isPartiallyCraftable(this.collection, r)) {
+                    filtered.add(r);
+                }
+            }
+            for (RecipeHolder<?> r : result) {
+                if (PartialCraftingUtil.isPartiallyCraftable(this.collection, r)) {
+                    filtered.add(r);
+                }
+            }
+            cir.setReturnValue(filtered);
+        } else if (!result.equals(cir.getReturnValue())) {
+            cir.setReturnValue(result);
+        }
     }
 
     @Inject(method = "isOnlyOption", at = @At("RETURN"), cancellable = true)
     private void betterRecipeBook$allowNestedAlternativeOverlay(CallbackInfoReturnable<Boolean> cir) {
-        if (!cir.getReturnValue() || !PartialCraftingUtil.wasCheckedForPartialMaterials(this.collection)) {
+        // Already returning false (multi-option) — nothing to fix.
+        if (!cir.getReturnValue()) {
             return;
         }
 
+        // Our filter may have reduced getOrderedRecipes to a single entry,
+        // but the collection still contains multiple alternatives.
+        // Force isOnlyOption=false so the overlay can show them all.
         if (this.collection.getRecipes().size() > 1
                 && (this.collection.hasCraftable() || PartialCraftingUtil.hasPartialMaterials(this.collection))) {
             cir.setReturnValue(false);

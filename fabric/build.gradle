@@ -48,6 +48,19 @@ dependencies {
     common(project(path: ":common", configuration: "namedElements")) { transitive false }
 }
 
+// Exclude JEI compat classes when JEI is not on the classpath
+def jeiJarPath = rootProject.findProperty("jei_fabric_jar")?.toString()
+if (jeiJarPath == null || !file(jeiJarPath).exists()) {
+    jeiJarPath = rootProject.file("libs/jei-1.21.1-fabric-19.27.0.340.jar").absolutePath
+}
+def jeiPresent = file(jeiJarPath).exists()
+tasks.named("compileJava") {
+    if (!jeiPresent) {
+        exclude("com/alonie/brbe/fabric/compat/jei/**")
+        exclude("com/alonie/brbe/fabric/mixin/Jei*")
+    }
+}
+
 // Include common module (classes + resources)
 jar {
     from project(":common").sourceSets.main.output
