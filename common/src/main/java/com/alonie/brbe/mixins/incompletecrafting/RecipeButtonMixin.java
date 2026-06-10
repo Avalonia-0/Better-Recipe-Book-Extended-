@@ -21,6 +21,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Mixin(RecipeButton.class)
@@ -51,6 +52,31 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         }
 
         return PartialCraftingUtil.getSelectedRecipes(collection, status);
+    }
+
+    @Redirect(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;"))
+    private List<RecipeDisplayEntry> betterRecipeBook$reorderCycling(
+            RecipeCollection collection, RecipeCollection.CraftableStatus status) {
+        List<RecipeDisplayEntry> recipes = collection.getSelectedRecipes(status);
+        // Reorder: craftable first, then partial, then others (for cycling display)
+        List<RecipeDisplayEntry> craftable = new ArrayList<>();
+        List<RecipeDisplayEntry> partial = new ArrayList<>();
+        List<RecipeDisplayEntry> other = new ArrayList<>();
+        for (RecipeDisplayEntry entry : recipes) {
+            RecipeDisplayId id = entry.id();
+            if (collection.isCraftable(id)) {
+                craftable.add(entry);
+            } else if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
+                partial.add(entry);
+            } else {
+                other.add(entry);
+            }
+        }
+        List<RecipeDisplayEntry> reordered = new ArrayList<>();
+        reordered.addAll(craftable);
+        reordered.addAll(partial);
+        reordered.addAll(other);
+        return reordered;
     }
 
     @Redirect(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
