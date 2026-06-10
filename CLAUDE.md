@@ -2,119 +2,117 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Build & Test Commands
+## Project Overview
+
+BetterRecipeBook (Extended) is a client-side Minecraft mod that overhauls the vanilla recipe book UI. Multi-loader via Architectury: common logic in `common/`, platform entrypoints in `fabric/` and `neoforge/`. Mod ID: `brbe`.
+
+## Branch Strategy & Build Commands
+
+| Branch | MC Version | JDK | Gradle | Recipe API | Filter Button |
+|--------|-----------|-----|--------|------------|---------------|
+| `1.21.1` | 1.21.1 | 21+ (use JDK 22) | 8.13 | `RecipeHolder<?>` + `ResourceLocation` | `StateSwitchingButton` |
+| `1.21.11` | 1.21.11 | 21+ (use JDK 22) | 8.13 | `RecipeDisplayEntry` + `RecipeDisplayId` | `CycleButton<Boolean>` |
+| `26.1.2` | 26.1.2 | **25** | **9.4.0** | `RecipeDisplayEntry` + `RecipeDisplayId` | `CycleButton<Boolean>` |
+
+**Always commit before switching branches.** Stale `common/build/` artifacts pollute cross-branch builds — run `./gradlew :common:clean` after switching if you see unexpected errors (especially `RecipeDisplayId not present`).
 
 ```bash
-# Full build (all platforms)
-./gradlew build
+# 1.21.1 / 1.21.11
+export JAVA_HOME=/usr/local/jdk-22.0.2+9
+./gradlew :fabric:build :neoforge:build -x test -x check --no-daemon -Djava.net.useSystemProxies=true
 
-# Build specific platform
-./gradlew :fabric:build          # Fabric only
-./gradlew :neoforge:build        # NeoForge only
+# 26.1.2
+export JAVA_HOME=/usr/local/jdk-25.0.3+9
+./gradlew :fabric:build :neoforge:build -x test -x check --no-daemon -Djava.net.useSystemProxies=true
 
-# Clean + build
-./gradlew clean build
-
-# Run in dev environment (IDE required)
-./gradlew :fabric:runClient      # Fabric dev env
-./gradlew :neoforge:runClient    # NeoForge dev env
-
-# Generate sources jar
-./gradlew sourcesJar
+# Cross-branch pollution cleanup
+./gradlew :common:clean
 ```
 
-**Prerequisites:** Java 21, Fabric API / NeoForge / Architectury / Cloth Config JARs in `~/Downloads/1.21.1/` (paths are hardcoded in build.gradle files). Set `jei_fabric_jar`, `jei_neoforge_jar`, `rei_fabric_jar`, `rei_neoforge_jar` gradle properties to override.
+JEI jars for compilation go in `libs/` (gitignored). Build files also reference absolute paths in `~/Downloads/1.21.1/`.
 
-## Project Architecture
+## Key Version-Specific API Differences
 
-**Multi-loader Minecraft mod** (Fabric + NeoForge) via Architectury Loom. Minecraft 1.21.1, Java 21.
+### Recipe System & Button Lifecycle
+- **1.21.1:** `RecipeCollection.getRecipes()` → `List<RecipeHolder<?>>`. Button uses `getOrderedRecipes()` (private) for cycling; has `currentIndex` field. `init(RecipeCollection, RecipeBookPage)` — 2 params.
+- **1.21.11+:** `RecipeCollection.getRecipes()` → `List<RecipeDisplayEntry>`. Button has `selectedEntries` (List<ResolvedEntry>) + `getCurrentRecipe()`. `init(RecipeCollection, boolean, RecipeBookPage, ContextMap)` — 4 params.
 
-### Module Layout
+### Filtering
+- **1.21.1:** `RecipeBook.isFiltering(RecipeBookMenu<?, ?> menu)` on the stats object. `updateCollections(boolean)` — 1 param. `RecipeBookPage.updateCollections(List, boolean)` — 2 params.
+- **1.21.11+:** `RecipeBookComponent.isFiltering()` parameterless. `updateCollections(boolean, boolean)` — 2 params. `RecipeBookPage.updateCollections(List, boolean, boolean)` — 3 params.
+
+### Rendering
+- **1.21.1 / 1.21.11:** `renderWidget(GuiGraphics, int, int, float)`. `renderFakeItem(ItemStack, int, int)`.
+- **26.1.2:** `extractWidgetRenderState(GuiGraphicsExtractor, int, int, float)`. `fakeItem(ItemStack, int, int)`.
+
+### Character Events (ClientCompat)
+- **1.21.11:** `CharacterEvent(char, int)` — 2 args
+- **26.1.2:** `CharacterEvent(int codepoint)` — 1 arg
+
+## Module Layout
 
 ```
-common/      — All gameplay logic, GUI, mixins, assets, translations
-fabric/      — Fabric entrypoints, JEI plugin, REI handler, Fabric-specific accessors
-neoforge/    — NeoForge entrypoint @Mod, JEI plugin, NeoForge-specific accessors
+common/      — All logic, mixins, assets, config — bundled into both platform JARs
+fabric/      — Fabric entrypoints, JEI/REI plugins
+neoforge/    — NeoForge entrypoints, access transformer
 ```
 
-`common` is compiled into both platform jars. The root `build.gradle` orchestrates via architectury-plugin.
-
-### Entry Points
-
-| Platform | Main Init | Client Init |
-|----------|-----------|-------------|
-| Fabric | `BetterRecipeBookFabric` (calls `BetterRecipeBook.init()`) | `BetterRecipeBookClientFabric` (registers REI handler) |
-| NeoForge | `BetterRecipeBookNeoForge` (`@Mod` constructor calls `BetterRecipeBook.init()`) | — |
-
-`BetterRecipeBook.init()` is the common entry: registers config (Cloth Config AutoConfig), loads potions, registers REI compat, keybindings, and loads pinned recipes.
-
-### The Generic Recipe Book Framework
-
-The core design pattern is an **abstract generic recipe book framework** in `generic/` with **concrete per-block-type implementations**. This avoids duplicating the entire recipe book UI for each block.
-
-**Base classes** (`common/…/generic/`):
-- `GenericRecipeBookComponent<M, C, R>` — abstract recipe book widget; manages tabs, search, filter, ghost recipe, pinning. Extends vanilla `Renderable`, `NarratableEntry`, `GuiEventListener`.
-- `GenericRecipePage<M, C, R>` — paginated display of recipe buttons, forward/back navigation, overlay display.
-- `GenericRecipeButton<C, R, M>` — individual clickable recipe slot in the book.
-- `GenericRecipeCollection<R, M>` — a group of related recipes (e.g. all planks-from-log variants).
-- `GenericRecipe` — wrapper around a single recipe result.
-- `GenericGhostRecipe<R>` — ghost/overlay showing missing ingredients.
-- `GenericClientRecipeBook` — client-side recipe book state.
-- `BRBGroupButtonWidget` — category tab button (search, transform, trim, etc.).
-
-**Concrete implementations** — each inherits from the generic base:
-- `brewingstand/` — `BrewingRecipeBookComponent`, `BrewableRecipeButton`, `BrewableResult`, `BrewingRecipeCollection`
-- `smithingtable/` — `SmithingRecipeBookComponent`, `SmithingRecipeBookPage`, `SmithingRecipeCollection`, `SmithingGhostRecipe`, `SmithingOverlayRecipeComponent`
-- `recipe/` — `BRBSmithingRecipe`, `BRBSmithingTransformRecipe`, `BRBSmithingTrimRecipe` (wraps vanilla smithing recipes)
-
-To add a new recipe book type, extend `GenericRecipeBookComponent` and implement:
-- `getRecipeFilterName()` — tooltip for filter toggle
-- `getRecipeBookType()` — returns `BRBHelper.Book` identity
-- `handlePlaceRecipe()` — click-to-place logic (auto-fill ingredients)
-- `getCollectionsForCategory()` — returns recipes for the selected tab category
-
-### Mixin Organization
-
-Mixins are in `common/…/mixins/`, grouped by feature package:
+### Key Packages in `common/src/main/java/com/alonie/brbe/`
 
 | Package | Purpose |
 |---------|---------|
-| `pins/` | Recipe pinning (F key to pin/unpin) |
-| `instantcraft/` | One-click craft + auto shift-click result |
-| `unlockrecipes/` | "View locked recipes" feature |
-| `alternativerecipes/` | Alternative recipe display in overlay |
-| `scrollablepages/` | Mouse scroll support in recipe pages |
-| `centered/` | Keep crafting screens centered |
-| `settings/` | Settings button in recipe book |
-| `ungroup/` | Un-group alternative recipes |
-| `rei/` | REI compat integration |
-| `modname/` | Show item source mod name |
-| `toasts/` | Suppress unlock toasts/sounds |
-| `accessors/` | Public accessors for private fields (e.g. `RecipeBookComponentAccessor`, `BrewingStandMenuAccessor`) |
-| Root (`SmithingScreenMixin`, `BrewingStandScreenMixin`, etc.) | Screen-level mixins |
+| `mixins/incompletecrafting/` | Partial-materials detection + cycling filter + overlay overlay |
+| `mixins/incompatibleenvironment/` | Show 3×3 recipes in survival inventory |
+| `mixins/accessors/` | `@Accessor` interfaces for private fields |
+| `generic/` | Abstract recipe book framework (brewing/smithing) |
+| `brewingstand/`, `smithingtable/` | Concrete recipe book implementations |
+| `config/` | Cloth Config AutoConfig (TOML) |
+| `compat/` | JEI/REI/MouseWheelie compatibility bridges |
+| `util/` | `PartialCraftingUtil`, `IncompatibleCraftingUtil`, `ClientCompat` |
 
-Mixins are registered in `mixins.brbe-common.json` (common, required), `mixins.brbe.json` (platform-specific accessors), and `mixins.brbe-common-compat.json` (optional conditional compat mixins via `CompatMixinPlugin`). Each platform jar includes all three configs.
+## The Generic Recipe Book Framework
 
-### Compat System
+Abstract framework in `generic/` parameterized over `<M extends AbstractContainerMenu, C, R extends GenericRecipe>`. Implemented concretely for brewing stand and smithing table. To add a new recipe book type, extend `GenericRecipeBookComponent` and implement 4 methods.
 
-**JEI:** Common `JeiCompat` defines a handler interface with `openRecipeView`/`openUsageView`. Platform-specific plugins (`fabric/…/jei/BetterRecipeBookJEIPlugin`, `neoforge/…/jei/BetterRecipeBookJEIPlugin`) call `JeiCompat.setHandler()`. NeoForge JEI plugin is conditionally excluded from compilation if only the Fabric JEI jar is found.
+## Key Patterns
 
-**REI:** Common `ReiCompat` uses reflection to open recipe/usage views (avoids compile-time dependency). Called during `BetterRecipeBook.init()`.
+### Partial Crafting Data Injection (incompletecrafting)
 
-**ModMenu:** Fabric only — `ModMenuFabric` integrates with Cloth Config's AutoConfig screen.
+`PartialCraftingUtil` tracks which recipes have partial materials via `WeakHashMap<RecipeCollection, Set<Id>>`. The flow per frame:
 
-**MouseWheelie:** Conditional mixin (`MixinMWClient`) gated by `CompatMixinPlugin.shouldApplyMixin()` checking for `Platform.isModLoaded("mousewheelie")`. Registered in `mixins.brbe-common-compat.json` (required: false).
+1. `RecipeBookComponentMixin` intercepts `updateCollections()` → calls `markPartialMaterials(collection, slots)` for every collection
+2. Partial recipe IDs are injected into the vanilla `craftable` set via `RecipeCollectionAccessor` → makes `isCraftable(id)` return true for partials
+3. `RecipeButtonMixin` intercepts `getSelectedRecipes`/`getOrderedRecipes` → filters out completely uncraftable recipes when craftable/partial exist (craftable first, then partial)
+4. `RecipeBookComponentMixin` intercepts `RecipeBookPage.updateCollections` → sorts collections: craftable → partial → other
 
-## Key Features
+`DisableCraftableFilter` (on `RecipeBookComponent`) hides the filter button and disables filtering — making this data injection the primary mechanism for controlling recipe visibility.
 
-- **Pinning** — `PinnedRecipeManager` persists pinned recipe IDs to `<gamedir>/brbe.pins` (JSON). Keybinding: F (default).
-- **Instant Crafting** — `InstantCraftingManager` tracks last crafted result and auto-shift-clicks the output slot. Toggle via config/button.
-- **Potion System** — `PotionLoader` loads `PotionBrewing.Mix<Potion>` entries on `CLIENT_LEVEL_LOAD` via Architectury event. `PlatformPotionUtil` bridges Fabric/NeoForge potion brewing differences (implemented per-platform as `PlatformPotionUtilImpl`).
-- **Config** — Cloth Config AutoConfig with TOML serialization. Categories: General, New Recipes, Instant Craft, Alternative Recipes, Scrolling.
+### ItemViewCompat
 
-## Resource Locations
+Abstraction for JEI/REI recipe lookup. Both mods register a handler via `ItemViewCompat.setHandler()`. Common code calls `openRecipeView(stack)` / `openUsageView(stack)`.
 
-- Mod ID: `brbe`
-- Custom sprites: `brbe:recipe_book/…` (pin, settings, instant craft buttons, overlays)
-- Access widener: `common/src/main/resources/brbe.common.accesswidener` (currently opens `PotionBrewing$Mix`)
-- Translations: 7 languages in `common/src/main/resources/assets/brbe/lang/`
+### Mixin Configuration
+
+Mixin JSONs in `common/src/main/resources/`:
+
+| File | Required | Purpose |
+|------|----------|---------|
+| `mixins.brbe-common.json` | true | Core mixins (~45 entries) |
+| `mixins.brbe-common-compat.json` | false | MouseWheelie compat |
+| `mixins.brbe-jei.json` | false | JEI overlay hiding |
+| `mixins.brbe-rei-common.json` | false | REI key handling |
+
+**Warning:** Avoid creating `mixins.brbe-jei.json` in the `fabric/` module — `jar` task uses `DuplicatesStrategy.EXCLUDE`, which silently drops the common version. Use a different filename (e.g., `mixins.brbe-jei-fabric.json`).
+
+## Config
+
+Cloth Config AutoConfig with TOML serialization (`Config.java`). Key fields: `enablePinning`, `showAllRecipesInSurvival`, `hideReiJeiOverlay`, `showModName`, `keepCentered`. Sub-config categories: `NewRecipes`, `InstantCraft`, `AlternativeRecipes`, `Scrolling`.
+
+## Key Dependencies
+
+- Architectury 13.x (1.21.1/1.21.11) or 20.x (26.1.2)
+- Cloth Config 15.x
+- Fabric API or NeoForge
+- JEI/REI (optional, compile-only)
+
+Access widener: `brbe.common.accesswidener` opens `PotionBrewing$Mix`.
