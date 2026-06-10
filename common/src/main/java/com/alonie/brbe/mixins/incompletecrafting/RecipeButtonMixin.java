@@ -36,18 +36,25 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
      * through craftable recipes first, then partially-craftable recipes,
      * then any remaining alternatives.
      *
-     * Uses full-method descriptor to ensure unambiguous Mixin matching.
-     * The enclosing init() params (filteringCraftable, page, contextMap) are
-     * NOT captured because they are not needed for reordering.
+     * Uses bare method name (no descriptor) so Mixin resolves the target
+     * through the refmap, making this work in both dev (Mojang) and
+     * production (intermediary) environments.
      */
     @Redirect(
-        method = "init(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;ZLnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;Lnet/minecraft/util/context/ContextMap;)V",
-        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;")
+        method = "init",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;"),
+        require = 1
     )
-    private List<RecipeDisplayEntry> betterRecipeBook$reorderSelectedRecipes(RecipeCollection collection, RecipeCollection.CraftableStatus status) {
-        // Collect the entries to reorder. At this point status is always ANY
-        // because DisableCraftableFilter makes isFiltering() always return false.
+    private List<RecipeDisplayEntry> betterRecipeBook$reorderSelectedRecipes(
+            RecipeCollection collection, RecipeCollection.CraftableStatus status) {
         List<RecipeDisplayEntry> result = collection.getSelectedRecipes(status);
+
+        // Log diagnostic at most once per second
+        if (result.size() > 1) {
+            System.err.println("[BRBE] cycling reorder: collection has " + result.size()
+                + " recipes, craftable=" + collection.hasCraftable()
+                + " hasPartial=" + PartialCraftingUtil.hasPartialMaterials(collection));
+        }
 
         if (result.size() <= 1) {
             return result;
@@ -55,30 +62,31 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
         // Three-pass stable reorder: fully-craftable → partial → rest
         List<RecipeDisplayEntry> reordered = new ArrayList<>(result.size());
+        int craftable = 0, partial = 0, other = 0;
 
-        // Pass 1: recipes that are craftable and NOT partially-craftable
         for (RecipeDisplayEntry e : result) {
             RecipeDisplayId id = e.id();
             if (collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
                 reordered.add(e);
+                craftable++;
             }
         }
-
-        // Pass 2: recipes that ARE partially-craftable
         for (RecipeDisplayEntry e : result) {
             if (PartialCraftingUtil.isPartiallyCraftable(collection, e.id())) {
                 reordered.add(e);
+                partial++;
             }
         }
-
-        // Pass 3: everything else (neither craftable nor partial)
         for (RecipeDisplayEntry e : result) {
             RecipeDisplayId id = e.id();
             if (!collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
                 reordered.add(e);
+                other++;
             }
         }
 
+        System.err.println("[BRBE] cycling reorder result: craftable=" + craftable
+            + " partial=" + partial + " other=" + other);
         return reordered;
     }
 
