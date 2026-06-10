@@ -96,10 +96,14 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Inject(method = "isOnlyOption", at = @At("RETURN"), cancellable = true)
     private void betterRecipeBook$allowNestedAlternativeOverlay(CallbackInfoReturnable<Boolean> cir) {
-        if (!cir.getReturnValue() || !PartialCraftingUtil.wasCheckedForPartialMaterials(this.collection)) {
+        // Already returning false (multi-option) — nothing to fix.
+        if (!cir.getReturnValue()) {
             return;
         }
 
+        // Our filter may have reduced selectedEntries to a single entry,
+        // but the collection itself still contains multiple alternatives.
+        // Force isOnlyOption=false so the overlay can show them all.
         if (this.collection.getSelectedRecipes(RecipeCollection.CraftableStatus.ANY).size() > 1
                 && (this.collection.hasCraftable() || PartialCraftingUtil.hasPartialMaterials(this.collection))) {
             cir.setReturnValue(false);
