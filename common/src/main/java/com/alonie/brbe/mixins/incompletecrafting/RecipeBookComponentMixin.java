@@ -7,6 +7,7 @@ import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
+import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -16,6 +17,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -71,5 +73,39 @@ public abstract class RecipeBookComponentMixin {
                 IncompatibleCraftingUtil.markIncompatibleRecipes(collection);
             }
         }
+    }
+
+    /**
+     * Sorts collections so craftable recipes appear first, then partially-
+     * craftable, then the rest.  1.21.1 calls page.updateCollections(List, boolean)
+     * (2 params instead of 3 on 1.21.11+).
+     */
+    @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;Z)V"))
+    private void betterRecipeBook$sortBeforePageUpdate(RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber) {
+        if (BetterRecipeBook.config.partialCraftableEqualsCraftable) {
+            List<RecipeCollection> craftable = new ArrayList<>();
+            List<RecipeCollection> partial = new ArrayList<>();
+            List<RecipeCollection> other = new ArrayList<>();
+
+            for (RecipeCollection c : list) {
+                boolean hasCraftable = c.hasCraftable();
+                boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(c);
+
+                if (hasCraftable && !hasPartial) {
+                    craftable.add(c);
+                } else if (hasPartial) {
+                    partial.add(c);
+                } else {
+                    other.add(c);
+                }
+            }
+
+            list.clear();
+            list.addAll(craftable);
+            list.addAll(partial);
+            list.addAll(other);
+        }
+
+        page.updateCollections(list, resetPageNumber);
     }
 }
