@@ -29,8 +29,8 @@ public final class ClientCompat {
         return new KeyEvent(keyCode, scanCode, modifiers);
     }
 
-    public static CharacterEvent characterEvent(int modifiers) {
-        return new CharacterEvent(modifiers);
+    public static CharacterEvent characterEvent(int codepoint) {
+        return new CharacterEvent(codepoint);
     }
 
     public static MouseButtonEvent mouseButtonEvent(double mouseX, double mouseY, int button) {
@@ -46,7 +46,7 @@ public final class ClientCompat {
     }
 
     public static boolean charTyped(EditBox editBox, char character, int modifiers) {
-        return editBox.charTyped(characterEvent(modifiers));
+        return editBox.charTyped(new CharacterEvent((int) character));
     }
 
     public static boolean mouseClicked(AbstractWidget widget, double mouseX, double mouseY, int button) {

@@ -1,13 +1,17 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
+import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.inventory.RecipeBookMenu;
+import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
+import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -16,17 +20,16 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
 @Mixin(RecipeBookComponent.class)
 public abstract class RecipeBookComponentMixin {
-    @Shadow
-    @Final
+    @Shadow @Final
     protected RecipeBookMenu menu;
 
-    @Shadow
-    @Final
+    @Shadow @Final
     protected Minecraft minecraft;
 
     @Shadow
@@ -54,6 +57,18 @@ public abstract class RecipeBookComponentMixin {
             if (onInventoryScreen) {
                 IncompatibleCraftingUtil.markIncompatibleRecipes(collection);
             }
+
+            // Add partial recipes to craftable set so the craftable filter retains them
+            if (BetterRecipeBook.config.partialCraftableEqualsCraftable
+                    && PartialCraftingUtil.hasPartialMaterials(collection)) {
+                RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+                for (RecipeDisplayEntry entry : collection.getRecipes()) {
+                    RecipeDisplayId id = entry.id();
+                    if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
+                        accessor.betterRecipeBook$getCraftable().add(id);
+                    }
+                }
+            }
         }
 
         boolean hasSearchActive = searchBox != null && !searchBox.getValue().isEmpty();
@@ -73,9 +88,32 @@ public abstract class RecipeBookComponentMixin {
             return true;
         });
 
-        if (hasPartial) {
-            PartialCraftingUtil.sortCraftableBeforePartial(collections);
-        }
         return removed;
+    }
+
+    @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;ZZ)V"))
+    private void betterRecipeBook$sortCraftableBeforePartial(
+            RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber, boolean isFiltering) {
+        if (BetterRecipeBook.config.partialCraftableEqualsCraftable) {
+            List<RecipeCollection> craftable = new ArrayList<>();
+            List<RecipeCollection> partial = new ArrayList<>();
+            List<RecipeCollection> other = new ArrayList<>();
+            for (RecipeCollection c : list) {
+                boolean hasCraftable = c.hasCraftable();
+                boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(c);
+                if (hasCraftable && !hasPartial) {
+                    craftable.add(c);
+                } else if (hasPartial) {
+                    partial.add(c);
+                } else {
+                    other.add(c);
+                }
+            }
+            list.clear();
+            list.addAll(craftable);
+            list.addAll(partial);
+            list.addAll(other);
+        }
+        page.updateCollections(list, resetPageNumber, isFiltering);
     }
 }

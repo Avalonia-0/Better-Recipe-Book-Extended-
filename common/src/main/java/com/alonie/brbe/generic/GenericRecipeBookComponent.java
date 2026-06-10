@@ -268,7 +268,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             this.checkSearchStringUpdate();
             return true;
         }
-        return GuiEventListener.super.charTyped(ClientCompat.characterEvent(i));
+        return GuiEventListener.super.charTyped(new CharacterEvent((int) c));
     }
 
     private void checkSearchStringUpdate() {
