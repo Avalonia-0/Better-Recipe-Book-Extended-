@@ -12,6 +12,9 @@ public interface RecipeCollectionAccessor {
     @Accessor("craftable")
     Set<RecipeDisplayId> betterRecipeBook$getCraftable();
 
+    @Accessor("fitsDimensions")
+    Set<RecipeDisplayId> getFitsDimensions();
+
     @Accessor("selected")
     Set<RecipeDisplayId> betterRecipeBook$getSelected();
 }
