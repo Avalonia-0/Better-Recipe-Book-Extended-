@@ -21,6 +21,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Mixin(RecipeButton.class)
@@ -36,19 +37,50 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     public abstract RecipeDisplayId getCurrentRecipe();
 
     @Redirect(method = "init", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;"))
-    private List<RecipeDisplayEntry> betterRecipeBook$getSelectedRecipes(RecipeCollection collection, RecipeCollection.CraftableStatus status, RecipeCollection originalCollection, boolean filteringCraftable, RecipeBookPage recipeBookPage, ContextMap contextMap) {
+    private List<RecipeDisplayEntry> betterRecipeBook$getSelectedRecipes(
+            RecipeCollection collection, RecipeCollection.CraftableStatus status,
+            RecipeCollection originalCollection, boolean filteringCraftable,
+            RecipeBookPage recipeBookPage, ContextMap contextMap) {
         // In the 2x2 inventory grid when NOT filtering, show ALL selected recipes,
         // filtering out any with unresolvable results (would render as air).
+        List<RecipeDisplayEntry> result;
         if (BetterRecipeBook.config.showAllRecipesInSurvival
                 && status == RecipeCollection.CraftableStatus.CRAFTABLE
                 && !filteringCraftable
                 && Minecraft.getInstance().screen instanceof InventoryScreen) {
             List<RecipeDisplayEntry> any = PartialCraftingUtil.getSelectedRecipes(collection, RecipeCollection.CraftableStatus.ANY);
-            return any.stream()
+            result = any.stream()
                     .filter(e -> !e.resultItems(contextMap).isEmpty())
                     .toList();
+        } else {
+            result = PartialCraftingUtil.getSelectedRecipes(collection, status);
         }
-        return PartialCraftingUtil.getSelectedRecipes(collection, status);
+
+        // Filter: when the collection has craftable or partially-craftable
+        // recipes, drop the completely uncraftable ones from cycling so the
+        // button only shows craftable + partial alternatives.
+        if (result.size() > 1) {
+            boolean hasAnyCraftable = collection.hasCraftable();
+            boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(collection);
+
+            if (hasAnyCraftable || hasPartial) {
+                List<RecipeDisplayEntry> filtered = new ArrayList<>(result.size());
+                for (RecipeDisplayEntry e : result) {
+                    RecipeDisplayId id = e.id();
+                    if (collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
+                        filtered.add(e);
+                    }
+                }
+                for (RecipeDisplayEntry e : result) {
+                    if (PartialCraftingUtil.isPartiallyCraftable(collection, e.id())) {
+                        filtered.add(e);
+                    }
+                }
+                return filtered;
+            }
+        }
+
+        return result;
     }
 
     @Redirect(method = "extractWidgetRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
@@ -66,10 +98,14 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Inject(method = "isOnlyOption", at = @At("RETURN"), cancellable = true)
     private void betterRecipeBook$allowNestedAlternativeOverlay(CallbackInfoReturnable<Boolean> cir) {
-        if (!cir.getReturnValue() || !PartialCraftingUtil.wasCheckedForPartialMaterials(this.collection)) {
+        // Already returning false (multi-option) — nothing to fix.
+        if (!cir.getReturnValue()) {
             return;
         }
 
+        // Our filter may have reduced selectedEntries to a single entry,
+        // but the collection still contains multiple alternatives.
+        // Force isOnlyOption=false so the overlay can show them all.
         if (this.collection.getSelectedRecipes(RecipeCollection.CraftableStatus.ANY).size() > 1
                 && (this.collection.hasCraftable() || PartialCraftingUtil.hasPartialMaterials(this.collection))) {
             cir.setReturnValue(false);
