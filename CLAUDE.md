@@ -69,6 +69,8 @@ neoforge/    — NeoForge entrypoints, access transformer
 | `config/` | Cloth Config AutoConfig (TOML) |
 | `compat/` | JEI/REI/MouseWheelie compatibility bridges |
 | `util/` | `PartialCraftingUtil`, `IncompatibleCraftingUtil`, `ClientCompat` |
+| `loaders/` | `PotionLoader` — reads `PotionBrewing.Mix` on client level load |
+| `recipe/` | `BRBSmithingRecipe` and smithing recipe wrappers |
 
 ## The Generic Recipe Book Framework
 
@@ -104,6 +106,8 @@ Mixin JSONs in `common/src/main/resources/`:
 
 **Warning:** Avoid creating `mixins.brbe-jei.json` in the `fabric/` module — `jar` task uses `DuplicatesStrategy.EXCLUDE`, which silently drops the common version. Use a different filename (e.g., `mixins.brbe-jei-fabric.json`).
 
+Platform-specific mixin configs: `fabric/src/main/resources/mixins.brbe.json` + `mixins.brbe-jei-fabric.json`, `neoforge/src/main/resources/mixins.brbe.json`. NeoForge also has an access transformer at `META-INF/accesstransformer.cfg`.
+
 ## Config
 
 Cloth Config AutoConfig with TOML serialization (`Config.java`). Key fields: `enablePinning`, `showAllRecipesInSurvival`, `hideReiJeiOverlay`, `showModName`, `keepCentered`. Sub-config categories: `NewRecipes`, `InstantCraft`, `AlternativeRecipes`, `Scrolling`.
@@ -114,5 +118,96 @@ Cloth Config AutoConfig with TOML serialization (`Config.java`). Key fields: `en
 - Cloth Config 15.x
 - Fabric API or NeoForge
 - JEI/REI (optional, compile-only)
+- Mod Menu (optional, Fabric only)
 
 Access widener: `brbe.common.accesswidener` opens `PotionBrewing$Mix`.
+
+## Localization
+
+Lang files in `common/src/main/resources/assets/brbe/lang/` with 7 locales: `en_us`, `zh_cn`, `zh_tw`, `ja_jp`, `ru_ru`, `pl_pl`, `tr_tr`. Mod name translation keys use `"jade.modName.<namespace>"` format for resource-pack-based translation.
+
+## Search System
+
+Custom search DSL in `search/` with a tree of `SearchArgument` conditions. Syntax:
+
+| Syntax | Example | Description |
+|--------|---------|-------------|
+| `\|` | `a\|b` | OR between groups |
+| ` ` (space) | `a b` | AND within a group |
+| `"..."` | `"iron ingot"` | Quoted text preserving spaces |
+| `-` prefix | `-@minecraft` | Negation |
+| `@text` | `@create` | Mod search (namespace/display name) |
+| `$text` | `$logs` | Tag search (item tag) |
+| `#text` | `#fire` | Tooltip search |
+| `r/regex/` | `r/iron.\*` | Regex on item hover name |
+
+`SearchQuery.parse(input)` builds the tree; `matches(stack, cache)` evaluates. `SearchCache` accelerates repeated lookups. Branches: `TextArgument`, `ModArgument`, `TagArgument`, `TooltipArgument`, `RegexArgument`, `CompoundArgument` (AND), `AlternativeArgument` (OR), `NegatedArgument`.
+
+## Mod Initialization & Key Bindings
+
+`BetterRecipeBook.init()` runs on both Fabric and NeoForge bootstrap:
+
+1. Registers Cloth Config AutoConfig (TOML), binds save listener to sync unlock state
+2. Creates global singletons: `PinnedRecipeManager`, `InstantCraftingManager`
+3. Registers 3 key mappings via Architectury:
+
+| Keybinding | Default | Function |
+|------------|---------|----------|
+| `key.brbe.pin` | **F** | Toggle pin recipe |
+| `key.brbe.recipeView` | **R** | Show recipe in JEI/REI |
+| `key.brbe.usageView` | **U** | Show usage in JEI/REI |
+
+4. Loads potion recipes via `PotionLoader` (reads `PotionBrewing.Mix` on client level load, cleared on server unload)
+5. Registers REI compat
+
+Config auto-saves to TOML. Config holder save/load listeners keep `InstantCraftingManager` button state in sync.
+
+## Managers
+
+- **`PinnedRecipeManager`** — persists pinned recipes to `<gameDir>/brbe.pins` (JSON, `HashSet<ResourceLocation>`). `addOrRemoveFavourite()` toggles; `handlePinRecipe()` is the static entrypoint called from mixins. Has overloads for both vanilla `RecipeCollection` and generic `GenericRecipeBookCollection`.
+- **`InstantCraftingManager`** — one-click crafting: tracks `lastClickedRecipe`, uses `ClientGameMode.handleInventoryMouseClick` with `ClickType.QUICK_MOVE` on the result slot when the server sets the result item. Guards on `containerId` to avoid acting on stale results. Toggle via config or the instant-craft button.
+
+## API Package (`api/`)
+
+`BRBBookCategories` and `BRBBookSettings` let other mods define new recipe book category tabs and persist book state:
+
+- `BRBBookCategories` — static `Map<Book, List<Category>>`, each `Category` has `Type` (SEARCH or OTHER) + icon `ItemStack`s. Create via `createCategory(book, items...)` or `createSearch(book)`.
+- `BRBBookSettings` — per-book open/filtering state persisted in a `Map<ResourceLocation, TypeSettings>`. Accessed via `isOpen(book)`, `setOpen(book, bool)`, `isFiltering(book)`, `setFiltering(book, bool)`.
+
+## Mixin Organization
+
+Mixins live under `mixins/` organized by feature sub-package (not by vanilla target):
+
+| Sub-package | Purpose |
+|------------|---------|
+| `incompletecrafting/` | Partial-materials detection + cycling filter |
+| `incompatibleenvironment/` | Show 3×3 recipes in survival inventory |
+| `pins/` | Recipe pinning (add/remove pin overlay) |
+| `instantcraft/` | One-click crafting flow |
+| `search/` | Search box integration |
+| `ungroup/` | Remove recipe grouping |
+| `unlockrecipes/` | Unlock recipe detection & sync |
+| `scrollablepages/` | Scrollable recipe book pages |
+| `hideoverlay/` | JEI/REI overlay hiding |
+| `modname/` | Mod name display on recipe buttons |
+| `centered/` | Keep recipe book centered |
+| `settings/` | Settings button injection |
+| `alternativerecipes/` | Alternative recipes overlay |
+| `rei/` | REI key handling integration |
+| `toasts/` | Toast suppression & unlock sound |
+| `accessors/` | `@Accessor` interfaces for vanilla private fields |
+
+`accessors/smithing/` contains smithing-specific accessors. Core mixin config is `mixins.brbe-common.json` (~45 entries).
+
+## Cross-Cutting Interfaces (`interfaces/`)
+
+| Interface | Contract |
+|-----------|----------|
+| `IPinningComponent<T>` | `betterRecipeBook$sortByPinsInPlace(List<T>)` — sorts pinned items to front |
+| `ISettingsButton` | `betterRecipeBook$addSettingsButton(Consumer)` — add settings button |
+| `TopLayerOverlayProvider` | `hasTopLayerOverlay()`, `renderTopLayerOverlay(...)`, `clickTopLayerOverlay(...)`, `getTopLayerOverlayBounds()` — for overlays above vanilla UI |
+| `RecipeBookTabButtonIconOffset` | Tab button icon offset customization |
+
+## Ghost Recipe System
+
+`GenericGhostRecipe` (and `SmithingGhostRecipe` for smithing) handles the transparent "ghost" item rendering when a recipe is selected. Tied to the `TopLayerOverlayProvider` interface for rendering above the vanilla screen.
