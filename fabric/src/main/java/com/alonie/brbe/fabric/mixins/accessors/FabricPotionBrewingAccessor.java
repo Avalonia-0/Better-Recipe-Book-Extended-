@@ -1,4 +1,4 @@
-package com.alonie.brbe.neoforge.Mixins.Accessors;
+package com.alonie.brbe.fabric.mixins.accessors;
 
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionBrewing;
@@ -8,7 +8,7 @@ import org.spongepowered.asm.mixin.gen.Accessor;
 import java.util.List;
 
 @Mixin(PotionBrewing.class)
-public interface NeoForgePotionBrewingAccessor {
+public interface FabricPotionBrewingAccessor {
     @Accessor("potionMixes")
     List<PotionBrewing.Mix<Potion>> getPotionMixes();
 }

@@ -14,7 +14,6 @@ public class DisableBounce {
     public void willHighlight(RecipeHolder<?> recipeHolder, CallbackInfoReturnable<Boolean> cir) {
         if (!BetterRecipeBook.config.newRecipes.enableBounce) {
             cir.setReturnValue(false);
-            cir.cancel();
         }
     }
 }

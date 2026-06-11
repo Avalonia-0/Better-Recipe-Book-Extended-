@@ -1,7 +1,7 @@
 package com.alonie.brbe.brewingstand.fabric;
 
 import com.alonie.brbe.brewingstand.PlatformPotionUtil;
-import com.alonie.brbe.fabric.Mixins.Accessors.FabricPotionBrewingAccessor;
+import com.alonie.brbe.fabric.mixins.accessors.FabricPotionBrewingAccessor;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionBrewing;

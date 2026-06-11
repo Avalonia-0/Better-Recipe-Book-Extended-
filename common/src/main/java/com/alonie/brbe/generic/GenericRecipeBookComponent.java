@@ -61,8 +61,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     @Nullable
     public GenericGhostRecipe<R> ghostRecipe;
 
-//    private int timesInventoryChanged;
-
     protected GenericRecipeBookComponent() {
     }
 
@@ -89,8 +87,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.registryAccess = registryAccess;
 
         this.ghostRecipe = new GenericGhostRecipe<>(onGhostRecipeUpdate, registryAccess);
-
-//        this.timesInventoryChanged = minecraft.player.getInventory().getTimesChanged();
     }
 
     public void initVisuals() {
@@ -105,8 +101,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.stackedContents.clear();
         if (this.minecraft.player == null) return;
         this.minecraft.player.getInventory().fillStackedContents(this.stackedContents);
-        // TODO: menu.fillCraftSlotsStackedContents
-//        this.menu.fillCraftSlotsStackedContents(this.stackedContents);
+        // TODO: menu.fillCraftSlotsStackedContents(this.stackedContents);
         String string = this.searchBox != null ? this.searchBox.getValue() : "";
         Objects.requireNonNull(this.minecraft.font);
         this.searchBox = new EditBox(this.minecraft.font, i + 25, j + 13, 81, this.minecraft.font.lineHeight + 5, Component.translatable("itemGroup.search"));
@@ -184,12 +179,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         if (!this.isVisible() || this.minecraft.player != null && this.minecraft.player.isSpectator()) {
             return false;
         }
-        /* causes escape needing to be pressed twice to exit menu.
-        I don't think this was intentional? -Tau
-        if (i == 256 && !this.isOffsetNextToMainGUI()) {
-            this.setVisible(false);
-            return true;
-        }*/
         if (this.searchBox.keyPressed(i, j, k)) {
             this.checkSearchStringUpdate();
             return true;
@@ -204,7 +193,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         }
 
         if (BetterRecipeBook.PIN_MAPPING.matches(i, j) && BetterRecipeBook.config.enablePinning) {
-            for (GenericRecipeButton<C, R, M> resultButton : this.recipesPage.buttons) {
+            for (GenericRecipeButton<C, R, M> resultButton : this.recipesPage.getButtons()) {
                 if (resultButton.isHoveredOrFocused()) {
                     BetterRecipeBook.pinnedRecipeManager.addOrRemoveFavourite(resultButton.getCollection());
                     this.updateCollections(false);
@@ -345,7 +334,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         }
         boolean bl = d < (double) i || e < (double) j || d >= (double) (i + k) || e >= (double) (j + l);
         boolean bl2 = (double) (i - 147) < d && d < (double) i && (double) j < e && e < (double) (j + l);
-//        return bl && !bl2 && !this.selectedTab.isHoveredOrFocused();
         return bl && !bl2;
     }
 
@@ -371,7 +359,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             boolean bl = this.toggleFiltering();
             this.filterButton.setStateTriggered(bl);
             this.updateFilterButtonTooltip();
-//                    this.sendUpdateSettings();
             this.updateCollections(false);
             return true;
         }
@@ -418,19 +405,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
     @Override
     public void updateNarration(NarrationElementOutput narrationElementOutput) {
-//            ArrayList<AbstractWidget> list = Lists.newArrayList();
-//            this.recipeBookPage.listButtons(abstractWidget -> {
-//                if (abstractWidget.isActive()) {
-//                    list.add((AbstractWidget)abstractWidget);
-//                }
-//            });
-//            list.add(this.searchBox);
-//            list.add(this.filterButton);
-//            list.addAll(this.tabButtons);
-//            Screen.NarratableSearchResult narratableSearchResult = Screen.findNarratableWidget(list, null);
-//            if (narratableSearchResult != null) {
-//                narratableSearchResult.entry.updateNarration(narrationElementOutput.nest());
-//            }
     }
 
     @Override

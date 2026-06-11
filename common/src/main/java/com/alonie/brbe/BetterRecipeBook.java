@@ -22,8 +22,7 @@ public class BetterRecipeBook {
 
     public static final String MOD_ID = "brbe";
 
-    public static int queuedScroll;
-    public static boolean isFilteringNone;
+    private static int queuedScroll;
 
     public static Config config;
     public static ConfigHolder<Config> configHolder;
@@ -31,6 +30,12 @@ public class BetterRecipeBook {
     public static PinnedRecipeManager pinnedRecipeManager;
     public static InstantCraftingManager instantCraftingManager;
     public static final Logger LOGGER = LogManager.getLogger(MOD_ID);
+
+    public static int getQueuedScroll() { return queuedScroll; }
+
+    public static void setQueuedScroll(int value) { queuedScroll = value; }
+
+    public static void addQueuedScroll(int delta) { queuedScroll += delta; }
 
     public static final KeyMapping PIN_MAPPING = new KeyMapping(
             "key.brbe.pin",
@@ -68,7 +73,6 @@ public class BetterRecipeBook {
         ReiCompat.register();
 
         queuedScroll = 0;
-        isFilteringNone = true;
 
         AutoConfig.register(Config.class, Toml4jConfigSerializer::new);
 

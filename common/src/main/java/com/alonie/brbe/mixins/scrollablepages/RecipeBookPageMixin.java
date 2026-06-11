@@ -48,19 +48,18 @@ public abstract class RecipeBookPageMixin {
 
     @Inject(at = @At("HEAD"), method = "render")
     public void render(GuiGraphics gui, int i, int j, int k, int l, float f, CallbackInfo ci) {
-        if (BetterRecipeBook.queuedScroll != 0 && BetterRecipeBook.config.scrolling.enableScrolling) {
+        if (BetterRecipeBook.getQueuedScroll() != 0 && BetterRecipeBook.config.scrolling.enableScrolling) {
             if (isMouseOverRecipeBookPage(k, l, i, j) && totalPages > 1) {
-                currentPage += BetterRecipeBook.queuedScroll;
+                currentPage += BetterRecipeBook.getQueuedScroll();
                 if (currentPage >= totalPages) {
                     currentPage = BetterRecipeBook.config.scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;
                 } else if (currentPage < 0) {
-                    // required as % is not modulus, it is remainder. we need to force output positive by((currentPage % totalPages) + totalPages)
                     currentPage = BetterRecipeBook.config.scrolling.scrollAround ? (currentPage % totalPages) + totalPages : 0;
                 }
 
                 updateButtonsForPage();
             }
-            BetterRecipeBook.queuedScroll = 0;
+            BetterRecipeBook.setQueuedScroll(0);
         }
     }
 
@@ -70,7 +69,7 @@ public abstract class RecipeBookPageMixin {
 
     @Inject(at = @At("RETURN"), method = "init")
     public void init(Minecraft minecraftClient, int parentLeft, int parentTop, CallbackInfo ci) {
-        BetterRecipeBook.queuedScroll = 0;
+        BetterRecipeBook.setQueuedScroll(0);
     }
 
     @Inject(method = "updateArrowButtons", at = @At("RETURN"))

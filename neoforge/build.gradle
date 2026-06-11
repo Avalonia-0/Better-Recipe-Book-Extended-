@@ -43,8 +43,7 @@ dependencies {
 
     def jeiJarCandidates = [
             rootProject.findProperty("jei_neoforge_jar"),
-            "/home/avalonia/Downloads/1.21.1/jei-1.21.1-neoforge-19.27.0.340.jar",
-            "/home/avalonia/Downloads/1.21.1/jei-1.21.1-fabric-19.27.0.340.jar"
+            "/home/avalonia/Downloads/1.21.1/jei-1.21.1-neoforge-19.27.0.340.jar"
     ].findAll { it != null }
     def jeiJarPath = jeiJarCandidates.find { file(it).exists() }
     if (jeiJarPath != null) {
@@ -63,11 +62,14 @@ dependencies {
     shadowBundle project(path: ":common", configuration: "transformProductionNeoForge")
 }
 
-tasks.named("compileJava") {
-    if (!jeiNeoForgePresent) {
-        exclude("com/alonie/brbe/neoforge/compat/jei/BetterRecipeBookJEIPlugin.java")
+    // Conditional compile: exclude JEI plugin when JEI Neoforge variant is missing.
+    // With JEI in libs/ this normally succeeds; this guard prevents a hard crash for CI or fresh clones.
+    // TODO: replace with a proper source set or JEI-on-classpath invariant once the build setup is overhauled.
+    tasks.named("compileJava") {
+        if (!jeiNeoForgePresent) {
+            exclude("com/alonie/brbe/neoforge/compat/jei/BetterRecipeBookJEIPlugin.java")
+        }
     }
-}
 
 processResources {
     inputs.property "version", project.version

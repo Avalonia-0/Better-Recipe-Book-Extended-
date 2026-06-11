@@ -8,11 +8,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 public class BRBBookSettings {
-    public static Map<ResourceLocation, TypeSettings> states = new HashMap<>();
-
-    public BRBBookSettings() {
-        states = new HashMap<>();
-    }
+    private static final Map<ResourceLocation, TypeSettings> states = new HashMap<>();
 
     public static void registerBook(BRBHelper.Book book) {
         BetterRecipeBook.LOGGER.info("Registering book {}", book.resourceLocation);
@@ -35,10 +31,6 @@ public class BRBBookSettings {
 
     public static void setFiltering(BRBHelper.Book book, boolean bl) {
         states.get(book.resourceLocation).filtering = bl;
-    }
-
-    public int hashCode() {
-        return states.hashCode();
     }
 
     static class TypeSettings {

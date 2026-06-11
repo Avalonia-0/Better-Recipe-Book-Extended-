@@ -2,7 +2,7 @@ package com.alonie.brbe.fabric;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.compat.OverlayHider;
-import com.alonie.brbe.fabric.compat.rei.ReiCompatHandler;
+import com.alonie.brbe.compat.rei.ReiCompat;
 import dev.architectury.event.events.client.ClientGuiEvent;
 import dev.architectury.event.events.client.ClientTickEvent;
 import net.fabricmc.api.ClientModInitializer;
@@ -11,7 +11,7 @@ import net.minecraft.client.gui.screens.Screen;
 public class BetterRecipeBookClientFabric implements ClientModInitializer {
     @Override
     public void onInitializeClient() {
-        ReiCompatHandler.register();
+        ReiCompat.register();
 
         ClientGuiEvent.INIT_POST.register((screen, access) -> {
             if (screen != null) {

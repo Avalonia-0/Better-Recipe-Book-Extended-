@@ -1,7 +1,7 @@
 package com.alonie.brbe.brewingstand.neoforge;
 
 import com.alonie.brbe.brewingstand.PlatformPotionUtil;
-import com.alonie.brbe.neoforge.Mixins.Accessors.NeoForgePotionBrewingAccessor;
+import com.alonie.brbe.neoforge.mixins.accessors.NeoForgePotionBrewingAccessor;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionBrewing;

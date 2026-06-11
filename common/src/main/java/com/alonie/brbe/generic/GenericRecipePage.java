@@ -29,7 +29,11 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     protected BRBBookCategories.Category category;
     protected int totalPages;
     protected int currentPage;
-    public final List<GenericRecipeButton<C, R, M>> buttons = Lists.newArrayListWithCapacity(20);
+    private final List<GenericRecipeButton<C, R, M>> buttons = Lists.newArrayListWithCapacity(20);
+
+    public List<GenericRecipeButton<C, R, M>> getButtons() {
+        return buttons;
+    }
     protected GenericRecipeButton<C, R, M> hoveredButton;
 
     public GenericRecipePage(RegistryAccess registryAccess, Supplier<GenericRecipeButton<C, R, M>> recipeButtonSupplier) {
@@ -121,19 +125,18 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     }
 
     protected void render(GuiGraphics gui, int blitX, int blitY, int mouseX, int mouseY, float delta) {
-        if (BetterRecipeBook.queuedScroll != 0 && BetterRecipeBook.config.scrolling.enableScrolling) {
+        if (BetterRecipeBook.getQueuedScroll() != 0 && BetterRecipeBook.config.scrolling.enableScrolling) {
             if (isMouseOverRecipeBookPage(mouseX, mouseY, blitX, blitY) && totalPages > 1) {
-                currentPage += BetterRecipeBook.queuedScroll;
+                currentPage += BetterRecipeBook.getQueuedScroll();
                 if (currentPage >= totalPages) {
                     currentPage = BetterRecipeBook.config.scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;
                 } else if (currentPage < 0) {
-                    // required as % is not modulus, it is remainder. we need to force output positive by((currentPage % totalPages) + totalPages)
                     currentPage = BetterRecipeBook.config.scrolling.scrollAround ? (currentPage % totalPages) + totalPages : 0;
                 }
 
                 updateButtonsForPage();
             }
-            BetterRecipeBook.queuedScroll = 0;
+            BetterRecipeBook.setQueuedScroll(0);
         }
 
         if (this.totalPages > 1) {
