@@ -40,12 +40,9 @@ dependencies {
     implementation(project(path: ":common"))
 }
 
-// Merge RBIP classes directly into BRBE JAR (exclude mod metadata)
+// Include common module (classes + resources) — loom-no-remap doesn't auto-merge
 jar {
     from project(":common").sourceSets.main.output
-    from(zipTree(rootProject.file("libs/rbipe-fabric-26.1.2-2.0.jar"))) {
-        exclude "fabric.mod.json"
-    }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
 
