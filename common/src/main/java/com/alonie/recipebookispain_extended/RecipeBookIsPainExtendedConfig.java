@@ -1,28 +1,19 @@
 package com.alonie.recipebookispain_extended;
 
-import com.google.gson.Gson;
-import com.google.gson.GsonBuilder;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
+import com.alonie.brbe.BetterRecipeBook;
 
-import java.io.IOException;
-import java.io.Reader;
-import java.io.Writer;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.regex.Pattern;
-
+/**
+ * Bridges RBIP's config access to BRBE's Cloth Config.
+ * {@code extendedFeatures()} returns {@code enableRecipeBookIsPain},
+ * {@code bottomNumber()} returns 16 or 6 based on {@code enableTabPage}.
+ * <p>
+ * Values are read live from {@code BetterRecipeBook.config.rbip} so
+ * toggling them in the config screen takes effect immediately (hot reload).
+ */
 public final class RecipeBookIsPainExtendedConfig {
-    private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
-    private static final Pattern INTEGER_PATTERN = Pattern.compile("-?\\d+");
-    private static final boolean DEFAULT_EXTENDED_FEATURES = true;
-    private static final int DEFAULT_BOTTOM_NUMBER = 16;
     private static final int MIN_BOTTOM_NUMBER = 6;
     private static final int MAX_BOTTOM_NUMBER = 16;
-
-    private static RecipeBookIsPainExtendedConfig instance;
-    private static long lastModified = -1L;
+    private static final int DEFAULT_BOTTOM_NUMBER = 16;
 
     private final boolean extendedFeatures;
     private final int bottomNumber;
@@ -41,105 +32,20 @@ public final class RecipeBookIsPainExtendedConfig {
     }
 
     public static RecipeBookIsPainExtendedConfig get() {
-        if (instance == null) {
-            load();
+        if (BetterRecipeBook.config != null) {
+            boolean ext = BetterRecipeBook.config.rbip.enableRecipeBookIsPain;
+            int bottom = BetterRecipeBook.config.rbip.enableTabPage ? DEFAULT_BOTTOM_NUMBER : MIN_BOTTOM_NUMBER;
+            return new RecipeBookIsPainExtendedConfig(ext, bottom);
         }
-        return instance;
+        // Fallback before config is loaded (shouldn't normally reach here)
+        return new RecipeBookIsPainExtendedConfig(true, DEFAULT_BOTTOM_NUMBER);
     }
 
+    /**
+     * No-op: config is always live from BRBE's in-memory config object.
+     * Kept for API compatibility with callers that expect this method.
+     */
     public static boolean reloadIfChanged() {
-        Path path = configPath();
-        long modified = readLastModified(path);
-        if (instance == null || modified != lastModified) {
-            load();
-            return true;
-        }
         return false;
-    }
-
-    private static void load() {
-        Path path = configPath();
-        boolean dirty = false;
-        boolean extendedFeatures = DEFAULT_EXTENDED_FEATURES;
-        int bottomNumber = DEFAULT_BOTTOM_NUMBER;
-
-        if (Files.exists(path)) {
-            try (Reader reader = Files.newBufferedReader(path)) {
-                JsonElement root = JsonParser.parseReader(reader);
-                if (root != null && root.isJsonObject()) {
-                    JsonObject object = root.getAsJsonObject();
-                    JsonElement extendedElement = object.get("extended_features");
-                    JsonElement bottomElement = object.get("bottom_number");
-
-                    if (extendedElement != null && extendedElement.isJsonPrimitive()
-                            && extendedElement.getAsJsonPrimitive().isBoolean()) {
-                        extendedFeatures = extendedElement.getAsBoolean();
-                    } else {
-                        dirty = true;
-                    }
-
-                    if (bottomElement != null && bottomElement.isJsonPrimitive()
-                            && bottomElement.getAsJsonPrimitive().isNumber()
-                            && INTEGER_PATTERN.matcher(bottomElement.getAsString()).matches()) {
-                        int value = bottomElement.getAsInt();
-                        if (value >= MIN_BOTTOM_NUMBER && value <= MAX_BOTTOM_NUMBER) {
-                            bottomNumber = value;
-                        } else {
-                            dirty = true;
-                        }
-                    } else {
-                        dirty = true;
-                    }
-                } else {
-                    dirty = true;
-                }
-            } catch (Exception e) {
-                dirty = true;
-                RecipeBookIsPain.LOGGER.warn("[RBIP] Could not read extended config; using defaults", e);
-            }
-        } else {
-            dirty = true;
-        }
-
-        instance = new RecipeBookIsPainExtendedConfig(extendedFeatures, bottomNumber);
-
-        if (dirty) {
-            write();
-        } else {
-            lastModified = readLastModified(path);
-        }
-    }
-
-    private static void write() {
-        Path path = configPath();
-        JsonObject object = new JsonObject();
-        object.addProperty("extended_features", instance.extendedFeatures);
-        object.addProperty("bottom_number", instance.bottomNumber);
-
-        try {
-            Files.createDirectories(path.getParent());
-            try (Writer writer = Files.newBufferedWriter(path)) {
-                GSON.toJson(object, writer);
-            }
-            lastModified = readLastModified(path);
-        } catch (IOException e) {
-            lastModified = readLastModified(path);
-            RecipeBookIsPain.LOGGER.warn("[RBIP] Could not write extended config", e);
-        }
-    }
-
-    private static Path configPath() {
-        if (RecipeBookIsPain.PLATFORM == null) {
-            return Path.of("config").resolve("recipe-book-is-pain-extended.json");
-        }
-        return RecipeBookIsPain.PLATFORM.getConfigDir().resolve("recipe-book-is-pain-extended.json");
-    }
-
-    private static long readLastModified(Path path) {
-        try {
-            return Files.exists(path) ? Files.getLastModifiedTime(path).toMillis() : -1L;
-        } catch (IOException e) {
-            return -1L;
-        }
     }
 }
