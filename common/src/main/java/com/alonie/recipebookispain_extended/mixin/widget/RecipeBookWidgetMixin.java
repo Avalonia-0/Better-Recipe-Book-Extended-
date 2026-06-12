@@ -61,25 +61,15 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         throw new AssertionError();
     }
 
-    @Shadow
-    public void updateTabs(boolean filteringCraftable) {
-        throw new AssertionError();
-    }
-
     @Unique private RecipeBookTabButton rbip$pinnedTab;
     @Unique private List<RecipeBookTabButton> rbip$pageableTabs = List.of();
     @Unique private int rbip$page;
     @Unique private int rbip$pageCount;
     @Unique private int rbip$pageControlX;
     @Unique private int rbip$pageControlY;
-    @Unique private List<RecipeBookComponent.TabInfo> rbip$vanillaTabInfos;
-    @Unique private int rbip$lastReloadGeneration;
 
     @Inject(at = @At("TAIL"), method = "<init>")
     private void rbip$addCreativeTabs(RecipeBookMenu handler, List<RecipeBookComponent.TabInfo> tabInfos, CallbackInfo ci) {
-        this.rbip$vanillaTabInfos = List.copyOf(this.tabInfos);
-        this.rbip$lastReloadGeneration = RecipeBookIsPainExtendedConfig.reloadGeneration();
-
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         if ((Object) this instanceof CraftingRecipeBookComponent) {
             this.tabInfos = RecipeBookIsPain.withCreativeTabs(this.tabInfos);
@@ -116,26 +106,14 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     }
 
     @Inject(at = @At("HEAD"), method = "render")
-    private void rbip$hotReloadOnConfigChange(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (this.rbip$vanillaTabInfos == null) return;
-        int currentGen = RecipeBookIsPainExtendedConfig.reloadGeneration();
-        if (currentGen == this.rbip$lastReloadGeneration) return;
-        this.rbip$lastReloadGeneration = currentGen;
-
-        if (!((Object) this instanceof CraftingRecipeBookComponent)) return;
-
-        if (!RecipeBookIsPainExtendedConfig.enabled()) {
-            // Restore vanilla tabs; syncLateGroups will skip (enabled=false)
-            this.tabInfos = new ArrayList<>(this.rbip$vanillaTabInfos);
+    private void rbip$reloadExtendedConfig(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        if (RecipeBookIsPainExtendedConfig.reloadIfChanged()) {
+            this.rbip$applyPagination(true);
         }
-        // When enabling, syncLateGroups will call withCreativeTabs — don't double-call here
-
-        this.updateTabs(false);
     }
 
     @Inject(at = @At("TAIL"), method = "render")
     private void rbip$renderPageControls(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         if (!this.isVisible() || this.rbip$pageCount <= 1) return;
 
         this.rbip$drawPageControl(context, this.rbip$pageControlX, this.rbip$pageControlY, false, this.rbip$page > 0, mouseX, mouseY);
@@ -150,7 +128,6 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Inject(at = @At("HEAD"), method = "mouseClicked", cancellable = true)
     private void rbip$mouseClickedPageControls(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
-        if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         if (!this.isVisible() || this.rbip$pageCount <= 1 || click.button() != 0) return;
 
         int x = (int) click.x();
@@ -179,7 +156,6 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Override
     public boolean rbip$scrollPages(double mouseX, double mouseY, double verticalAmount) {
-        if (!RecipeBookIsPainExtendedConfig.enabled()) return false;
         if (this.rbip$pageCount <= 1
                 || verticalAmount == 0.0D
                 || !this.rbip$isMouseOverAnyVisibleTab(mouseX, mouseY)) {

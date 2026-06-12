@@ -18,8 +18,9 @@ public class Config implements ConfigData {
 
     public boolean showAllRecipesInSurvival = true;
 
-    @ConfigEntry.Category("rbip")
-    @ConfigEntry.Gui.TransitiveObject()
+    // 没做好 — 请直接在 config/brbe.toml 中修改 [rbip] 小节
+    // @ConfigEntry.Category("rbip")
+    // @ConfigEntry.Gui.TransitiveObject()
     public RecipeBookIsPain rbip = new RecipeBookIsPain();
 
     @ConfigEntry.Category("newRecipes")
