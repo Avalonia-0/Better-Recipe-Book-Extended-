@@ -14,39 +14,37 @@ import com.alonie.brbe.BetterRecipeBook;
  */
 public final class RecipeBookIsPainExtendedConfig {
 
+    private static int reloadGeneration;
+
     private RecipeBookIsPainExtendedConfig() {}
 
-    /**
-     * Returns whether the RBIP module is enabled.
-     * When false, RBIP mixins should return early without modifying anything.
-     */
     public static boolean enabled() {
-        if (BetterRecipeBook.config == null) return true; // not loaded yet, default on
+        if (BetterRecipeBook.config == null) return true;
         return BetterRecipeBook.config.rbip.enableRecipeBookIsPain;
     }
 
-    /**
-     * Returns the number of tab slots available for grouping (16 or 6).
-     */
     public static int bottomNumber() {
         if (BetterRecipeBook.config == null) return 16;
         return BetterRecipeBook.config.rbip.enableTabPage ? 16 : 6;
+    }
+
+    /** Call when BRBE config is saved to signal a hot reload. */
+    public static void requestReload() {
+        reloadGeneration++;
+    }
+
+    /** Returns the current reload generation for change detection. */
+    public static int reloadGeneration() {
+        return reloadGeneration;
     }
 
     /** @deprecated All features are now core; always returns true. */
     @Deprecated
     public boolean extendedFeatures() { return true; }
 
-    /** @deprecated Use {@link #enabled()} instead for gating the module. */
-    @Deprecated
-    public int getBottomNumber() { return bottomNumber(); }
-
-    /**
-     * Returns a shared singleton for callers that expect the old API.
-     */
     public static RecipeBookIsPainExtendedConfig get() { return Holder.INSTANCE; }
     private static final class Holder { static final RecipeBookIsPainExtendedConfig INSTANCE = new RecipeBookIsPainExtendedConfig(); }
 
-    /** No-op: config is live. Kept for API compatibility. */
+    /** No-op: config is live. */
     public static boolean reloadIfChanged() { return false; }
 }
