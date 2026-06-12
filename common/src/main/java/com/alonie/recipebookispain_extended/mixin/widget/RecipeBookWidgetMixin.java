@@ -66,6 +66,31 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         throw new AssertionError();
     }
 
+    @Unique
+    private static RecipeBookWidgetMixin rbip$activeInstance;
+
+    /**
+     * Called from BRBE's config save listener to synchronously rebuild
+     * the recipe book before the config screen closes, eliminating the
+     * one-frame visual glitch.
+     */
+    @Unique
+    public static void rbip$forceHotReload() {
+        RecipeBookWidgetMixin instance = rbip$activeInstance;
+        if (instance == null) return;
+        if (!((Object) instance instanceof CraftingRecipeBookComponent)) return;
+
+        if (!RecipeBookIsPainExtendedConfig.enabled()) {
+            // Restore vanilla tabs before updateTabs runs
+            if (instance.rbip$vanillaTabInfos != null) {
+                instance.tabInfos = new ArrayList<>(instance.rbip$vanillaTabInfos);
+            }
+        }
+        // When enabling, syncLateGroups will call withCreativeTabs
+
+        instance.updateTabs(false);
+    }
+
     @Unique private RecipeBookTabButton rbip$pinnedTab;
     @Unique private List<RecipeBookTabButton> rbip$pageableTabs = List.of();
     @Unique private int rbip$page;
@@ -77,6 +102,8 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Inject(at = @At("TAIL"), method = "<init>")
     private void rbip$addCreativeTabs(RecipeBookMenu handler, List<RecipeBookComponent.TabInfo> tabInfos, CallbackInfo ci) {
+        rbip$activeInstance = this;
+
         // Save original vanilla tabs for hot-reload restoration
         this.rbip$vanillaTabInfos = List.copyOf(this.tabInfos);
         this.rbip$lastReloadGeneration = RecipeBookIsPainExtendedConfig.reloadGeneration();
