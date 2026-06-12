@@ -135,6 +135,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Inject(at = @At("TAIL"), method = "render")
     private void rbip$renderPageControls(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         if (!this.isVisible() || this.rbip$pageCount <= 1) return;
 
         this.rbip$drawPageControl(context, this.rbip$pageControlX, this.rbip$pageControlY, false, this.rbip$page > 0, mouseX, mouseY);
@@ -149,6 +150,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Inject(at = @At("HEAD"), method = "mouseClicked", cancellable = true)
     private void rbip$mouseClickedPageControls(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
+        if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         if (!this.isVisible() || this.rbip$pageCount <= 1 || click.button() != 0) return;
 
         int x = (int) click.x();
@@ -177,6 +179,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Override
     public boolean rbip$scrollPages(double mouseX, double mouseY, double verticalAmount) {
+        if (!RecipeBookIsPainExtendedConfig.enabled()) return false;
         if (this.rbip$pageCount <= 1
                 || verticalAmount == 0.0D
                 || !this.rbip$isMouseOverAnyVisibleTab(mouseX, mouseY)) {
