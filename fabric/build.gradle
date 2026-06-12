@@ -52,11 +52,11 @@ tasks.named("compileJava") {
     }
 }
 
-// Include common module (classes + resources) + RBIP jar-in-jar
+// Merge RBIP classes directly into BRBE JAR (exclude mod metadata)
 jar {
     from project(":common").sourceSets.main.output
-    from(rootProject.file("libs/rbipe-fabric-1.21.11-2.0.jar")) {
-        into "META-INF/jars/"
+    from(zipTree(rootProject.file("libs/rbipe-fabric-1.21.11-2.0.jar"))) {
+        exclude "fabric.mod.json"
     }
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
