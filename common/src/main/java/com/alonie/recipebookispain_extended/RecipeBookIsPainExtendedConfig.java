@@ -14,6 +14,8 @@ import com.alonie.brbe.BetterRecipeBook;
  */
 public final class RecipeBookIsPainExtendedConfig {
 
+    private static int reloadGeneration;
+
     private RecipeBookIsPainExtendedConfig() {}
 
     public static boolean enabled() {
@@ -24,6 +26,16 @@ public final class RecipeBookIsPainExtendedConfig {
     public static int bottomNumber() {
         if (BetterRecipeBook.config == null) return 16;
         return BetterRecipeBook.config.rbip.enableTabPage ? 16 : 6;
+    }
+
+    /** Call when BRBE config is saved to signal a hot reload. */
+    public static void requestReload() {
+        reloadGeneration++;
+    }
+
+    /** Returns the current reload generation for change detection. */
+    public static int reloadGeneration() {
+        return reloadGeneration;
     }
 
     /** @deprecated All features are now core; always returns true. */

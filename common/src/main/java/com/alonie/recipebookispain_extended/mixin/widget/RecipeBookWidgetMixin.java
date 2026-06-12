@@ -61,18 +61,29 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         throw new AssertionError();
     }
 
+    @Shadow
+    public void updateTabs(boolean filteringCraftable) {
+        throw new AssertionError();
+    }
+
     @Unique private RecipeBookTabButton rbip$pinnedTab;
     @Unique private List<RecipeBookTabButton> rbip$pageableTabs = List.of();
     @Unique private int rbip$page;
     @Unique private int rbip$pageCount;
     @Unique private int rbip$pageControlX;
     @Unique private int rbip$pageControlY;
+    @Unique private List<RecipeBookComponent.TabInfo> rbip$vanillaTabInfos;
+    @Unique private int rbip$lastReloadGeneration;
 
     @Inject(at = @At("TAIL"), method = "<init>")
     private void rbip$addCreativeTabs(RecipeBookMenu handler, List<RecipeBookComponent.TabInfo> tabInfos, CallbackInfo ci) {
+        // Save original vanilla tabs for hot-reload restoration
+        this.rbip$vanillaTabInfos = List.copyOf(this.tabInfos);
+        this.rbip$lastReloadGeneration = RecipeBookIsPainExtendedConfig.reloadGeneration();
+
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         if ((Object) this instanceof CraftingRecipeBookComponent) {
-            this.tabInfos = RecipeBookIsPain.withCreativeTabs(tabInfos);
+            this.tabInfos = RecipeBookIsPain.withCreativeTabs(this.tabInfos);
         }
     }
 
@@ -106,10 +117,22 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     }
 
     @Inject(at = @At("HEAD"), method = "extractRenderState")
-    private void rbip$reloadExtendedConfig(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (RecipeBookIsPainExtendedConfig.reloadIfChanged()) {
-            this.rbip$applyPagination(true);
+    private void rbip$hotReloadOnConfigChange(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        if (this.rbip$vanillaTabInfos == null) return;
+        int currentGen = RecipeBookIsPainExtendedConfig.reloadGeneration();
+        if (currentGen == this.rbip$lastReloadGeneration) return;
+        this.rbip$lastReloadGeneration = currentGen;
+
+        if (!((Object) this instanceof CraftingRecipeBookComponent)) return;
+
+        if (RecipeBookIsPainExtendedConfig.enabled()) {
+            this.tabInfos = RecipeBookIsPain.withCreativeTabs(new ArrayList<>(this.rbip$vanillaTabInfos));
+        } else {
+            this.tabInfos = new ArrayList<>(this.rbip$vanillaTabInfos);
         }
+
+        // Force updateTabs to pick up the new tabInfos
+        this.updateTabs(false);
     }
 
     @Inject(at = @At("TAIL"), method = "extractRenderState")
