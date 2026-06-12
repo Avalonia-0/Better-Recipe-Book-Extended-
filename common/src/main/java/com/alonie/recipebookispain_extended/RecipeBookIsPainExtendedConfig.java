@@ -4,48 +4,35 @@ import com.alonie.brbe.BetterRecipeBook;
 
 /**
  * Bridges RBIP's config access to BRBE's Cloth Config.
- * {@code extendedFeatures()} returns {@code enableRecipeBookIsPain},
- * {@code bottomNumber()} returns 16 or 6 based on {@code enableTabPage}.
+ * All features previously gated by {@code extendedFeatures} are now
+ * always active. The {@code enableRecipeBookIsPain} switch controls
+ * the entire RBIP module, and {@code enableTabPage} controls the
+ * tab page count (16 or 6).
  * <p>
  * Values are read live from {@code BetterRecipeBook.config.rbip} so
- * toggling them in the config screen takes effect immediately (hot reload).
+ * toggling them in the config screen takes effect immediately.
  */
 public final class RecipeBookIsPainExtendedConfig {
-    private static final int MIN_BOTTOM_NUMBER = 6;
-    private static final int MAX_BOTTOM_NUMBER = 16;
-    private static final int DEFAULT_BOTTOM_NUMBER = 16;
 
-    private final boolean extendedFeatures;
-    private final int bottomNumber;
+    private RecipeBookIsPainExtendedConfig() {}
 
-    private RecipeBookIsPainExtendedConfig(boolean extendedFeatures, int bottomNumber) {
-        this.extendedFeatures = extendedFeatures;
-        this.bottomNumber = bottomNumber;
+    public static boolean enabled() {
+        if (BetterRecipeBook.config == null) return true;
+        return BetterRecipeBook.config.rbip.enableRecipeBookIsPain;
     }
 
-    public boolean extendedFeatures() {
-        return this.extendedFeatures;
+    public static int bottomNumber() {
+        if (BetterRecipeBook.config == null) return 16;
+        return BetterRecipeBook.config.rbip.enableTabPage ? 16 : 6;
     }
 
-    public int bottomNumber() {
-        return this.bottomNumber;
-    }
+    /** @deprecated All features are now core; always returns true. */
+    @Deprecated
+    public boolean extendedFeatures() { return true; }
 
-    public static RecipeBookIsPainExtendedConfig get() {
-        if (BetterRecipeBook.config != null) {
-            boolean ext = BetterRecipeBook.config.rbip.enableRecipeBookIsPain;
-            int bottom = BetterRecipeBook.config.rbip.enableTabPage ? DEFAULT_BOTTOM_NUMBER : MIN_BOTTOM_NUMBER;
-            return new RecipeBookIsPainExtendedConfig(ext, bottom);
-        }
-        // Fallback before config is loaded (shouldn't normally reach here)
-        return new RecipeBookIsPainExtendedConfig(true, DEFAULT_BOTTOM_NUMBER);
-    }
+    public static RecipeBookIsPainExtendedConfig get() { return Holder.INSTANCE; }
+    private static final class Holder { static final RecipeBookIsPainExtendedConfig INSTANCE = new RecipeBookIsPainExtendedConfig(); }
 
-    /**
-     * No-op: config is always live from BRBE's in-memory config object.
-     * Kept for API compatibility with callers that expect this method.
-     */
-    public static boolean reloadIfChanged() {
-        return false;
-    }
+    /** No-op: config is live. */
+    public static boolean reloadIfChanged() { return false; }
 }
