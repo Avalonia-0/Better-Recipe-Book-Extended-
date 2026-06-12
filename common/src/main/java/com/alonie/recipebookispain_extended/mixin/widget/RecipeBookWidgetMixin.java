@@ -124,11 +124,11 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
         if (!((Object) this instanceof CraftingRecipeBookComponent)) return;
 
-        if (RecipeBookIsPainExtendedConfig.enabled()) {
-            this.tabInfos = RecipeBookIsPain.withCreativeTabs(new ArrayList<>(this.rbip$vanillaTabInfos));
-        } else {
+        if (!RecipeBookIsPainExtendedConfig.enabled()) {
+            // Restore vanilla tabs; syncLateGroups will skip (enabled=false)
             this.tabInfos = new ArrayList<>(this.rbip$vanillaTabInfos);
         }
+        // When enabling, syncLateGroups will call withCreativeTabs — don't double-call here
 
         this.updateTabs(false);
     }
