@@ -66,23 +66,6 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         throw new AssertionError();
     }
 
-    @Unique
-    private static RecipeBookWidgetMixin rbip$activeInstance;
-
-    @Unique
-    public static void rbip$forceHotReload() {
-        RecipeBookWidgetMixin instance = rbip$activeInstance;
-        if (instance == null) return;
-        if (!((Object) instance instanceof CraftingRecipeBookComponent)) return;
-
-        if (!RecipeBookIsPainExtendedConfig.enabled()) {
-            if (instance.rbip$vanillaTabInfos != null) {
-                instance.tabInfos = new ArrayList<>(instance.rbip$vanillaTabInfos);
-            }
-        }
-        instance.updateTabs(false);
-    }
-
     @Unique private RecipeBookTabButton rbip$pinnedTab;
     @Unique private List<RecipeBookTabButton> rbip$pageableTabs = List.of();
     @Unique private int rbip$page;
@@ -94,7 +77,6 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Inject(at = @At("TAIL"), method = "<init>")
     private void rbip$addCreativeTabs(RecipeBookMenu handler, List<RecipeBookComponent.TabInfo> tabInfos, CallbackInfo ci) {
-        rbip$activeInstance = this;
         this.rbip$vanillaTabInfos = List.copyOf(this.tabInfos);
         this.rbip$lastReloadGeneration = RecipeBookIsPainExtendedConfig.reloadGeneration();
 
