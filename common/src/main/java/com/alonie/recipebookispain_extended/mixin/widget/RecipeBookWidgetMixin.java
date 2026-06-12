@@ -62,7 +62,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     }
 
     @Shadow
-    private void initVisuals() {
+    public void updateTabs(boolean filteringCraftable) {
         throw new AssertionError();
     }
 
@@ -131,8 +131,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
             this.tabInfos = new ArrayList<>(this.rbip$vanillaTabInfos);
         }
 
-        // Force full reinitialization of the recipe book
-        this.initVisuals();
+        this.updateTabs(false);
     }
 
     @Inject(at = @At("TAIL"), method = "extractRenderState")
