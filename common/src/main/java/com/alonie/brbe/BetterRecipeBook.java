@@ -78,7 +78,7 @@ public class BetterRecipeBook {
         configHolder = AutoConfig.getConfigHolder(Config.class);
         configHolder.registerSaveListener((holder, config) -> {
             RecipeUnlockUtil.syncToConfig();
-            com.alonie.recipebookispain_extended.RecipeBookIsPainExtendedConfig.requestReload();
+            com.alonie.recipebookispain_extended.mixin.widget.RecipeBookWidgetMixin.rbip$forceHotReload();
             return InteractionResult.SUCCESS;
         });
         config = configHolder.getConfig();
