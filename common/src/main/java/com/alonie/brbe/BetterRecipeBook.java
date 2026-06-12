@@ -99,12 +99,9 @@ public class BetterRecipeBook {
         configHolder = AutoConfig.getConfigHolder(Config.class);
         configHolder.registerSaveListener((holder, config) -> {
             RecipeUnlockUtil.syncToConfig();
-            config.syncRbipConfig();
             return InteractionResult.SUCCESS;
         });
         config = configHolder.getConfig();
-        // Ensure RBIP config is in sync at startup (hot-reload ready)
-        config.syncRbipConfig();
 
         pinnedRecipeManager = new PinnedRecipeManager();
         pinnedRecipeManager.read();
