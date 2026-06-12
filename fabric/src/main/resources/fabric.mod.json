@@ -23,9 +23,6 @@
   "license": "MIT",
   "icon": "assets/brbe/icon.png",
   "environment": "client",
-  "jars": [{
-    "file": "META-INF/jars/rbipe-fabric-26.1.2-2.0.jar"
-  }],
   "entrypoints": {
     "main": [
       "com.alonie.brbe.fabric.BetterRecipeBookFabric"
@@ -45,7 +42,9 @@
     "mixins.brbe-common.json",
     "mixins.brbe-common-compat.json",
     "mixins.brbe-jei.json",
-    "mixins.brbe-rei-common.json"
+    "mixins.brbe-rei-common.json",
+    "recipe-book-is-pain-extended.mixins.json",
+    "rbip-common.mixins.json"
   ],
   "depends": {
     "fabric-api": "*",

@@ -68,8 +68,9 @@ shadowJar {
     configurations = [project.configurations.shadowBundle]
     archiveClassifier = "dev-shadow"
 
-    from(rootProject.file("libs/rbipe-neoforge-26.1.2-2.0.jar")) {
-        into "META-INF/jars/"
+    // Merge RBIP classes directly into BRBE JAR (exclude mod metadata)
+    from(zipTree(rootProject.file("libs/rbipe-neoforge-26.1.2-2.0.jar"))) {
+        exclude "META-INF/neoforge.mods.toml"
     }
 }
 
