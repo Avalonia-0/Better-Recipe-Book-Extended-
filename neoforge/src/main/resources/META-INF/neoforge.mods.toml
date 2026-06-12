@@ -59,7 +59,7 @@ config = "mixins.brbe-rei-common.json"
 
 [[dependencies.brbe]]
 modId = "recipe_book_is_pain_extended"
-type = "required"
+type = "optional"
 versionRange = "[1.21.11,)"
 ordering = "NONE"
 side = "CLIENT"
