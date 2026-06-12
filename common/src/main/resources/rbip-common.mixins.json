@@ -1,0 +1,23 @@
+{
+  "required": true,
+  "verbose": true,
+  "minVersion": "0.8",
+  "package": "com.alonie.recipebookispain_extended.mixin",
+  "compatibilityLevel": "JAVA_21",
+  "refmap": "rbip-common.refmap.json",
+  "mixins": [],
+  "client": [
+    "ItemMixin",
+    "MouseMixin",
+    "groups.ClientRecipeBookMixin",
+    "screen.HandledScreenMixin",
+    "screen.RecipeBookScreenAccessor",
+    "widget.RecipeBookTooltipMixin",
+    "widget.RecipeBookWidgetMixin",
+    "widget.RecipeGroupButtonMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  },
+  "plugin": "com.alonie.brbe.mixin.RbipMixinConfigPlugin"
+}
