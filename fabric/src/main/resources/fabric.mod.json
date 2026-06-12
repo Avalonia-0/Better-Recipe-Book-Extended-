@@ -43,8 +43,7 @@
     "mixins.brbe-common-compat.json",
     "mixins.brbe-jei.json",
     "mixins.brbe-rei-common.json",
-    "recipe-book-is-pain-extended.mixins.json",
-    "rbip-common.mixins.json"
+    "recipe-book-is-pain-extended.mixins.json"
   ],
   "depends": {
     "fabric-api": "*",

@@ -18,6 +18,5 @@
   ],
   "injectors": {
     "defaultRequire": 1
-  },
-  "plugin": "com.alonie.brbe.mixin.RbipMixinConfigPlugin"
+  }
 }
