@@ -23,6 +23,9 @@
   "license": "MIT",
   "icon": "assets/brbe/icon.png",
   "environment": "client",
+  "jars": [{
+    "file": "META-INF/jars/rbipe-fabric-26.1.2-2.0.jar"
+  }],
   "entrypoints": {
     "main": [
       "com.alonie.brbe.fabric.BetterRecipeBookFabric"

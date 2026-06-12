@@ -56,3 +56,13 @@ config = "mixins.brbe-jei-common.json"
 
 [[mixins]]
 config = "mixins.brbe-rei-common.json"
+
+[[dependencies.brbe]]
+modId = "recipe_book_is_pain_extended"
+type = "required"
+versionRange = "[1.21.11,)"
+ordering = "NONE"
+side = "CLIENT"
+
+[[jars]]
+file = "META-INF/jars/rbipe-neoforge-26.1.2-2.0.jar"
