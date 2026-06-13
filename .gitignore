@@ -6,4 +6,8 @@
 # IDE
 neoforge/.gradle/
 neoforge/build/
-.architectury-transformer/debug.log
+
+# root build artifacts
+/*.jar
+/HeadlessMC/
+/logs/
