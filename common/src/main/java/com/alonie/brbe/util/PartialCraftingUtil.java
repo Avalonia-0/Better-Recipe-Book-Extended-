@@ -41,11 +41,10 @@ public final class PartialCraftingUtil {
 
     public static boolean markPartialMaterials(RecipeCollection collection, NonNullList<Slot> slots) {
         CHECKED_COLLECTIONS.put(collection, filteringGeneration);
-        RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
         boolean markedAny = false;
         Set<RecipeDisplayId> partialRecipes = new HashSet<>();
         for (RecipeDisplayEntry recipe : collection.getRecipes()) {
-            if (!accessor.betterRecipeBook$getSelected().contains(recipe.id()) || collection.isCraftable(recipe.id())) {
+            if (collection.isCraftable(recipe.id())) {
                 continue;
             }
 
@@ -108,10 +107,9 @@ public final class PartialCraftingUtil {
             return Collections.emptyList();
         }
 
-        RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
         List<RecipeDisplayEntry> recipes = new ArrayList<>();
         for (RecipeDisplayEntry recipe : collection.getRecipes()) {
-            if (partialRecipes.contains(recipe.id()) && accessor.betterRecipeBook$getSelected().contains(recipe.id())) {
+            if (partialRecipes.contains(recipe.id())) {
                 recipes.add(recipe);
             }
         }
@@ -130,7 +128,6 @@ public final class PartialCraftingUtil {
             return selectedRecipes;
         }
 
-        RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
         List<RecipeDisplayEntry> combinedRecipes = new ArrayList<>(selectedRecipes);
         Set<RecipeDisplayId> existingIds = new HashSet<>();
         for (RecipeDisplayEntry recipe : selectedRecipes) {
@@ -138,7 +135,7 @@ public final class PartialCraftingUtil {
         }
 
         for (RecipeDisplayEntry recipe : collection.getRecipes()) {
-            if (partialRecipes.contains(recipe.id()) && accessor.betterRecipeBook$getSelected().contains(recipe.id()) && !existingIds.contains(recipe.id())) {
+            if (partialRecipes.contains(recipe.id()) && !existingIds.contains(recipe.id())) {
                 combinedRecipes.add(recipe);
             }
         }

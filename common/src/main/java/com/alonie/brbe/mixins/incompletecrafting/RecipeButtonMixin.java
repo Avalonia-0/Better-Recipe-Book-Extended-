@@ -1,11 +1,8 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
-import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.util.PartialCraftingUtil;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
@@ -42,61 +39,64 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     @Shadow
     public abstract RecipeDisplayId getCurrentRecipe();
 
-    @Redirect(method = "init", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;"))
-    private List<RecipeDisplayEntry> betterRecipeBook$getSelectedRecipes(
-            RecipeCollection collection, RecipeCollection.CraftableStatus status,
-            RecipeCollection originalCollection, boolean filteringCraftable,
-            RecipeBookPage recipeBookPage, ContextMap contextMap) {
-        // In the 2x2 inventory grid when NOT filtering, show ALL selected recipes,
-        // filtering out any with unresolvable results (would render as air).
-        List<RecipeDisplayEntry> result;
-        if (BetterRecipeBook.config.showAllRecipesInSurvival
-                && status == RecipeCollection.CraftableStatus.CRAFTABLE
-                && !filteringCraftable
-                && Minecraft.getInstance().screen instanceof InventoryScreen) {
-            List<RecipeDisplayEntry> any = PartialCraftingUtil.getSelectedRecipes(collection, RecipeCollection.CraftableStatus.ANY);
-            result = any.stream()
-                    .filter(e -> !e.resultItems(contextMap).isEmpty())
-                    .toList();
-        } else {
-            result = PartialCraftingUtil.getSelectedRecipes(collection, status);
+    /**
+     * Filters getSelectedRecipes result so the button only cycles through
+     * craftable and partially-craftable recipes when any exist.
+     *
+     * When the collection has at least one craftable or partially-craftable
+     * recipe, completely uncraftable recipes are excluded from cycling.
+     * When ALL recipes in the collection are completely uncraftable, the
+     * full list is returned unchanged (no filtering possible).
+     *
+     * Within the returned list craftable recipes come before partially-
+     * craftable ones.
+     */
+    @Redirect(
+        method = "init",
+        at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;"),
+        require = 1
+    )
+    private List<RecipeDisplayEntry> betterRecipeBook$filterSelectedRecipes(
+            RecipeCollection collection, RecipeCollection.CraftableStatus status) {
+        List<RecipeDisplayEntry> result = collection.getSelectedRecipes(status);
+
+        if (result.size() <= 1) {
+            return result;
         }
 
-        // Filter: when the collection has craftable or partially-craftable
-        // recipes, drop the completely uncraftable ones from cycling so the
-        // button only shows craftable + partial alternatives.
-        if (result.size() > 1) {
-            boolean hasAnyCraftable = collection.hasCraftable();
-            boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(collection);
+        // Determine whether there are any craftable or partial recipes.
+        // hasCraftable() covers both fully-craftable and partial recipes
+        // (partial IDs are injected into the craftable set beforehand).
+        boolean hasAnyCraftable = collection.hasCraftable();
+        boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(collection);
 
-            if (hasAnyCraftable || hasPartial) {
-                List<RecipeDisplayEntry> filtered = new ArrayList<>(result.size());
-                for (RecipeDisplayEntry e : result) {
-                    RecipeDisplayId id = e.id();
-                    if (collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
-                        filtered.add(e);
-                    }
-                }
-                for (RecipeDisplayEntry e : result) {
-                    if (PartialCraftingUtil.isPartiallyCraftable(collection, e.id())) {
-                        filtered.add(e);
-                    }
-                }
-                return filtered;
+        if (!hasAnyCraftable && !hasPartial) {
+            // Every recipe is completely uncraftable — return all.
+            return result;
+        }
+
+        // Filter: only keep craftable or partially-craftable entries,
+        // put fully-craftable before partial in the returned list.
+        List<RecipeDisplayEntry> filtered = new ArrayList<>(result.size());
+        for (RecipeDisplayEntry e : result) {
+            RecipeDisplayId id = e.id();
+            if (collection.isCraftable(id) && !PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
+                filtered.add(e);
             }
         }
-
-        return result;
+        for (RecipeDisplayEntry e : result) {
+            if (PartialCraftingUtil.isPartiallyCraftable(collection, e.id())) {
+                filtered.add(e);
+            }
+        }
+        return filtered;
     }
 
-    @Redirect(method = "extractWidgetRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
-    private boolean betterRecipeBook$renderCurrentRecipeCraftability(RecipeCollection collection, GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
-        // Guard against MC-26.1.2 vanilla bug: getCurrentRecipe divides by zero
+    @Redirect(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
+    private boolean betterRecipeBook$renderCurrentRecipeCraftability(RecipeCollection collection, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         try {
             RecipeDisplayId currentRecipe = this.getCurrentRecipe();
-            boolean craftable = collection.isCraftable(currentRecipe);
-            boolean partial = PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
-            return craftable || partial;
+            return collection.isCraftable(currentRecipe) || PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
         } catch (ArithmeticException e) {
             return collection.hasCraftable();
         }
@@ -110,7 +110,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         }
 
         // Our filter may have reduced selectedEntries to a single entry,
-        // but the collection still contains multiple alternatives.
+        // but the collection itself still contains multiple alternatives.
         // Force isOnlyOption=false so the overlay can show them all.
         if (this.collection.getSelectedRecipes(RecipeCollection.CraftableStatus.ANY).size() > 1
                 && (this.collection.hasCraftable() || PartialCraftingUtil.hasPartialMaterials(this.collection))) {
@@ -142,8 +142,8 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
      * Prevents the vanilla "stacking" render effect when hasMultipleRecipes()
      * is true but selectedEntries has only 1 entry.
      *
-     * Vanilla extractWidgetRenderState renders the item at two offset positions
-     * to create a visual stack when {@code hasMultipleRecipes() && allRecipesHaveSameResultDisplay}.
+     * Vanilla renderWidget renders the item at two offset positions to create
+     * a visual stack when {@code hasMultipleRecipes() && allRecipesHaveSameResultDisplay}.
      * With our filter trimming the list to 1 entry this double-render causes
      * the same item to appear overlapped with itself.
      */
@@ -159,8 +159,8 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         }
     }
 
-    @Inject(method = "extractWidgetRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fakeItem(Lnet/minecraft/world/item/ItemStack;II)V", shift = At.Shift.BEFORE))
-    private void betterRecipeBook$renderPartialOverlay(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderFakeItem(Lnet/minecraft/world/item/ItemStack;II)V", shift = At.Shift.BEFORE))
+    private void betterRecipeBook$renderPartialOverlay(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         RecipeDisplayId currentRecipe;
         try {
             currentRecipe = this.getCurrentRecipe();

@@ -4,7 +4,6 @@ import com.alonie.brbe.BetterRecipeBook;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
-import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -23,11 +22,10 @@ public class RecipeButtonMixin {
     @Unique private List<RecipeDisplayId> betterRecipeBook$lastClicked;
 
     @Inject(method = "init", at = @At(value = "HEAD"))
-    public void init(RecipeCollection collection, boolean filteringCraftable, RecipeBookPage recipeBookPage, ContextMap contextMap, CallbackInfo ci) {
+    public void init(RecipeCollection collection, RecipeBookPage recipeBookPage, CallbackInfo ci) {
         if (BetterRecipeBook.instantCraftingManager.lastHoveredCollection == collection) {
             BetterRecipeBook.instantCraftingManager.lastHoveredCollection = null;
-            betterRecipeBook$lastClicked = List.of(BetterRecipeBook.instantCraftingManager.getLastClickedRecipe());
+            betterRecipeBook$lastClicked = List.of(BetterRecipeBook.instantCraftingManager.lastClickedRecipe);
         }
     }
-
 }

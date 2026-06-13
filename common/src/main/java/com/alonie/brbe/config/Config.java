@@ -43,6 +43,7 @@ public class Config implements ConfigData {
     public boolean enableBook = true;
 
     public static class RecipeBookIsPain {
+        // 没做好 — 仍可通过 config/brbe.toml 使用
         @ConfigEntry.Gui.Excluded
         @ConfigEntry.Gui.Tooltip()
         public boolean enableRecipeBookIsPain = true;

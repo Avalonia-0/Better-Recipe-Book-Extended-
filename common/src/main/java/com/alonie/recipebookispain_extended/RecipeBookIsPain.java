@@ -4,7 +4,7 @@ import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.alonie.recipebookispain_extended.access.ItemAccess;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
 import net.minecraft.client.gui.screens.recipebook.SearchRecipeBookCategory;
@@ -221,11 +221,11 @@ public class RecipeBookIsPain {
     //  Icon rendering — owo-lib animated icons
     // ------------------------------------------------
 
-    public static boolean rbip$renderOwo(GuiGraphicsExtractor context, int i, RecipeBookTabButton widget, CreativeModeTab group) {
+    public static boolean rbip$renderOwo(GuiGraphics context, int i, RecipeBookTabButton widget, CreativeModeTab group) {
         return rbip$renderOwo(context, widget.getX() + 9 + i, widget.getY() + 5, group);
     }
 
-    public static boolean rbip$renderOwo(GuiGraphicsExtractor context, int x, int y, CreativeModeTab group) {
+    public static boolean rbip$renderOwo(GuiGraphics context, int x, int y, CreativeModeTab group) {
         // owo-lib not bundled — use standard icon rendering
         return false;
     }

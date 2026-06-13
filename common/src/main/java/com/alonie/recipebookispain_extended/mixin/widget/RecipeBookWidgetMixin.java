@@ -7,7 +7,7 @@ import com.alonie.recipebookispain_extended.access.RecipeGroupButtonPlacement;
 import com.alonie.recipebookispain_extended.access.RecipeGroupButtonPlacementAccess;
 import com.alonie.recipebookispain_extended.access.RecipeBookScrollAccess;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.gui.screens.recipebook.CraftingRecipeBookComponent;
@@ -70,13 +70,15 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Inject(at = @At("TAIL"), method = "<init>")
     private void rbip$addCreativeTabs(RecipeBookMenu handler, List<RecipeBookComponent.TabInfo> tabInfos, CallbackInfo ci) {
+        if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         if ((Object) this instanceof CraftingRecipeBookComponent) {
-            this.tabInfos = RecipeBookIsPain.withCreativeTabs(tabInfos);
+            this.tabInfos = RecipeBookIsPain.withCreativeTabs(this.tabInfos);
         }
     }
 
     @Inject(at = @At("HEAD"), method = "updateTabs")
     private void rbip$syncLateGroups(CallbackInfo ci) {
+        if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         if (!((Object) this instanceof CraftingRecipeBookComponent)) return;
         PolymerCompat.refresh();
         this.tabInfos = RecipeBookIsPain.withCreativeTabs(this.tabInfos);
@@ -84,6 +86,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Inject(at = @At("TAIL"), method = "updateTabs")
     private void rbip$paginateTabButtons(boolean filteringCraftable, CallbackInfo ci) {
+        if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         List<RecipeBookTabButton> pageableTabs = new ArrayList<>();
         RecipeBookTabButton pinnedTab = null;
 
@@ -102,15 +105,15 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         this.rbip$applyPagination(true);
     }
 
-    @Inject(at = @At("HEAD"), method = "extractRenderState")
-    private void rbip$reloadExtendedConfig(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(at = @At("HEAD"), method = "render")
+    private void rbip$reloadExtendedConfig(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (RecipeBookIsPainExtendedConfig.reloadIfChanged()) {
             this.rbip$applyPagination(true);
         }
     }
 
-    @Inject(at = @At("TAIL"), method = "extractRenderState")
-    private void rbip$renderPageControls(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(at = @At("TAIL"), method = "render")
+    private void rbip$renderPageControls(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!this.isVisible() || this.rbip$pageCount <= 1) return;
 
         this.rbip$drawPageControl(context, this.rbip$pageControlX, this.rbip$pageControlY, false, this.rbip$page > 0, mouseX, mouseY);
@@ -153,8 +156,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Override
     public boolean rbip$scrollPages(double mouseX, double mouseY, double verticalAmount) {
-        if (!RecipeBookIsPainExtendedConfig.get().extendedFeatures()
-                || this.rbip$pageCount <= 1
+        if (this.rbip$pageCount <= 1
                 || verticalAmount == 0.0D
                 || !this.rbip$isMouseOverAnyVisibleTab(mouseX, mouseY)) {
             return false;
@@ -220,23 +222,12 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Unique
     private int rbip$getGroupsPerPage() {
-        RecipeBookIsPainExtendedConfig config = RecipeBookIsPainExtendedConfig.get();
-        if (!config.extendedFeatures()) {
-            return RBIP_FALLBACK_GROUPS_PER_PAGE;
-        }
-
         int pinnedCount = this.rbip$pinnedTab == null ? 0 : 1;
-        return Math.max(1, config.bottomNumber() - pinnedCount);
+        return Math.max(1, RecipeBookIsPainExtendedConfig.bottomNumber() - pinnedCount);
     }
 
     @Unique
     private void rbip$placeTab(RecipeBookTabButton widget, int slot) {
-        RecipeBookIsPainExtendedConfig config = RecipeBookIsPainExtendedConfig.get();
-        if (!config.extendedFeatures()) {
-            this.rbip$placeNormalTab(widget, slot);
-            return;
-        }
-
         if (slot < RBIP_LEFT_TOTAL_SLOTS) {
             this.rbip$placeNormalTab(widget, slot);
         } else if (slot < RBIP_LEFT_TOTAL_SLOTS + RBIP_TOP_SLOTS) {
@@ -282,10 +273,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Unique
     private int rbip$getPageControlX() {
-        if (RecipeBookIsPainExtendedConfig.get().extendedFeatures()) {
-            return this.rbip$getBookX() - 28;
-        }
-        return this.rbip$getBookX() + 5;
+        return this.rbip$getBookX() - 28;
     }
 
     @Unique
@@ -329,7 +317,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     }
 
     @Unique
-    private void rbip$drawPageControl(GuiGraphicsExtractor context, int x, int y, boolean next, boolean active, int mouseX, int mouseY) {
+    private void rbip$drawPageControl(GuiGraphics context, int x, int y, boolean next, boolean active, int mouseX, int mouseY) {
         int u = next ? 14 : 0;
         if (active && this.rbip$isInside(mouseX, mouseY, x, y, RBIP_PAGE_BUTTON_WIDTH, RBIP_PAGE_BUTTON_HEIGHT)) {
             u += 28;
