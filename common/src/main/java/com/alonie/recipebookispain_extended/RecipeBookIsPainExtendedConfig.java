@@ -23,5 +23,22 @@ public final class RecipeBookIsPainExtendedConfig {
     public static RecipeBookIsPainExtendedConfig get() { return Holder.INSTANCE; }
     private static final class Holder { static final RecipeBookIsPainExtendedConfig INSTANCE = new RecipeBookIsPainExtendedConfig(); }
 
-    public static boolean reloadIfChanged() { return false; }
+    private static boolean lastEnabled = true;
+    private static int lastBottomNumber = 16;
+
+    /**
+     * Returns true if the config has changed since the last call.
+     * Called every frame by the render hook to detect hot-reload triggers.
+     */
+    public static boolean reloadIfChanged() {
+        boolean changed = false;
+        boolean current = enabled();
+        int currentBottom = bottomNumber();
+        if (current != lastEnabled || currentBottom != lastBottomNumber) {
+            lastEnabled = current;
+            lastBottomNumber = currentBottom;
+            changed = true;
+        }
+        return changed;
+    }
 }
