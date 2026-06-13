@@ -23,5 +23,18 @@ public final class RecipeBookIsPainExtendedConfig {
     public static RecipeBookIsPainExtendedConfig get() { return Holder.INSTANCE; }
     private static final class Holder { static final RecipeBookIsPainExtendedConfig INSTANCE = new RecipeBookIsPainExtendedConfig(); }
 
-    public static boolean reloadIfChanged() { return false; }
+    private static boolean lastEnabled = true;
+    private static int lastBottomNumber = 16;
+
+    public static boolean reloadIfChanged() {
+        boolean changed = false;
+        boolean current = enabled();
+        int currentBottom = bottomNumber();
+        if (current != lastEnabled || currentBottom != lastBottomNumber) {
+            lastEnabled = current;
+            lastBottomNumber = currentBottom;
+            changed = true;
+        }
+        return changed;
+    }
 }
