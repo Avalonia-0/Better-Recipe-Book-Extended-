@@ -87,6 +87,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     @Inject(at = @At("HEAD"), method = "updateTabs")
     private void rbip$syncLateGroups(CallbackInfo ci) {
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
+        if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         if (!((Object) this instanceof CraftingRecipeBookComponent)) return;
         PolymerCompat.refresh();
         this.tabInfos = RecipeBookIsPain.withCreativeTabs(this.tabInfos);
@@ -117,6 +118,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     private void rbip$hotReloadOnConfigChange(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!RecipeBookIsPainExtendedConfig.reloadIfChanged()) return;
         if (this.rbip$vanillaTabInfos == null) return;
+        if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         if (!((Object) this instanceof CraftingRecipeBookComponent)) return;
 
         if (RecipeBookIsPainExtendedConfig.enabled()) {
