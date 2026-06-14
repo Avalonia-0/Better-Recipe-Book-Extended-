@@ -57,6 +57,15 @@ public abstract class RecipeBookComponentMixin {
         boolean onInventory = this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
 
+        // Mark incompatible recipes — gated by showAllRecipesInSurvival (outer guard),
+        // NOT by partialMarkingEnabled, so "当前无法合成" recipes don't become air
+        // placeholders when partialMarkingEnabled is off.
+        if (onInventory) {
+            for (RecipeCollection collection : collections) {
+                IncompatibleCraftingUtil.markIncompatibleRecipes(collection);
+            }
+        }
+
         if (!BetterRecipeBook.config.partialMarkingEnabled) return;
 
         // Step 0: Clear previously-injected partial IDs from craftable set
@@ -84,12 +93,6 @@ public abstract class RecipeBookComponentMixin {
                         accessor.betterRecipeBook$getCraftable().add(holder);
                     }
                 }
-            }
-
-            // Step 4: If enabled, add incompatible recipes to fitsDimensions so
-            //         getRecipes(false) and search naturally include them
-            if (onInventory) {
-                IncompatibleCraftingUtil.markIncompatibleRecipes(collection);
             }
         }
     }
