@@ -43,7 +43,6 @@ public class Config implements ConfigData {
     public boolean enableBook = true;
 
     public static class RecipeBookIsPain {
-        @ConfigEntry.Gui.Excluded
         @ConfigEntry.Gui.Tooltip()
         public boolean enableRecipeBookIsPain = true;
 
