@@ -40,5 +40,7 @@
   "key.brbe.recipeView": "View Recipe (REI)",
   "key.brbe.usageView": "View Usage (REI)",
   "brbe.gui.environmentIncompatible": "Cannot be crafted currently",
-  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "Show all unlocked recipes in survival recipe book"
+  "text.autoconfig.brbe.option.showAllRecipesInSurvival": "Show all unlocked recipes in survival recipe book",
+  "text.autoconfig.brbe.option.partialCraftingEnabled": "Remove recipe filter",
+  "text.autoconfig.brbe.option.partialCraftingEnabled.@Tooltip": "Removes the \"show craftable only\" button. Craftable items always appear first."
 }
