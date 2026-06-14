@@ -4,14 +4,16 @@
 [Architectury Transformer DEBUG] ============================
 [Architectury Transformer DEBUG] 
 [Architectury Transformer DEBUG] Transforming 5 transformer(s) from /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/common/build/devlibs/BetterRecipeBookExtended-2.0-dev.jar to /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/common/build/libs/BetterRecipeBookExtended-2.0-transformProductionFabric.jar: 
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapMixinVariables@6eb9d300
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformExpectPlatform@4935cebf
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapInjectables@2e7eacc1
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapMixinVariables@2586cdf
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformExpectPlatform@1a822378
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapInjectables@26e6d8a8
 [Architectury Transformer DEBUG]  - AddRefmapName(enabled=() -> kotlin.Boolean)
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformPlatformOnly@d771298
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformPlatformOnly@5e096468
 [Architectury Transformer DEBUG] Transforming from /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/common/build/devlibs/BetterRecipeBookExtended-2.0-dev.jar to /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/common/build/libs/BetterRecipeBookExtended-2.0-transformProductionFabric.jar with 5 transformer(s) on dev.architectury.transformer.handler.SimpleTransformerHandler
 [Architectury Transformer DEBUG] Found class transformer
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/PinnedRecipeManager$1 with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/api/hud/HudHider with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/api/config/ConfigScreenProvider with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/api/BRBBookCategories with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/api/BRBBookCategories$Category with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/api/BRBBookSettings$TypeSettings with maxs=true frames=true
@@ -118,7 +120,7 @@
 [Architectury Transformer DEBUG]  - /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-lifecycle-events-v1-b9d2d3ba/2.3.12+6c1df360d1/fabric-lifecycle-events-v1-b9d2d3ba-2.3.12+6c1df360d1.jar
 [Architectury Transformer DEBUG]  - /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/.gradle/loom-cache/remapped_mods/remapped/me/shedaniel/cloth/basic-math-b9d2d3ba/0.6.1/basic-math-b9d2d3ba-0.6.1.jar
 [Architectury Transformer DEBUG]  - /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-api-base-b9d2d3ba/0.4.42+6573ed8cd1/fabric-api-base-b9d2d3ba-0.4.42+6573ed8cd1.jar
-[Architectury Transformer] Read classpath in 1.218 s
+[Architectury Transformer] Read classpath in 1.201 s
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/hideoverlay/IngredientListOverlayMixin with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/hideoverlay/BookmarkOverlayMixin with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/hideoverlay/AbstractContainerScreenMixin with maxs=true frames=true
@@ -181,6 +183,8 @@
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/GenericRecipePage with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/BRBGroupButtonWidget with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/GenericRecipeBookComponent with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/impl/hud/JeiHudHider with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/impl/hud/ReiHudHider with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/search/RegexArgument with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/search/TagArgument with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/search/SearchQuery with maxs=true frames=true
@@ -216,21 +220,21 @@
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/brewingstand/BrewingRecipeCollection with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/brewingstand/BrewingRecipeBookComponent with maxs=true frames=true
 [Architectury Transformer DEBUG] Closed File Systems for /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/common/build/libs/BetterRecipeBookExtended-2.0-transformProductionFabric.jar
-[Architectury Transformer] Transformed jar with 5 transformer(s) in 1.352 s
+[Architectury Transformer] Transformed jar with 5 transformer(s) in 1.317 s
 [Architectury Transformer DEBUG] 
 [Architectury Transformer DEBUG] ============================
 [Architectury Transformer DEBUG] Transforming from /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/common/build/devlibs/BetterRecipeBookExtended-2.0-dev.jar to /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/common/build/libs/BetterRecipeBookExtended-2.0-transformProductionNeoForge.jar
 [Architectury Transformer DEBUG] ============================
 [Architectury Transformer DEBUG] 
 [Architectury Transformer DEBUG] Transforming 5 transformer(s) from /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/common/build/devlibs/BetterRecipeBookExtended-2.0-dev.jar to /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/common/build/libs/BetterRecipeBookExtended-2.0-transformProductionNeoForge.jar: 
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformExpectPlatform@3f02c279
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapInjectables@53ec70b8
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformPlatformOnly@424fcb74
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformNeoForgeAnnotations@5ad6fe9c
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformNeoForgeEnvironment@73eefeb5
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformExpectPlatform@6c9a6479
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.RemapInjectables@3f37ef91
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformPlatformOnly@41a75ed6
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformNeoForgeAnnotations@31bdefbb
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformNeoForgeEnvironment@e3bec59
 [Architectury Transformer DEBUG] Transforming from /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/common/build/devlibs/BetterRecipeBookExtended-2.0-dev.jar to /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/common/build/libs/BetterRecipeBookExtended-2.0-transformProductionNeoForge.jar with 5 transformer(s) on dev.architectury.transformer.handler.SimpleTransformerHandler
 [Architectury Transformer DEBUG] Remapping with 1 mapping provider(s):
-[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformNeoForgeEnvironment$$Lambda/0x0000000040ffc458@1d2a830d
+[Architectury Transformer DEBUG]  - dev.architectury.transformer.transformers.TransformNeoForgeEnvironment$$Lambda/0x0000000019ff0ab0@5d86ada1
 [Architectury Transformer DEBUG] Provided 67 classpath jar(s):
 [Architectury Transformer DEBUG]  - /home/avalonia/.gradle/caches/modules-2/files-2.1/dev.architectury/architectury-injectables/1.0.10/62db2a366d662606d1b23ad02ccc3212ed37ec3/architectury-injectables-1.0.10.jar
 [Architectury Transformer DEBUG]  - /home/avalonia/.gradle/caches/modules-2/files-2.1/net.fabricmc/fabric-loader/0.19.3/354dfaa02d0552e11867f85dff7cdbfaf813ba3e/fabric-loader-0.19.3.jar
@@ -299,61 +303,63 @@
 [Architectury Transformer DEBUG]  - /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-lifecycle-events-v1-b9d2d3ba/2.3.12+6c1df360d1/fabric-lifecycle-events-v1-b9d2d3ba-2.3.12+6c1df360d1.jar
 [Architectury Transformer DEBUG]  - /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/.gradle/loom-cache/remapped_mods/remapped/me/shedaniel/cloth/basic-math-b9d2d3ba/0.6.1/basic-math-b9d2d3ba-0.6.1.jar
 [Architectury Transformer DEBUG]  - /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/.gradle/loom-cache/remapped_mods/remapped/net/fabricmc/fabric-api/fabric-api-base-b9d2d3ba/0.4.42+6573ed8cd1/fabric-api-base-b9d2d3ba-0.4.42+6573ed8cd1.jar
-[Architectury Transformer] Read classpath in 1.043 s
+[Architectury Transformer] Read classpath in 989.8 ms
 [Architectury Transformer DEBUG] Remapping Classes:
 [Architectury Transformer DEBUG] net/fabricmc/api/EnvType -> net/neoforged/api/distmarker/Dist
 [Architectury Transformer DEBUG] net/fabricmc/api/Environment -> net/neoforged/api/distmarker/OnlyIn
 [Architectury Transformer DEBUG] Found class transformer
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/PinnedRecipeManager with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/BetterRecipeBook with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/InstantCraftingManager with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/PinnedRecipeManager$1 with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/PinnedRecipeManager with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/api/BRBBookSettings$TypeSettings with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/api/BRBBookCategories with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/api/BRBBookCategories$Category with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/api/BRBBookSettings$TypeSettings with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/api/BRBBookSettings with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/api/BRBBookCategories with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/api/BRBBookCategories$Category$Type with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/api/hud/HudHider with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/api/config/ConfigScreenProvider with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/recipe/BRBSmithingRecipe with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/recipe/smithing/BRBSmithingTrimRecipe with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/recipe/smithing/BRBSmithingTransformRecipe with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/loaders/PotionLoader with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/config/InstantCraft with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/config/Scrolling with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/config/Config with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/config/Scrolling with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/config/AlternativeRecipes with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/config/NewRecipes with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/interfaces/RecipeBookTabButtonIconOffset with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/interfaces/TopLayerOverlayProvider with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/interfaces/ISettingsButton with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/interfaces/IPinningComponent with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/interfaces/ISettingsButton with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/interfaces/unlockrecipes/IMixinRecipeManager with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/util/RecipeMenuUtil with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/util/RecipeUnlockUtil with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/util/BRBHelper$Book with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/util/RecipeMenuUtil with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/util/ModNameUtil with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/util/BRBTextures with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/util/IncompatibleCraftingUtil with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/util/RecipePlacement with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/util/ClientInventoryUtil with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/util/PartialCraftingUtil with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/util/AlternativeOverlayLayout with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/util/BRBHelper with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/util/IncompatibleCraftingUtil with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/util/BRBTextures with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/util/AlternativeOverlayLayout with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/util/TopLayerOverlayRenderer with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/SmithingScreenMixin with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/ScreenRenderMixin with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/BrewingStandScreenMixin with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/DisableBounce with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/DisableCraftableFilter with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/RecipeBookComponentTabIconOffsetMixin with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/DisableBounce with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/RemoveBookButton with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/RecipeBookComponentTabIconOffsetMixin with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/MouseScrollHandler with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/RecipeBookTabButtonMixin with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/DisableBook with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/rei/RecipeBookComponentMixin with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/alternativerecipes/OverlayRecipeButtonMixin with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/hideoverlay/BookmarkOverlayMixin with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/hideoverlay/AbstractContainerScreenMixin with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/hideoverlay/IngredientListOverlayMixin with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/hideoverlay/BookmarkOverlayMixin with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/ungroup/RecipeBookComponentMixin with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/ungroup/ClientRecipeBookMixin with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/pins/AbstractContainerScreenMixin with maxs=true frames=true
@@ -378,11 +384,11 @@
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/accessors/HolderReferenceAccessor with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/accessors/RecipeCollectionAccessor with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/accessors/RecipeBookPageAccessor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/accessors/OverlayRecipeButtonPosAccessor with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/accessors/InventoryAccessor with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/accessors/BrewingStandMenuAccessor with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/accessors/OverlayRecipeButtonPosAccessor with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/accessors/smithing/SmithingTrimRecipeAccessor with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/accessors/smithing/SmithingTransformRecipeAccessor with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/accessors/smithing/SmithingTrimRecipeAccessor with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/instantcraft/MultiPlayerGameModeMixin with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/instantcraft/RecipeBookComponentMixin with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/instantcraft/ClientPacketListenerMixin with maxs=true frames=true
@@ -394,30 +400,32 @@
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/toasts/SuppressUnlockSound with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/mixins/toasts/RemoveToasts with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/GenericRecipePage with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/GenericGhostRecipe$GenericGhostIngredient with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/GenericRecipe with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/GenericClientRecipeBook with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/GenericGhostRecipe with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/GenericRecipeBookComponent with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/GenericGhostRecipe with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/GenericRecipeButton with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/GenericRecipeBookCollection with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/GenericGhostRecipe$GhostRenderType with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/BRBGroupButtonWidget with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/GenericGhostRecipe$GenericGhostIngredient with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/pins/PinnableRecipeCollection with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/pins/Pinnable with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/generic/pins/PinnableRecipeCollection with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/impl/hud/JeiHudHider with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/impl/hud/ReiHudHider with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/search/SearchQuery with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/search/TagArgument with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/search/SearchArgument with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/search/TooltipArgument with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/search/TagArgument with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/search/CompoundArgument with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/search/RegexArgument with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/search/NegatedArgument with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/search/SearchArgument with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/search/SearchCache with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/search/TextArgument with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/search/ModArgument with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/search/AlternativeArgument with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/compat/OverlayHider with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/search/NegatedArgument with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/compat/ItemViewCompat with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/compat/OverlayHider with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/compat/ItemViewCompat$Handler with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/compat/CompatMixinPlugin with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/compat/rei/ReiCompat with maxs=true frames=true
@@ -427,18 +435,18 @@
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/compat/jei/JeiCompat with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/compat/mixins/mousewheelie/MixinMWClient with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/smithingtable/SmithingRecipeCollection with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/smithingtable/SmithingRecipeBookComponent with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/smithingtable/SmithingOverlayRecipeComponent with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/smithingtable/SmithingOverlayRecipeComponent$OverlayRecipeButton with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/smithingtable/SmithingGhostRecipe with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/smithingtable/SmithingRecipeBookPage with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/smithingtable/SmithingRecipeBookComponent with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/smithingtable/SmithingOverlayRecipeComponent with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/brewingstand/BrewingRecipeBookComponent with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/brewingstand/BrewableRecipeButton with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/brewingstand/PlatformPotionUtil$PotionUtilProvider with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/brewingstand/PlatformPotionUtil with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/brewingstand/BrewableResult with maxs=true frames=true
+[Architectury Transformer DEBUG] Writing com/alonie/brbe/brewingstand/PlatformPotionUtil$PotionUtilProvider with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/brewingstand/BrewingRecipeBookComponent$1 with maxs=true frames=true
 [Architectury Transformer DEBUG] Writing com/alonie/brbe/brewingstand/BrewingRecipeCollection with maxs=true frames=true
-[Architectury Transformer DEBUG] Writing com/alonie/brbe/brewingstand/BrewableResult with maxs=true frames=true
 [Architectury Transformer DEBUG] Closed File Systems for /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/common/build/libs/BetterRecipeBookExtended-2.0-transformProductionNeoForge.jar
-[Architectury Transformer] Transformed jar with 5 transformer(s) in 1.379 s
+[Architectury Transformer] Transformed jar with 5 transformer(s) in 1.335 s
 [Architectury Transformer DEBUG] Closed File Systems for /media/avalonia/data/MinecraftLib/versions/Vanilla Creamy Exploration 1/MinecraftMod/BetterRecipeBook-main/common/build/libs/BetterRecipeBookExtended-2.0.jar

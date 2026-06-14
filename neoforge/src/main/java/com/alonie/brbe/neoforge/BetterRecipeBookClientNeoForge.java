@@ -5,6 +5,8 @@ import dev.architectury.event.events.client.ClientLifecycleEvent;
 import dev.architectury.event.events.client.ClientTickEvent;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.neoforge.PlatformPotionUtilImpl;
+import com.alonie.brbe.impl.hud.JeiHudHider;
+import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
@@ -25,6 +27,10 @@ public class BetterRecipeBookClientNeoForge {
     public static void init() {
         // Register platform provider
         PlatformPotionUtilImpl.init();
+
+        // Register HUD hiders (JEI + REI overlay control)
+        OverlayHider.register(new JeiHudHider());
+        OverlayHider.register(new ReiHudHider());
 
         // Defer REI compat registration until client starts (after all mods are loaded)
         ClientLifecycleEvent.CLIENT_STARTED.register(client -> ReiCompat.register());

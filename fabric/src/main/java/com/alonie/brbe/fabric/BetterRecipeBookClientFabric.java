@@ -2,6 +2,8 @@ package com.alonie.brbe.fabric;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.fabric.PlatformPotionUtilImpl;
+import com.alonie.brbe.impl.hud.JeiHudHider;
+import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
@@ -21,6 +23,10 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
     public void onInitializeClient() {
         // Register platform-specific providers
         PlatformPotionUtilImpl.init();
+
+        // Register HUD hiders (JEI + REI overlay control)
+        OverlayHider.register(new JeiHudHider());
+        OverlayHider.register(new ReiHudHider());
 
         // Register optional compat handlers
         ReiCompat.register();
