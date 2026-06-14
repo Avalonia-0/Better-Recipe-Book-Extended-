@@ -51,6 +51,19 @@ public abstract class RecipeBookComponentMixin {
                 && this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
 
+        // Step 0: Clear previously-injected partial IDs from craftable set
+        // so markPartialMaterials sees the vanilla state of isCraftable()
+        for (RecipeCollection collection : collections) {
+            if (PartialCraftingUtil.hasPartialMaterials(collection)) {
+                RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+                for (RecipeHolder<?> holder : collection.getRecipes()) {
+                    if (PartialCraftingUtil.isPartiallyCraftable(collection, holder.id())) {
+                        accessor.betterRecipeBook$getCraftable().remove(holder);
+                    }
+                }
+            }
+        }
+
         for (RecipeCollection collection : collections) {
             // Step 2: Mark partial materials
             PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
