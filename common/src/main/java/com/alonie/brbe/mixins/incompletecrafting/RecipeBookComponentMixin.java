@@ -116,11 +116,10 @@ public abstract class RecipeBookComponentMixin {
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;ZZ)V"))
     private void betterRecipeBook$sortCraftableBeforePartial(
             RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber, boolean isFiltering) {
-        // Sort when either partial feature is active — partialMarkingEnabled
-        // needs craftable-before-partial ordering, partialCraftingEnabled needs
-        // to organize the unfiltered list.
-        if (!BetterRecipeBook.config.partialCraftingEnabled
-                && !BetterRecipeBook.config.partialMarkingEnabled) {
+        // Sort only when the "show craftable only" filter is active.
+        // When filtering is off, both craftable and partial recipes belong
+        // on the first page — no special ordering needed.
+        if (!isFiltering) {
             page.updateCollections(list, resetPageNumber, isFiltering);
             return;
         }
@@ -128,9 +127,23 @@ public abstract class RecipeBookComponentMixin {
         List<RecipeCollection> partial = new ArrayList<>();
         List<RecipeCollection> other = new ArrayList<>();
         for (RecipeCollection c : list) {
-            boolean hasCraftable = c.hasCraftable();
-            boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(c);
-            if (hasCraftable) {
+            boolean hasTrulyCraftable = false;
+            boolean hasPartial = false;
+
+            // Iterate recipes to distinguish truly-craftable from
+            // partial-injected (Step 3 of keepPartiallyCraftable injects
+            // partial IDs into the craftable set, so hasCraftable() alone
+            // cannot tell them apart).
+            for (RecipeDisplayEntry entry : c.getRecipes()) {
+                RecipeDisplayId id = entry.id();
+                if (PartialCraftingUtil.isPartiallyCraftable(c, id)) {
+                    hasPartial = true;
+                } else if (c.isCraftable(id)) {
+                    hasTrulyCraftable = true;
+                }
+            }
+
+            if (hasTrulyCraftable) {
                 craftable.add(c);
             } else if (hasPartial) {
                 partial.add(c);
