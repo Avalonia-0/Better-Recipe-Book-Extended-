@@ -57,7 +57,7 @@ public abstract class RecipeBookComponentMixin {
         boolean onInventory = this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
 
-        // if (!BetterRecipeBook.config.partialMarkingEnabled) return;
+        if (!BetterRecipeBook.config.partialMarkingEnabled) return;
 
         // Step 0: Clear previously-injected partial IDs from craftable set
         // so markPartialMaterials sees the vanilla state of isCraftable()
@@ -113,7 +113,7 @@ public abstract class RecipeBookComponentMixin {
             boolean hasCraftable = c.hasCraftable();
             boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(c);
 
-            if (hasCraftable && !hasPartial) {
+            if (hasCraftable) {
                 craftable.add(c);
             } else if (hasPartial) {
                 partial.add(c);
