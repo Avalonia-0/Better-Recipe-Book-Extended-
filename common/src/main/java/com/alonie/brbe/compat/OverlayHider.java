@@ -62,9 +62,9 @@ public class OverlayHider {
             if (!(Boolean) tsClass.getMethod("isBookmarkOverlayEnabled").invoke(ts)) {
                 tsClass.getMethod("toggleBookmarkEnabled").invoke(ts);
             }
-            if (!(Boolean) tsClass.getMethod("isCheatItemsEnabled").invoke(ts)) {
-                tsClass.getMethod("toggleCheatItemsEnabled").invoke(ts);
-            }
+            // NOTE: cheatItemsEnabled is intentionally NOT restored here.
+            // Restoring it would force cheat mode ON on every screen open,
+            // overriding the user's JEI preference.
         } catch (Exception e) {
             // Silently ignore
         }
