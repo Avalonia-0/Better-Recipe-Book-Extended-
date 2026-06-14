@@ -21,6 +21,9 @@ public class Config implements ConfigData {
     @ConfigEntry.Gui.Tooltip()
     public boolean partialCraftingEnabled = true;
 
+    @ConfigEntry.Gui.Tooltip()
+    public boolean partialMarkingEnabled = true;
+
     @ConfigEntry.Category("rbip")
     @ConfigEntry.Gui.TransitiveObject()
     public RecipeBookIsPain rbip = new RecipeBookIsPain();
