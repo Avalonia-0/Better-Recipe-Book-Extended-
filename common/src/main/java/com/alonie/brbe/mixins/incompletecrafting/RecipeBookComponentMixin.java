@@ -55,32 +55,30 @@ public abstract class RecipeBookComponentMixin {
         boolean onInventoryScreen = this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
 
-        // Partial material marking — gated by partialMarkingEnabled
-        if (BetterRecipeBook.config.partialMarkingEnabled) {
-            // Step 0: Clear previously-injected partial IDs from craftable set
-            for (RecipeCollection collection : collections) {
-                if (PartialCraftingUtil.hasPartialMaterials(collection)) {
-                    RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
-                    for (RecipeDisplayEntry entry : collection.getRecipes()) {
-                        RecipeDisplayId id = entry.id();
-                        if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
-                            accessor.betterRecipeBook$getCraftable().remove(id);
-                        }
+        // Partial material marking — gated inside PartialCraftingUtil
+        // Step 0: Clear previously-injected partial IDs from craftable set
+        for (RecipeCollection collection : collections) {
+            if (PartialCraftingUtil.hasPartialMaterials(collection)) {
+                RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+                for (RecipeDisplayEntry entry : collection.getRecipes()) {
+                    RecipeDisplayId id = entry.id();
+                    if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
+                        accessor.betterRecipeBook$getCraftable().remove(id);
                     }
                 }
             }
+        }
 
-            for (RecipeCollection collection : collections) {
-                PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
+        for (RecipeCollection collection : collections) {
+            PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
 
-                // Inject partial recipes into craftable set
-                if (PartialCraftingUtil.hasPartialMaterials(collection)) {
-                    RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
-                    for (RecipeDisplayEntry entry : collection.getRecipes()) {
-                        RecipeDisplayId id = entry.id();
-                        if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
-                            accessor.betterRecipeBook$getCraftable().add(id);
-                        }
+            // Inject partial recipes into craftable set
+            if (PartialCraftingUtil.hasPartialMaterials(collection)) {
+                RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+                for (RecipeDisplayEntry entry : collection.getRecipes()) {
+                    RecipeDisplayId id = entry.id();
+                    if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
+                        accessor.betterRecipeBook$getCraftable().add(id);
                     }
                 }
             }
@@ -96,8 +94,7 @@ public abstract class RecipeBookComponentMixin {
         }
 
         boolean hasSearchActive = searchBox != null && !searchBox.getValue().isEmpty();
-        boolean hasPartial = !hasSearchActive
-                && BetterRecipeBook.config.partialMarkingEnabled;
+        boolean hasPartial = !hasSearchActive;
         boolean retainIncompatible = onInventoryScreen
                 && IncompatibleCraftingUtil.isActive()
                 && !hasSearchActive;
