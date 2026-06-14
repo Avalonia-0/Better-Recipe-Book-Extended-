@@ -72,9 +72,6 @@ public abstract class RecipeBookComponentMixin {
 
             for (RecipeCollection collection : collections) {
                 PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
-                if (onInventoryScreen) {
-                    IncompatibleCraftingUtil.markIncompatibleRecipes(collection);
-                }
 
                 // Inject partial recipes into craftable set
                 if (PartialCraftingUtil.hasPartialMaterials(collection)) {
@@ -89,8 +86,18 @@ public abstract class RecipeBookComponentMixin {
             }
         }
 
+        // Mark incompatible recipes — gated by showAllRecipesInSurvival (outer guard),
+        // NOT by partialMarkingEnabled, so "当前无法合成" recipes don't become air
+        // placeholders when partialMarkingEnabled is off.
+        if (onInventoryScreen) {
+            for (RecipeCollection collection : collections) {
+                IncompatibleCraftingUtil.markIncompatibleRecipes(collection);
+            }
+        }
+
         boolean hasSearchActive = searchBox != null && !searchBox.getValue().isEmpty();
-        boolean hasPartial = !hasSearchActive;
+        boolean hasPartial = !hasSearchActive
+                && BetterRecipeBook.config.partialMarkingEnabled;
         boolean retainIncompatible = onInventoryScreen
                 && IncompatibleCraftingUtil.isActive()
                 && !hasSearchActive;
