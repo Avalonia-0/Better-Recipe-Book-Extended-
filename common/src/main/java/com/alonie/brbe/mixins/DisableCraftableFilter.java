@@ -1,5 +1,6 @@
 package com.alonie.brbe.mixins;
 
+import com.alonie.brbe.BetterRecipeBook;
 import net.minecraft.client.gui.components.CycleButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import org.spongepowered.asm.mixin.Mixin;
@@ -10,12 +11,8 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
- * Removes the "Only show craftable" filter button from the recipe book
- * and makes isFiltering() always return false.
- *
- * This ensures the crafting recipe book always shows all recipes
- * (both craftable and uncraftable), matching BRBE's design where
- * partial-material and incompatible recipes should remain visible.
+ * Removes the "Only show craftable" filter button and disables the
+ * vanilla filtering behaviour — gated by {@code partialCraftingEnabled}.
  */
 @Mixin(RecipeBookComponent.class)
 public abstract class DisableCraftableFilter {
@@ -25,12 +22,14 @@ public abstract class DisableCraftableFilter {
 
     @Inject(method = "initVisuals", at = @At("TAIL"))
     private void betterRecipeBook$hideFilterButton(CallbackInfo ci) {
+        if (!BetterRecipeBook.config.partialCraftingEnabled) return;
         this.filterButton.visible = false;
         this.filterButton.active = false;
     }
 
     @Inject(method = "isFiltering", at = @At("RETURN"), cancellable = true)
     private void betterRecipeBook$disableFiltering(CallbackInfoReturnable<Boolean> cir) {
+        if (!BetterRecipeBook.config.partialCraftingEnabled) return;
         cir.setReturnValue(false);
     }
 }

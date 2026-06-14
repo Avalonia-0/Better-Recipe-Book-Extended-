@@ -42,6 +42,10 @@ public class Config implements ConfigData {
     public boolean settingsButton = true;
     public boolean enableBook = true;
 
+    @ConfigEntry.Category("partialCrafting")
+    @ConfigEntry.Gui.Tooltip()
+    public boolean partialCraftingEnabled = true;
+
     public static class RecipeBookIsPain {
         @ConfigEntry.Gui.Tooltip()
         public boolean enableRecipeBookIsPain = true;
