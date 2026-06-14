@@ -126,7 +126,7 @@ public abstract class RecipeBookComponentMixin {
         for (RecipeCollection c : list) {
             boolean hasCraftable = c.hasCraftable();
             boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(c);
-            if (hasCraftable && !hasPartial) {
+            if (hasCraftable) {
                 craftable.add(c);
             } else if (hasPartial) {
                 partial.add(c);
