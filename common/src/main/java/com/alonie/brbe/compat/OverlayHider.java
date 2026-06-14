@@ -16,6 +16,9 @@ public class OverlayHider {
     // --- REI state ---
     private static boolean reiHidden = false;
 
+    // --- Transition tracking (prevents re-saving state on event re-fire) ---
+    private static boolean currentlyHidden = false;
+
     // --- JEI saved state (snapshot before hiding, restored on unhide) ---
     private static Boolean savedOverlayEnabled;
     private static Boolean savedBookmarkEnabled;
@@ -149,11 +152,13 @@ public class OverlayHider {
     }
 
     public static void setOverlaysHidden(boolean hide) {
-        if (hide) {
+        if (hide && !currentlyHidden) {
+            currentlyHidden = true;
             saveJeiState();
             hideReiOverlay();
             ensureJeiOverlayHidden();
-        } else {
+        } else if (!hide && currentlyHidden) {
+            currentlyHidden = false;
             showReiOverlay();
             restoreJeiState();
         }
@@ -197,5 +202,6 @@ public class OverlayHider {
      */
     public static void reset() {
         reiHidden = false;
+        currentlyHidden = false;
     }
 }
