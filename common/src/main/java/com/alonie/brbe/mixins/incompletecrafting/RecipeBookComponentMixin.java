@@ -47,26 +47,25 @@ public abstract class RecipeBookComponentMixin {
         // Step 1: Run original forEach (populates craftable + fitsDimensions)
         collections.forEach(consumer);
 
-        // When "show all recipes in survival" is disabled, skip ALL partial/incompatible
-        // logic. This prevents partial injection from corrupting the craftable set
-        // and causing air placeholders.
-        if (!BetterRecipeBook.config.showAllRecipesInSurvival) {
-            return;
-        }
-
+        // ── Gate variables ──
         boolean onInventory = this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
+        boolean retainPartial = BetterRecipeBook.config.partialMarkingEnabled;
+        boolean retainIncompatible = onInventory
+                && BetterRecipeBook.config.showAllRecipesInSurvival;
 
-        // Mark incompatible recipes — gated by showAllRecipesInSurvival (outer guard),
-        // NOT by partialMarkingEnabled, so "当前无法合成" recipes don't become air
-        // placeholders when partialMarkingEnabled is off.
-        if (onInventory) {
+        // Only skip everything when BOTH features are off.
+        if (!retainPartial && !retainIncompatible) return;
+
+        // ── Incompatible recipe marking ──
+        if (retainIncompatible) {
             for (RecipeCollection collection : collections) {
                 IncompatibleCraftingUtil.markIncompatibleRecipes(collection);
             }
         }
 
-        if (!BetterRecipeBook.config.partialMarkingEnabled) return;
+        // ── Partial material marking ──
+        if (!retainPartial) return;
 
         // Step 0: Clear previously-injected partial IDs from craftable set
         // so markPartialMaterials sees the vanilla state of isCraftable()
@@ -104,8 +103,10 @@ public abstract class RecipeBookComponentMixin {
      */
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;Z)V"))
     private void betterRecipeBook$sortBeforePageUpdate(RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber) {
-        // Sorting lives inside the partialMarkingEnabled module.
-        if (!BetterRecipeBook.config.partialMarkingEnabled) {
+        // Sort when either partial module is active.
+        boolean shouldSort = BetterRecipeBook.config.partialMarkingEnabled
+                || BetterRecipeBook.config.partialCraftingEnabled;
+        if (!shouldSort) {
             page.updateCollections(list, resetPageNumber);
             return;
         }
