@@ -15,6 +15,8 @@
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain.@Tooltip": "Aligns the vanilla recipe book tab groups with the creative mode inventory. Reopen inventory to apply.",
   "text.autoconfig.brbe.option.partialCraftingEnabled": "Remove recipe filter",
   "text.autoconfig.brbe.option.partialCraftingEnabled.@Tooltip": "Removes the \"show craftable only\" button. Craftable items always appear first.",
+  "text.autoconfig.brbe.option.partialMarkingEnabled": "Mark recipes with partial materials",
+  "text.autoconfig.brbe.option.partialMarkingEnabled.@Tooltip": "Recipes that have some materials available will be given a special texture.",
   "text.autoconfig.brbe.option.rbip.enableTabPage": "Enable top and bottom tabs",
   "text.autoconfig.brbe.option.settingsButton": "Enable settings button",
   "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§eTip: §7If you disable either of these two options, use the mod menu to re-enable them.",

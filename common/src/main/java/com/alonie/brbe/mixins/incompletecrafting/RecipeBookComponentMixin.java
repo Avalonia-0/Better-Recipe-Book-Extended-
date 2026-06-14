@@ -55,33 +55,35 @@ public abstract class RecipeBookComponentMixin {
         boolean onInventoryScreen = this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
 
-        // Step 0: Clear previously-injected partial IDs from craftable set
-        // so markPartialMaterials sees the vanilla state of isCraftable()
-        for (RecipeCollection collection : collections) {
-            if (PartialCraftingUtil.hasPartialMaterials(collection)) {
-                RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
-                for (RecipeDisplayEntry entry : collection.getRecipes()) {
-                    RecipeDisplayId id = entry.id();
-                    if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
-                        accessor.betterRecipeBook$getCraftable().remove(id);
+        // Partial material marking — gated by partialMarkingEnabled
+        if (BetterRecipeBook.config.partialMarkingEnabled) {
+            // Step 0: Clear previously-injected partial IDs from craftable set
+            for (RecipeCollection collection : collections) {
+                if (PartialCraftingUtil.hasPartialMaterials(collection)) {
+                    RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+                    for (RecipeDisplayEntry entry : collection.getRecipes()) {
+                        RecipeDisplayId id = entry.id();
+                        if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
+                            accessor.betterRecipeBook$getCraftable().remove(id);
+                        }
                     }
                 }
             }
-        }
 
-        for (RecipeCollection collection : collections) {
-            PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
-            if (onInventoryScreen) {
-                IncompatibleCraftingUtil.markIncompatibleRecipes(collection);
-            }
+            for (RecipeCollection collection : collections) {
+                PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
+                if (onInventoryScreen) {
+                    IncompatibleCraftingUtil.markIncompatibleRecipes(collection);
+                }
 
-            // Add partial recipes to craftable set so they are treated as craftable
-            if (PartialCraftingUtil.hasPartialMaterials(collection)) {
-                RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
-                for (RecipeDisplayEntry entry : collection.getRecipes()) {
-                    RecipeDisplayId id = entry.id();
-                    if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
-                        accessor.betterRecipeBook$getCraftable().add(id);
+                // Inject partial recipes into craftable set
+                if (PartialCraftingUtil.hasPartialMaterials(collection)) {
+                    RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+                    for (RecipeDisplayEntry entry : collection.getRecipes()) {
+                        RecipeDisplayId id = entry.id();
+                        if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
+                            accessor.betterRecipeBook$getCraftable().add(id);
+                        }
                     }
                 }
             }
