@@ -1,21 +1,20 @@
 package com.alonie.recipebookispain_extended;
 
-import com.moandjiezana.toml.Toml;
-
+import java.io.BufferedReader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 
 /**
- * Reads RBIP config directly from {@code config/brbe.toml}, bypassing
- * Cloth Config's Java config object entirely.  This makes hot-reload
- * independent of whether Cloth Config has refreshed its in-memory state.
+ * Reads RBIP config directly from {@code config/brbe.toml} using plain
+ * string parsing — no external TOML library dependency needed at runtime
+ * (Cloth Config's toml4j jar-in-jar is NOT reliably on the classpath
+ * across all loaders).
  */
 public final class RecipeBookIsPainExtendedConfig {
 
     private static final Path CONFIG_PATH = Paths.get("config", "brbe.toml");
 
-    // Cached values — refreshed when the file timestamp changes
     private static long lastModified;
     private static boolean cachedEnabled = true;
     private static int cachedBottomNumber = 16;
@@ -32,6 +31,8 @@ public final class RecipeBookIsPainExtendedConfig {
         return cachedBottomNumber;
     }
 
+    /** Called every frame from the render hook.  Cheap — only re-reads
+     *  the file when its timestamp actually changes. */
     public static boolean reloadIfChanged() {
         try {
             long mod = Files.getLastModifiedTime(CONFIG_PATH).toMillis();
@@ -40,33 +41,40 @@ public final class RecipeBookIsPainExtendedConfig {
             refresh();
             return true;
         } catch (Exception e) {
-            return false;  // file missing — no change to report
+            return false;
         }
     }
 
     private static void refreshIfStale() {
         try {
             long mod = Files.getLastModifiedTime(CONFIG_PATH).toMillis();
-            if (mod != lastModified) {
-                lastModified = mod;
-                refresh();
-            }
+            if (mod != lastModified) { lastModified = mod; refresh(); }
         } catch (Exception ignored) {}
     }
 
     private static void refresh() {
-        try {
-            String content = Files.readString(CONFIG_PATH);
-            Toml toml = new Toml().read(content);
-
-            Toml rbip = toml.getTable("rbip");
-            if (rbip != null) {
-                cachedEnabled = rbip.getBoolean("enableRecipeBookIsPain", true);
-                cachedBottomNumber = rbip.getBoolean("enableTabPage", true) ? 16 : 6;
+        boolean inRbip = false;
+        try (BufferedReader r = Files.newBufferedReader(CONFIG_PATH)) {
+            String line;
+            while ((line = r.readLine()) != null) {
+                String t = line.trim();
+                if (t.startsWith("#") || t.isEmpty()) continue;
+                if (t.startsWith("[")) { inRbip = t.equals("[rbip]"); continue; }
+                if (!inRbip) continue;
+                int eq = t.indexOf('=');
+                if (eq < 0) continue;
+                String key = t.substring(0, eq).trim();
+                String val = t.substring(eq + 1).trim();
+                switch (key) {
+                    case "enableRecipeBookIsPain": cachedEnabled = parseBool(val); break;
+                    case "enableTabPage": cachedBottomNumber = parseBool(val) ? 16 : 6; break;
+                }
             }
-        } catch (Exception e) {
-            // bad file — keep defaults
-        }
+        } catch (Exception ignored) {}
+    }
+
+    private static boolean parseBool(String s) {
+        return "true".equalsIgnoreCase(s);
     }
 
     /** @deprecated All features are now core; always returns true. */
