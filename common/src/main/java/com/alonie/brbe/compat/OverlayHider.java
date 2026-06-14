@@ -16,20 +16,54 @@ public class OverlayHider {
     // --- REI state ---
     private static boolean reiHidden = false;
 
+    // --- JEI saved state (snapshot before hiding, restored on unhide) ---
+    private static Boolean savedOverlayEnabled;
+    private static Boolean savedBookmarkEnabled;
+    private static Boolean savedCheatEnabled;
+
+    /**
+     * Reads JEI's current IClientToggleState via reflection.
+     * Returns null if JEI is not loaded or not ready.
+     */
+    private static Object getJeiToggleState() {
+        try {
+            return Class.forName("mezz.jei.common.Internal")
+                    .getMethod("getClientToggleState").invoke(null);
+        } catch (Exception e) {
+            return null;
+        }
+    }
+
+    /**
+     * Snapshots JEI's current overlay/bookmark/cheat state into saved fields.
+     */
+    private static void saveJeiState() {
+        Class<?> tsClass = getJeiToggleStateClass();
+        if (tsClass == null) return;
+        Object ts = getJeiToggleState();
+        if (ts == null) return;
+
+        try {
+            savedOverlayEnabled = (Boolean) tsClass.getMethod("isOverlayEnabled").invoke(ts);
+            savedBookmarkEnabled = (Boolean) tsClass.getMethod("isBookmarkOverlayEnabled").invoke(ts);
+            savedCheatEnabled = (Boolean) tsClass.getMethod("isCheatItemsEnabled").invoke(ts);
+        } catch (Exception e) {
+            savedOverlayEnabled = savedBookmarkEnabled = savedCheatEnabled = null;
+        }
+    }
+
     /**
      * Call on every tick while a screen is open and config says hide.
      * Reads JEI's actual toggle state each tick and enforces our desired state.
-     * Stateless — no internal tracking for JEI, just reads reality.
      */
     public static void ensureJeiOverlayHidden() {
         Class<?> tsClass = getJeiToggleStateClass();
         if (tsClass == null) return;
 
-        try {
-            Object ts = Class.forName("mezz.jei.common.Internal")
-                    .getMethod("getClientToggleState").invoke(null);
-            if (ts == null) return;
+        Object ts = getJeiToggleState();
+        if (ts == null) return;
 
+        try {
             if ((Boolean) tsClass.getMethod("isOverlayEnabled").invoke(ts)) {
                 tsClass.getMethod("toggleOverlayEnabled").invoke(ts);
             }
@@ -45,29 +79,43 @@ public class OverlayHider {
     }
 
     /**
-     * Call once when config says show. Restores JEI state.
+     * Restores JEI's overlay/bookmark/cheat to the saved snapshot.
      */
-    public static void restoreJeiOverlay() {
+    private static void restoreJeiState() {
+        if (savedOverlayEnabled == null && savedBookmarkEnabled == null && savedCheatEnabled == null) {
+            return; // Nothing was ever saved — don't touch JEI
+        }
+
         Class<?> tsClass = getJeiToggleStateClass();
         if (tsClass == null) return;
+        Object ts = getJeiToggleState();
+        if (ts == null) return;
 
         try {
-            Object ts = Class.forName("mezz.jei.common.Internal")
-                    .getMethod("getClientToggleState").invoke(null);
-            if (ts == null) return;
-
-            if (!(Boolean) tsClass.getMethod("isOverlayEnabled").invoke(ts)) {
-                tsClass.getMethod("toggleOverlayEnabled").invoke(ts);
+            if (savedOverlayEnabled != null) {
+                boolean current = (Boolean) tsClass.getMethod("isOverlayEnabled").invoke(ts);
+                if (current != savedOverlayEnabled) {
+                    tsClass.getMethod("toggleOverlayEnabled").invoke(ts);
+                }
             }
-            if (!(Boolean) tsClass.getMethod("isBookmarkOverlayEnabled").invoke(ts)) {
-                tsClass.getMethod("toggleBookmarkEnabled").invoke(ts);
+            if (savedBookmarkEnabled != null) {
+                boolean current = (Boolean) tsClass.getMethod("isBookmarkOverlayEnabled").invoke(ts);
+                if (current != savedBookmarkEnabled) {
+                    tsClass.getMethod("toggleBookmarkEnabled").invoke(ts);
+                }
             }
-            // NOTE: cheatItemsEnabled is intentionally NOT restored here.
-            // Restoring it would force cheat mode ON on every screen open,
-            // overriding the user's JEI preference.
+            if (savedCheatEnabled != null) {
+                boolean current = (Boolean) tsClass.getMethod("isCheatItemsEnabled").invoke(ts);
+                if (current != savedCheatEnabled) {
+                    tsClass.getMethod("toggleCheatItemsEnabled").invoke(ts);
+                }
+            }
         } catch (Exception e) {
             // Silently ignore
         }
+
+        // Clear saved state so a future hide→unhide cycle re-snapshots
+        savedOverlayEnabled = savedBookmarkEnabled = savedCheatEnabled = null;
     }
 
     // --- REI control ---
@@ -102,11 +150,12 @@ public class OverlayHider {
 
     public static void setOverlaysHidden(boolean hide) {
         if (hide) {
+            saveJeiState();
             hideReiOverlay();
             ensureJeiOverlayHidden();
         } else {
             showReiOverlay();
-            restoreJeiOverlay();
+            restoreJeiState();
         }
     }
 
