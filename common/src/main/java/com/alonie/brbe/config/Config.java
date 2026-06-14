@@ -4,8 +4,8 @@ import me.shedaniel.autoconfig.ConfigData;
 import me.shedaniel.autoconfig.annotation.ConfigEntry;
 
 @me.shedaniel.autoconfig.annotation.Config(name = "brbe")
-@me.shedaniel.autoconfig.annotation.Config.Gui.Background("minecraft:textures/block/blue_concrete_powder.png")
 public class Config implements ConfigData {
+
     public boolean enablePinning = true;
 
     public boolean keepCentered = false;
@@ -20,6 +20,13 @@ public class Config implements ConfigData {
 
     @ConfigEntry.Gui.Tooltip()
     public boolean partialCraftingEnabled = true;
+
+    @ConfigEntry.Gui.Tooltip()
+    public boolean partialMarkingEnabled = true;
+
+    @ConfigEntry.Category("rbip")
+    @ConfigEntry.Gui.TransitiveObject()
+    public RecipeBookIsPain rbip = new RecipeBookIsPain();
 
     @ConfigEntry.Category("newRecipes")
     @ConfigEntry.Gui.TransitiveObject()
@@ -40,4 +47,11 @@ public class Config implements ConfigData {
     @ConfigEntry.Gui.PrefixText()
     public boolean settingsButton = true;
     public boolean enableBook = true;
+
+    public static class RecipeBookIsPain {
+        @ConfigEntry.Gui.Tooltip()
+        public boolean enableRecipeBookIsPain = true;
+
+        public boolean enableTabPage = true;
+    }
 }
