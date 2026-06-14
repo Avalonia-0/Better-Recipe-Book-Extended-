@@ -116,24 +116,24 @@ public abstract class RecipeBookComponentMixin {
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;ZZ)V"))
     private void betterRecipeBook$sortCraftableBeforePartial(
             RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber, boolean isFiltering) {
-        // Sort only when the "show craftable only" filter is active.
-        // When filtering is off, both craftable and partial recipes belong
-        // on the first page — no special ordering needed.
-        if (!isFiltering) {
+        // Sorting lives inside the partialMarkingEnabled module.
+        // When disabled, the vanilla order is kept as-is.
+        if (!BetterRecipeBook.config.partialMarkingEnabled) {
             page.updateCollections(list, resetPageNumber, isFiltering);
             return;
         }
-        List<RecipeCollection> craftable = new ArrayList<>();
-        List<RecipeCollection> partial = new ArrayList<>();
-        List<RecipeCollection> other = new ArrayList<>();
+
+        List<RecipeCollection> front = new ArrayList<>();
+        List<RecipeCollection> middle = new ArrayList<>();
+        List<RecipeCollection> back = new ArrayList<>();
+
         for (RecipeCollection c : list) {
             boolean hasTrulyCraftable = false;
             boolean hasPartial = false;
 
             // Iterate recipes to distinguish truly-craftable from
-            // partial-injected (Step 3 of keepPartiallyCraftable injects
-            // partial IDs into the craftable set, so hasCraftable() alone
-            // cannot tell them apart).
+            // partial-injected (Step 3 injects partial IDs into the
+            // craftable set, so hasCraftable() alone cannot tell them apart).
             for (RecipeDisplayEntry entry : c.getRecipes()) {
                 RecipeDisplayId id = entry.id();
                 if (PartialCraftingUtil.isPartiallyCraftable(c, id)) {
@@ -143,18 +143,29 @@ public abstract class RecipeBookComponentMixin {
                 }
             }
 
-            if (hasTrulyCraftable) {
-                craftable.add(c);
-            } else if (hasPartial) {
-                partial.add(c);
+            if (isFiltering) {
+                // Filter ON → 3 groups: craftable > partial > uncraftable
+                if (hasTrulyCraftable) {
+                    front.add(c);
+                } else if (hasPartial) {
+                    middle.add(c);
+                } else {
+                    back.add(c);
+                }
             } else {
-                other.add(c);
+                // Filter OFF → 2 groups: (craftable+partial) > uncraftable
+                if (hasTrulyCraftable || hasPartial) {
+                    front.add(c);
+                } else {
+                    back.add(c);
+                }
             }
         }
+
         list.clear();
-        list.addAll(craftable);
-        list.addAll(partial);
-        list.addAll(other);
+        list.addAll(front);
+        list.addAll(middle);
+        list.addAll(back);
         page.updateCollections(list, resetPageNumber, isFiltering);
     }
 }
