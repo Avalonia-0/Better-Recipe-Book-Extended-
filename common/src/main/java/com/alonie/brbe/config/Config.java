@@ -18,6 +18,9 @@ public class Config implements ConfigData {
 
     public boolean showAllRecipesInSurvival = true;
 
+    @ConfigEntry.Gui.Tooltip()
+    public boolean partialCraftingEnabled = true;
+
     @ConfigEntry.Category("newRecipes")
     @ConfigEntry.Gui.TransitiveObject()
     public NewRecipes newRecipes = new NewRecipes();

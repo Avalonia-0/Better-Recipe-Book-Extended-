@@ -99,6 +99,10 @@ public abstract class RecipeBookComponentMixin {
      */
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;Z)V"))
     private void betterRecipeBook$sortBeforePageUpdate(RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber) {
+        if (!BetterRecipeBook.config.partialCraftingEnabled) {
+            page.updateCollections(list, resetPageNumber);
+            return;
+        }
         List<RecipeCollection> craftable = new ArrayList<>();
         List<RecipeCollection> partial = new ArrayList<>();
         List<RecipeCollection> other = new ArrayList<>();
