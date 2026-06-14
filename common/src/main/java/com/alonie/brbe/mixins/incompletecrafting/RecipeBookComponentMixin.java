@@ -104,18 +104,21 @@ public abstract class RecipeBookComponentMixin {
      */
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;Z)V"))
     private void betterRecipeBook$sortBeforePageUpdate(RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber) {
-        // Sort only when partial marking is active — the sort separates
-        // truly-craftable collections from partial-injected ones, which is
-        // meaningless when no partial recipes exist.
-        // (1.21.1 doesn't pass isFiltering to page.updateCollections, so
-        // we gate on the feature flag instead.)
+        // Sorting lives inside the partialMarkingEnabled module.
         if (!BetterRecipeBook.config.partialMarkingEnabled) {
             page.updateCollections(list, resetPageNumber);
             return;
         }
-        List<RecipeCollection> craftable = new ArrayList<>();
-        List<RecipeCollection> partial = new ArrayList<>();
-        List<RecipeCollection> other = new ArrayList<>();
+
+        // 1.21.1 doesn't pass isFiltering to page.updateCollections —
+        // read it from the player's recipe book instead.
+        boolean filtering = this.minecraft != null
+                && this.minecraft.player != null
+                && this.minecraft.player.getRecipeBook().isFiltering(this.menu);
+
+        List<RecipeCollection> front = new ArrayList<>();
+        List<RecipeCollection> middle = new ArrayList<>();
+        List<RecipeCollection> back = new ArrayList<>();
 
         for (RecipeCollection c : list) {
             boolean hasTrulyCraftable = false;
@@ -132,19 +135,29 @@ public abstract class RecipeBookComponentMixin {
                 }
             }
 
-            if (hasTrulyCraftable) {
-                craftable.add(c);
-            } else if (hasPartial) {
-                partial.add(c);
+            if (filtering) {
+                // Filter ON → 3 groups: craftable > partial > uncraftable
+                if (hasTrulyCraftable) {
+                    front.add(c);
+                } else if (hasPartial) {
+                    middle.add(c);
+                } else {
+                    back.add(c);
+                }
             } else {
-                other.add(c);
+                // Filter OFF → 2 groups: (craftable+partial) > uncraftable
+                if (hasTrulyCraftable || hasPartial) {
+                    front.add(c);
+                } else {
+                    back.add(c);
+                }
             }
         }
 
         list.clear();
-        list.addAll(craftable);
-        list.addAll(partial);
-        list.addAll(other);
+        list.addAll(front);
+        list.addAll(middle);
+        list.addAll(back);
         page.updateCollections(list, resetPageNumber);
     }
 }
