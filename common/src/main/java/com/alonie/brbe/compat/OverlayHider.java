@@ -48,35 +48,6 @@ public class OverlayHider {
         }
     }
 
-    /**
-     * Call once when config says show. Restores JEI state.
-     */
-    public static void restoreJeiOverlay() {
-        Class<?> tsClass = getJeiToggleStateClass();
-        if (tsClass == null) return;
-
-        try {
-            Object ts = Class.forName("mezz.jei.common.Internal")
-                    .getMethod("getClientToggleState").invoke(null);
-            if (ts == null) return;
-
-            // Restore overlayEnabled = true
-            if (!(Boolean) tsClass.getMethod("isOverlayEnabled").invoke(ts)) {
-                tsClass.getMethod("toggleOverlayEnabled").invoke(ts);
-            }
-            // Restore bookmarkOverlayEnabled = true
-            if (!(Boolean) tsClass.getMethod("isBookmarkOverlayEnabled").invoke(ts)) {
-                tsClass.getMethod("toggleBookmarkEnabled").invoke(ts);
-            }
-            // Restore cheatItemsEnabled = true
-            if (!(Boolean) tsClass.getMethod("isCheatItemsEnabled").invoke(ts)) {
-                tsClass.getMethod("toggleCheatItemsEnabled").invoke(ts);
-            }
-        } catch (Exception e) {
-            // Silently ignore
-        }
-    }
-
     // --- REI control (unchanged) ---
 
     public static void hideReiOverlay() {
@@ -111,10 +82,9 @@ public class OverlayHider {
         if (hide) {
             hideReiOverlay();
             ensureJeiOverlayHidden();
-        } else {
-            showReiOverlay();
-            restoreJeiOverlay();
         }
+        // When hide=false we do NOT restore anything — JEI manages its own state.
+        // BRBE should never toggle cheat mode on just because a screen opened.
     }
 
     // === Internal: class resolution (lazy, one-time) ===
