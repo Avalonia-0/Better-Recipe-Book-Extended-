@@ -17,6 +17,10 @@ configurations {
     developmentFabric.extendsFrom common
 }
 
+repositories {
+    maven { url = "https://maven.terraformersmc.com/releases/" }
+}
+
 dependencies {
     implementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
     implementation("net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}") {
@@ -26,6 +30,9 @@ dependencies {
         exclude group: "net.fabricmc.fabric-api"
     }
     implementation "me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}"
+    // ModMenu is distributed with intermediary mappings, which conflicts with
+    // loom-no-remap (Mojmap). ModMenuFabric integration is currently disabled.
+    // implementation "com.terraformersmc:modmenu:${rootProject.modmenu_version}"
     def jeiJarPath = rootProject.findProperty("jei_fabric_jar")?.toString()
     if (jeiJarPath == null || !file(jeiJarPath).exists()) {
         jeiJarPath = "/media/avalonia/data/MinecraftLib/versions/26.1.2-Fabric/mods/jei-26.1.2-fabric-29.6.2.31.jar"

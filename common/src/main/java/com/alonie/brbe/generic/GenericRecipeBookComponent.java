@@ -15,7 +15,7 @@ import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.Minecraft;
 import com.alonie.brbe.widget.StateSwitchingButton;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.gui.components.*;
 import com.alonie.brbe.widget.StateSwitchingButton;
@@ -164,7 +164,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.refreshTabButtons();
     }
 
-    public void render(GuiGraphics gui, int mouseX, int mouseY, float delta) {
+    public void extractRenderState(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta) {
         if (!this.isVisible()) return;
 
         if (this.doubleRefresh) {
@@ -181,14 +181,14 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         gui.blit(ClientCompat.GUI_TEXTURED, BRBTextures.RECIPE_BOOK_BACKGROUND_TEXTURE, blitX, blitY, 1.0F, 1.0F, 147, 166, 256, 256);
 
         // render search box
-        this.searchBox.render(gui, mouseX, mouseY, delta);
+        this.searchBox.extractRenderState(gui, mouseX, mouseY, delta);
 
         // render tab buttons
         for (BRBGroupButtonWidget widget : this.tabButtons) {
-            widget.render(gui, mouseX, mouseY, delta);
+            widget.extractRenderState(gui, mouseX, mouseY, delta);
         }
 
-        this.filterButton.render(gui, mouseX, mouseY, delta);
+        this.filterButton.extractRenderState(gui, mouseX, mouseY, delta);
 
         ISettingsButton.super.renderSettingsButton(this.settingsButton, gui, mouseX, mouseY, delta);
 
@@ -273,7 +273,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
     @Override
     public boolean charTyped(CharacterEvent event) {
-        return this.charTyped((char) event.codepoint(), event.modifiers());
+        return this.charTyped((char) event.codepoint(), 0);
     }
 
     public boolean charTyped(char c, int i) {
@@ -534,7 +534,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         return j;
     }
 
-    public void drawTooltip(GuiGraphics gui, int x, int y, int mouseX, int mouseY) {
+    public void drawTooltip(GuiGraphicsExtractor gui, int x, int y, int mouseX, int mouseY) {
         if (!this.isVisible()) {
             return;
         }
@@ -576,7 +576,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         }
     }
 
-    public void renderGhostRecipe(GuiGraphics guiGraphics, int x, int y, boolean bl, float delta) {
+    public void renderGhostRecipe(GuiGraphicsExtractor guiGraphics, int x, int y, boolean bl, float delta) {
         if (selectedTab == null || ghostRecipe == null) return;
 
         this.ghostRecipe.render(guiGraphics, this.minecraft, x, y, bl, delta, selectedTab.getCategory());

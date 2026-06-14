@@ -3,7 +3,8 @@ package com.alonie.brbe.fabric;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.fabric.PlatformPotionUtilImpl;
 import com.alonie.brbe.compat.OverlayHider;
-import com.alonie.brbe.fabric.compat.rei.ReiCompatHandler;
+// TODO: REI compat handler not yet ported to 26.1.2
+// import com.alonie.brbe.fabric.compat.rei.ReiCompatHandler;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -23,7 +24,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         PlatformPotionUtilImpl.init();
 
         // Register optional compat handlers
-        ReiCompatHandler.register();
+        // TODO: ReiCompatHandler.register(); — not yet ported to 26.1.2
         
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             this.registeredScreens.remove(screen);
@@ -40,7 +41,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             }
 
             this.registeredScreens.add(screen);
-            ScreenEvents.afterRender(screen).register(TopLayerOverlayRenderer::render);
+            ScreenEvents.afterExtract(screen).register(TopLayerOverlayRenderer::render);
         });
     }
 }

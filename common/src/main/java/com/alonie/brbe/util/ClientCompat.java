@@ -4,7 +4,7 @@ import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.CharacterEvent;
@@ -30,7 +30,7 @@ public final class ClientCompat {
     }
 
     public static CharacterEvent characterEvent(char character, int modifiers) {
-        return new CharacterEvent(character, modifiers);
+        return new CharacterEvent((int) character);
     }
 
     public static MouseButtonEvent mouseButtonEvent(double mouseX, double mouseY, int button) {
@@ -59,11 +59,11 @@ public final class ClientCompat {
                 || InputConstants.isKeyDown(minecraft.getWindow(), InputConstants.KEY_RCONTROL);
     }
 
-    public static void blitSprite(GuiGraphics gui, Identifier sprite, int x, int y, int width, int height) {
+    public static void blitSprite(GuiGraphicsExtractor gui, Identifier sprite, int x, int y, int width, int height) {
         gui.blitSprite(GUI_TEXTURED, sprite, x, y, width, height);
     }
 
-    public static void setComponentTooltipForNextFrame(GuiGraphics gui, List<Component> tooltip, int mouseX, int mouseY) {
+    public static void setComponentTooltipForNextFrame(GuiGraphicsExtractor gui, List<Component> tooltip, int mouseX, int mouseY) {
         gui.setComponentTooltipForNextFrame(Minecraft.getInstance().font, tooltip, mouseX, mouseY);
     }
 

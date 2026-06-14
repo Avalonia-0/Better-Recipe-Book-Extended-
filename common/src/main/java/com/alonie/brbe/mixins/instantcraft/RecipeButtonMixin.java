@@ -25,7 +25,7 @@ public class RecipeButtonMixin {
     public void init(RecipeCollection collection, RecipeBookPage recipeBookPage, CallbackInfo ci) {
         if (BetterRecipeBook.instantCraftingManager.lastHoveredCollection == collection) {
             BetterRecipeBook.instantCraftingManager.lastHoveredCollection = null;
-            betterRecipeBook$lastClicked = List.of(BetterRecipeBook.instantCraftingManager.lastClickedRecipe);
+            betterRecipeBook$lastClicked = List.of(BetterRecipeBook.instantCraftingManager.getLastClickedRecipe());
         }
     }
 }

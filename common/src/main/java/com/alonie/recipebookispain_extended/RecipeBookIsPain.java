@@ -226,13 +226,7 @@ public class RecipeBookIsPain {
     }
 
     public static boolean rbip$renderOwo(GuiGraphicsExtractor context, int x, int y, CreativeModeTab group) {
-        if (group instanceof OwoItemGroup owoItemGroup) {
-            Minecraft minecraft = Minecraft.getInstance();
-            double e = minecraft.mouseHandler.xpos() * (double) minecraft.getWindow().getGuiScaledWidth() / (double) minecraft.getWindow().getScreenWidth();
-            double f = minecraft.mouseHandler.ypos() * (double) minecraft.getWindow().getGuiScaledHeight() / (double) minecraft.getWindow().getScreenHeight();
-            owoItemGroup.icon().render(context, x, y, (int) e, (int) f, minecraft.getDeltaTracker().getGameTimeDeltaPartialTick(true));
-            return true;
-        }
+        // owo-lib animated icons — optional compat, not available at compile time
         return false;
     }
 

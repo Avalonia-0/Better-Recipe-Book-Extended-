@@ -6,7 +6,7 @@ import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonPosAccessor;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
 import net.minecraft.network.chat.Component;
@@ -44,8 +44,8 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         super(x, y, width, height, message);
     }
 
-    @Inject(at = @At("HEAD"), method = "renderWidget", cancellable = true)
-    public void renderWidget(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    @Inject(at = @At("HEAD"), method = "extractWidgetRenderState", cancellable = true)
+    public void extractWidgetRenderState(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         Identifier Identifier;
 
         Identifier = BRBTextures.RECIPE_BOOK_CRAFTING_OVERLAY_SPRITE.get(this.isCraftable, isHoveredOrFocused());
@@ -54,7 +54,7 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         gui.pose().pushMatrix();
         if (BetterRecipeBook.config.alternativeRecipes.onHover && !this.isHoveredOrFocused()) { // if show alternatives recipe is enabled and recipe is not hovered, show the result item
             ItemStack recipeOutput = betterRecipeBook$getRecipeOutput();
-            gui.renderItem(recipeOutput, getX() + 4, getY() + 4);
+            gui.item(recipeOutput, getX() + 4, getY() + 4);
         } else { // otherwise display the crafting recipe
             gui.pose().translate(this.getX() + 2, this.getY() + 2);
             for (Object rawPos : this.slots) {
@@ -63,7 +63,7 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
                 gui.pose().translate(pos.betterRecipeBook$getX(), pos.betterRecipeBook$getY());
                 gui.pose().scale(0.375f, 0.375f);
                 gui.pose().translate(-8.0F, -8.0F);
-                gui.renderItem(pos.betterRecipeBook$selectIngredient(0), 0, 0);
+                gui.item(pos.betterRecipeBook$selectIngredient(0), 0, 0);
                 gui.pose().popMatrix();
             }
         }
