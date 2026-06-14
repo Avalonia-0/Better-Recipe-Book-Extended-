@@ -3,6 +3,42 @@ plugins {
     id "dev.architectury.loom-no-remap" version "1.14.475" apply false
 }
 
+// ============================================================
+//  Version sanity check — prevent cross-branch contamination
+// ============================================================
+// Each git branch targets a specific Minecraft version. If
+// gradle.properties was accidentally carried over from another
+// branch (e.g. 1.21.11 → 26.1.2), fail fast with a clear message.
+//
+// Expected mapping (branch → minecraft_version):
+//   1.21.1   → 1.21.1
+//   1.21.11  → 1.21.11
+//   26.1.2   → 26.1.2
+// ============================================================
+def currentBranch = providers.exec(execSpec -> {
+    execSpec.commandLine("git", "rev-parse", "--abbrev-ref", "HEAD")
+}).standardOutput.asText.get().trim()
+
+def expectedVersion = currentBranch
+// Strip "origin/" prefix if on a remote-tracking branch
+if (expectedVersion.startsWith("origin/")) expectedVersion = expectedVersion.substring(7)
+
+// If the branch name looks like a version (contains a dot or is a single major), validate
+if (expectedVersion.matches(/\d+\.\d+(\.\d+)?/) && expectedVersion != minecraft_version) {
+    throw new GradleException(
+        "Minecraft version mismatch!\n" +
+        "  Branch:            ${currentBranch}\n" +
+        "  Expected version:  ${expectedVersion}\n" +
+        "  gradle.properties: ${minecraft_version}\n" +
+        "\n" +
+        "This usually happens after switching branches without updating gradle.properties.\n" +
+        "Run one of these to fix:\n" +
+        "  - git checkout -- gradle.properties          (restore this branch's file)\n" +
+        "  - gradle cleanLoomCache && rm -rf .gradle   (full cache reset)\n" +
+        "  - Or manually set minecraft_version=${expectedVersion} in gradle.properties"
+    )
+}
+
 architectury {
     minecraft = rootProject.minecraft_version
 }
@@ -29,6 +65,30 @@ subprojects {
             // don't include things we don't need at runtime
             exclude("**/*.ase", "**/*.kra")
         }
+    }
+}
+
+// ============================================================
+//  cleanLoomCache — nuke all local loom / fabric caches
+// ============================================================
+// Run this when you hit "Namespace mismatch" or other mapping
+// corruption after switching branches or updating client jars.
+// ============================================================
+tasks.register("cleanLoomCache") {
+    doLast {
+        def loomDirs = [
+            "${gradle.gradleUserHomeDir}/caches/fabric-loom",
+            "${gradle.gradleUserHomeDir}/caches/architectury-loom",
+            "${gradle.gradleUserHomeDir}/caches/loom",
+        ]
+        loomDirs.each { dir ->
+            def f = file(dir)
+            if (f.exists()) {
+                logger.lifecycle("Deleting {}", f)
+                delete f
+            }
+        }
+        logger.lifecycle("Run './gradlew' afterwards to re-download all mappings.")
     }
 }
 

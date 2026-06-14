@@ -1,0 +1,63 @@
+name: Build
+
+on:
+  push:
+    branches: [ "1.21.1", "1.21.11", "26.1.2" ]
+  pull_request:
+    branches: [ "1.21.11", "26.1.2" ]
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        branch: [ "1.21.11", "26.1.2" ]
+      fail-fast: false   # one branch failing shouldn't cancel the other
+
+    runs-on: ubuntu-latest
+    name: "Build ${{ matrix.branch }}"
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+
+      - name: "Set up JDK ${{ matrix.branch == '26.1.2' && '25' || '21' }}"
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: ${{ matrix.branch == '26.1.2' && 25 || 21 }}
+
+      - name: Validate gradle.properties
+        run: |
+          MC_VERSION=$(grep '^minecraft_version' gradle.properties | cut -d= -f2)
+          if [ "$MC_VERSION" != "${{ matrix.branch }}" ]; then
+            echo "::error::gradle.properties minecraft_version=$MC_VERSION does not match branch ${{ matrix.branch }}"
+            exit 1
+          fi
+
+      - name: Setup gradle cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+          key: ${{ runner.os }}-gradle-${{ matrix.branch }}-${{ hashFiles('**/*.gradle*', '**/gradle.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-${{ matrix.branch }}-
+            ${{ runner.os }}-gradle-
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
+      - name: Build common + fabric + neoforge
+        run: ./gradlew build --no-daemon
+
+      - name: Upload JARs
+        uses: actions/upload-artifact@v4
+        with:
+          name: "BetterRecipeBookExtended-${{ matrix.branch }}"
+          path: |
+            fabric/build/libs/*.jar
+            neoforge/build/libs/*.jar
+            common/build/libs/*.jar
+          compression-level: 0
