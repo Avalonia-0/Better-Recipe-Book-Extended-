@@ -18,6 +18,9 @@ public class Config implements ConfigData {
 
     public boolean showAllRecipesInSurvival = true;
 
+    @ConfigEntry.Gui.Tooltip()
+    public boolean partialCraftingEnabled = true;
+
     @ConfigEntry.Category("rbip")
     @ConfigEntry.Gui.TransitiveObject()
     public RecipeBookIsPain rbip = new RecipeBookIsPain();
@@ -41,10 +44,6 @@ public class Config implements ConfigData {
     @ConfigEntry.Gui.PrefixText()
     public boolean settingsButton = true;
     public boolean enableBook = true;
-
-    @ConfigEntry.Category("partialCrafting")
-    @ConfigEntry.Gui.Tooltip()
-    public boolean partialCraftingEnabled = true;
 
     public static class RecipeBookIsPain {
         @ConfigEntry.Gui.Tooltip()
