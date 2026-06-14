@@ -47,8 +47,14 @@ public abstract class RecipeBookComponentMixin {
         // Step 1: Run original forEach (populates craftable + fitsDimensions)
         collections.forEach(consumer);
 
-        boolean onInventory = BetterRecipeBook.config.showAllRecipesInSurvival
-                && this.minecraft != null
+        // When "show all recipes in survival" is disabled, skip ALL partial/incompatible
+        // logic. This prevents partial injection from corrupting the craftable set
+        // and causing air placeholders.
+        if (!BetterRecipeBook.config.showAllRecipesInSurvival) {
+            return;
+        }
+
+        boolean onInventory = this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
 
         // Step 0: Clear previously-injected partial IDs from craftable set
