@@ -1,0 +1,13 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.alonie.brbe.mixins.hideoverlay",
+  "compatibilityLevel": "JAVA_16",
+  "client": [
+    "IngredientListOverlayMixin",
+    "BookmarkOverlayMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}

@@ -1,5 +1,6 @@
 package com.alonie.brbe.util;
 
+import com.alonie.brbe.BetterRecipeBook;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.core.NonNullList;
 import net.minecraft.resources.ResourceLocation;
@@ -24,6 +25,15 @@ public final class PartialCraftingUtil {
     private PartialCraftingUtil() {
     }
 
+    /**
+     * Single point-of-control for the partial material marking feature.
+     * All public methods check this before doing any work, so callers
+     * never need to repeat the config gate.
+     */
+    private static boolean enabled() {
+        return BetterRecipeBook.config.partialMarkingEnabled;
+    }
+
     public static void beginFilteringUpdate(boolean active) {
         filteringActive = active;
         if (active) {
@@ -35,6 +45,7 @@ public final class PartialCraftingUtil {
      * Checks all recipes in the collection and marks those that have some (but not all) matching ingredients.
      */
     public static boolean markPartialMaterials(RecipeCollection collection, NonNullList<Slot> slots) {
+        if (!enabled()) return false;
         CHECKED_COLLECTIONS.put(collection, filteringGeneration);
         boolean markedAny = false;
         Set<ResourceLocation> partialRecipes = new HashSet<>();
@@ -62,11 +73,13 @@ public final class PartialCraftingUtil {
     }
 
     public static void markPartialMaterial(RecipeCollection collection, ResourceLocation recipeId) {
+        if (!enabled()) return;
         PARTIAL_RECIPES.put(collection, new HashSet<>(Collections.singleton(recipeId)));
         CHECKED_COLLECTIONS.put(collection, filteringGeneration);
     }
 
     public static boolean wasCheckedForPartialMaterials(RecipeCollection collection) {
+        if (!enabled()) return false;
         Integer generation = CHECKED_COLLECTIONS.get(collection);
         return filteringActive && generation != null && generation == filteringGeneration;
     }
@@ -76,16 +89,19 @@ public final class PartialCraftingUtil {
     }
 
     public static boolean isPartiallyCraftable(RecipeCollection collection, ResourceLocation recipeId) {
+        if (!enabled()) return false;
         Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(collection);
         return partialRecipes != null && partialRecipes.contains(recipeId);
     }
 
     public static boolean hasPartialMaterials(RecipeCollection collection) {
+        if (!enabled()) return false;
         Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(collection);
         return partialRecipes != null && !partialRecipes.isEmpty();
     }
 
     public static void sortCraftableBeforePartial(List<RecipeCollection> collections) {
+        if (!enabled()) return;
         List<RecipeCollection> craftableCollections = new ArrayList<>();
         List<RecipeCollection> partialCollections = new ArrayList<>();
 
@@ -103,6 +119,7 @@ public final class PartialCraftingUtil {
     }
 
     public static List<RecipeHolder<?>> getPartiallyCraftableRecipes(RecipeCollection collection) {
+        if (!enabled()) return Collections.emptyList();
         Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(collection);
         if (partialRecipes == null || partialRecipes.isEmpty()) {
             return Collections.emptyList();
