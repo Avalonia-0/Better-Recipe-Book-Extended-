@@ -46,9 +46,9 @@ public abstract class RecipeBookComponentMixin {
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z"))
     private boolean betterRecipeBook$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
-        // Skip ALL partial/incompatible logic when either config toggle is off.
-        if (!BetterRecipeBook.config.showAllRecipesInSurvival
-                || !BetterRecipeBook.config.partialCraftingEnabled) {
+        // Skip incompatible logic when showAllRecipesInSurvival is off.
+        // (Partial material injection always runs — it is gated separately.)
+        if (!BetterRecipeBook.config.showAllRecipesInSurvival) {
             return collections.removeIf(predicate);
         }
 
@@ -110,6 +110,10 @@ public abstract class RecipeBookComponentMixin {
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;ZZ)V"))
     private void betterRecipeBook$sortCraftableBeforePartial(
             RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber, boolean isFiltering) {
+        if (!BetterRecipeBook.config.partialCraftingEnabled) {
+            page.updateCollections(list, resetPageNumber, isFiltering);
+            return;
+        }
         List<RecipeCollection> craftable = new ArrayList<>();
         List<RecipeCollection> partial = new ArrayList<>();
         List<RecipeCollection> other = new ArrayList<>();
