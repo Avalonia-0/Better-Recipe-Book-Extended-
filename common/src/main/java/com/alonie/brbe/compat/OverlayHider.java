@@ -20,6 +20,7 @@ public class OverlayHider {
     private static Boolean savedOverlayEnabled;
     private static Boolean savedBookmarkEnabled;
     private static Boolean savedCheatEnabled;
+    private static boolean stateSaved = false;
 
     /**
      * Reads JEI's current IClientToggleState via reflection.
@@ -150,10 +151,14 @@ public class OverlayHider {
 
     public static void setOverlaysHidden(boolean hide) {
         if (hide) {
-            saveJeiState();
+            if (!stateSaved) {
+                saveJeiState();
+                stateSaved = true;
+            }
             hideReiOverlay();
             ensureJeiOverlayHidden();
         } else {
+            stateSaved = false;
             showReiOverlay();
             restoreJeiState();
         }
