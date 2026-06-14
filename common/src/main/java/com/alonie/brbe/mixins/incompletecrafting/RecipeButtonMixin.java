@@ -64,13 +64,6 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
             return result;
         }
 
-        // The partial-craftable filter only applies when cycling through craftable
-        // recipes. NOT_CRAFTABLE and ANY are used for init checks (e.g.
-        // allRecipesHaveSameResultDisplay) and should return the full list.
-        if (status != RecipeCollection.CraftableStatus.CRAFTABLE) {
-            return result;
-        }
-
         // Determine whether there are any craftable or partial recipes.
         // hasCraftable() covers both fully-craftable and partial recipes
         // (partial IDs are injected into the craftable set beforehand).
