@@ -104,7 +104,12 @@ public abstract class RecipeBookComponentMixin {
      */
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;Z)V"))
     private void betterRecipeBook$sortBeforePageUpdate(RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber) {
-        if (!BetterRecipeBook.config.partialCraftingEnabled && !BetterRecipeBook.config.partialMarkingEnabled) {
+        // Sort only when partial marking is active — the sort separates
+        // truly-craftable collections from partial-injected ones, which is
+        // meaningless when no partial recipes exist.
+        // (1.21.1 doesn't pass isFiltering to page.updateCollections, so
+        // we gate on the feature flag instead.)
+        if (!BetterRecipeBook.config.partialMarkingEnabled) {
             page.updateCollections(list, resetPageNumber);
             return;
         }
@@ -113,10 +118,21 @@ public abstract class RecipeBookComponentMixin {
         List<RecipeCollection> other = new ArrayList<>();
 
         for (RecipeCollection c : list) {
-            boolean hasCraftable = c.hasCraftable();
-            boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(c);
+            boolean hasTrulyCraftable = false;
+            boolean hasPartial = false;
 
-            if (hasCraftable) {
+            // Iterate recipes to distinguish truly-craftable from
+            // partial-injected (Step 3 injects partial holders into the
+            // craftable set, so hasCraftable() alone cannot tell them apart).
+            for (RecipeHolder<?> holder : c.getRecipes()) {
+                if (PartialCraftingUtil.isPartiallyCraftable(c, holder)) {
+                    hasPartial = true;
+                } else if (c.isCraftable(holder)) {
+                    hasTrulyCraftable = true;
+                }
+            }
+
+            if (hasTrulyCraftable) {
                 craftable.add(c);
             } else if (hasPartial) {
                 partial.add(c);
