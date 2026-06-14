@@ -46,8 +46,13 @@ public abstract class RecipeBookComponentMixin {
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z"))
     private boolean betterRecipeBook$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
-        boolean onInventoryScreen = BetterRecipeBook.config.showAllRecipesInSurvival
-                && this.minecraft != null
+        // When "show all recipes in survival" is disabled, skip ALL partial/incompatible
+        // logic and use vanilla removeIf unchanged.
+        if (!BetterRecipeBook.config.showAllRecipesInSurvival) {
+            return collections.removeIf(predicate);
+        }
+
+        boolean onInventoryScreen = this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
 
         // Step 0: Clear previously-injected partial IDs from craftable set
