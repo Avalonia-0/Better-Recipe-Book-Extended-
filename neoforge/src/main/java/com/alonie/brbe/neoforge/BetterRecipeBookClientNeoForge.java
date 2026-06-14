@@ -7,6 +7,8 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.neoforge.PlatformPotionUtilImpl;
 import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.compat.rei.ReiCompat;
+import com.alonie.brbe.impl.hud.JeiHudHider;
+import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.neoforge.NeoForgePlatform;
@@ -28,6 +30,10 @@ public class BetterRecipeBookClientNeoForge {
     public static void init() {
         // Register platform provider
         PlatformPotionUtilImpl.init();
+
+        // Register HUD hiders (JEI + REI overlay control)
+        OverlayHider.register(new JeiHudHider());
+        OverlayHider.register(new ReiHudHider());
 
         // Initialize RBIP platform (was previously in RBIPNeoForgeMod)
         RecipeBookIsPain.PLATFORM = new NeoForgePlatform();
