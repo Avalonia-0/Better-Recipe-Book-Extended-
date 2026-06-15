@@ -57,6 +57,9 @@ config = "mixins.brbe-jei.json"
 [[mixins]]
 config = "mixins.brbe-rei-common.json"
 
+[[mixins]]
+config = "rbip-neoforge.mixins.json"
+
 [[dependencies.brbe]]
 modId = "roughlyenoughitems"
 type = "optional"

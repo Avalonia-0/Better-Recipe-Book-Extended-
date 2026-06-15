@@ -7,7 +7,12 @@
   "refmap": "rbip-common.refmap.json",
   "mixins": [],
   "client": [
-    "ItemMixin"
+    "ItemMixin",
+    "RbipMouseScrollMixin",
+    "widget.RecipeBookTabButtonCreativeMixin",
+    "widget.RecipeBookComponentTooltipMixin",
+    "widget.RecipeBookWidgetMixin",
+    "groups.ClientRecipeBookMixin"
   ],
   "injectors": {
     "defaultRequire": 1

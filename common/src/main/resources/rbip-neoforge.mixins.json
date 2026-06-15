@@ -5,7 +5,12 @@
   "package": "com.alonie.recipebookispain_extended.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "ItemMixin"
+    "ItemMixin",
+    "RbipMouseScrollMixin",
+    "widget.RecipeBookTabButtonCreativeMixin",
+    "widget.RecipeBookComponentTooltipMixin",
+    "widget.RecipeBookWidgetMixin",
+    "groups.ClientRecipeBookMixin"
   ],
   "injectors": {
     "defaultRequire": 1
