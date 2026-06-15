@@ -8,19 +8,24 @@ public class Config implements ConfigData {
 
     public boolean enablePinning = true;
 
+    @ConfigEntry.Category("ui")
     public boolean keepCentered = false;
 
     @ConfigEntry.Gui.Tooltip()
     public boolean showModName = false;
 
+    @ConfigEntry.Category("ui")
     @ConfigEntry.Gui.Tooltip()
     public boolean hideReiJeiOverlay = false;
 
+    @ConfigEntry.Category("recipeFilter")
     public boolean showAllRecipesInSurvival = true;
 
+    @ConfigEntry.Category("recipeFilter")
     @ConfigEntry.Gui.Tooltip()
     public boolean partialCraftingEnabled = true;
 
+    @ConfigEntry.Category("recipeFilter")
     @ConfigEntry.Gui.Tooltip()
     public boolean partialMarkingEnabled = true;
 
