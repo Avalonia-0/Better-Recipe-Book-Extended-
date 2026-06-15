@@ -2,6 +2,7 @@ package com.alonie.brbe.mixins.incompletecrafting;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
+import com.alonie.brbe.util.CollectionCategory;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.Minecraft;
@@ -131,37 +132,18 @@ public abstract class RecipeBookComponentMixin {
         List<RecipeCollection> back = new ArrayList<>();
 
         for (RecipeCollection c : list) {
-            boolean hasTrulyCraftable = false;
-            boolean hasPartial = false;
-
-            // Iterate recipes to distinguish truly-craftable from
-            // partial-injected (Step 3 injects partial IDs into the
-            // craftable set, so hasCraftable() alone cannot tell them apart).
-            for (RecipeDisplayEntry entry : c.getRecipes()) {
-                RecipeDisplayId id = entry.id();
-                if (PartialCraftingUtil.isPartiallyCraftable(c, id)) {
-                    hasPartial = true;
-                } else if (c.isCraftable(id)) {
-                    hasTrulyCraftable = true;
-                }
-            }
-
+            CollectionCategory cat = PartialCraftingUtil.categorize(c);
             if (isFiltering) {
-                // Filter ON → 3 groups: craftable > partial > uncraftable
-                if (hasTrulyCraftable) {
-                    front.add(c);
-                } else if (hasPartial) {
-                    middle.add(c);
-                } else {
-                    back.add(c);
+                // Filter ON → 3 groups: TRULY_CRAFTABLE > PARTIAL > UNASSIGNED
+                switch (cat) {
+                    case TRULY_CRAFTABLE -> front.add(c);
+                    case PARTIAL -> middle.add(c);
+                    case UNASSIGNED -> back.add(c);
                 }
             } else {
-                // Filter OFF → 2 groups: (craftable+partial) > uncraftable
-                if (hasTrulyCraftable || hasPartial) {
-                    front.add(c);
-                } else {
-                    back.add(c);
-                }
+                // Filter OFF → 2 groups: (TRULY_CRAFTABLE + PARTIAL) > UNASSIGNED
+                if (cat != CollectionCategory.UNASSIGNED) front.add(c);
+                else back.add(c);
             }
         }
 
