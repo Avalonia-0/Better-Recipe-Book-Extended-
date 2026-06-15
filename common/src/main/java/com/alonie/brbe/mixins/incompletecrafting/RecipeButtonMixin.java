@@ -36,6 +36,9 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     @Shadow
     private int currentIndex;
 
+    @Shadow
+    protected abstract List<RecipeHolder<?>> getOrderedRecipes();
+
     /**
      * Disables the crafting filter so all recipes are always visible.
      * 1.21.1 checks filtering via book.isFiltering(menu) on RecipeBook,
@@ -64,7 +67,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Inject(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderFakeItem(Lnet/minecraft/world/item/ItemStack;II)V", shift = At.Shift.BEFORE))
     private void betterRecipeBook$renderPartialOverlay(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        List<RecipeHolder<?>> recipes = this.collection.getRecipes();
+        List<RecipeHolder<?>> recipes = this.getOrderedRecipes();
         if (recipes.isEmpty()) return;
 
         RecipeHolder<?> current = recipes.get(this.currentIndex % recipes.size());

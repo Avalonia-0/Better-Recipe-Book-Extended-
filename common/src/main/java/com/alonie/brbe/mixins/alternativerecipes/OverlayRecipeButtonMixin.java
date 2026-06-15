@@ -60,6 +60,12 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         }
 
         gui.blitSprite(resourceLocation, getX(), getY(), this.width, this.height);
+
+        // Red overlay for partially-craftable recipes
+        if (PartialCraftingUtil.isPartiallyCraftable(field_3113.getRecipeCollection(), this.recipe)) {
+            gui.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + height - 1, 0x60FF3333);
+        }
+
         gui.pose().pushPose();
         if (BetterRecipeBook.config.alternativeRecipes.onHover && !this.isHoveredOrFocused()) { // if show alternatives recipe is enabled and recipe is not hovered, show the result item
             ItemStack recipeOutput = this.recipe.value().getResultItem(field_3113.getRecipeCollection().registryAccess());
