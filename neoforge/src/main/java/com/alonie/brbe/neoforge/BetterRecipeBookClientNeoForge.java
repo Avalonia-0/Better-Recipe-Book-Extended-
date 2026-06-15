@@ -39,8 +39,11 @@ public class BetterRecipeBookClientNeoForge {
         RecipeBookIsPain.isOwOLoaded = RecipeBookIsPain.PLATFORM.isModLoaded("owo");
         RecipeBookIsPain.LOGGER.info("[RBIP] NeoForge platform initialized");
 
-        // Defer REI compat registration until client starts (after all mods are loaded)
-        ClientLifecycleEvent.CLIENT_STARTED.register(client -> ReiCompat.register());
+        // Defer REI compat + RBIP init until client starts (after all mods are loaded)
+        ClientLifecycleEvent.CLIENT_STARTED.register(client -> {
+            ReiCompat.register();
+            RecipeBookIsPain.ensureInitialized();
+        });
 
         ClientGuiEvent.INIT_POST.register((screen, access) -> {
             if (screen != null) {

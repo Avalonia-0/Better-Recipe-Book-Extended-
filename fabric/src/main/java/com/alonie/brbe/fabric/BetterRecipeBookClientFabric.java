@@ -34,6 +34,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         RecipeBookIsPain.PLATFORM = new FabricPlatform();
         RecipeBookIsPain.isOwOLoaded = RecipeBookIsPain.PLATFORM.isModLoaded("owo");
         RecipeBookIsPain.LOGGER.info("[RBIP] Fabric platform initialized");
+        RecipeBookIsPain.ensureInitialized();
 
         // Register optional compat handlers
         ReiCompat.register();
