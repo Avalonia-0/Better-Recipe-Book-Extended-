@@ -7,6 +7,8 @@ import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
+import com.alonie.recipebookispain_extended.RecipeBookIsPain;
+import com.alonie.recipebookispain_extended.fabric.FabricPlatform;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -27,6 +29,11 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         // Register HUD hiders (JEI + REI overlay control)
         OverlayHider.register(new JeiHudHider());
         OverlayHider.register(new ReiHudHider());
+
+        // Initialize RBIP platform (Fabric)
+        RecipeBookIsPain.PLATFORM = new FabricPlatform();
+        RecipeBookIsPain.isOwOLoaded = RecipeBookIsPain.PLATFORM.isModLoaded("owo");
+        RecipeBookIsPain.LOGGER.info("[RBIP] Fabric platform initialized");
 
         // Register optional compat handlers
         ReiCompat.register();

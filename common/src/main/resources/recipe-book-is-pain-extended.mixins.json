@@ -6,14 +6,7 @@
   "compatibilityLevel": "JAVA_21",
   "mixins": [],
   "client": [
-    "ItemMixin",
-    "MouseMixin",
-    "groups.ClientRecipeBookMixin",
-    "screen.HandledScreenMixin",
-    "screen.RecipeBookScreenAccessor",
-    "widget.RecipeBookTooltipMixin",
-    "widget.RecipeBookWidgetMixin",
-    "widget.RecipeGroupButtonMixin"
+    "ItemMixin"
   ],
   "injectors": {
     "defaultRequire": 1

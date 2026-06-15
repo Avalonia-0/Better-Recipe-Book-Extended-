@@ -80,6 +80,7 @@ public class BetterRecipeBook {
         configHolder.registerSaveListener((holder, config) -> {
             BetterRecipeBook.config = config;
             RecipeUnlockUtil.syncToConfig();
+            com.alonie.recipebookispain_extended.RecipeBookIsPain.onConfigChanged();
             return InteractionResult.SUCCESS;
         });
         config = configHolder.getConfig();

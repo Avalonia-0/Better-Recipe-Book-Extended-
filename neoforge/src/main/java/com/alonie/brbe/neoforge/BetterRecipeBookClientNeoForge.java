@@ -10,6 +10,8 @@ import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
+import com.alonie.recipebookispain_extended.RecipeBookIsPain;
+import com.alonie.recipebookispain_extended.neoforge.NeoForgePlatform;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 
@@ -31,6 +33,11 @@ public class BetterRecipeBookClientNeoForge {
         // Register HUD hiders (JEI + REI overlay control)
         OverlayHider.register(new JeiHudHider());
         OverlayHider.register(new ReiHudHider());
+
+        // Initialize RBIP platform (NeoForge)
+        RecipeBookIsPain.PLATFORM = new NeoForgePlatform();
+        RecipeBookIsPain.isOwOLoaded = RecipeBookIsPain.PLATFORM.isModLoaded("owo");
+        RecipeBookIsPain.LOGGER.info("[RBIP] NeoForge platform initialized");
 
         // Defer REI compat registration until client starts (after all mods are loaded)
         ClientLifecycleEvent.CLIENT_STARTED.register(client -> ReiCompat.register());

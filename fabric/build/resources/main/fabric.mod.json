@@ -41,13 +41,13 @@
     "mixins.brbe.json",
     "mixins.brbe-common.json",
     "mixins.brbe-common-compat.json",
+    "mixins.brbe-jei-fabric.json",
     "mixins.brbe-jei.json",
-    "mixins.brbe-rei-common.json",
-    "recipe-book-is-pain-extended.mixins.json"
+    "mixins.brbe-rei-common.json"
   ],
   "depends": {
     "fabric-api": "*",
-    "minecraft": ">=1.21.11",
-    "architectury": ">=19"
+    "minecraft": ">=1.21.1",
+    "architectury": ">=13"
   }
 }
