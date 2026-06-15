@@ -104,19 +104,20 @@ public abstract class RecipeBookComponentMixin {
      */
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;Z)V"))
     private void betterRecipeBook$sortBeforePageUpdate(RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber) {
-        // Sort when either partial module is active.
-        boolean shouldSort = BetterRecipeBook.config.partialMarkingEnabled
-                || BetterRecipeBook.config.partialCraftingEnabled;
-        if (!shouldSort) {
-            page.updateCollections(list, resetPageNumber);
-            return;
-        }
-
         // 1.21.1 doesn't pass isFiltering to page.updateCollections —
         // read it from the player's recipe book instead.
         boolean filtering = this.minecraft != null
                 && this.minecraft.player != null
                 && this.minecraft.player.getRecipeBook().isFiltering(this.menu);
+
+        // Sort when partialCraftingEnabled is active, or when
+        // partialMarkingEnabled is active AND the vanilla filter is on.
+        boolean shouldSort = BetterRecipeBook.config.partialCraftingEnabled
+                || (BetterRecipeBook.config.partialMarkingEnabled && filtering);
+        if (!shouldSort) {
+            page.updateCollections(list, resetPageNumber);
+            return;
+        }
 
         List<RecipeCollection> front = new ArrayList<>();
         List<RecipeCollection> middle = new ArrayList<>();
