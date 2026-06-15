@@ -119,9 +119,10 @@ public abstract class RecipeBookComponentMixin {
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;ZZ)V"))
     private void betterRecipeBook$sortCraftableBeforePartial(
             RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber, boolean isFiltering) {
-        // Sort when either partial module is active.
-        boolean shouldSort = BetterRecipeBook.config.partialMarkingEnabled
-                || BetterRecipeBook.config.partialCraftingEnabled;
+        // Sort when partialCraftingEnabled is active, or when
+        // partialMarkingEnabled is active AND the vanilla filter is on.
+        boolean shouldSort = BetterRecipeBook.config.partialCraftingEnabled
+                || (BetterRecipeBook.config.partialMarkingEnabled && isFiltering);
         if (!shouldSort) {
             page.updateCollections(list, resetPageNumber, isFiltering);
             return;
