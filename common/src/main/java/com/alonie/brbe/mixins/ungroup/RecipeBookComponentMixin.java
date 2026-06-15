@@ -42,7 +42,12 @@ public class RecipeBookComponentMixin {
                     PartialCraftingUtil.markPartialMaterials(recipeCollection, this.menu.slots);
                     return !recipeCollection.hasCraftable() && !PartialCraftingUtil.hasPartialMaterials(recipeCollection);
                 });
-                PartialCraftingUtil.sortCraftableBeforePartial(list2);
+                // Sort craftable collections before uncraftable
+                list2.sort((a, b) -> {
+                    boolean aCraftable = a.hasCraftable() || PartialCraftingUtil.hasPartialMaterials(a);
+                    boolean bCraftable = b.hasCraftable() || PartialCraftingUtil.hasPartialMaterials(b);
+                    return Boolean.compare(bCraftable, aCraftable);
+                });
             }
 
             this.recipeBookPage.updateCollections(list2, bl);
