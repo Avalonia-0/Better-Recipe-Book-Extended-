@@ -100,22 +100,25 @@ public final class PartialCraftingUtil {
         return partialRecipes != null && !partialRecipes.isEmpty();
     }
 
-    public static void sortCraftableBeforePartial(List<RecipeCollection> collections) {
-        if (!enabled()) return;
-        List<RecipeCollection> craftableCollections = new ArrayList<>();
-        List<RecipeCollection> partialCollections = new ArrayList<>();
-
-        for (RecipeCollection collection : collections) {
-            if (collection.hasCraftable()) {
-                craftableCollections.add(collection);
-            } else {
-                partialCollections.add(collection);
+    /**
+     * Classifies a collection by iterating its recipes and checking each
+     * against both {@link #isPartiallyCraftable} and the vanilla craftable
+     * set.  This is the single source of truth for collection classification;
+     * sort methods and button mixins should use this instead of inline loops.
+     */
+    public static CollectionCategory categorize(RecipeCollection c) {
+        if (!enabled()) return CollectionCategory.UNASSIGNED;
+        boolean truly = false, partial = false;
+        for (RecipeHolder<?> holder : c.getRecipes()) {
+            if (isPartiallyCraftable(c, holder)) {
+                partial = true;
+            } else if (c.isCraftable(holder)) {
+                truly = true;
             }
         }
-
-        collections.clear();
-        collections.addAll(craftableCollections);
-        collections.addAll(partialCollections);
+        if (truly) return CollectionCategory.TRULY_CRAFTABLE;
+        if (partial) return CollectionCategory.PARTIAL;
+        return CollectionCategory.UNASSIGNED;
     }
 
     public static List<RecipeHolder<?>> getPartiallyCraftableRecipes(RecipeCollection collection) {
