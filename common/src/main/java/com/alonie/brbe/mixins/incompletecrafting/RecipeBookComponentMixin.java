@@ -128,23 +128,31 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
+        // 3-group when partialCraftingEnabled is on (filter button hidden)
+        // OR vanilla filter is active. Otherwise 2-group.
+        boolean useFullSort = BetterRecipeBook.config.partialCraftingEnabled
+                || isFiltering;
+        boolean hasPartialData = BetterRecipeBook.config.partialMarkingEnabled;
+
         List<RecipeCollection> front = new ArrayList<>();
         List<RecipeCollection> middle = new ArrayList<>();
         List<RecipeCollection> back = new ArrayList<>();
 
         for (RecipeCollection c : list) {
-            CollectionCategory cat = PartialCraftingUtil.categorize(c);
-            if (isFiltering) {
-                // Filter ON → 3 groups: TRULY_CRAFTABLE > PARTIAL > UNASSIGNED
-                switch (cat) {
-                    case TRULY_CRAFTABLE -> front.add(c);
-                    case PARTIAL -> middle.add(c);
-                    case UNASSIGNED -> back.add(c);
+            if (hasPartialData) {
+                CollectionCategory cat = PartialCraftingUtil.categorize(c);
+                if (useFullSort) {
+                    switch (cat) {
+                        case TRULY_CRAFTABLE -> front.add(c);
+                        case PARTIAL -> middle.add(c);
+                        case UNASSIGNED -> back.add(c);
+                    }
+                } else {
+                    if (cat != CollectionCategory.UNASSIGNED) front.add(c);
+                    else back.add(c);
                 }
             } else {
-                // Filter OFF → 2 groups: (TRULY_CRAFTABLE + PARTIAL) > UNASSIGNED
-                if (cat != CollectionCategory.UNASSIGNED) front.add(c);
-                else back.add(c);
+                if (c.hasCraftable()) front.add(c); else back.add(c);
             }
         }
 
