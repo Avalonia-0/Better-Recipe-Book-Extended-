@@ -29,10 +29,6 @@ public class Config implements ConfigData {
     @ConfigEntry.Gui.Tooltip()
     public boolean partialMarkingEnabled = true;
 
-    @ConfigEntry.Category("rbip")
-    @ConfigEntry.Gui.TransitiveObject()
-    public RecipeBookIsPain rbip = new RecipeBookIsPain();
-
     @ConfigEntry.Category("newRecipes")
     @ConfigEntry.Gui.TransitiveObject()
     public NewRecipes newRecipes = new NewRecipes();
@@ -53,10 +49,4 @@ public class Config implements ConfigData {
     public boolean settingsButton = true;
     public boolean enableBook = true;
 
-    public static class RecipeBookIsPain {
-        @ConfigEntry.Gui.Tooltip()
-        public boolean enableRecipeBookIsPain = true;
-
-        public boolean enableTabPage = true;
-    }
 }
