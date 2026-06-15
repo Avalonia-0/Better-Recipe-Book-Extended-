@@ -5,6 +5,7 @@ import com.alonie.brbe.mixins.accessors.ClientRecipeBookAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonPosAccessor;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -40,6 +41,10 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
     @Final
     private List<Object> slots;
 
+    @Shadow
+    @Final
+    OverlayRecipeComponent this$0;
+
     public OverlayRecipeButtonMixin(int x, int y, int width, int height, Component message) {
         super(x, y, width, height, message);
     }
@@ -51,6 +56,12 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         Identifier = BRBTextures.RECIPE_BOOK_CRAFTING_OVERLAY_SPRITE.get(this.isCraftable, isHoveredOrFocused());
 
         ClientCompat.blitSprite(gui, Identifier, getX(), getY(), this.width, this.height);
+
+        // Red overlay for partially-craftable recipes
+        if (PartialCraftingUtil.isPartiallyCraftable(this$0.getRecipeCollection(), this.recipe)) {
+            gui.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + height - 1, 0x60FF3333);
+        }
+
         gui.pose().pushMatrix();
         if (BetterRecipeBook.config.alternativeRecipes.onHover && !this.isHoveredOrFocused()) { // if show alternatives recipe is enabled and recipe is not hovered, show the result item
             ItemStack recipeOutput = betterRecipeBook$getRecipeOutput();
