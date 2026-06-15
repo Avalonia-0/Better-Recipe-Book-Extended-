@@ -42,7 +42,9 @@ public class BetterRecipeBookClientNeoForge {
         // Defer REI compat + RBIP init until client starts (after all mods are loaded)
         ClientLifecycleEvent.CLIENT_STARTED.register(client -> {
             ReiCompat.register();
-            RecipeBookIsPain.ensureInitialized();
+            RecipeBookIsPain.LOGGER.info(RecipeBookIsPain.diagnostic());
+        RecipeBookIsPain.ensureInitialized();
+        RecipeBookIsPain.LOGGER.info(RecipeBookIsPain.diagnostic());
         });
 
         ClientGuiEvent.INIT_POST.register((screen, access) -> {
