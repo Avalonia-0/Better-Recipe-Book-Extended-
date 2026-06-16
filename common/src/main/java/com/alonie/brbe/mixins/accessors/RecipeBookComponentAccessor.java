@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins.accessors;
 
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.screens.recipebook.GhostSlots;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.network.chat.Component;
@@ -28,6 +29,9 @@ public interface RecipeBookComponentAccessor {
 
     @Accessor("xOffset")
     int getXOffset();
+
+    @Accessor("ghostSlots")
+    GhostSlots getGhostSlots();
 
     @Accessor("SEARCH_HINT")
     static Component getSEARCH_HINT() {

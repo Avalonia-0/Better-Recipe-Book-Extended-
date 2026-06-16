@@ -28,6 +28,10 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
     @Nullable
     private BiPredicate<GhostRenderType, GenericGhostIngredient> renderingPredicate;
 
+    /** The ItemStack that was under the mouse during the most recent {@link #drawTooltip} call. */
+    @Nullable
+    private ItemStack lastHoveredItem;
+
     public GenericGhostRecipe(@Nullable Consumer<ItemStack> onGhostUpdate, RegistryAccess registryAccess) {
         this.onGhostUpdate = onGhostUpdate;
         this.registryAccess = registryAccess;
@@ -149,9 +153,16 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
             }
         }
 
+        this.lastHoveredItem = itemStack;
+
         if (itemStack != null && Minecraft.getInstance().screen != null) {
             ClientCompat.setComponentTooltipForNextFrame(gui, Screen.getTooltipFromItem(Minecraft.getInstance(), itemStack), mouseX, mouseY);
         }
+    }
+
+    @Nullable
+    public ItemStack getLastHoveredItem() {
+        return lastHoveredItem;
     }
 
     public class GenericGhostIngredient {
