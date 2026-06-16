@@ -1,12 +1,17 @@
 package com.alonie.brbe.generic;
 
 import com.google.common.collect.Lists;
+import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.util.ModNameUtil;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
@@ -27,6 +32,12 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
     protected RegistryAccess registryAccess;
     @Nullable
     private BiPredicate<GhostRenderType, GenericGhostIngredient> renderingPredicate;
+
+    private static final Logger LOGGER = LogManager.getLogger("BRBE-GhostSlot");
+
+    /** The ItemStack that was under the mouse during the most recent {@link #drawTooltip} call. */
+    @Nullable
+    private ItemStack lastHoveredItem;
 
     public GenericGhostRecipe(@Nullable Consumer<ItemStack> onGhostUpdate, RegistryAccess registryAccess) {
         this.onGhostUpdate = onGhostUpdate;
@@ -149,9 +160,30 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
             }
         }
 
+        this.lastHoveredItem = itemStack;
+
         if (itemStack != null && Minecraft.getInstance().screen != null) {
-            ClientCompat.setComponentTooltipForNextFrame(gui, Screen.getTooltipFromItem(Minecraft.getInstance(), itemStack), mouseX, mouseY);
+            List<Component> tooltip = Screen.getTooltipFromItem(Minecraft.getInstance(), itemStack);
+            LOGGER.info("drawTooltip: item={}, config={}, showModName={}",
+                    itemStack.getItem(), BetterRecipeBook.config,
+                    BetterRecipeBook.config != null && BetterRecipeBook.config.showModName);
+
+            if (BetterRecipeBook.config != null && BetterRecipeBook.config.showModName) {
+                Component modName = ModNameUtil.getFormattedModName(itemStack);
+                LOGGER.info("Mod name resolved: '{}' for item {}", modName.getString(), itemStack.getItem());
+                if (modName != null && !modName.getString().isEmpty()) {
+                    tooltip.add(Component.empty());
+                    tooltip.add(modName);
+                }
+            }
+
+            ClientCompat.setComponentTooltipForNextFrame(gui, tooltip, mouseX, mouseY);
         }
+    }
+
+    @Nullable
+    public ItemStack getLastHoveredItem() {
+        return lastHoveredItem;
     }
 
     public class GenericGhostIngredient {

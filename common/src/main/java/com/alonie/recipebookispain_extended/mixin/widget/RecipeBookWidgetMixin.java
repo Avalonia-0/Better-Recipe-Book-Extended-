@@ -1,6 +1,7 @@
 package com.alonie.recipebookispain_extended.mixin.widget;
 
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
+import com.alonie.recipebookispain_extended.RecipeBookIsPain.FurnaceVariant;
 import com.alonie.recipebookispain_extended.RecipeBookIsPainExtendedConfig;
 import com.alonie.recipebookispain_extended.compat.polymer.PolymerCompat;
 import com.alonie.recipebookispain_extended.access.RecipeGroupButtonPlacement;
@@ -11,6 +12,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.gui.screens.recipebook.CraftingRecipeBookComponent;
+import net.minecraft.client.gui.screens.recipebook.FurnaceRecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
 import net.minecraft.client.gui.screens.recipebook.SearchRecipeBookCategory;
@@ -82,15 +84,22 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         if ((Object) this instanceof CraftingRecipeBookComponent) {
             this.tabInfos = RecipeBookIsPain.withCreativeTabs(tabInfos);
+        } else if ((Object) this instanceof FurnaceRecipeBookComponent) {
+            FurnaceVariant type = RecipeBookIsPain.detectFurnaceType(tabInfos);
+            this.tabInfos = RecipeBookIsPain.withFurnaceCreativeTabs(tabInfos, type);
         }
     }
 
     @Inject(at = @At("HEAD"), method = "updateTabs")
     private void rbip$syncLateGroups(CallbackInfo ci) {
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
-        if (!((Object) this instanceof CraftingRecipeBookComponent)) return;
-        PolymerCompat.refresh();
-        this.tabInfos = RecipeBookIsPain.withCreativeTabs(this.tabInfos);
+        if ((Object) this instanceof CraftingRecipeBookComponent) {
+            PolymerCompat.refresh();
+            this.tabInfos = RecipeBookIsPain.withCreativeTabs(this.tabInfos);
+        } else if ((Object) this instanceof FurnaceRecipeBookComponent) {
+            FurnaceVariant type = RecipeBookIsPain.detectFurnaceType(this.rbip$vanillaTabInfos);
+            this.tabInfos = RecipeBookIsPain.withFurnaceCreativeTabs(this.tabInfos, type);
+        }
     }
 
     @Inject(at = @At("TAIL"), method = "updateTabs")
@@ -117,7 +126,8 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     private void rbip$hotReloadOnConfigChange(GuiGraphicsExtractor context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!RecipeBookIsPainExtendedConfig.reloadIfChanged()) return;
         if (this.rbip$vanillaTabInfos == null) return;
-        if (!((Object) this instanceof CraftingRecipeBookComponent)) return;
+        if (!((Object) this instanceof CraftingRecipeBookComponent)
+                && !((Object) this instanceof FurnaceRecipeBookComponent)) return;
 
         if (RecipeBookIsPainExtendedConfig.enabled()) {
             // syncLateGroups will replace tabInfos with creative tabs

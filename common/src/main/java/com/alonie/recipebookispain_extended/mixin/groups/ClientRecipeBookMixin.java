@@ -1,9 +1,11 @@
 package com.alonie.recipebookispain_extended.mixin.groups;
 
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
+import com.alonie.recipebookispain_extended.RecipeBookIsPain.FurnaceVariant;
 import com.alonie.recipebookispain_extended.access.ItemAccess;
 import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
+import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.FurnaceRecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
@@ -12,6 +14,9 @@ import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.SmithingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.StonecutterRecipeDisplay;
 import net.minecraft.world.item.crafting.ExtendedRecipeBookCategory;
+import net.minecraft.world.item.crafting.RecipeBookCategories;
+import net.minecraft.world.item.crafting.RecipeBookCategory;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.context.ContextMap;
 import net.minecraft.util.context.ContextKeySet;
 import org.spongepowered.asm.mixin.Final;
@@ -52,41 +57,103 @@ public class ClientRecipeBookMixin {
         RecipeBookIsPain.ensureInitialized();
         if (RecipeBookIsPain.RECIPE_BOOK_GROUP_TO_ITEM_GROUP.isEmpty()) return;
 
+        // Clear all furnace-type active tabs so we rebuild from scratch
+        RecipeBookIsPain.FURNACE_ACTIVE_TABS.clear();
+        RecipeBookIsPain.SMOKER_ACTIVE_TABS.clear();
+        RecipeBookIsPain.BLAST_FURNACE_ACTIVE_TABS.clear();
+
         Map<ExtendedRecipeBookCategory, EntryBucket> buckets = new LinkedHashMap<>();
+        Map<ExtendedRecipeBookCategory, EntryBucket> furnaceBuckets = new LinkedHashMap<>();
+        Map<ExtendedRecipeBookCategory, EntryBucket> smokerBuckets = new LinkedHashMap<>();
+        Map<ExtendedRecipeBookCategory, EntryBucket> blastFurnaceBuckets = new LinkedHashMap<>();
+
         for (RecipeDisplayEntry entry : this.known.values()) {
-            // Skip non-crafting recipes (furnace, smithing, stonecutter) to prevent
-            // them from mixing into the crafting recipe book's creative tabs.
+            // Skip stonecutter and smithing — they use different display formats
             RecipeDisplay display = entry.display();
-            if (display instanceof FurnaceRecipeDisplay
-                    || display instanceof StonecutterRecipeDisplay
+            if (display instanceof StonecutterRecipeDisplay
                     || display instanceof SmithingRecipeDisplay) continue;
 
-            ExtendedRecipeBookCategory group = rbip$getGroupForEntry(entry);
-            if (group == null) continue;
-            buckets.computeIfAbsent(group, ignored -> new EntryBucket()).add(entry);
+            if (display instanceof FurnaceRecipeDisplay) {
+                // Determine which furnace type this recipe belongs to via its vanilla category
+                FurnaceVariant variant = rbip$determineFurnaceVariant(entry.category());
+                ExtendedRecipeBookCategory group = rbip$getFurnaceGroupForEntry(entry, variant);
+                if (group == null) continue;
+                Map<ExtendedRecipeBookCategory, EntryBucket> targetBuckets = switch (variant) {
+                    case SMOKER -> smokerBuckets;
+                    case BLAST_FURNACE -> blastFurnaceBuckets;
+                    default -> furnaceBuckets;
+                };
+                // Group by output item so recipes producing the same output merge into one button
+                String outputKey = BuiltInRegistries.ITEM.getKey(
+                    entry.resultItems(RBIP_EMPTY_CONTEXT).iterator().next().getItem()).toString();
+                targetBuckets.computeIfAbsent(group, ignored -> new EntryBucket()).add(entry, outputKey);
+            } else {
+                // Crafting/brewing recipes
+                ExtendedRecipeBookCategory group = rbip$getGroupForEntry(entry);
+                if (group == null) continue;
+                buckets.computeIfAbsent(group, ignored -> new EntryBucket()).add(entry);
+            }
         }
 
-        if (buckets.isEmpty()) return;
+        if (buckets.isEmpty() && furnaceBuckets.isEmpty()
+                && smokerBuckets.isEmpty() && blastFurnaceBuckets.isEmpty()) return;
+
+        // ── Debug: check for duplicate entries within each output-key group ──
+        for (var bucketEntry : furnaceBuckets.entrySet()) {
+            CreativeModeTab ct = RecipeBookIsPain.toItemGroup(bucketEntry.getKey());
+            String tn = ct != null ? ct.getDisplayName().getString() : "?";
+            for (var groupEntry : bucketEntry.getValue().groupedByOutputList()) {
+                String outputKey = groupEntry.getKey();
+                List<RecipeDisplayEntry> entries = groupEntry.getValue();
+                java.util.HashSet<RecipeDisplayId> seen = new java.util.HashSet<>();
+                java.util.ArrayList<String> dups = new java.util.ArrayList<>();
+                for (RecipeDisplayEntry e : entries) {
+                    if (!seen.add(e.id())) dups.add(e.id().toString());
+                }
+                if (!dups.isEmpty()) {
+                    RecipeBookIsPain.LOGGER.warn("[RBIP-DBG] FURNACE tab='{}' output={}: {} entries, {} DUPLICATE IDs: {}",
+                            tn, outputKey, entries.size(), dups.size(), String.join(", ", dups));
+                }
+                if (entries.size() > 1) {
+                    java.util.ArrayList<String> ids = new java.util.ArrayList<>();
+                    for (RecipeDisplayEntry e : entries) ids.add(e.id().toString());
+                    RecipeBookIsPain.LOGGER.info("[RBIP-DBG] FURNACE tab='{}' output={}: {} alt entries: {}",
+                            tn, outputKey, entries.size(), String.join(", ", ids));
+                }
+            }
+        }
+        // ── End debug ──
 
         Map<ExtendedRecipeBookCategory, List<RecipeCollection>> updatedResults = new HashMap<>(this.collectionsByTab);
+        updatedResults.remove(RecipeBookCategories.FURNACE_FOOD);
+        updatedResults.remove(RecipeBookCategories.FURNACE_FOOD);
+        updatedResults.remove(RecipeBookCategories.FURNACE_BLOCKS);
+        updatedResults.remove(RecipeBookCategories.FURNACE_MISC);
+        updatedResults.remove(RecipeBookCategories.SMOKER_FOOD);
+        updatedResults.remove(RecipeBookCategories.BLAST_FURNACE_BLOCKS);
+        updatedResults.remove(RecipeBookCategories.BLAST_FURNACE_MISC);
+
         buckets.forEach((group, bucket) -> updatedResults.put(group, bucket.toCollections()));
+        furnaceBuckets.forEach((group, bucket) -> updatedResults.put(group, bucket.toCollections()));
+        smokerBuckets.forEach((group, bucket) -> updatedResults.put(group, bucket.toCollections()));
+        blastFurnaceBuckets.forEach((group, bucket) -> updatedResults.put(group, bucket.toCollections()));
         this.collectionsByTab = Map.copyOf(updatedResults);
     }
 
     @Unique
-    private static int rbip$debugCounter = 0;
+    private static FurnaceVariant rbip$determineFurnaceVariant(RecipeBookCategory category) {
+        if (category == RecipeBookCategories.SMOKER_FOOD) return FurnaceVariant.SMOKER;
+        if (category == RecipeBookCategories.BLAST_FURNACE_BLOCKS
+                || category == RecipeBookCategories.BLAST_FURNACE_MISC) return FurnaceVariant.BLAST_FURNACE;
+        // Default: furnace (covers FURNACE_FOOD, FURNACE_BLOCKS, FURNACE_MISC, and unknown)
+        return FurnaceVariant.FURNACE;
+    }
 
     @Unique
     private static ExtendedRecipeBookCategory rbip$getGroupForEntry(RecipeDisplayEntry entry) {
         try {
             for (ItemStack stack : entry.resultItems(RBIP_EMPTY_CONTEXT)) {
                 ExtendedRecipeBookCategory group = RecipeBookIsPain.toRecipeBookGroup(stack);
-                if (rbip$debugCounter < 20) {
-                    RecipeBookIsPain.LOGGER.info("[RBIP-DEBUG] recipe #{} id={} stack={} possibleGroup={}",
-                            rbip$debugCounter, entry.id(), stack.getItem(),
-                            ((ItemAccess) stack.getItem()).rbip$getPossibleGroup().map(Object::toString).orElse("none"));
-                    rbip$debugCounter++;
-                }
                 if (group != null) return group;
             }
         } catch (Exception e) {
@@ -95,10 +162,41 @@ public class ClientRecipeBookMixin {
         return null;
     }
 
+    @Unique
+    private static ExtendedRecipeBookCategory rbip$getFurnaceGroupForEntry(RecipeDisplayEntry entry, FurnaceVariant variant) {
+        try {
+            for (ItemStack stack : entry.resultItems(RBIP_EMPTY_CONTEXT)) {
+                ExtendedRecipeBookCategory group = RecipeBookIsPain.toFurnaceRecipeBookGroup(stack, variant);
+                if (group != null) {
+                    // Track that this creative tab has recipes for this furnace type
+                    CreativeModeTab tab = switch (variant) {
+                        case SMOKER -> RecipeBookIsPain.SMOKER_BOOK_GROUP_TO_ITEM_GROUP.get(group);
+                        case BLAST_FURNACE -> RecipeBookIsPain.BLAST_FURNACE_BOOK_GROUP_TO_ITEM_GROUP.get(group);
+                        default -> RecipeBookIsPain.FURNACE_BOOK_GROUP_TO_ITEM_GROUP.get(group);
+                    };
+                    if (tab != null) {
+                        switch (variant) {
+                            case SMOKER -> RecipeBookIsPain.SMOKER_ACTIVE_TABS.add(tab);
+                            case BLAST_FURNACE -> RecipeBookIsPain.BLAST_FURNACE_ACTIVE_TABS.add(tab);
+                            default -> RecipeBookIsPain.FURNACE_ACTIVE_TABS.add(tab);
+                        }
+                    }
+
+                    return group;
+                }
+            }
+        } catch (Exception e) {
+            RecipeBookIsPain.LOGGER.debug("[RBIP] Could not resolve furnace output for {}", entry.id(), e);
+        }
+        return null;
+    }
+
     private static class EntryBucket {
         private final List<List<RecipeDisplayEntry>> entries = new ArrayList<>();
         private final Map<Integer, List<RecipeDisplayEntry>> groupedEntries = new LinkedHashMap<>();
+        private final Map<String, List<RecipeDisplayEntry>> groupedByOutput = new LinkedHashMap<>();
 
+        /** Standard grouping by entry.group() — used for crafting/brewing recipes. */
         private void add(RecipeDisplayEntry entry) {
             OptionalInt group = entry.group();
             if (group.isEmpty()) {
@@ -113,6 +211,46 @@ public class ClientRecipeBookMixin {
                 this.entries.add(grouped);
             }
             grouped.add(entry);
+        }
+
+        /** Grouping by output item key — used for furnace recipes to merge duplicates
+         * that arise from the same output appearing in multiple vanilla categories.
+         * Within each output group, duplicates with identical ingredient + result
+         * content are skipped (ignoring metadata fields like duration/station/xp). */
+        private void add(RecipeDisplayEntry entry, String outputKey) {
+            List<RecipeDisplayEntry> grouped = this.groupedByOutput.get(outputKey);
+            if (grouped == null) {
+                grouped = new ArrayList<>();
+                this.groupedByOutput.put(outputKey, grouped);
+                this.entries.add(grouped);
+            } else {
+                // Deduplicate: skip if an entry with the same content already exists.
+                // FurnaceRecipeDisplay is a Record — its equals() compares ALL fields
+                // (ingredient, result, duration, station, xp), which is too strict.
+                // We only care about ingredient + result for dedup purposes.
+                RecipeDisplay newDisplay = entry.display();
+                if (newDisplay instanceof FurnaceRecipeDisplay newFd) {
+                    for (RecipeDisplayEntry existing : grouped) {
+                        if (existing.display() instanceof FurnaceRecipeDisplay existingFd) {
+                            if (newFd.ingredient().equals(existingFd.ingredient())
+                                    && newFd.result().equals(existingFd.result())) {
+                                return; // Same ingredient + result → skip
+                            }
+                        }
+                    }
+                } else {
+                    // Non-furnace display: use standard equals
+                    for (RecipeDisplayEntry existing : grouped) {
+                        if (newDisplay.equals(existing.display())) return;
+                    }
+                }
+            }
+            grouped.add(entry);
+        }
+
+        /** Debug: expose groupedByOutput entries for duplicate checking. */
+        java.util.Set<Map.Entry<String, List<RecipeDisplayEntry>>> groupedByOutputList() {
+            return this.groupedByOutput.entrySet();
         }
 
         private List<RecipeCollection> toCollections() {

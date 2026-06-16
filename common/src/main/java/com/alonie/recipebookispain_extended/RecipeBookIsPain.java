@@ -22,9 +22,11 @@ import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 public class RecipeBookIsPain {
 
@@ -36,6 +38,13 @@ public class RecipeBookIsPain {
     public static final List<ExtendedRecipeBookCategory> CRAFTING_LIST = new ArrayList<>();
 
     public static final BiMap<ExtendedRecipeBookCategory, CreativeModeTab> RECIPE_BOOK_GROUP_TO_ITEM_GROUP = HashBiMap.create();
+    public static final BiMap<ExtendedRecipeBookCategory, CreativeModeTab> FURNACE_BOOK_GROUP_TO_ITEM_GROUP = HashBiMap.create();
+    public static final Set<CreativeModeTab> FURNACE_ACTIVE_TABS = new HashSet<>();
+    public static final BiMap<ExtendedRecipeBookCategory, CreativeModeTab> SMOKER_BOOK_GROUP_TO_ITEM_GROUP = HashBiMap.create();
+    public static final Set<CreativeModeTab> SMOKER_ACTIVE_TABS = new HashSet<>();
+    public static final BiMap<ExtendedRecipeBookCategory, CreativeModeTab> BLAST_FURNACE_BOOK_GROUP_TO_ITEM_GROUP = HashBiMap.create();
+    public static final Set<CreativeModeTab> BLAST_FURNACE_ACTIVE_TABS = new HashSet<>();
+    public enum FurnaceVariant { FURNACE, SMOKER, BLAST_FURNACE }
     private static final List<CreativeModeTab> MIRRORED_ITEM_GROUPS = new ArrayList<>();
     private static boolean initialized;
 
@@ -80,6 +89,17 @@ public class RecipeBookIsPain {
                 LOGGER.error("[RBIP] Error while processing {} item group", tab.getDisplayName(), e);
             }
         });
+
+        // --- Phase 1b: furnace-type-specific ExtendedRecipeBookCategory objects ---
+        // Each furnace type gets its own set of category objects (same creative tabs, different keys)
+        FURNACE_BOOK_GROUP_TO_ITEM_GROUP.clear();
+        SMOKER_BOOK_GROUP_TO_ITEM_GROUP.clear();
+        BLAST_FURNACE_BOOK_GROUP_TO_ITEM_GROUP.clear();
+        for (CreativeModeTab tab : MIRRORED_ITEM_GROUPS) {
+            FURNACE_BOOK_GROUP_TO_ITEM_GROUP.put(new RecipeBookCategory(), tab);
+            SMOKER_BOOK_GROUP_TO_ITEM_GROUP.put(new RecipeBookCategory(), tab);
+            BLAST_FURNACE_BOOK_GROUP_TO_ITEM_GROUP.put(new RecipeBookCategory(), tab);
+        }
 
         initialized = true;
 
@@ -173,7 +193,13 @@ public class RecipeBookIsPain {
     // ------------------------------------------------
 
     public static CreativeModeTab toItemGroup(ExtendedRecipeBookCategory recipeBookGroup) {
-        return RECIPE_BOOK_GROUP_TO_ITEM_GROUP.get(recipeBookGroup);
+        CreativeModeTab tab = RECIPE_BOOK_GROUP_TO_ITEM_GROUP.get(recipeBookGroup);
+        if (tab != null) return tab;
+        tab = FURNACE_BOOK_GROUP_TO_ITEM_GROUP.get(recipeBookGroup);
+        if (tab != null) return tab;
+        tab = SMOKER_BOOK_GROUP_TO_ITEM_GROUP.get(recipeBookGroup);
+        if (tab != null) return tab;
+        return BLAST_FURNACE_BOOK_GROUP_TO_ITEM_GROUP.get(recipeBookGroup);
     }
 
     public static ExtendedRecipeBookCategory toRecipeBookGroup(CreativeModeTab tab) {
@@ -215,6 +241,89 @@ public class RecipeBookIsPain {
                     .ifPresent(expandedTabs::add);
         }
         return expandedTabs;
+    }
+
+    // ------------------------------------------------
+    //  Furnace type detection
+    // ------------------------------------------------
+
+    public static FurnaceVariant detectFurnaceType(List<RecipeBookComponent.TabInfo> tabs) {
+        for (RecipeBookComponent.TabInfo info : tabs) {
+            ExtendedRecipeBookCategory cat = info.category();
+            if (cat == SearchRecipeBookCategory.SMOKER) return FurnaceVariant.SMOKER;
+            if (cat == SearchRecipeBookCategory.BLAST_FURNACE) return FurnaceVariant.BLAST_FURNACE;
+        }
+        return FurnaceVariant.FURNACE;
+    }
+
+    // ------------------------------------------------
+    //  Furnace creative tab support
+    // ------------------------------------------------
+
+    public static List<RecipeBookComponent.TabInfo> withFurnaceCreativeTabs(
+            List<RecipeBookComponent.TabInfo> originalTabs, FurnaceVariant type) {
+        return switch (type) {
+            case SMOKER -> withFurnaceCreativeTabs(originalTabs, SMOKER_BOOK_GROUP_TO_ITEM_GROUP, SMOKER_ACTIVE_TABS);
+            case BLAST_FURNACE -> withFurnaceCreativeTabs(originalTabs, BLAST_FURNACE_BOOK_GROUP_TO_ITEM_GROUP, BLAST_FURNACE_ACTIVE_TABS);
+            default -> withFurnaceCreativeTabs(originalTabs, FURNACE_BOOK_GROUP_TO_ITEM_GROUP, FURNACE_ACTIVE_TABS);
+        };
+    }
+
+    private static List<RecipeBookComponent.TabInfo> withFurnaceCreativeTabs(
+            List<RecipeBookComponent.TabInfo> originalTabs,
+            BiMap<ExtendedRecipeBookCategory, CreativeModeTab> groupMap,
+            Set<CreativeModeTab> activeTabs) {
+        ensureInitialized();
+        List<RecipeBookComponent.TabInfo> expandedTabs = new ArrayList<>();
+
+        // Keep the original furnace-specific search tab
+        originalTabs.stream()
+                .filter(tab -> tab.category() instanceof SearchRecipeBookCategory)
+                .findFirst()
+                .ifPresent(expandedTabs::add);
+
+        // If no search tab found in original, add a default furnace one
+        if (expandedTabs.isEmpty()) {
+            expandedTabs.add(new RecipeBookComponent.TabInfo(SearchRecipeBookCategory.FURNACE));
+        }
+
+        // Only filter by active tabs if we have data (post-rebuildCollections)
+        boolean hasActiveData = !activeTabs.isEmpty();
+
+        for (CreativeModeTab tab : MIRRORED_ITEM_GROUPS) {
+            if (hasActiveData && !activeTabs.contains(tab)) continue;
+            ExtendedRecipeBookCategory group = groupMap.inverse().get(tab);
+            if (group != null) {
+                expandedTabs.add(new RecipeBookComponent.TabInfo(tab.getIconItem(), Optional.empty(), group));
+            }
+        }
+        return expandedTabs;
+    }
+
+    public static ExtendedRecipeBookCategory toFurnaceRecipeBookGroup(ItemStack stack, FurnaceVariant type) {
+        return switch (type) {
+            case SMOKER -> toFurnaceRecipeBookGroup(stack, SMOKER_BOOK_GROUP_TO_ITEM_GROUP);
+            case BLAST_FURNACE -> toFurnaceRecipeBookGroup(stack, BLAST_FURNACE_BOOK_GROUP_TO_ITEM_GROUP);
+            default -> toFurnaceRecipeBookGroup(stack, FURNACE_BOOK_GROUP_TO_ITEM_GROUP);
+        };
+    }
+
+    private static ExtendedRecipeBookCategory toFurnaceRecipeBookGroup(ItemStack stack,
+            BiMap<ExtendedRecipeBookCategory, CreativeModeTab> groupMap) {
+        ensureInitialized();
+        if (stack.isEmpty()) return null;
+
+        Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
+        if (id != null) {
+            CreativeModeTab nsGroup = namespaceCache.get(id.getNamespace());
+            if (nsGroup != null) {
+                return groupMap.inverse().get(nsGroup);
+            }
+        }
+
+        return ((ItemAccess) stack.getItem()).rbip$getPossibleGroup()
+                .map(tab -> groupMap.inverse().get(tab))
+                .orElse(null);
     }
 
     // ------------------------------------------------
