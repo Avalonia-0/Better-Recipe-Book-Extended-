@@ -11,6 +11,8 @@ import net.minecraft.world.item.crafting.display.FurnaceRecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
+import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
+import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.SmithingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.StonecutterRecipeDisplay;
 import net.minecraft.world.item.crafting.ExtendedRecipeBookCategory;
@@ -44,9 +46,22 @@ public class ClientRecipeBookMixin {
     @Unique
     private static final ContextMap RBIP_EMPTY_CONTEXT = new ContextMap.Builder().create(new ContextKeySet.Builder().build());
 
-    /** Recipe IDs that passed the vanilla craftability/fit filtering. */
+    /**
+     * Returns true if the given crafting display would be rejected by
+     * CraftingRecipeBookComponent.canDisplay() on a 2×2 grid (survival
+     * inventory).  When showAllRecipesInSurvival is false these recipes
+     * must not appear in creative-tab groups.
+     */
     @Unique
-    private java.util.Set<RecipeDisplayId> rbip$allowedRecipeIds;
+    private static boolean rbip$needsLargerGrid(RecipeDisplay display) {
+        if (display instanceof ShapedCraftingRecipeDisplay shaped) {
+            return shaped.width() > 2 || shaped.height() > 2;
+        }
+        if (display instanceof ShapelessCraftingRecipeDisplay shapeless) {
+            return shapeless.ingredients().size() > 4;
+        }
+        return false;
+    }
 
     /**
      * Rebuild Polymer namespace cache at the start of every recipe-book refresh.
@@ -67,29 +82,25 @@ public class ClientRecipeBookMixin {
         RecipeBookIsPain.SMOKER_ACTIVE_TABS.clear();
         RecipeBookIsPain.BLAST_FURNACE_ACTIVE_TABS.clear();
 
-        // Collect recipe IDs that survived the vanilla filtering (3×3 fit, materials, etc.)
-        this.rbip$allowedRecipeIds = new java.util.HashSet<>();
-        for (List<RecipeCollection> collections : this.collectionsByTab.values()) {
-            for (RecipeCollection col : collections) {
-                for (RecipeDisplayEntry e : col.getRecipes()) {
-                    this.rbip$allowedRecipeIds.add(e.id());
-                }
-            }
-        }
-
         Map<ExtendedRecipeBookCategory, EntryBucket> buckets = new LinkedHashMap<>();
         Map<ExtendedRecipeBookCategory, EntryBucket> furnaceBuckets = new LinkedHashMap<>();
         Map<ExtendedRecipeBookCategory, EntryBucket> smokerBuckets = new LinkedHashMap<>();
         Map<ExtendedRecipeBookCategory, EntryBucket> blastFurnaceBuckets = new LinkedHashMap<>();
 
         for (RecipeDisplayEntry entry : this.known.values()) {
-            // Skip recipes filtered out by vanilla (3x3, missing materials, etc.)
-            if (!this.rbip$allowedRecipeIds.contains(entry.id())) continue;
-
             // Skip stonecutter and smithing — they use different display formats
             RecipeDisplay display = entry.display();
             if (display instanceof StonecutterRecipeDisplay
                     || display instanceof SmithingRecipeDisplay) continue;
+
+            // When showAllRecipesInSurvival is false, skip crafting recipes that
+            // need more than a 2×2 grid.  They cannot be placed in the survival
+            // inventory crafting grid, and clicking them produces air-placeholder
+            // ghost items in the recipe book.
+            if (com.alonie.brbe.BetterRecipeBook.config != null
+                    && !com.alonie.brbe.BetterRecipeBook.config.showAllRecipesInSurvival) {
+                if (rbip$needsLargerGrid(display)) continue;
+            }
 
             if (display instanceof FurnaceRecipeDisplay) {
                 // Determine which furnace type this recipe belongs to via its vanilla category
