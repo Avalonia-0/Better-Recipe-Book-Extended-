@@ -44,6 +44,10 @@ public class ClientRecipeBookMixin {
     @Unique
     private static final ContextMap RBIP_EMPTY_CONTEXT = new ContextMap.Builder().create(new ContextKeySet.Builder().build());
 
+    /** Recipe IDs that passed the vanilla craftability/fit filtering. */
+    @Unique
+    private java.util.Set<RecipeDisplayId> rbip$allowedRecipeIds;
+
     /**
      * Rebuild Polymer namespace cache at the start of every recipe-book refresh.
      */
@@ -63,12 +67,25 @@ public class ClientRecipeBookMixin {
         RecipeBookIsPain.SMOKER_ACTIVE_TABS.clear();
         RecipeBookIsPain.BLAST_FURNACE_ACTIVE_TABS.clear();
 
+        // Collect recipe IDs that survived the vanilla filtering (3×3 fit, materials, etc.)
+        this.rbip$allowedRecipeIds = new java.util.HashSet<>();
+        for (List<RecipeCollection> collections : this.collectionsByTab.values()) {
+            for (RecipeCollection col : collections) {
+                for (RecipeDisplayEntry e : col.getRecipes()) {
+                    this.rbip$allowedRecipeIds.add(e.id());
+                }
+            }
+        }
+
         Map<ExtendedRecipeBookCategory, EntryBucket> buckets = new LinkedHashMap<>();
         Map<ExtendedRecipeBookCategory, EntryBucket> furnaceBuckets = new LinkedHashMap<>();
         Map<ExtendedRecipeBookCategory, EntryBucket> smokerBuckets = new LinkedHashMap<>();
         Map<ExtendedRecipeBookCategory, EntryBucket> blastFurnaceBuckets = new LinkedHashMap<>();
 
         for (RecipeDisplayEntry entry : this.known.values()) {
+            // Skip recipes filtered out by vanilla (3x3, missing materials, etc.)
+            if (!this.rbip$allowedRecipeIds.contains(entry.id())) continue;
+
             // Skip stonecutter and smithing — they use different display formats
             RecipeDisplay display = entry.display();
             if (display instanceof StonecutterRecipeDisplay
