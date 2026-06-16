@@ -2,6 +2,7 @@ package com.alonie.brbe.mixins.alternativerecipes;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.mixins.accessors.ClientRecipeBookAccessor;
+import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonPosAccessor;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
@@ -41,10 +42,6 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
     @Final
     private List<Object> slots;
 
-    @Shadow
-    @Final
-    OverlayRecipeComponent this$0;
-
     public OverlayRecipeButtonMixin(int x, int y, int width, int height, Component message) {
         super(x, y, width, height, message);
     }
@@ -58,7 +55,8 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         ClientCompat.blitSprite(gui, Identifier, getX(), getY(), this.width, this.height);
 
         // Red overlay for partially-craftable recipes
-        if (PartialCraftingUtil.isPartiallyCraftable(this$0.getRecipeCollection(), this.recipe)) {
+        OverlayRecipeComponent outer = ((OverlayRecipeButtonAccessor) this).brbe$getOuterComponent();
+        if (PartialCraftingUtil.isPartiallyCraftable(outer.getRecipeCollection(), this.recipe)) {
             gui.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + height - 1, 0x60FF3333);
         }
 
