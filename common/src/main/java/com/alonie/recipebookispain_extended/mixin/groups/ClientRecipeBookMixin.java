@@ -5,10 +5,15 @@ import com.alonie.recipebookispain_extended.RecipeBookIsPainExtendedConfig;
 import net.minecraft.client.RecipeBookCategories;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
+import net.minecraft.world.inventory.AbstractFurnaceMenu;
+import net.minecraft.world.inventory.BlastFurnaceMenu;
+import net.minecraft.world.inventory.RecipeBookMenu;
+import net.minecraft.world.inventory.SmokerMenu;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -22,11 +27,15 @@ import java.util.List;
  * is active (category == UNKNOWN), the returned collections are filtered to
  * only include collections whose recipes have results in that creative tab.
  * <p>
- * We keep the ORIGINAL RecipeCollection objects so internal state
- * (craftable set, fitsDimensions, etc.) is preserved.
+ * For furnace screens, detects the furnace type and uses the correct search
+ * category (FURNACE_SEARCH / SMOKER_SEARCH / BLAST_FURNACE_SEARCH) as the
+ * base recipe pool.
  */
 @Mixin(RecipeBookComponent.class)
 public abstract class ClientRecipeBookMixin {
+
+    @Shadow
+    protected RecipeBookMenu menu;
 
     @Redirect(
             method = "updateCollections",
@@ -44,21 +53,31 @@ public abstract class ClientRecipeBookMixin {
             return book.getCollection(category);
         }
 
-        // Get the full crafting list, then keep only collections that have
-        // at least one recipe in the active creative tab.
-        List<RecipeCollection> allCrafting = book.getCollection(RecipeBookCategories.CRAFTING_SEARCH);
         CreativeModeTab activeTab = RecipeBookIsPain.activeCreativeTab;
 
+        // Determine the correct search category: crafting vs. furnace type
+        RecipeBookCategories searchCategory;
+        if (this.menu instanceof AbstractFurnaceMenu furnaceMenu) {
+            if (furnaceMenu instanceof SmokerMenu) {
+                searchCategory = RecipeBookCategories.SMOKER_SEARCH;
+            } else if (furnaceMenu instanceof BlastFurnaceMenu) {
+                searchCategory = RecipeBookCategories.BLAST_FURNACE_SEARCH;
+            } else {
+                searchCategory = RecipeBookCategories.FURNACE_SEARCH;
+            }
+        } else {
+            searchCategory = RecipeBookCategories.CRAFTING_SEARCH;
+        }
+
+        // Get all recipes for the search category, then filter by creative tab
+        List<RecipeCollection> allBase = book.getCollection(searchCategory);
+
         List<RecipeCollection> matching = new ArrayList<>();
-        for (RecipeCollection collection : allCrafting) {
+        for (RecipeCollection collection : allBase) {
             if (rbip$anyRecipeInTab(collection, activeTab)) {
                 matching.add(collection);
             }
         }
-
-        RecipeBookIsPain.LOGGER.debug("[RBIP] Filtered: {}/{} collections match tab '{}'",
-                matching.size(), allCrafting.size(),
-                activeTab.getDisplayName().getString());
 
         return matching;
     }
@@ -66,7 +85,6 @@ public abstract class ClientRecipeBookMixin {
     @Unique
     private static boolean rbip$anyRecipeInTab(RecipeCollection collection, CreativeModeTab tab) {
         for (RecipeHolder<?> holder : collection.getRecipes()) {
-            // Use the level's registry access to get the result item
             ItemStack result = holder.value().getResultItem(
                     net.minecraft.client.Minecraft.getInstance().level.registryAccess());
             if (!result.isEmpty() && RecipeBookIsPain.isItemInTab(result, tab)) {

@@ -7,6 +7,9 @@ import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.inventory.AbstractFurnaceMenu;
+import net.minecraft.world.inventory.BlastFurnaceMenu;
+import net.minecraft.world.inventory.SmokerMenu;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
@@ -37,6 +40,18 @@ public class RecipeBookIsPain {
 
     /** The currently-selected creative tab (set by RecipeBookWidgetMixin). */
     public static CreativeModeTab activeCreativeTab;
+
+    /** Which furnace variant is active (set by RecipeBookWidgetMixin for furnace screens). */
+    public static FurnaceVariant activeFurnaceType;
+
+    public enum FurnaceVariant { FURNACE, SMOKER, BLAST_FURNACE }
+
+    /** Detect furnace variant from the container menu. */
+    public static FurnaceVariant detectFurnaceType(AbstractFurnaceMenu menu) {
+        if (menu instanceof SmokerMenu) return FurnaceVariant.SMOKER;
+        if (menu instanceof BlastFurnaceMenu) return FurnaceVariant.BLAST_FURNACE;
+        return FurnaceVariant.FURNACE;
+    }
 
     // ── Scroll-queue (updated by RbipMouseScrollMixin) ─────────
 

@@ -8,13 +8,19 @@ import com.alonie.recipebookispain_extended.access.CreativeTabButtonAccess;
 import com.alonie.recipebookispain_extended.access.RecipeBookScrollAccess;
 import com.alonie.recipebookispain_extended.access.RecipeGroupButtonPlacement;
 import com.alonie.recipebookispain_extended.access.RecipeGroupButtonPlacementAccess;
+import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.RecipeBookCategories;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
+import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.inventory.AbstractFurnaceMenu;
+import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Mutable;
@@ -61,6 +67,12 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     @Shadow
     private int xOffset;
 
+    @Shadow
+    private ClientRecipeBook book;
+
+    @Shadow
+    protected RecipeBookMenu menu;
+
     // ── Layout constants (matching 1.21.11) ────────────────────
 
     @Unique private static final ResourceLocation TEX_PAGE_BTNS =
@@ -78,15 +90,15 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     @Unique private static final int PAGE_BTN_W = 14;
     @Unique private static final int PAGE_BTN_H = 13;
 
-    // ── Vanilla sub-categories to exclude ──────────────────────
+    // ── Vanilla sub-categories to exclude (all screen types) ──
 
     @Unique
-    private static final RecipeBookCategories[] EXCLUDED_VANILLA = {
-            RecipeBookCategories.CRAFTING_BUILDING_BLOCKS,
-            RecipeBookCategories.CRAFTING_REDSTONE,
-            RecipeBookCategories.CRAFTING_EQUIPMENT,
-            RecipeBookCategories.CRAFTING_MISC
-    };
+    private static boolean rbip$isSearchCategory(RecipeBookCategories cat) {
+        return cat == RecipeBookCategories.CRAFTING_SEARCH
+                || cat == RecipeBookCategories.FURNACE_SEARCH
+                || cat == RecipeBookCategories.SMOKER_SEARCH
+                || cat == RecipeBookCategories.BLAST_FURNACE_SEARCH;
+    }
 
     // ── RBIP state ─────────────────────────────────────────────
 
@@ -184,6 +196,7 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         rbip$page = 0;
         rbip$pageCount = 1;
         RecipeBookIsPain.activeCreativeTab = null;
+        RecipeBookIsPain.activeFurnaceType = null;
 
         // 2) Re-init data (rescans tabs, updates CRAFTING_LIST)
         RecipeBookIsPain.onConfigChanged();
@@ -243,6 +256,12 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
             b.setStateTriggered(true);
             this.selectedTab = b;
             RecipeBookIsPain.activeCreativeTab = tab;
+            // Also track furnace type for the @Redirect in ClientRecipeBookMixin
+            if (this.menu instanceof AbstractFurnaceMenu furnaceMenu) {
+                RecipeBookIsPain.activeFurnaceType = RecipeBookIsPain.detectFurnaceType(furnaceMenu);
+            } else {
+                RecipeBookIsPain.activeFurnaceType = null;
+            }
             ((RecipeBookComponentAccessor) this).updateCollectionsInvoker(false);
             cir.setReturnValue(true);
             return;
@@ -270,35 +289,63 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Unique
     private void rbip$rebuildTabList() {
-        // Separate search tab (pin it), exclude vanilla sub-cats and creative buttons
+        // Separate search tab (any screen type), exclude all vanilla sub-categories
         List<RecipeBookTabButton> keep = new ArrayList<>();
         RecipeBookTabButton search = null;
 
         for (RecipeBookTabButton btn : this.tabButtons) {
-            // Detect creative buttons via the access interface (robust even if map was cleared)
-            if (btn instanceof CreativeTabButtonAccess access && access.rbip$getCreativeTab() != null) {
-                continue;
-            }
+            if (btn instanceof CreativeTabButtonAccess access && access.rbip$getCreativeTab() != null) continue;
             if (rbip$buttonToTab.containsKey(btn)) continue;
 
             RecipeBookCategories cat = btn.getCategory();
-            boolean excluded = false;
-            for (RecipeBookCategories ex : EXCLUDED_VANILLA) {
-                if (cat == ex) { excluded = true; break; }
+            if (rbip$isSearchCategory(cat)) {
+                if (search == null) search = btn;
             }
-            if (excluded) continue;
+            // All non-search vanilla sub-category tabs are excluded —
+            // they are replaced by creative tabs for every screen type.
+        }
 
-            if (cat == RecipeBookCategories.CRAFTING_SEARCH && search == null) {
-                search = btn;
-            } else {
-                keep.add(btn);
+        // Filter creative buttons: only show tabs that have at least one matching recipe
+        List<RecipeCollection> baseRecipes = (this.book != null)
+                ? this.book.getCollection(rbip$getSearchCategory())
+                : List.of();
+        List<RecipeBookTabButton> filteredCreative = new ArrayList<>();
+        for (RecipeBookTabButton btn : rbip$creativeButtons) {
+            CreativeModeTab tab = rbip$buttonToTab.get(btn);
+            if (tab == null) continue;
+            if (rbip$hasRecipeInCategory(baseRecipes, tab)) {
+                filteredCreative.add(btn);
             }
         }
 
         this.rbip$pinnedTab = search;
         this.rbip$pageableTabs = keep;
-        this.rbip$pageableTabs.addAll(rbip$creativeButtons);
+        this.rbip$pageableTabs.addAll(filteredCreative);
         this.rbip$applyPagination(true);
+    }
+
+    @Unique
+    private RecipeBookCategories rbip$getSearchCategory() {
+        if (this.menu instanceof AbstractFurnaceMenu furnaceMenu) {
+            if (furnaceMenu instanceof net.minecraft.world.inventory.SmokerMenu) return RecipeBookCategories.SMOKER_SEARCH;
+            if (furnaceMenu instanceof net.minecraft.world.inventory.BlastFurnaceMenu) return RecipeBookCategories.BLAST_FURNACE_SEARCH;
+            return RecipeBookCategories.FURNACE_SEARCH;
+        }
+        return RecipeBookCategories.CRAFTING_SEARCH;
+    }
+
+    @Unique
+    private static boolean rbip$hasRecipeInCategory(List<RecipeCollection> collections, CreativeModeTab tab) {
+        for (RecipeCollection col : collections) {
+            for (RecipeHolder<?> holder : col.getRecipes()) {
+                ItemStack result = holder.value().getResultItem(
+                        net.minecraft.client.Minecraft.getInstance().level.registryAccess());
+                if (!result.isEmpty() && RecipeBookIsPain.isItemInTab(result, tab)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     // ── Pagination ─────────────────────────────────────────────
