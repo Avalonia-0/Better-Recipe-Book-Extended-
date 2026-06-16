@@ -108,34 +108,7 @@ public class ClientRecipeBookMixin {
         if (buckets.isEmpty() && furnaceBuckets.isEmpty()
                 && smokerBuckets.isEmpty() && blastFurnaceBuckets.isEmpty()) return;
 
-        // ── Debug: check for duplicate entries within each output-key group ──
-        for (var bucketEntry : furnaceBuckets.entrySet()) {
-            CreativeModeTab ct = RecipeBookIsPain.toItemGroup(bucketEntry.getKey());
-            String tn = ct != null ? ct.getDisplayName().getString() : "?";
-            for (var groupEntry : bucketEntry.getValue().groupedByOutputList()) {
-                String outputKey = groupEntry.getKey();
-                List<RecipeDisplayEntry> entries = groupEntry.getValue();
-                java.util.HashSet<RecipeDisplayId> seen = new java.util.HashSet<>();
-                java.util.ArrayList<String> dups = new java.util.ArrayList<>();
-                for (RecipeDisplayEntry e : entries) {
-                    if (!seen.add(e.id())) dups.add(e.id().toString());
-                }
-                if (!dups.isEmpty()) {
-                    RecipeBookIsPain.LOGGER.warn("[RBIP-DBG] FURNACE tab='{}' output={}: {} entries, {} DUPLICATE IDs: {}",
-                            tn, outputKey, entries.size(), dups.size(), String.join(", ", dups));
-                }
-                if (entries.size() > 1) {
-                    java.util.ArrayList<String> ids = new java.util.ArrayList<>();
-                    for (RecipeDisplayEntry e : entries) ids.add(e.id().toString());
-                    RecipeBookIsPain.LOGGER.info("[RBIP-DBG] FURNACE tab='{}' output={}: {} alt entries: {}",
-                            tn, outputKey, entries.size(), String.join(", ", ids));
-                }
-            }
-        }
-        // ── End debug ──
-
         Map<ExtendedRecipeBookCategory, List<RecipeCollection>> updatedResults = new HashMap<>(this.collectionsByTab);
-        updatedResults.remove(RecipeBookCategories.FURNACE_FOOD);
         updatedResults.remove(RecipeBookCategories.FURNACE_FOOD);
         updatedResults.remove(RecipeBookCategories.FURNACE_BLOCKS);
         updatedResults.remove(RecipeBookCategories.FURNACE_MISC);
