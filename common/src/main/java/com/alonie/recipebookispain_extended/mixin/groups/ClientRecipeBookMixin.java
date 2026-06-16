@@ -84,6 +84,15 @@ public class ClientRecipeBookMixin {
                     entry.resultItems(RBIP_EMPTY_CONTEXT).iterator().next().getItem()).toString();
                 targetBuckets.computeIfAbsent(group, ignored -> new EntryBucket()).add(entry, outputKey);
             } else {
+                // Only include recipes belonging to the vanilla crafting recipe book.
+                // Mod-added recipe books (e.g. Farmer's Delight cooking pot) have custom
+                // RecipeBookCategory instances that differ from the vanilla crafting ones.
+                ExtendedRecipeBookCategory cat = entry.category();
+                if (cat != RecipeBookCategories.CRAFTING_BUILDING_BLOCKS
+                        && cat != RecipeBookCategories.CRAFTING_REDSTONE
+                        && cat != RecipeBookCategories.CRAFTING_EQUIPMENT
+                        && cat != RecipeBookCategories.CRAFTING_MISC) continue;
+
                 ExtendedRecipeBookCategory group = rbip$getGroupForEntry(entry);
                 if (group == null) continue;
                 buckets.computeIfAbsent(group, ignored -> new EntryBucket()).add(entry);
