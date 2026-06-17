@@ -28,13 +28,7 @@ versionRange = "[1.21,)"
 ordering = "NONE"
 side = "CLIENT"
 
-[[dependencies.brbe]]
-type = "required"
-versionRange = "[13,)"
-ordering = "AFTER"
-side = "CLIENT"
-
-[[dependencies.brbe]]
+[[mixins]]
 config = "mixins.brbe.json"
 
 [[mixins]]
@@ -42,10 +36,6 @@ config = "mixins.brbe-common.json"
 
 [[mixins]]
 config = "mixins.brbe-common-compat.json"
-
-[[mixins]]
-
-[[mixins]]
 
 [[mixins]]
 config = "rbip-neoforge.mixins.json"
