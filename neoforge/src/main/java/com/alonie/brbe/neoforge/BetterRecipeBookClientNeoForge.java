@@ -1,27 +1,24 @@
 package com.alonie.brbe.neoforge;
 
-import dev.architectury.event.events.client.ClientGuiEvent;
-import dev.architectury.event.events.client.ClientLifecycleEvent;
-import dev.architectury.event.events.client.ClientTickEvent;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.neoforge.PlatformPotionUtilImpl;
 import com.alonie.brbe.compat.OverlayHider;
-import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.impl.hud.JeiHudHider;
 import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.neoforge.NeoForgePlatform;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
-
+import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.ScreenEvent;
+import net.neoforged.neoforge.common.NeoForge;
 import java.util.Collections;
 import java.util.Set;
 import java.util.WeakHashMap;
 
 /**
- * NeoForge client initializer.
- * Ported from Fabric's BetterRecipeBookClientFabric using Architectury cross-platform events.
+ * NeoForge client initializer using native NeoForge events.
+ * No Architectury API dependency.
  */
 public class BetterRecipeBookClientNeoForge {
 
@@ -40,20 +37,17 @@ public class BetterRecipeBookClientNeoForge {
         RecipeBookIsPain.isOwOLoaded = RecipeBookIsPain.PLATFORM.isModLoaded("owo");
         RecipeBookIsPain.LOGGER.info("[RBIP] NeoForge platform initialized, isOwOLoaded={}", RecipeBookIsPain.isOwOLoaded);
 
-        // Defer REI compat registration until client starts (after all mods are loaded)
-        ClientLifecycleEvent.CLIENT_STARTED.register(client -> ReiCompat.register());
-
-        ClientGuiEvent.INIT_POST.register((screen, access) -> {
+        // Register on the NeoForge event bus for game events
+        NeoForge.EVENT_BUS.addListener(ScreenEvent.Init.Post.class, event -> {
+            Screen screen = event.getScreen();
             if (screen != null) {
                 registeredScreens.remove(screen);
-                // Apply overlay hide state immediately when screen opens (no flash)
                 OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
             }
         });
 
-        ClientTickEvent.CLIENT_POST.register(client -> {
-            Screen screen = client.gui.screen();
-            // Per-tick JEI state enforcement — reads real JEI state, no internal tracking
+        NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, event -> {
+            Screen screen = net.minecraft.client.Minecraft.getInstance().gui.screen();
             if (BetterRecipeBook.config.hideReiJeiOverlay && screen != null) {
                 OverlayHider.ensureJeiOverlayHidden();
             }
@@ -62,9 +56,9 @@ public class BetterRecipeBookClientNeoForge {
             }
 
             registeredScreens.add(screen);
-            ClientGuiEvent.RENDER_POST.register((scr, guiGraphics, mouseX, mouseY, delta) -> {
-                if (scr == screen) {
-                    TopLayerOverlayRenderer.render(screen, guiGraphics, mouseX, mouseY, delta);
+            NeoForge.EVENT_BUS.addListener(ScreenEvent.Render.Post.class, renderEvent -> {
+                if (renderEvent.getScreen() == screen) {
+                    TopLayerOverlayRenderer.render(screen, renderEvent.getGuiGraphics(), renderEvent.getMouseX(), renderEvent.getMouseY(), renderEvent.getPartialTick());
                 }
             });
         });

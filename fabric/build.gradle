@@ -26,9 +26,7 @@ dependencies {
     implementation("net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}") {
         exclude group: "net.fabricmc.fabric-api", module: "fabric-api-base"
     }
-    implementation("dev.architectury:architectury-fabric:${rootProject.architectury_version}") {
-        exclude group: "net.fabricmc.fabric-api"
-    }
+    // implementation("dev.architectury:architectury-fabric:${rootProject.architectury_version}")
     // Cloth Config (compileOnly: not yet released for 26.2 — config button will be no-op)
     compileOnly "me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}"
     // ModMenu is distributed with intermediary mappings, which conflicts with

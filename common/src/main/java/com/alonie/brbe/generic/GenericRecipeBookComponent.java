@@ -5,7 +5,6 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.api.BRBBookSettings;
 import com.alonie.brbe.compat.ItemViewCompat;
-import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.interfaces.IPinningComponent;
 import com.alonie.brbe.interfaces.ISettingsButton;
 import com.alonie.brbe.search.SearchCache;

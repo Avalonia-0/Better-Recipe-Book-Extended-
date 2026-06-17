@@ -38,7 +38,7 @@ dependencies {
     compileOnly "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
 
     // Architectury API (local jar)
-    implementation("dev.architectury:architectury-neoforge:${rootProject.architectury_version}")
+    // implementation("dev.architectury:architectury-neoforge:${rootProject.architectury_version}")
 
     // Cloth Config (compileOnly: not yet released for 26.2 — config button will be no-op)
     compileOnly("me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}")

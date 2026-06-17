@@ -54,9 +54,7 @@ subprojects {
 
         // Common module: compile-only deps (platform modules provide at runtime)
         if (project.name == "common") {
-            compileOnly("dev.architectury:architectury-fabric:${rootProject.architectury_version}") {
-                exclude group: "net.fabricmc.fabric-api"
-            }
+            // compileOnly("dev.architectury:architectury-fabric:${rootProject.architectury_version}")
         }
     }
 

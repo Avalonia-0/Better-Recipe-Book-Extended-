@@ -1,6 +1,6 @@
 package com.alonie.brbe.compat;
 
-import dev.architectury.platform.Platform;
+import net.fabricmc.loader.api.FabricLoader;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
@@ -23,7 +23,7 @@ public class CompatMixinPlugin implements IMixinConfigPlugin {
         // mousewheelie compat
         if (mixinClassName.equals("com.alonie.brbe.compat.mixins.mousewheelie.MixinMWClient")) {
             try {
-                return Platform.isModLoaded("mousewheelie");
+                return FabricLoader.getInstance().isModLoaded("mousewheelie");
             } catch (Exception e) {
                 return false;
             }

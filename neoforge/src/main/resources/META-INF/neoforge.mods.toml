@@ -29,20 +29,12 @@ ordering = "NONE"
 side = "CLIENT"
 
 [[dependencies.brbe]]
-modId = "architectury"
 type = "required"
 versionRange = "[13,)"
 ordering = "AFTER"
 side = "CLIENT"
 
 [[dependencies.brbe]]
-modId = "jei"
-type = "optional"
-versionRange = "[27,)"
-ordering = "AFTER"
-side = "CLIENT"
-
-[[mixins]]
 config = "mixins.brbe.json"
 
 [[mixins]]
@@ -52,10 +44,8 @@ config = "mixins.brbe-common.json"
 config = "mixins.brbe-common-compat.json"
 
 [[mixins]]
-config = "mixins.brbe-jei-common.json"
 
 [[mixins]]
-config = "mixins.brbe-rei-common.json"
 
 [[mixins]]
 config = "rbip-neoforge.mixins.json"

@@ -29,22 +29,16 @@
     ],
     "client": [
       "com.alonie.brbe.fabric.BetterRecipeBookClientFabric"
-    ],
-    "jei_mod_plugin": [
-      "com.alonie.brbe.fabric.compat.jei.BetterRecipeBookJEIPlugin"
     ]
   },
   "mixins": [
     "mixins.brbe.json",
     "mixins.brbe-common.json",
     "mixins.brbe-common-compat.json",
-    "mixins.brbe-jei.json",
-    "mixins.brbe-rei-common.json",
     "recipe-book-is-pain-extended.mixins.json"
   ],
   "depends": {
     "fabric-api": "*",
-    "minecraft": ">=1.21.11",
-    "architectury": ">=19"
+    "minecraft": ">=1.21.11"
   }
 }

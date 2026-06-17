@@ -3,13 +3,14 @@ package com.alonie.brbe.fabric;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.fabric.PlatformPotionUtilImpl;
 import com.alonie.brbe.compat.OverlayHider;
-import com.alonie.brbe.fabric.compat.rei.ReiCompatHandler;
 import com.alonie.brbe.impl.hud.JeiHudHider;
 import com.alonie.brbe.impl.hud.ReiHudHider;
+import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
 import net.minecraft.client.gui.screens.Screen;
 
 import java.util.Collections;
@@ -21,11 +22,16 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        // Register key mappings (previously in common via Architectury)
+        KeyMappingHelper.registerKeyMapping(BetterRecipeBook.PIN_MAPPING);
+        KeyMappingHelper.registerKeyMapping(BetterRecipeBook.RECIPE_VIEW_MAPPING);
+        KeyMappingHelper.registerKeyMapping(BetterRecipeBook.USAGE_VIEW_MAPPING);
+
         // Register platform-specific providers
         PlatformPotionUtilImpl.init();
 
         // Register optional compat handlers
-        ReiCompatHandler.register();
+        // ReiCompatHandler.register();  // JEI/REI not yet available for 26.2
         ModMenuReflectiveBridge.register();
 
         // Register HUD hiders (JEI + REI overlay control)

@@ -1,12 +1,10 @@
 package com.alonie.brbe.loaders;
 
-import dev.architectury.event.events.client.ClientLifecycleEvent;
-import dev.architectury.event.events.common.LifecycleEvent;
+
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.BrewableResult;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.item.alchemy.Potion;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -16,14 +14,14 @@ public class PotionLoader {
     public static List<BrewableResult> POTIONS = new ArrayList<>();
 
     public static void init() {
-        // Architectury calls CLIENT_LEVEL_LOAD before Minecraft#level is set. (as of version 12.0.27)
-        // This means when PlatformPotionUtilImpl tries to access Minecraft#level it is null.
-        // for this reason we need to forward the ClientLevel to the method
-        ClientLifecycleEvent.CLIENT_LEVEL_LOAD.register(PotionLoader::load);
-        LifecycleEvent.SERVER_LEVEL_UNLOAD.register((clientLevel) -> PotionLoader.clear());
+        // PotionLoader lifecycle registration is now done in platform entry points
+        // (BetterRecipeBookClientFabric / BetterRecipeBookClientNeoForge).
+        // This no-arg init method only initializes the list.
+        // Callers should also register the load/clear hooks via the platform events.
     }
 
-    private static void load(ClientLevel level) {
+
+    public static void load(ClientLevel level) {
         PotionLoader.clearNoLog();
 
         List<?> MIXES = getPotionMixes(level);

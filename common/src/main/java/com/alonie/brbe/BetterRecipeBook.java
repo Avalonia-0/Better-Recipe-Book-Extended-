@@ -1,7 +1,6 @@
 package com.alonie.brbe;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.config.Config;
 import com.alonie.brbe.loaders.PotionLoader;
@@ -102,8 +101,9 @@ public class BetterRecipeBook {
         pinnedRecipeManager.read();
         instantCraftingManager = new InstantCraftingManager();
 
-        KeyMappingRegistry.register(PIN_MAPPING);
-        KeyMappingRegistry.register(RECIPE_VIEW_MAPPING);
-        KeyMappingRegistry.register(USAGE_VIEW_MAPPING);
+        // KeyMapping registration moved to platform entry points
+        // KeyBindingHelper.registerKeyBinding(PIN_MAPPING);
+        // KeyBindingHelper.registerKeyBinding(RECIPE_VIEW_MAPPING);
+        // KeyBindingHelper.registerKeyBinding(USAGE_VIEW_MAPPING);
     }
 }

@@ -1,6 +1,6 @@
 package com.alonie.brbe.util;
 
-import dev.architectury.platform.Platform;
+import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -39,8 +39,9 @@ public class ModNameUtil {
 
         // Priority 2: Mod metadata display name via Architectury's cross-loader API
         try {
-            if (Platform.isModLoaded(namespace)) {
-                String modName = Platform.getMod(namespace).getName();
+            var modOpt = FabricLoader.getInstance().getModContainer(namespace);
+            if (modOpt.isPresent()) {
+                String modName = modOpt.get().getMetadata().getName();
                 if (modName != null && !modName.isEmpty()) {
                     return modName;
                 }
