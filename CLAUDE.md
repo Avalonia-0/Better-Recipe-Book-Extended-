@@ -2,90 +2,104 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-## Multi-branch architecture
+## Branch Architecture
 
-Each git branch targets a **different Minecraft version** and is built independently:
+This is a **multi-version Minecraft mod**. Each git branch targets a specific Minecraft version:
 
-| Branch    | Minecraft | Java | Loom                         | Mod Loaders      |
-|-----------|-----------|------|------------------------------|-------------------|
-| `1.21.1`  | 1.21.1    | 21   | Architectury Loom            | Fabric + NeoForge |
-| `1.21.11` | 1.21.11   | 21   | Architectury Loom            | Fabric + NeoForge |
-| `26.1.2`  | 26.1.2    | 25   | Loom (`loom-no-remap`)       | Fabric + NeoForge |
+| Branch | MC Version | Loom Plugin | Java | Mappings |
+|--------|-----------|-------------|------|----------|
+| `1.21.1` | 1.21.1 | `dev.architectury.loom` | 21 | Yarn (via Architectury remap) |
+| `1.21.11` | 1.21.11 | `dev.architectury.loom` | 21 | Yarn (via Architectury remap) |
+| `26.1.2` | 26.1.2 | `dev.architectury.loom-no-remap` | 25 | Mojang official |
+| `26.2` | 26.2 | `dev.architectury.loom-no-remap` | 25 | Mojang official |
 
-**The root `build.gradle` validates `minecraft_version` against the branch name at configure time** — it will fail with a clear error if they differ.
+**CRITICAL**: `build.gradle` on 26.1.2/26.2 enforces that `minecraft_version` in `gradle.properties` matches the git branch name. Switching branches without updating `gradle.properties` will fail.
 
-## Module layout
-
-```
-common/          ← shared across Fabric + NeoForge
-  api/           ←   public interfaces (HudHider, ConfigScreenProvider)
-  impl/          ←   implementations (JeiHudHider, ReiHudHider)
-  compat/        ←   cross-mod bridges (OverlayHider → thin registry, ReiCompat)
-  mixins/        ←   grouped by feature, one directory per concern
-  recipebookispain_extended/  ← RBIP — merged source code, own mixin configs
-fabric/          ← Fabric-specific entry points + JEI plugin
-neoforge/        ← NeoForge-specific entry points + platform init
-```
-
-## Critical 26.1.2 API differences from 1.21.x
-
-| Old (1.21.x)                     | New (26.1.2)                        |
-|----------------------------------|-------------------------------------|
-| `GuiGraphics`                    | `GuiGraphicsExtractor`              |
-| `render(GuiGraphics,…)`          | `extractRenderState(GuiGraphicsExtractor,…)` |
-| `renderWidget(GuiGraphics,…)`    | `extractWidgetRenderState(GuiGraphicsExtractor,…)` |
-| `renderFakeItem(stack, x, y)`    | `fakeItem(stack, x, y)`             |
-| `renderItem(stack, x, y)`        | `item(stack, x, y)`                 |
-| `drawString(font, str, x, y, c)` | `text(font, str, x, y, c)`          |
-| `CharacterEvent(char, int)`      | `CharacterEvent(int)`               |
-| `ScreenEvents.afterRender()`     | `ScreenEvents.afterExtract()`       |
-| `PotionBrewing.Mix`              | package-private — reflection needed |
-| `Ingredient.EMPTY`               | removed — use null                  |
-
-When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect` annotation for `method` and `target` strings referencing old names.
-
-## Build commands
+## Build Commands
 
 ```bash
-./gradlew build                    # full build (common + fabric + neoforge)
-./gradlew :common:compileJava      # compile-only check
+# Compile only (fast, for checking errors)
+./gradlew :common:compileJava :fabric:compileJava :neoforge:compileJava
 
-# Cache corruption recovery (after branch switches)
-./gradlew cleanLoomCache && rm -rf .gradle && ./gradlew build
+# Full build (produces JARs)
+./gradlew :fabric:build :neoforge:build -x test -x check
 
-# Deploy (build JAR → copy to test instance)
-cp fabric/build/libs/BetterRecipeBookExtended-fabric-26.1.2-2.0.1.jar /media/…/26.1.2-Fabric/mods/
-cp neoforge/build/libs/BetterRecipeBookExtended-neoforge-26.1.2-2.0.1.jar /media/…/26.1.2-NeoForge/mods/
+# Clean build
+./gradlew clean :fabric:build :neoforge:build -x test -x check
+
+# Reset cross-branch cache corruption
+./gradlew cleanLoomCache && rm -rf .gradle
 ```
 
-Test instance paths follow the pattern `/media/avalonia/data/MinecraftLib/versions/<version>-<loader>/mods/`.
+JAR outputs: `fabric/build/libs/BetterRecipeBookExtended-fabric-{mcversion}-{version}.jar`
 
-## Config features and their gates
+## Project Structure
 
-| Config field | Effect | Gate location |
-|-------------|--------|---------------|
-| `hideReiJeiOverlay` | Hides JEI/REI overlays | `OverlayHider.setOverlaysHidden()` → iterates `HudHider` registry |
-| `showAllRecipesInSurvival` | When **false**, skips ALL partial-material injection (vanilla-only) | `RecipeBookComponentMixin.keepPartiallyCraftable` |
-| `enableRecipeBookIsPain` | Enables RBIP creative-mode tabs in recipe book | Hidden from GUI (`@ConfigEntry.Gui.Excluded`), edited in `brbe.toml`, hot-reloaded via `reloadIfChanged()` |
-| `enablePinning` | Pin recipes | `PinnedRecipeManager` |
-| `instantCraft.enabled` | Shift-click instant craft | `InstantCraftingManager` |
-| `alternativeRecipes.noGrouped` | Ungroup recipe variants | `ungroup/RecipeBookComponentMixin` |
+```
+common/         # Shared code (95% of all code lives here)
+  src/main/java/com/alonie/
+    brbe/                   # Main mod: Better Recipe Book Extended
+      mixins/               # Mixin classes targeting vanilla MC classes
+      config/               # Config class + sub-configs
+      util/                 # PartialCraftingUtil, IncompatibleCraftingUtil, etc.
+      generic/              # GenericRecipeButton, GenericRecipeBookComponent, etc.
+      smithingtable/        # Smithing table recipe book
+      brewingstand/         # Brewing stand recipe book
+    recipebookispain_extended/  # RBIP sub-mod: creative tabs in recipe book
 
-## RBIP (Recipe Book is Pain) module
-
-- Source-merged into `common/.../recipebookispain_extended/` — **not** a jar-in-jar dependency
-- Own mixin configs: `recipe-book-is-pain-extended.mixins.json` (Fabric), `rbip-neoforge.mixins.json` (NeoForge)
-- Platform init: NeoForge → `BetterRecipeBookClientNeoForge.init()`, Fabric → `RBIPFabricEntrypoint`
-- Config bridged through `RecipeBookIsPainExtendedConfig.enabled()` → reads `brbe.toml [rbip]`
-- If `enableRecipeBookIsPain` is off, RBIP is a no-op (constructor saves `vanillaTabInfos`, all methods guard on `enabled()`)
-
-## HudHider API (refactored from OverlayHider)
-
-`OverlayHider` is now a thin registry. New implementations implement `api/hud/HudHider`:
-
-```java
-OverlayHider.register(new JeiHudHider());  // JEI IClientToggleState bridge
-OverlayHider.register(new ReiHudHider());  // REI ConfigObject bridge
+fabric/         # Fabric platform module (entrypoints, compat, JEI mixins)
+neoforge/       # NeoForge platform module (entrypoints, compat, JEI plugins)
 ```
 
-Each hider owns its own state (snapshot, guard flags). Adding a new HUD mod only requires implementing the interface + one registration call.
+## Key Architectural Patterns
+
+### Cross-version API differences (26.1.2/26.2 vs 1.21.x)
+
+The 26.x branches use `loom-no-remap` which compiles against raw Mojang-mapped Minecraft. The 1.21.x branches use `loom` which remaps through Yarn intermediary. This means:
+- 1.21.x: Minecraft class names are Yarn-mapped (`class_507` for `RecipeBookComponent`)
+- 26.x: Minecraft class names are Mojang official (`RecipeBookComponent` directly)
+- 26.x: `Minecraft.screen` was moved to `Minecraft.gui.screen()` (Gui class)
+- 26.x: `Minecraft.getOverlay()` → `Minecraft.gui.overlay()`
+- 26.x: `I18n.exists()` removed, use `I18n.get()` equality check
+- 26.x: `Ingredient.getItems()` → `Ingredient.items()` (returns `Stream<Holder<Item>>`)
+- 26.x: `Screen(Minecraft, Font, Component)` constructor (was `Screen(Component)`)
+
+### PartialCraftingUtil — Performance-critical path
+
+This is the central engine for detecting partially-craftable recipes. Key methods:
+- `markPartialMaterials(collection, slots)` — scans recipe ingredients against inventory
+- `isPartiallyCraftable(collection, recipeId)` — checks PARTIAL_RECIPES WeakHashMap
+- `hasPartialMaterials(collection)` — gate check
+- `hashInventory(slots)` / `slotHash(slots)` — pre-hashes inventory for O(1) ingredient matching
+
+### RecipeBookComponentMixin (incompletecrafting) — Main updateCollections hook
+
+On 1.21.x: `@Redirect` on `List.forEach(Consumer)` — intercepts the vanilla consumer that populates craftable/fitsDimensions. After vanilla runs, BRBE injects partial recipes into craftable set.
+
+On 26.x: `@Redirect` on `List.removeIf(Predicate)` with `ordinal=0` — 26.1.2/26.2 have three `removeIf` calls in `updateCollections`; only the first (main filter) is intercepted.
+
+### Slot-hash caching (performance optimization)
+
+Added to all branches. `updateCollections` is called on every screen toggle/item pickup. 90%+ of calls have unchanged inventory. The mixin computes a 64-bit hash of slot items+counts and skips both vanilla forEach AND BRBE marking when unchanged, saving ~180ms on large modpacks (~25k recipe collections).
+
+### RBIP (RecipeBookIsPain) — Creative tabs in recipe book
+
+`common/src/main/java/com/alonie/recipebookispain_extended/` is a bundled sub-mod that adds creative-mode tab support to furnace/smoker/blast-furnace recipe books.
+
+### Cloth Config dependency
+
+Cloth Config provides the configuration GUI. It's `implementation`+`include` (bundled in JAR) on fabric, and `implementation`+`include` on neoforge. When unavailable for a specific MC version, all AutoConfig calls are wrapped in try-catch with raw-type casts (Config.java removes `implements ConfigData`).
+
+## Known Issues by Branch
+
+- **26.2 NeoForge**: NeoForge 26.2.0.0-beta exits silently after classloader build — pre-release beta bug, not BRBE.
+- **26.2 Fabric**: Works but Cloth Config is embedded (no official 26.2 release yet).
+- **26.1.2 NeoForge**: JEI plugin disabled (JEI jar not available for this exact version).
+
+## Deployment
+
+Test instances at `/media/avalonia/data/MinecraftLib/versions/{version}-{loader}/mods/`. Deploy pattern:
+```bash
+cp fabric/build/libs/BetterRecipeBookExtended-fabric-*-2.1.3.jar /path/to/instance/mods/
+rm -f /path/to/instance/mods/BetterRecipeBook*-2.1.2* # clean old version
+```
