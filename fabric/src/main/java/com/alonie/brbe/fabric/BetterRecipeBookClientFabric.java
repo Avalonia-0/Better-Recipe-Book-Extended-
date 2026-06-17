@@ -38,7 +38,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
-            Screen screen = client.screen;
+            Screen screen = client.gui.screen();
             if (BetterRecipeBook.config.hideReiJeiOverlay && screen != null) {
                 OverlayHider.ensureJeiOverlayHidden();
             }

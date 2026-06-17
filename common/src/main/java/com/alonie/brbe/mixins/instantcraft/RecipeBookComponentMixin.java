@@ -91,7 +91,7 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
-        if (this.betterRecipeBook$instantCraftButton.isHoveredOrFocused() && this.minecraft.screen != null) {
+        if (this.betterRecipeBook$instantCraftButton.isHoveredOrFocused() && this.minecraft.gui.screen() != null) {
             Component text = this.betterRecipeBook$instantCraftButton.isStateTriggered() ? TOGGLE_INSTANT_CRAFT_ON_TEXT : TOGGLE_INSTANT_CRAFT_OFF_TEXT;
             ClientCompat.setComponentTooltipForNextFrame(gui, java.util.List.of(text), mouseX, mouseY);
         }

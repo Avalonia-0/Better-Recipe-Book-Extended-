@@ -19,7 +19,7 @@ public interface ISettingsButton {
     default ImageButton createSettingsButton(int i, int j) {
         if (BetterRecipeBook.config.settingsButton) {
             return new ImageButton(i + 11, j + 137, 18, 18, BRBTextures.SETTINGS_BUTTON_SPRITES, button -> {
-                Minecraft.getInstance().setScreen(AutoConfigClient.getConfigScreen(Config.class, Minecraft.getInstance().screen).get());
+                Minecraft.getInstance().gui.setScreen(AutoConfigClient.getConfigScreen(Config.class, Minecraft.getInstance().gui.screen()).get());
             });
         }
         return null;
@@ -40,7 +40,7 @@ public interface ISettingsButton {
     // TODO: Remove this and use .setTooltip and render it automatically
     default void renderSettingsButtonTooltip(@Nullable ImageButton settingsButton, GuiGraphicsExtractor gui, int mouseX, int mouseY) {
         if (settingsButton != null && settingsButton.isHoveredOrFocused() && BetterRecipeBook.config.settingsButton
-                && Minecraft.getInstance().screen != null) {
+                && Minecraft.getInstance().gui.screen() != null) {
             ClientCompat.setComponentTooltipForNextFrame(gui, java.util.List.of(OPEN_SETTINGS_TOOLTIP), mouseX, mouseY);
         }
     }

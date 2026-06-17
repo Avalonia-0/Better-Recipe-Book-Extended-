@@ -32,8 +32,9 @@ public class ModNameUtil {
         // Priority 1: i18n via Jade's translation key format (jade.modName.{MOD_ID})
         // Works with Jade installed or any resource pack providing these keys
         String jadeKey = "jade.modName." + namespace;
-        if (I18n.exists(jadeKey)) {
-            return I18n.get(jadeKey);
+        String translated = I18n.get(jadeKey);
+        if (!translated.equals(jadeKey)) {
+            return translated;
         }
 
         // Priority 2: Mod metadata display name via Architectury's cross-loader API

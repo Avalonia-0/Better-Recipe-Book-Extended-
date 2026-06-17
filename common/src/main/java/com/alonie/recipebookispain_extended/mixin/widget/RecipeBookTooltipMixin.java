@@ -27,7 +27,7 @@ public class RecipeBookTooltipMixin {
 
     @Inject(at = @At("TAIL"), method = "extractTooltip")
     private void rbip$renderTooltip(GuiGraphicsExtractor context, int mouseX, int mouseY, Slot hoveredSlot, CallbackInfo ci) {
-        if (minecraft.screen != null) {
+        if (minecraft.gui.screen() != null) {
             this.tabButtons.stream().filter(widget -> widget.visible && widget.isHovered()).forEach(widget -> {
                 if (widget.getCategory() instanceof SearchRecipeBookCategory) {
                     context.setTooltipForNextFrame(minecraft.font, CreativeModeTabs.searchTab().getDisplayName(), mouseX, mouseY);

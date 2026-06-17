@@ -31,8 +31,8 @@ public abstract class MouseMixin {
     @Inject(at = @At("HEAD"), method = "onScroll", cancellable = true)
     private void rbip$scrollRecipeBookTabs(long windowHandle, double horizontalAmount, double verticalAmount, CallbackInfo ci) {
         if (windowHandle != this.minecraft.getWindow().handle()
-                || this.minecraft.getOverlay() != null
-                || !(this.minecraft.screen instanceof AbstractRecipeBookScreen<?> screen)) {
+                || this.minecraft.gui.overlay() != null
+                || !(this.minecraft.gui.screen() instanceof AbstractRecipeBookScreen<?> screen)) {
             return;
         }
 

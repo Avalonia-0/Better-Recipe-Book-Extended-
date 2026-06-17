@@ -145,7 +145,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         this.rbip$drawPageControl(context, this.rbip$pageControlX, this.rbip$pageControlY, false, this.rbip$page > 0, mouseX, mouseY);
         this.rbip$drawPageControl(context, this.rbip$pageControlX + 15, this.rbip$pageControlY, true, this.rbip$page < this.rbip$pageCount - 1, mouseX, mouseY);
 
-        if (this.minecraft.screen != null
+        if (this.minecraft.gui.screen() != null
                 && (this.rbip$isInside(mouseX, mouseY, this.rbip$pageControlX, this.rbip$pageControlY, RBIP_PAGE_BUTTON_WIDTH, RBIP_PAGE_BUTTON_HEIGHT)
                 || this.rbip$isInside(mouseX, mouseY, this.rbip$pageControlX + 15, this.rbip$pageControlY, RBIP_PAGE_BUTTON_WIDTH, RBIP_PAGE_BUTTON_HEIGHT))) {
             context.setTooltipForNextFrame(this.minecraft.font, Component.literal((this.rbip$page + 1) + "/" + this.rbip$pageCount), mouseX, mouseY);

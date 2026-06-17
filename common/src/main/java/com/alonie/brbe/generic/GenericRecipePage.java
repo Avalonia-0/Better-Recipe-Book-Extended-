@@ -199,7 +199,7 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     }
 
     public void drawTooltip(GuiGraphicsExtractor gui, int x, int y) {
-        if (this.minecraft.screen != null && hoveredButton != null) {
+        if (this.minecraft.gui.screen() != null && hoveredButton != null) {
             ClientCompat.setComponentTooltipForNextFrame(gui, this.hoveredButton.getTooltipText(), x, y);
         }
     }

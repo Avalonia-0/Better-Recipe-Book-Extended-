@@ -29,7 +29,7 @@ public abstract class RecipeButtonMixin {
             ItemStack itemStack,
             CallbackInfoReturnable<List<Component>> cir) {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
-        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
+        if (!(Minecraft.getInstance().gui.screen() instanceof InventoryScreen)) return;
 
         List<Component> tooltip = cir.getReturnValue();
         if (tooltip == null || tooltip.isEmpty()) return;

@@ -20,7 +20,7 @@ public abstract class RecipeBookComponentMixin {
             RecipeCollection collection, RecipeDisplayId id, boolean isFiltering,
             CallbackInfoReturnable<Boolean> cir) {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
-        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
+        if (!(Minecraft.getInstance().gui.screen() instanceof InventoryScreen)) return;
         if (collection == null) return;
 
         if (IncompatibleCraftingUtil.checkIncompatible(collection, id)) {

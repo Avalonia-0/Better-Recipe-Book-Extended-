@@ -45,7 +45,7 @@ public abstract class RecipeBookComponentMixin {
         boolean retainIncompatible = BetterRecipeBook.config.showAllRecipesInSurvival
                 && !isFiltering
                 && this.minecraft != null
-                && this.minecraft.screen instanceof InventoryScreen;
+                && this.minecraft.gui.screen() instanceof InventoryScreen;
         IncompatibleCraftingUtil.beginFiltering(retainIncompatible);
     }
 
@@ -57,7 +57,7 @@ public abstract class RecipeBookComponentMixin {
     private boolean betterRecipeBook$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
         // ── Gate variables: single point of truth for each concern ──
         boolean onInventoryScreen = this.minecraft != null
-                && this.minecraft.screen instanceof InventoryScreen;
+                && this.minecraft.gui.screen() instanceof InventoryScreen;
         boolean retainPartial = BetterRecipeBook.config.partialMarkingEnabled;
         boolean retainIncompatible = onInventoryScreen
                 && BetterRecipeBook.config.showAllRecipesInSurvival;

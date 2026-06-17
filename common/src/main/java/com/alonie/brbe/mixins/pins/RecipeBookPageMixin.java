@@ -18,7 +18,7 @@ public class RecipeBookPageMixin {
     @Inject(method = "mouseClicked", at = @At("RETURN"))
     public void mouseClicked(MouseButtonEvent event, int x, int y, int width, int height, boolean isDoubleClick, CallbackInfoReturnable<Boolean> cir) {
         // If the recipe page consumed the click, clear any focused recipe-book search box.
-        if (cir.getReturnValue() && minecraft.screen != null && minecraft.screen.getFocused() instanceof EditBox searchBox) {
+        if (cir.getReturnValue() && minecraft.gui.screen() != null && minecraft.gui.screen().getFocused() instanceof EditBox searchBox) {
             searchBox.setFocused(false);
         }
     }

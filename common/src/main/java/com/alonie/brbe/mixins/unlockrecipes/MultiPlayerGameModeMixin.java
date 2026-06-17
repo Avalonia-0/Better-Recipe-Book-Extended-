@@ -42,7 +42,7 @@ public abstract class MultiPlayerGameModeMixin {
     @Inject(method = "handlePlaceRecipe", at = @At(value = "HEAD"), cancellable = true)
     public void onPlaceRecipe(int z, RecipeDisplayId recipe, boolean shiftKeyDown, CallbackInfo ci) {
         if (BetterRecipeBook.config.newRecipes.unlockAll && minecraft.player != null && minecraft.gameMode != null &&
-                minecraft.screen instanceof AbstractRecipeBookScreen<?> screen && minecraft.player.containerMenu instanceof RecipeBookMenu menu) {
+                minecraft.gui.screen() instanceof AbstractRecipeBookScreen<?> screen && minecraft.player.containerMenu instanceof RecipeBookMenu menu) {
             RecipeBookComponent<?> comp = ((AbstractRecipeBookScreenAccessor) screen).betterRecipeBook$getRecipeBookComponent();
 
             RecipeBookPage page = ((RecipeBookComponentAccessor) comp).getRecipeBookPage();
