@@ -49,7 +49,11 @@ public abstract class RecipeBookComponentMixin {
         IncompatibleCraftingUtil.beginFiltering(retainIncompatible);
     }
 
-    @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z"))
+    // ordinal = 0: 26.1.2 has three removeIf(Predicate) calls inside
+    // updateCollections.  Only intercept the first one (the main craftability
+    // filter) so that the search filter and the crafting-table filter still
+    // run vanilla's own predicate with our already-modified craftable set.
+    @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z", ordinal = 0))
     private boolean betterRecipeBook$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
         // ── Gate variables: single point of truth for each concern ──
         boolean onInventoryScreen = this.minecraft != null
@@ -57,6 +61,11 @@ public abstract class RecipeBookComponentMixin {
         boolean retainPartial = BetterRecipeBook.config.partialMarkingEnabled;
         boolean retainIncompatible = onInventoryScreen
                 && BetterRecipeBook.config.showAllRecipesInSurvival;
+        // When showAllRecipesInSurvival is off, 3×3 recipes must never
+        // be in PARTIAL_RECIPES — regardless of which screen we're on.
+        // (The screen might not be InventoryScreen yet if updateCollections
+        // fires during screen transition.)
+        boolean filter3x3 = !BetterRecipeBook.config.showAllRecipesInSurvival;
 
         // Only skip everything when BOTH features are off.
         if (!retainPartial && !retainIncompatible) {
@@ -65,21 +74,19 @@ public abstract class RecipeBookComponentMixin {
 
         // ── Partial material marking (gated inside PartialCraftingUtil) ──
         // Step 0: Clear previously-injected partial IDs from craftable set.
-        // Skip 3×3 recipes when showAllRecipesInSurvival is off on the
-        // inventory screen — they were never injected (see injection guard
-        // below), so removing them would only destroy vanilla's own craftable
-        // marking and cause markPartialMaterials to see isCraftable()==false,
-        // re-tagging them as partial.  That creates an infinite cycle where
-        // a fully-craftable 3×3 recipe permanently shows the "partial" overlay.
+        // Skip 3×3 recipes when showAllRecipesInSurvival is off — they were
+        // never injected (see injection guard below), so removing them would
+        // only destroy vanilla's own craftable marking and cause
+        // markPartialMaterials to see isCraftable()==false, re-tagging them
+        // as partial.  That creates an infinite cycle where a fully-craftable
+        // 3×3 recipe permanently shows the "partial" overlay.
         for (RecipeCollection collection : collections) {
             if (PartialCraftingUtil.hasPartialMaterials(collection)) {
                 RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
                 for (RecipeDisplayEntry entry : collection.getRecipes()) {
                     RecipeDisplayId id = entry.id();
                     if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
-                        if (onInventoryScreen
-                                && !BetterRecipeBook.config.showAllRecipesInSurvival
-                                && brbe$needsLargerGrid(entry.display())) {
+                        if (filter3x3 && brbe$needsLargerGrid(entry.display())) {
                             continue; // never injected — leave vanilla craftable alone
                         }
                         accessor.betterRecipeBook$getCraftable().remove(id);
@@ -98,12 +105,10 @@ public abstract class RecipeBookComponentMixin {
                     RecipeDisplayId id = entry.id();
                     if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
                         // Don't inject 3×3 partial recipes when showAllRecipesInSurvival
-                        // is off on the inventory screen — they can't be crafted in the
-                        // 2×2 grid and would otherwise survive the vanilla filter, producing
-                        // "air placeholder" ghost recipe slots.
-                        if (onInventoryScreen
-                                && !BetterRecipeBook.config.showAllRecipesInSurvival
-                                && brbe$needsLargerGrid(entry.display())) {
+                        // is off — they can't be crafted in the 2×2 grid and would
+                        // otherwise survive the vanilla filter, producing "air
+                        // placeholder" ghost recipe slots.
+                        if (filter3x3 && brbe$needsLargerGrid(entry.display())) {
                             continue;
                         }
                         accessor.betterRecipeBook$getCraftable().add(id);
@@ -115,15 +120,15 @@ public abstract class RecipeBookComponentMixin {
         // ── Root-cause cleanup: purge 3×3 recipes from the partial set ──
         // markPartialMaterials can be over-aggressive — it marks any recipe
         // that has at least one matching ingredient in the inventory and is
-        // not already in the craftable set.  For 3×3 recipes in a 2×2 grid
-        // when showAllRecipesInSurvival=false, this is never useful: the
+        // not already in the craftable set.  For 3×3 recipes when
+        // showAllRecipesInSurvival=false, this is never useful: the
         // injection guard above skips them, and if we leave them in
         // PARTIAL_RECIPES Step 0 will destroy vanilla's craftable marking
         // on the next call, creating a permanent "partial" degradation loop.
         //
         // Removing them here (single source of truth) breaks the cycle
         // regardless of what guards exist in Step 0 / injection / keepPartial.
-        if (onInventoryScreen && !BetterRecipeBook.config.showAllRecipesInSurvival) {
+        if (filter3x3) {
             for (RecipeCollection collection : collections) {
                 if (PartialCraftingUtil.hasPartialMaterials(collection)) {
                     for (RecipeDisplayEntry entry : collection.getRecipes()) {
@@ -158,13 +163,11 @@ public abstract class RecipeBookComponentMixin {
             if (!predicate.test(collection)) return false;
             if (keepPartial && PartialCraftingUtil.hasPartialMaterials(collection)) {
                 // Even if collection has partial materials, when
-                // showAllRecipesInSurvival is off on the inventory screen,
-                // skip the keep-partial protection if EVERY partial recipe
-                // in the collection needs a 3×3 grid. The injection loop
-                // above already skipped those, so the collection would
-                // render as an air placeholder.
-                if (onInventoryScreen
-                        && !BetterRecipeBook.config.showAllRecipesInSurvival
+                // showAllRecipesInSurvival is off, skip the keep-partial
+                // protection if EVERY partial recipe in the collection
+                // needs a 3×3 grid. The injection loop above already skipped
+                // those, so the collection would render as an air placeholder.
+                if (filter3x3
                         && brbe$allPartialRecipesNeedLargerGrid(collection)) {
                     return true; // remove
                 }
