@@ -41,7 +41,8 @@ dependencies {
     // implementation("dev.architectury:architectury-neoforge:${rootProject.architectury_version}")
 
     // Cloth Config — not yet available for 26.2 (compileOnly only)
-    compileOnly("me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}")
+    implementation("me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}")
+    include("me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}")
 
     // JEI jar (not yet available for 26.2)
     // def jeiJarPath = rootProject.findProperty("jei_neoforge_jar")

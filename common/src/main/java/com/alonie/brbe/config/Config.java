@@ -1,9 +1,11 @@
 package com.alonie.brbe.config;
 
+import me.shedaniel.autoconfig.ConfigData;
+
 import me.shedaniel.autoconfig.annotation.ConfigEntry;
 
 @me.shedaniel.autoconfig.annotation.Config(name = "brbe")
-public class Config {
+public class Config implements ConfigData {
 
     public boolean enablePinning = true;
 
