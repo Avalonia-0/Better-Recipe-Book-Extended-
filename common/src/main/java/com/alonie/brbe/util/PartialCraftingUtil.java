@@ -50,7 +50,19 @@ public final class PartialCraftingUtil {
         }
     }
 
-    public static java.util.Set<Item> hashInventory(NonNullList<Slot> slots) {
+    public static long slotHash(NonNullList<Slot> slots) {
+        long h = 1;
+        for (Slot slot : slots) {
+            ItemStack stack = slot.getItem();
+            if (!stack.isEmpty()) {
+                h = 31 * h + (long)stack.getItem().hashCode();
+                h = 31 * h + stack.getCount();
+            }
+        }
+        return h;
+    }
+
+        public static java.util.Set<Item> hashInventory(NonNullList<Slot> slots) {
         java.util.Set<Item> inventoryItems = new java.util.HashSet<>();
         for (Slot slot : slots) {
             ItemStack stack = slot.getItem();
