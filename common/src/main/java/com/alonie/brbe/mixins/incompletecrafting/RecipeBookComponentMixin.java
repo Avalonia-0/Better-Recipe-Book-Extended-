@@ -11,11 +11,15 @@ import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.inventory.RecipeBookMenu;
+import net.minecraft.world.item.crafting.display.RecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
+import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
+import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -82,6 +86,15 @@ public abstract class RecipeBookComponentMixin {
                 for (RecipeDisplayEntry entry : collection.getRecipes()) {
                     RecipeDisplayId id = entry.id();
                     if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
+                        // Don't inject 3×3 partial recipes when showAllRecipesInSurvival
+                        // is off on the inventory screen — they can't be crafted in the
+                        // 2×2 grid and would otherwise survive the vanilla filter, producing
+                        // "air placeholder" ghost recipe slots.
+                        if (onInventoryScreen
+                                && !BetterRecipeBook.config.showAllRecipesInSurvival
+                                && brbe$needsLargerGrid(entry.display())) {
+                            continue;
+                        }
                         accessor.betterRecipeBook$getCraftable().add(id);
                     }
                 }
@@ -108,7 +121,20 @@ public abstract class RecipeBookComponentMixin {
 
         boolean removed = collections.removeIf(collection -> {
             if (!predicate.test(collection)) return false;
-            if (keepPartial && PartialCraftingUtil.hasPartialMaterials(collection)) return false;
+            if (keepPartial && PartialCraftingUtil.hasPartialMaterials(collection)) {
+                // Even if collection has partial materials, when
+                // showAllRecipesInSurvival is off on the inventory screen,
+                // skip the keep-partial protection if EVERY partial recipe
+                // in the collection needs a 3×3 grid. The injection loop
+                // above already skipped those, so the collection would
+                // render as an air placeholder.
+                if (onInventoryScreen
+                        && !BetterRecipeBook.config.showAllRecipesInSurvival
+                        && brbe$allPartialRecipesNeedLargerGrid(collection)) {
+                    return true; // remove
+                }
+                return false;
+            }
             if (keepIncompatible && IncompatibleCraftingUtil.hasIncompatibleRecipes(collection)) return false;
             return true;
         });
@@ -161,5 +187,30 @@ public abstract class RecipeBookComponentMixin {
         list.addAll(middle);
         list.addAll(back);
         page.updateCollections(list, resetPageNumber, isFiltering);
+    }
+
+    /** True if a crafting display needs more than a 2×2 grid. */
+    @Unique
+    private static boolean brbe$needsLargerGrid(RecipeDisplay display) {
+        if (display instanceof ShapedCraftingRecipeDisplay shaped) {
+            return shaped.width() > 2 || shaped.height() > 2;
+        }
+        if (display instanceof ShapelessCraftingRecipeDisplay shapeless) {
+            return shapeless.ingredients().size() > 4;
+        }
+        return false;
+    }
+
+    /** True if every partially-craftable recipe in the collection needs a 3×3 grid. */
+    @Unique
+    private static boolean brbe$allPartialRecipesNeedLargerGrid(RecipeCollection collection) {
+        for (RecipeDisplayEntry entry : collection.getRecipes()) {
+            if (PartialCraftingUtil.isPartiallyCraftable(collection, entry.id())) {
+                if (!brbe$needsLargerGrid(entry.display())) {
+                    return false; // found at least one 2×2 partial recipe
+                }
+            }
+        }
+        return true; // all partial recipes are 3×3 (or there are no partial recipes)
     }
 }
