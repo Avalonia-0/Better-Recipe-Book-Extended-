@@ -52,7 +52,7 @@ public class BetterRecipeBookClientNeoForge {
         });
 
         ClientTickEvent.CLIENT_POST.register(client -> {
-            Screen screen = client.screen;
+            Screen screen = client.gui.screen();
             // Per-tick JEI state enforcement — reads real JEI state, no internal tracking
             if (BetterRecipeBook.config.hideReiJeiOverlay && screen != null) {
                 OverlayHider.ensureJeiOverlayHidden();
