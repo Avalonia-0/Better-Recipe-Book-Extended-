@@ -181,7 +181,19 @@ public final class PartialCraftingUtil {
         return combinedRecipes;
     }
 
-    private static boolean hasMatchingIngredient(List<Ingredient> ingredients, NonNullList<Slot> slots) {
+    public static long slotHash(NonNullList<Slot> slots) {
+        long h = 1;
+        for (Slot slot : slots) {
+            ItemStack stack = slot.getItem();
+            if (!stack.isEmpty()) {
+                h = 31 * h + (long)stack.getItem().hashCode();
+                h = 31 * h + stack.getCount();
+            }
+        }
+        return h;
+    }
+
+        private static boolean hasMatchingIngredient(List<Ingredient> ingredients, NonNullList<Slot> slots) {
         for (Ingredient ingredient : ingredients) {
             if (ingredient.isEmpty()) {
                 continue;
