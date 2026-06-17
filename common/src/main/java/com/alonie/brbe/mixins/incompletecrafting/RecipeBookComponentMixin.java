@@ -40,6 +40,9 @@ public abstract class RecipeBookComponentMixin {
     @Shadow
     private net.minecraft.client.gui.components.EditBox searchBox;
 
+    @Unique
+    private long brbe$lastSlotHash;
+
     @Inject(method = "updateCollections", at = @At("HEAD"))
     private void betterRecipeBook$trackPartialFilteringUpdate(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
         boolean retainIncompatible = BetterRecipeBook.config.showAllRecipesInSurvival
@@ -67,12 +70,21 @@ public abstract class RecipeBookComponentMixin {
         // fires during screen transition.)
         boolean filter3x3 = !BetterRecipeBook.config.showAllRecipesInSurvival;
 
+        // ── Slot cache: skip when inventory unchanged ──
+        long slotHash = PartialCraftingUtil.slotHash(this.menu.slots);
+        boolean inventoryChanged = (slotHash != this.brbe$lastSlotHash);
+        if (!inventoryChanged && !retainIncompatible) {
+            return collections.removeIf(predicate);
+        }
+
         // Only skip everything when BOTH features are off.
         if (!retainPartial && !retainIncompatible) {
             return collections.removeIf(predicate);
         }
 
         // ── Partial material marking (gated inside PartialCraftingUtil) ──
+        this.brbe$lastSlotHash = slotHash;
+
         // Step 0: Clear previously-injected partial IDs from craftable set.
         // Skip 3×3 recipes when showAllRecipesInSurvival is off on the
         // inventory screen — they were never injected (see injection guard

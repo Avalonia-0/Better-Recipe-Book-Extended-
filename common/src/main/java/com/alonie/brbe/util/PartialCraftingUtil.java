@@ -54,7 +54,19 @@ public final class PartialCraftingUtil {
      * ingredient matching.  Call once per {@code updateCollections()} instead of
      * per-collection.
      */
-    public static java.util.Set<net.minecraft.world.item.Item> hashInventory(NonNullList<Slot> slots) {
+    public static long slotHash(NonNullList<Slot> slots) {
+        long h = 1;
+        for (Slot slot : slots) {
+            ItemStack stack = slot.getItem();
+            if (!stack.isEmpty()) {
+                h = 31 * h + (long)stack.getItem().hashCode();
+                h = 31 * h + stack.getCount();
+            }
+        }
+        return h;
+    }
+
+        public static java.util.Set<net.minecraft.world.item.Item> hashInventory(NonNullList<Slot> slots) {
         java.util.Set<net.minecraft.world.item.Item> inventoryItems = new java.util.HashSet<>();
         for (Slot slot : slots) {
             ItemStack stack = slot.getItem();
