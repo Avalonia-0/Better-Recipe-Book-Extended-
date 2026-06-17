@@ -43,14 +43,28 @@ public abstract class RecipeBookComponentMixin {
     @Shadow @Final
     protected Minecraft minecraft;
 
+    private static long brbe$lastSlotHash;
+
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;forEach(Ljava/util/function/Consumer;)V"))
     private void betterRecipeBook$injectIntoDataSets(
             List<RecipeCollection> collections, Consumer<? super RecipeCollection> consumer) {
         PerfTimer.begin();
-        PerfTimer.start("vanilla.forEach");
-        // Step 1: Run original forEach (populates craftable + fitsDimensions)
-        collections.forEach(consumer);
-        PerfTimer.end("vanilla.forEach");
+
+        // ── Compute slot hash BEFORE calling vanilla forEach ──
+        long slotHash = PartialCraftingUtil.slotHash(this.menu.slots);
+        boolean inventoryChanged = (slotHash != brbe$lastSlotHash);
+
+        if (inventoryChanged) {
+            PerfTimer.start("vanilla.forEach");
+            collections.forEach(consumer);
+            PerfTimer.end("vanilla.forEach");
+            brbe$lastSlotHash = slotHash;
+        } else {
+            // Vanilla forEach re-populates craftable from scratch (150ms on ATM10).
+            // RecipeCollection objects are reused across updateCollections calls;
+            // their craftable/fitsDimensions data from the previous call is still
+            // valid when inventory hasn't changed.  Skip the entire forEach.
+        }
 
         // ── Gate variables ──
         boolean onInventory = this.minecraft != null
@@ -80,26 +94,17 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
+        // Skip BRBE partial pass when inventory hasn't changed AND the
+        // vanilla forEach was also skipped (craftable data is still fresh).
+        if (!inventoryChanged) {
+            PerfTimer.logAndReset("updateCollections (cache-hit, fully skipped)");
+            return;
+        }
+
         // Activate generation tracking
         PartialCraftingUtil.beginFilteringUpdate(true);
 
-        PerfTimer.start("hash.inventory");
         java.util.Set<net.minecraft.world.item.Item> inventoryItems = PartialCraftingUtil.hashInventory(this.menu.slots);
-        long slotHash = PartialCraftingUtil.slotHash(this.menu.slots);
-        PerfTimer.end("hash.inventory");
-
-        // ── Slot-state cache: skip partial marking if inventory unchanged ──
-        // updateCollections fires on every screen toggle, item pickup/drop, etc.
-        // Most calls have identical inventory state.  The BRBE partial marking
-        // pass (step0-clear + markAndInject) iterates all 25k collections, costing
-        // ~30ms each call.  Skip it when nothing changed.
-        long prevSlotHash = PartialCraftingUtil.getLastSlotHash();
-        if (slotHash == prevSlotHash) {
-            PartialCraftingUtil.beginFilteringUpdate(false);
-            PerfTimer.logAndReset("updateCollections (cache-hit, skipped partial)");
-            return;
-        }
-        PartialCraftingUtil.setLastSlotHash(slotHash);
 
         PerfTimer.start("partial.step0-clear");
         for (RecipeCollection collection : collections) {

@@ -48,24 +48,18 @@ public final class PartialCraftingUtil {
      * ingredient matching.  Call once per {@code updateCollections()} instead of
      * per-collection.
      */
-    private static long lastSlotHash;
-
     /** Simple 64-bit hash of slot state (item presence + counts). */
     public static long slotHash(NonNullList<Slot> slots) {
         long h = 1;
         for (Slot slot : slots) {
             ItemStack stack = slot.getItem();
             if (!stack.isEmpty()) {
-                h = 31 * h + stack.getItem().hashCode();
+                h = 31 * h + (long)stack.getItem().hashCode();
                 h = 31 * h + stack.getCount();
             }
         }
         return h;
     }
-
-    public static long getLastSlotHash() { return lastSlotHash; }
-
-    public static void setLastSlotHash(long hash) { lastSlotHash = hash; }
 
     public static Set<Item> hashInventory(NonNullList<Slot> slots) {
         Set<Item> inventoryItems = new HashSet<>();
