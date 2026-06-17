@@ -38,8 +38,9 @@ public class RecipeBookComponentMixin {
 
             if (this.book.isFiltering(this.menu)) {
                 PartialCraftingUtil.beginFilteringUpdate(true);
+                java.util.Set<net.minecraft.world.item.Item> inventoryItems = PartialCraftingUtil.hashInventory(this.menu.slots);
                 list2.removeIf((recipeCollection) -> {
-                    PartialCraftingUtil.markPartialMaterials(recipeCollection, this.menu.slots);
+                    PartialCraftingUtil.markPartialMaterials(recipeCollection, inventoryItems);
                     return !recipeCollection.hasCraftable() && !PartialCraftingUtil.hasPartialMaterials(recipeCollection);
                 });
                 // Sort craftable collections before uncraftable

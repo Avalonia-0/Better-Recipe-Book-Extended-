@@ -5,6 +5,8 @@ import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.core.NonNullList;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -42,10 +44,35 @@ public final class PartialCraftingUtil {
     }
 
     /**
+     * Pre-computes a set of items present in the inventory slots for fast O(1)
+     * ingredient matching.  Call once per {@code updateCollections()} instead of
+     * per-collection.
+     */
+    public static Set<Item> hashInventory(NonNullList<Slot> slots) {
+        Set<Item> inventoryItems = new HashSet<>();
+        for (Slot slot : slots) {
+            ItemStack stack = slot.getItem();
+            if (!stack.isEmpty()) {
+                inventoryItems.add(stack.getItem());
+            }
+        }
+        return inventoryItems;
+    }
+
+    /**
      * Checks all recipes in the collection and marks those that have some (but not all) matching ingredients.
+     * Uses pre-hashed inventory set for O(1) ingredient lookup.
      */
     public static boolean markPartialMaterials(RecipeCollection collection, NonNullList<Slot> slots) {
+        return markPartialMaterials(collection, hashInventory(slots));
+    }
+
+    /**
+     * Checks all recipes in the collection using a pre-hashed inventory set.
+     */
+    public static boolean markPartialMaterials(RecipeCollection collection, Set<Item> inventoryItems) {
         if (!enabled()) return false;
+        if (wasCheckedForPartialMaterials(collection)) return hasPartialMaterials(collection);
         CHECKED_COLLECTIONS.put(collection, filteringGeneration);
         boolean markedAny = false;
         Set<ResourceLocation> partialRecipes = new HashSet<>();
@@ -57,7 +84,7 @@ public final class PartialCraftingUtil {
             }
 
             Recipe<?> vanillaRecipe = recipe.value();
-            if (hasMatchingIngredient(vanillaRecipe.getIngredients(), slots)) {
+            if (hasMatchingIngredientFast(vanillaRecipe.getIngredients(), inventoryItems)) {
                 partialRecipes.add(recipe.id());
                 markedAny = true;
             }
@@ -138,19 +165,29 @@ public final class PartialCraftingUtil {
         return recipes;
     }
 
+    /**
+     * Legacy matching using raw slots (slower, kept for backward compat).
+     */
     private static boolean hasMatchingIngredient(List<Ingredient> ingredients, NonNullList<Slot> slots) {
+        Set<Item> inventoryItems = hashInventory(slots);
+        return hasMatchingIngredientFast(ingredients, inventoryItems);
+    }
+
+    /**
+     * Fast matching using pre-hashed inventory set — O(1) per ingredient.
+     */
+    private static boolean hasMatchingIngredientFast(List<Ingredient> ingredients, Set<Item> inventoryItems) {
         for (Ingredient ingredient : ingredients) {
             if (ingredient.isEmpty()) {
                 continue;
             }
-
-            for (Slot slot : slots) {
-                if (slot.hasItem() && ingredient.test(slot.getItem())) {
+            // ingredient.getItems() returns all possible ItemStacks for this ingredient
+            for (ItemStack stack : ingredient.getItems()) {
+                if (!stack.isEmpty() && inventoryItems.contains(stack.getItem())) {
                     return true;
                 }
             }
         }
-
         return false;
     }
 }

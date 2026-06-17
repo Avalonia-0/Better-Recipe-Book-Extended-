@@ -68,6 +68,13 @@ public abstract class RecipeBookComponentMixin {
         // ── Partial material marking ──
         if (!retainPartial) return;
 
+        // Activate generation tracking so markPartialMaterials can skip
+        // collections that were already checked this generation.
+        PartialCraftingUtil.beginFilteringUpdate(true);
+
+        // Pre-hash inventory items once for O(1) ingredient matching
+        java.util.Set<net.minecraft.world.item.Item> inventoryItems = PartialCraftingUtil.hashInventory(this.menu.slots);
+
         // Step 0: Clear previously-injected partial IDs from craftable set
         // so markPartialMaterials sees the vanilla state of isCraftable()
         for (RecipeCollection collection : collections) {
@@ -82,8 +89,8 @@ public abstract class RecipeBookComponentMixin {
         }
 
         for (RecipeCollection collection : collections) {
-            // Step 2: Mark partial materials
-            PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
+            // Step 2: Mark partial materials (uses pre-hashed inventory for O(1) matching)
+            PartialCraftingUtil.markPartialMaterials(collection, inventoryItems);
 
             // Step 3: Add partial recipes to craftable set so they are treated as craftable
             if (PartialCraftingUtil.hasPartialMaterials(collection)) {
@@ -95,6 +102,8 @@ public abstract class RecipeBookComponentMixin {
                 }
             }
         }
+
+        PartialCraftingUtil.beginFilteringUpdate(false);
     }
 
     /**
