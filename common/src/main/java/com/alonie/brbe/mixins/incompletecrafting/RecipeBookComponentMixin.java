@@ -5,6 +5,7 @@ import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
 import com.alonie.brbe.util.CollectionCategory;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
+import com.alonie.brbe.util.PerfTimer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
@@ -45,8 +46,11 @@ public abstract class RecipeBookComponentMixin {
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;forEach(Ljava/util/function/Consumer;)V"))
     private void betterRecipeBook$injectIntoDataSets(
             List<RecipeCollection> collections, Consumer<? super RecipeCollection> consumer) {
+        PerfTimer.begin();
+        PerfTimer.start("vanilla.forEach");
         // Step 1: Run original forEach (populates craftable + fitsDimensions)
         collections.forEach(consumer);
+        PerfTimer.end("vanilla.forEach");
 
         // ── Gate variables ──
         boolean onInventory = this.minecraft != null
@@ -56,27 +60,34 @@ public abstract class RecipeBookComponentMixin {
                 && BetterRecipeBook.config.showAllRecipesInSurvival;
 
         // Only skip everything when BOTH features are off.
-        if (!retainPartial && !retainIncompatible) return;
+        if (!retainPartial && !retainIncompatible) {
+            PerfTimer.logAndReset("updateCollections (no-op)");
+            return;
+        }
 
         // ── Incompatible recipe marking ──
         if (retainIncompatible) {
+            PerfTimer.start("incompatible.mark");
             for (RecipeCollection collection : collections) {
                 IncompatibleCraftingUtil.markIncompatibleRecipes(collection);
             }
+            PerfTimer.end("incompatible.mark");
         }
 
         // ── Partial material marking ──
-        if (!retainPartial) return;
+        if (!retainPartial) {
+            PerfTimer.logAndReset("updateCollections (incompatible-only)");
+            return;
+        }
 
-        // Activate generation tracking so markPartialMaterials can skip
-        // collections that were already checked this generation.
+        // Activate generation tracking
         PartialCraftingUtil.beginFilteringUpdate(true);
 
-        // Pre-hash inventory items once for O(1) ingredient matching
+        PerfTimer.start("hash.inventory");
         java.util.Set<net.minecraft.world.item.Item> inventoryItems = PartialCraftingUtil.hashInventory(this.menu.slots);
+        PerfTimer.end("hash.inventory");
 
-        // Step 0: Clear previously-injected partial IDs from craftable set
-        // so markPartialMaterials sees the vanilla state of isCraftable()
+        PerfTimer.start("partial.step0-clear");
         for (RecipeCollection collection : collections) {
             if (PartialCraftingUtil.hasPartialMaterials(collection)) {
                 RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
@@ -87,12 +98,14 @@ public abstract class RecipeBookComponentMixin {
                 }
             }
         }
+        PerfTimer.end("partial.step0-clear");
 
+        PerfTimer.start("partial.markAndInject");
+        int collCount = 0;
         for (RecipeCollection collection : collections) {
-            // Step 2: Mark partial materials (uses pre-hashed inventory for O(1) matching)
+            collCount++;
             PartialCraftingUtil.markPartialMaterials(collection, inventoryItems);
 
-            // Step 3: Add partial recipes to craftable set so they are treated as craftable
             if (PartialCraftingUtil.hasPartialMaterials(collection)) {
                 RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
                 for (RecipeHolder<?> holder : collection.getRecipes()) {
@@ -102,8 +115,10 @@ public abstract class RecipeBookComponentMixin {
                 }
             }
         }
+        PerfTimer.end("partial.markAndInject");
 
         PartialCraftingUtil.beginFilteringUpdate(false);
+        PerfTimer.logAndReset("updateCollections (" + collCount + " coll)");
     }
 
     /**
@@ -113,6 +128,7 @@ public abstract class RecipeBookComponentMixin {
      */
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;Z)V"))
     private void betterRecipeBook$sortBeforePageUpdate(RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber) {
+        PerfTimer.start("sort");
         // 1.21.1 doesn't pass isFiltering to page.updateCollections —
         // read it from the player's recipe book instead.
         boolean filtering = this.minecraft != null
@@ -160,6 +176,7 @@ public abstract class RecipeBookComponentMixin {
         list.addAll(front);
         list.addAll(middle);
         list.addAll(back);
+        PerfTimer.end("sort");
         page.updateCollections(list, resetPageNumber);
     }
 }
