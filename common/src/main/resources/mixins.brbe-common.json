@@ -19,7 +19,6 @@
     "accessors.GhostSlotsAccessor",
     "accessors.HolderReferenceAccessor",
     "accessors.KeyMappingAccessor",
-    "accessors.OverlayRecipeButtonAccessor",
     "accessors.OverlayRecipeButtonPosAccessor",
     "accessors.OverlayRecipeComponentAccessor",
     "accessors.RecipeCollectionAccessor",

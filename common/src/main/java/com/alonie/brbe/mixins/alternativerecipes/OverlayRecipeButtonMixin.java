@@ -2,15 +2,14 @@ package com.alonie.brbe.mixins.alternativerecipes;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.mixins.accessors.ClientRecipeBookAccessor;
-import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonPosAccessor;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.util.OverlayRecipeCollectionHolder;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
@@ -55,8 +54,7 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         ClientCompat.blitSprite(gui, Identifier, getX(), getY(), this.width, this.height);
 
         // Red overlay for partially-craftable recipes
-        OverlayRecipeComponent outer = ((OverlayRecipeButtonAccessor) this).brbe$getOuterComponent();
-        if (PartialCraftingUtil.isPartiallyCraftable(outer.getRecipeCollection(), this.recipe)) {
+        if (PartialCraftingUtil.isPartiallyCraftable(OverlayRecipeCollectionHolder.get(), this.recipe)) {
             gui.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + height - 1, 0x60FF3333);
         }
 

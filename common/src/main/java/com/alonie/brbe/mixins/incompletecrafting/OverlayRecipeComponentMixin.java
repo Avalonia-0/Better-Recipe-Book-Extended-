@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
 import com.alonie.brbe.util.AlternativeOverlayLayout;
+import com.alonie.brbe.util.OverlayRecipeCollectionHolder;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
@@ -10,8 +11,10 @@ import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
 
@@ -20,6 +23,17 @@ public class OverlayRecipeComponentMixin {
     @Shadow
     @Final
     private List<?> recipeButtons;
+
+    /**
+     * Captures the current RecipeCollection so inner buttons can check partial
+     * craftability without accessing {@code this$0} (fails on Fabric).
+     */
+    @Inject(method = "init", at = @At("HEAD"))
+    private void rbip$captureCollection(RecipeCollection collection, ContextMap contextMap,
+                                         boolean isFiltering, int x, int y, int overlayX,
+                                         int overlayY, float width, CallbackInfo ci) {
+        OverlayRecipeCollectionHolder.set(collection);
+    }
 
     @Redirect(method = "init", at = @At(value = "INVOKE", target = "Ljava/util/Collections;emptyList()Ljava/util/List;"))
     private List<RecipeDisplayEntry> betterRecipeBook$showPartiallyCraftableAlternatives(RecipeCollection collection, ContextMap contextMap, boolean isFiltering, int x, int y, int overlayX, int overlayY, float width) {
