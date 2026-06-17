@@ -105,7 +105,8 @@ public class BetterRecipeBook {
             });
             config = (Config) holder.getConfig();
         } catch (NoClassDefFoundError | Exception e) {
-            BetterRecipeBook.LOGGER.info("[BRBE] Cloth Config not available — config screen disabled");
+            BetterRecipeBook.LOGGER.info("[BRBE] Cloth Config not available — using default config");
+            config = new Config();
         }
 
         pinnedRecipeManager = new PinnedRecipeManager();
