@@ -108,7 +108,7 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         if (!this.filteringSupplier.get()) {
             list.addAll(this.collection.getDisplayRecipes(false));
         } else {
-            list.addAll(this.collection.getPartiallyCraftableRecipes(this.menu.slots));
+            list.addAll(this.collection.getPartiallyCraftableRecipes());
         }
 
         return list;
