@@ -64,13 +64,24 @@ public abstract class RecipeBookComponentMixin {
         }
 
         // ── Partial material marking (gated inside PartialCraftingUtil) ──
-        // Step 0: Clear previously-injected partial IDs from craftable set
+        // Step 0: Clear previously-injected partial IDs from craftable set.
+        // Skip 3×3 recipes when showAllRecipesInSurvival is off on the
+        // inventory screen — they were never injected (see injection guard
+        // below), so removing them would only destroy vanilla's own craftable
+        // marking and cause markPartialMaterials to see isCraftable()==false,
+        // re-tagging them as partial.  That creates an infinite cycle where
+        // a fully-craftable 3×3 recipe permanently shows the "partial" overlay.
         for (RecipeCollection collection : collections) {
             if (PartialCraftingUtil.hasPartialMaterials(collection)) {
                 RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
                 for (RecipeDisplayEntry entry : collection.getRecipes()) {
                     RecipeDisplayId id = entry.id();
                     if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
+                        if (onInventoryScreen
+                                && !BetterRecipeBook.config.showAllRecipesInSurvival
+                                && brbe$needsLargerGrid(entry.display())) {
+                            continue; // never injected — leave vanilla craftable alone
+                        }
                         accessor.betterRecipeBook$getCraftable().remove(id);
                     }
                 }
