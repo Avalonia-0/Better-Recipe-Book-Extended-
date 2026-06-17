@@ -73,6 +73,9 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     @Shadow
     protected RecipeBookMenu menu;
 
+    @Shadow
+    private boolean visible;
+
     // ── Layout constants (matching 1.21.11) ────────────────────
 
     @Unique private static final ResourceLocation TEX_PAGE_BTNS =
@@ -146,6 +149,8 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     @Inject(at = @At("TAIL"), method = "render")
     private void rbip$renderTail(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
+        // Don't render page controls or tooltips when the book is collapsed
+        if (!this.visible) return;
 
         // Consume scroll
         int scroll = RecipeBookIsPain.rbip$consumeScroll();
@@ -224,6 +229,8 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     private void rbip$handleClick(double mx, double my, int btn,
                                    CallbackInfoReturnable<Boolean> cir) {
         if (!RecipeBookIsPainExtendedConfig.enabled() || btn != 0) return;
+        // Don't process page-control or creative-tab clicks when book is collapsed
+        if (!this.visible) return;
 
         // Page controls
         if (rbip$pageCount > 1) {
