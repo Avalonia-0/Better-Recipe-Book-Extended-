@@ -2,6 +2,7 @@ package com.alonie.brbe.generic;
 
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
+import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.generic.pins.Pinnable;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.RegistryAccess;
@@ -54,7 +55,15 @@ public abstract class GenericRecipeBookCollection<R extends GenericRecipe, M ext
         return Lists.newArrayList();
     }
 
+    /**
+     * Returns partially-craftable recipes in this collection, or empty if
+     * the feature is disabled in config.  All renderers should call this
+     * no-arg variant rather than the slots variant directly.
+     */
     public List<R> getPartiallyCraftableRecipes() {
+        if (!BetterRecipeBook.config.partialMarkingEnabled) {
+            return Lists.newArrayList();
+        }
         return this.getPartiallyCraftableRecipes(this.menu.slots);
     }
 }
