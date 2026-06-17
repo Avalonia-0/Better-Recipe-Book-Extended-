@@ -57,20 +57,21 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
 
         this.currentIndex = Mth.floor(this.time / 30.0F) % list.size();
 
-        // blit outline texture
-        ResourceLocation outlineTexture = collection.atleastOneCraftable(menu.slots) ?
+        R current = getCurrentDisplayedRecipe();
+        boolean isPartial = current != null
+                && this.collection.getPartiallyCraftableRecipes().stream()
+                        .anyMatch(r -> r.id().equals(current.id()));
+
+        // blit outline texture — use craftable sprite for partial recipes
+        // so they get the light-coloured border (red fill is drawn below)
+        boolean effectiveCraftable = collection.atleastOneCraftable(menu.slots) || isPartial;
+        ResourceLocation outlineTexture = effectiveCraftable ?
                 BRBTextures.RECIPE_BOOK_BUTTON_SLOT_CRAFTABLE_SPRITE : BRBTextures.RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE;
         gui.blitSprite(outlineTexture, getX(), getY(), this.width, this.height);
 
-        // red overlay for partially craftable recipes (always active, drawn before item so item shows on top)
-        {
-            R current = getCurrentDisplayedRecipe();
-            for (R partial : this.collection.getPartiallyCraftableRecipes(this.menu.slots)) {
-                if (partial.id().equals(current.id())) {
-                    gui.fill(getX() + 1, getY() + 1, getX() + this.width - 1, getY() + this.height - 1, 0x60FF3333);
-                    break;
-                }
-            }
+        // red overlay for partially craftable recipes (drawn before item so item shows on top)
+        if (isPartial) {
+            gui.fill(getX() + 1, getY() + 1, getX() + this.width - 1, getY() + this.height - 1, 0x60FF3333);
         }
 
         ItemStack result = getCurrentDisplayedRecipe().getResult(registryAccess, category);
@@ -101,7 +102,7 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         if (!this.filteringSupplier.get()) {
             list.addAll(this.collection.getDisplayRecipes(false));
         } else {
-            list.addAll((List<R>) this.collection.getPartiallyCraftableRecipes(this.menu.slots));
+            list.addAll(this.collection.getPartiallyCraftableRecipes());
         }
 
         return list;
