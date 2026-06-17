@@ -27,9 +27,8 @@ dependencies {
         exclude group: "net.fabricmc.fabric-api", module: "fabric-api-base"
     }
     // implementation("dev.architectury:architectury-fabric:${rootProject.architectury_version}")
-    // Cloth Config — bundled for runtime availability
-    implementation "me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}"
-    include "me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}"
+    // Cloth Config — not yet available for 26.2 (compileOnly only)
+    compileOnly "me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}"
     // ModMenu is distributed with intermediary mappings, which conflicts with
     // loom-no-remap (Mojmap). ModMenuFabric integration is currently disabled.
     // implementation "com.terraformersmc:modmenu:${rootProject.modmenu_version}"

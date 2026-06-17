@@ -19,7 +19,12 @@ public interface ISettingsButton {
     default ImageButton createSettingsButton(int i, int j) {
         if (BetterRecipeBook.config.settingsButton) {
             return new ImageButton(i + 11, j + 137, 18, 18, BRBTextures.SETTINGS_BUTTON_SPRITES, button -> {
-                Minecraft.getInstance().gui.setScreen(AutoConfigClient.getConfigScreen(Config.class, Minecraft.getInstance().gui.screen()).get());
+                try {
+                    var screen = AutoConfigClient.getConfigScreen(Config.class, Minecraft.getInstance().gui.screen()).get();
+                    Minecraft.getInstance().gui.setScreen(screen);
+                } catch (NoClassDefFoundError e) {
+                    // Cloth Config not available
+                }
             });
         }
         return null;

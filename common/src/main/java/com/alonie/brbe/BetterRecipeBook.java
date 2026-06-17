@@ -87,15 +87,20 @@ public class BetterRecipeBook {
         queuedScroll = 0;
         isFilteringNone = true;
 
-        AutoConfig.register(Config.class, Toml4jConfigSerializer::new);
+        // Cloth Config not yet available for 26.2 — skip registration gracefully
+        try {
+            AutoConfig.register(Config.class, Toml4jConfigSerializer::new);
 
-        configHolder = AutoConfig.getConfigHolder(Config.class);
-        configHolder.registerSaveListener((holder, config) -> {
-            BetterRecipeBook.config = config;
-            RecipeUnlockUtil.syncToConfig();
-            return InteractionResult.SUCCESS;
-        });
-        config = configHolder.getConfig();
+            configHolder = AutoConfig.getConfigHolder(Config.class);
+            configHolder.registerSaveListener((holder, config) -> {
+                BetterRecipeBook.config = config;
+                RecipeUnlockUtil.syncToConfig();
+                return InteractionResult.SUCCESS;
+            });
+            config = configHolder.getConfig();
+        } catch (NoClassDefFoundError | Exception e) {
+            BetterRecipeBook.LOGGER.info("[BRBE] Cloth Config not available — config screen disabled");
+        }
 
         pinnedRecipeManager = new PinnedRecipeManager();
         pinnedRecipeManager.read();
