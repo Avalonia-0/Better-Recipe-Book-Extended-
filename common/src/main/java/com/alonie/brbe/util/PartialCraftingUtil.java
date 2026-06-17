@@ -49,8 +49,29 @@ public final class PartialCraftingUtil {
         }
     }
 
+    /**
+     * Pre-computes a set of items present in the inventory slots for fast O(1)
+     * ingredient matching.  Call once per {@code updateCollections()} instead of
+     * per-collection.
+     */
+    public static java.util.Set<net.minecraft.world.item.Item> hashInventory(NonNullList<Slot> slots) {
+        java.util.Set<net.minecraft.world.item.Item> inventoryItems = new java.util.HashSet<>();
+        for (Slot slot : slots) {
+            ItemStack stack = slot.getItem();
+            if (!stack.isEmpty()) {
+                inventoryItems.add(stack.getItem());
+            }
+        }
+        return inventoryItems;
+    }
+
     public static boolean markPartialMaterials(RecipeCollection collection, NonNullList<Slot> slots) {
+        return markPartialMaterials(collection, hashInventory(slots));
+    }
+
+    public static boolean markPartialMaterials(RecipeCollection collection, java.util.Set<net.minecraft.world.item.Item> inventoryItems) {
         if (!enabled()) return false;
+        if (wasCheckedForPartialMaterials(collection)) return hasPartialMaterials(collection);
         CHECKED_COLLECTIONS.put(collection, filteringGeneration);
         boolean markedAny = false;
         Set<RecipeDisplayId> partialRecipes = new HashSet<>();
@@ -59,8 +80,8 @@ public final class PartialCraftingUtil {
                 continue;
             }
 
-            if (recipe.craftingRequirements().map(requirements -> hasMatchingIngredient(requirements, slots)).orElse(false)
-                    || hasMatchingDisplayIngredient(recipe.display(), slots)) {
+            if (recipe.craftingRequirements().map(requirements -> hasMatchingIngredientFast(requirements, inventoryItems)).orElse(false)
+                    || hasMatchingDisplayIngredientFast(recipe.display(), inventoryItems)) {
                 partialRecipes.add(recipe.id());
                 markedAny = true;
             }
@@ -182,34 +203,43 @@ public final class PartialCraftingUtil {
     }
 
     private static boolean hasMatchingIngredient(List<Ingredient> ingredients, NonNullList<Slot> slots) {
+        return hasMatchingIngredientFast(ingredients, hashInventory(slots));
+    }
+
+    private static boolean hasMatchingIngredientFast(List<Ingredient> ingredients, java.util.Set<net.minecraft.world.item.Item> inventoryItems) {
         for (Ingredient ingredient : ingredients) {
             if (ingredient.isEmpty()) {
                 continue;
             }
 
-            for (Slot slot : slots) {
-                if (slot.hasItem() && ingredient.test(slot.getItem())) {
-                    return true;
-                }
+            if (ingredient.items().anyMatch(holder -> inventoryItems.contains(holder.value()))) {
+                return true;
             }
         }
-
         return false;
     }
 
     private static boolean hasMatchingDisplayIngredient(RecipeDisplay display, NonNullList<Slot> slots) {
+        return hasMatchingDisplayIngredientFast(display, hashInventory(slots));
+    }
+
+    private static boolean hasMatchingDisplayIngredientFast(RecipeDisplay display, java.util.Set<net.minecraft.world.item.Item> inventoryItems) {
         if (display instanceof ShapedCraftingRecipeDisplay shaped) {
-            return hasMatchingSlotDisplay(shaped.ingredients(), slots);
+            return hasMatchingSlotDisplayFast(shaped.ingredients(), inventoryItems);
         }
 
         if (display instanceof ShapelessCraftingRecipeDisplay shapeless) {
-            return hasMatchingSlotDisplay(shapeless.ingredients(), slots);
+            return hasMatchingSlotDisplayFast(shapeless.ingredients(), inventoryItems);
         }
 
         return false;
     }
 
     private static boolean hasMatchingSlotDisplay(List<SlotDisplay> ingredients, NonNullList<Slot> slots) {
+        return hasMatchingSlotDisplayFast(ingredients, hashInventory(slots));
+    }
+
+    private static boolean hasMatchingSlotDisplayFast(List<SlotDisplay> ingredients, java.util.Set<net.minecraft.world.item.Item> inventoryItems) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null) {
             return false;
@@ -222,10 +252,8 @@ public final class PartialCraftingUtil {
                     continue;
                 }
 
-                for (Slot slot : slots) {
-                    if (slot.hasItem() && candidate.getItem().equals(slot.getItem().getItem())) {
-                        return true;
-                    }
+                if (inventoryItems.contains(candidate.getItem())) {
+                    return true;
                 }
             }
         }

@@ -95,8 +95,12 @@ public abstract class RecipeBookComponentMixin {
             }
         }
 
+        // Activate generation tracking so collections are skipped if already checked
+        PartialCraftingUtil.beginFilteringUpdate(true);
+        java.util.Set<net.minecraft.world.item.Item> inventoryItems = PartialCraftingUtil.hashInventory(this.menu.slots);
+
         for (RecipeCollection collection : collections) {
-            PartialCraftingUtil.markPartialMaterials(collection, this.menu.slots);
+            PartialCraftingUtil.markPartialMaterials(collection, inventoryItems);
 
             // Inject partial recipes into craftable set
             if (PartialCraftingUtil.hasPartialMaterials(collection)) {
@@ -116,6 +120,8 @@ public abstract class RecipeBookComponentMixin {
                 }
             }
         }
+
+        PartialCraftingUtil.beginFilteringUpdate(false);
 
         // ── Root-cause cleanup: purge 3×3 recipes from the partial set ──
         // markPartialMaterials can be over-aggressive — it marks any recipe
