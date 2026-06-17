@@ -25,7 +25,8 @@ public class BetterRecipeBook {
     public static boolean isFilteringNone;
 
     public static Config config;
-    public static ConfigHolder<Config> configHolder;
+    @SuppressWarnings("rawtypes")
+    public static ConfigHolder configHolder;
 
     public static PinnedRecipeManager pinnedRecipeManager;
     public static InstantCraftingManager instantCraftingManager;
@@ -87,17 +88,22 @@ public class BetterRecipeBook {
         queuedScroll = 0;
         isFilteringNone = true;
 
-        // Cloth Config not yet available for 26.2 — skip registration gracefully
+        // Cloth Config not yet available for 26.2 — skip registration gracefully.
+        // Config no longer implements ConfigData to avoid runtime linkage, so
+        // raw-type casts are needed to bypass AutoConfig's generic bound.
         try {
-            AutoConfig.register(Config.class, Toml4jConfigSerializer::new);
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            var _unused = AutoConfig.register((Class) Config.class, Toml4jConfigSerializer::new);
 
-            configHolder = AutoConfig.getConfigHolder(Config.class);
-            configHolder.registerSaveListener((holder, config) -> {
-                BetterRecipeBook.config = config;
+            @SuppressWarnings({"rawtypes", "unchecked"})
+            var holder = AutoConfig.getConfigHolder((Class) Config.class);
+            configHolder = holder;
+            holder.registerSaveListener((save_holder, cfg) -> {
+                BetterRecipeBook.config = (Config) cfg;
                 RecipeUnlockUtil.syncToConfig();
                 return InteractionResult.SUCCESS;
             });
-            config = configHolder.getConfig();
+            config = (Config) holder.getConfig();
         } catch (NoClassDefFoundError | Exception e) {
             BetterRecipeBook.LOGGER.info("[BRBE] Cloth Config not available — config screen disabled");
         }
