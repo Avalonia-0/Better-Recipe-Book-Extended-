@@ -85,7 +85,21 @@ public abstract class RecipeBookComponentMixin {
 
         PerfTimer.start("hash.inventory");
         java.util.Set<net.minecraft.world.item.Item> inventoryItems = PartialCraftingUtil.hashInventory(this.menu.slots);
+        long slotHash = PartialCraftingUtil.slotHash(this.menu.slots);
         PerfTimer.end("hash.inventory");
+
+        // ── Slot-state cache: skip partial marking if inventory unchanged ──
+        // updateCollections fires on every screen toggle, item pickup/drop, etc.
+        // Most calls have identical inventory state.  The BRBE partial marking
+        // pass (step0-clear + markAndInject) iterates all 25k collections, costing
+        // ~30ms each call.  Skip it when nothing changed.
+        long prevSlotHash = PartialCraftingUtil.getLastSlotHash();
+        if (slotHash == prevSlotHash) {
+            PartialCraftingUtil.beginFilteringUpdate(false);
+            PerfTimer.logAndReset("updateCollections (cache-hit, skipped partial)");
+            return;
+        }
+        PartialCraftingUtil.setLastSlotHash(slotHash);
 
         PerfTimer.start("partial.step0-clear");
         for (RecipeCollection collection : collections) {
