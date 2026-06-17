@@ -112,6 +112,30 @@ public abstract class RecipeBookComponentMixin {
             }
         }
 
+        // ── Root-cause cleanup: purge 3×3 recipes from the partial set ──
+        // markPartialMaterials can be over-aggressive — it marks any recipe
+        // that has at least one matching ingredient in the inventory and is
+        // not already in the craftable set.  For 3×3 recipes in a 2×2 grid
+        // when showAllRecipesInSurvival=false, this is never useful: the
+        // injection guard above skips them, and if we leave them in
+        // PARTIAL_RECIPES Step 0 will destroy vanilla's craftable marking
+        // on the next call, creating a permanent "partial" degradation loop.
+        //
+        // Removing them here (single source of truth) breaks the cycle
+        // regardless of what guards exist in Step 0 / injection / keepPartial.
+        if (onInventoryScreen && !BetterRecipeBook.config.showAllRecipesInSurvival) {
+            for (RecipeCollection collection : collections) {
+                if (PartialCraftingUtil.hasPartialMaterials(collection)) {
+                    for (RecipeDisplayEntry entry : collection.getRecipes()) {
+                        if (brbe$needsLargerGrid(entry.display())
+                                && PartialCraftingUtil.isPartiallyCraftable(collection, entry.id())) {
+                            PartialCraftingUtil.unmarkPartial(collection, entry.id());
+                        }
+                    }
+                }
+            }
+        }
+
         // ── Incompatible recipe marking ──
         if (retainIncompatible) {
             for (RecipeCollection collection : collections) {

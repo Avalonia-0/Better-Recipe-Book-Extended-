@@ -81,6 +81,22 @@ public final class PartialCraftingUtil {
         CHECKED_COLLECTIONS.put(collection, filteringGeneration);
     }
 
+    /**
+     * Removes a single recipe from the partial-materials set for a collection.
+     * Used to undo over-aggressive marking (e.g. 3×3 recipes that can never be
+     * crafted in the 2×2 survival-inventory grid).
+     */
+    public static void unmarkPartial(RecipeCollection collection, RecipeDisplayId id) {
+        if (!enabled()) return;
+        Set<RecipeDisplayId> set = PARTIAL_RECIPES.get(collection);
+        if (set != null) {
+            set.remove(id);
+            if (set.isEmpty()) {
+                PARTIAL_RECIPES.remove(collection);
+            }
+        }
+    }
+
     public static boolean wasCheckedForPartialMaterials(RecipeCollection collection) {
         if (!enabled()) return false;
         Integer generation = CHECKED_COLLECTIONS.get(collection);
