@@ -3,7 +3,7 @@
   "verbose": true,
   "minVersion": "0.8",
   "package": "com.alonie.recipebookispain_extended.mixin",
-  "compatibilityLevel": "JAVA_25",
+  "compatibilityLevel": "JAVA_13",
   "client": [
     "ItemMixin",
     "MouseMixin",

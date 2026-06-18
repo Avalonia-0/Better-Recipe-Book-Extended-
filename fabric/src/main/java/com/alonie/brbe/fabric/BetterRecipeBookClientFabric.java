@@ -9,8 +9,10 @@ import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 
 import java.util.Collections;
@@ -29,6 +31,14 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
         // Register platform-specific providers
         PlatformPotionUtilImpl.init();
+
+        // Register PotionLoader lifecycle hooks (was in Architectury ClientLifecycleEvent.CLIENT_LEVEL_LOAD)
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            if (client.level != null) PotionLoader.load(client.level);
+        });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            PotionLoader.clear();
+        });
 
         // Register optional compat handlers
         // ReiCompatHandler.register();  // JEI/REI not yet available for 26.2

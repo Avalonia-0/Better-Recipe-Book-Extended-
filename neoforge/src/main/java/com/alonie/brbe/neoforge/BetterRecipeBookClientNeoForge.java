@@ -5,13 +5,17 @@ import com.alonie.brbe.brewingstand.neoforge.PlatformPotionUtilImpl;
 import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.impl.hud.JeiHudHider;
 import com.alonie.brbe.impl.hud.ReiHudHider;
+import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.neoforge.NeoForgePlatform;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.world.level.LevelAccessor;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.level.LevelEvent;
 import java.util.Collections;
 import java.util.Set;
 import java.util.WeakHashMap;
@@ -27,6 +31,19 @@ public class BetterRecipeBookClientNeoForge {
     public static void init() {
         // Register platform provider
         PlatformPotionUtilImpl.init();
+
+        // Register PotionLoader lifecycle hooks (was in Architectury ClientLifecycleEvent.CLIENT_LEVEL_LOAD)
+        NeoForge.EVENT_BUS.addListener(LevelEvent.Load.class, event -> {
+            LevelAccessor level = event.getLevel();
+            if (level.isClientSide() && level instanceof net.minecraft.client.multiplayer.ClientLevel clientLevel) {
+                PotionLoader.load(clientLevel);
+            }
+        });
+        NeoForge.EVENT_BUS.addListener(LevelEvent.Unload.class, event -> {
+            if (event.getLevel().isClientSide()) {
+                PotionLoader.clear();
+            }
+        });
 
         // Register HUD hiders (JEI + REI overlay control)
         OverlayHider.register(new JeiHudHider());

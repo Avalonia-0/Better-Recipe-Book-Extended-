@@ -1,6 +1,5 @@
 package com.alonie.brbe.util;
 
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.resources.language.I18n;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -37,19 +36,33 @@ public class ModNameUtil {
             return translated;
         }
 
-        // Priority 2: Mod metadata display name via Architectury's cross-loader API
-        try {
-            var modOpt = FabricLoader.getInstance().getModContainer(namespace);
-            if (modOpt.isPresent()) {
-                String modName = modOpt.get().getMetadata().getName();
-                if (modName != null && !modName.isEmpty()) {
-                    return modName;
-                }
-            }
-        } catch (Exception ignored) {
-        }
+        // Priority 2: Mod metadata display name via FabricLoader or NeoForge mod list
+        // Use reflection to avoid compile-time coupling to FabricLoader (NeoForge doesn't ship it)
+        String modName = resolveViaFabricLoader(namespace);
+        if (modName != null) return modName;
 
         // Priority 3: Raw namespace as last resort
         return namespace;
+    }
+
+    private static String resolveViaFabricLoader(String namespace) {
+        try {
+            Class<?> loaderClass = Class.forName("net.fabricmc.loader.api.FabricLoader");
+            Object loader = loaderClass.getMethod("getInstance").invoke(null);
+            Object container = loaderClass.getMethod("getModContainer", String.class)
+                    .invoke(loader, namespace);
+            if (container != null) {
+                java.util.Optional<?> opt = (java.util.Optional<?>) container;
+                if (opt.isPresent()) {
+                    Object meta = opt.get().getClass().getMethod("getMetadata").invoke(opt.get());
+                    Object name = meta.getClass().getMethod("getName").invoke(meta);
+                    if (name instanceof String s && !s.isEmpty()) {
+                        return s;
+                    }
+                }
+            }
+        } catch (Throwable ignored) {
+        }
+        return null;
     }
 }
