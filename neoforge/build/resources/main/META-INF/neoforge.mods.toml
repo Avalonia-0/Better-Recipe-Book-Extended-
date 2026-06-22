@@ -5,7 +5,7 @@ license = "MIT"
 
 [[mods]]
 modId = "brbe"
-version = "2.1.1"
+version = "2.1.3b"
 displayName = "Better Recipe Book (Extended)"
 authors = "marshmallow"
 credits = "ruvaldak, Felix14-v2, buiawpkgew1, TauCubed, MehradN, notlin4"
@@ -28,20 +28,6 @@ versionRange = "[1.21,)"
 ordering = "NONE"
 side = "CLIENT"
 
-[[dependencies.brbe]]
-modId = "architectury"
-type = "required"
-versionRange = "[13,)"
-ordering = "AFTER"
-side = "CLIENT"
-
-[[dependencies.brbe]]
-modId = "jei"
-type = "optional"
-versionRange = "[27,)"
-ordering = "AFTER"
-side = "CLIENT"
-
 [[mixins]]
 config = "mixins.brbe.json"
 
@@ -50,12 +36,6 @@ config = "mixins.brbe-common.json"
 
 [[mixins]]
 config = "mixins.brbe-common-compat.json"
-
-[[mixins]]
-config = "mixins.brbe-jei-common.json"
-
-[[mixins]]
-config = "mixins.brbe-rei-common.json"
 
 [[mixins]]
 config = "rbip-neoforge.mixins.json"
