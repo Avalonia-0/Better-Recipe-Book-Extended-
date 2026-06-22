@@ -29,9 +29,6 @@ public final class VanillaRecipeCache {
     /** IDs injected into the current session's recipe book; cleaned up on disconnect. */
     private static final Set<RecipeDisplayId> injectedIds = new HashSet<>();
 
-    /** Whether we already injected this session (avoid double-injection). */
-    private static boolean injected = false;
-
     private VanillaRecipeCache() {}
 
     // ---- Lifecycle ----
@@ -52,7 +49,6 @@ public final class VanillaRecipeCache {
     /** Called from MinecraftMixin on disconnect. Resets session-only state. */
     public static void clear() {
         injectedIds.clear();
-        injected = false;
         BetterRecipeBook.LOGGER.info("[BRBE-CACHE] session cleared");
     }
 
@@ -64,13 +60,18 @@ public final class VanillaRecipeCache {
      */
     public static void detectAndInject(ClientRecipeBook recipeBook,
                                         Map<RecipeDisplayId, RecipeDisplayEntry> known) {
-        if (injected) return;
         if (cache.isEmpty()) return;
 
         int count = known.size();
         BetterRecipeBook.LOGGER.info("[BRBE-CACHE] pre-rebuild known count: {}", count);
 
         if (count < SPARSE_THRESHOLD) {
+            if (!injectedIds.isEmpty()) {
+                for (RecipeDisplayId id : injectedIds) {
+                    known.remove(id);
+                }
+                injectedIds.clear();
+            }
             injectInto(recipeBook, known);
         }
     }
@@ -98,7 +99,6 @@ public final class VanillaRecipeCache {
             }
         }
 
-        injected = true;
         BetterRecipeBook.LOGGER.info(
                 "[BRBE-CACHE] injected {} cached entries (known now {})",
                 injectedCount, known.size());

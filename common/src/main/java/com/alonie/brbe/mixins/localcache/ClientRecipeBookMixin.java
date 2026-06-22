@@ -34,4 +34,10 @@ public abstract class ClientRecipeBookMixin {
         if (!VanillaRecipeCache.hasEntries()) return;
         VanillaRecipeCache.detectAndInject((ClientRecipeBook) (Object) this, known);
     }
+
+    @Inject(method = "rebuildCollections", at = @At("RETURN"))
+    private void brbe$postRebuildLog(CallbackInfo ci) {
+        com.alonie.brbe.BetterRecipeBook.LOGGER.info(
+                "[BRBE-CACHE] rebuild RETURN — known={}", known.size());
+    }
 }
