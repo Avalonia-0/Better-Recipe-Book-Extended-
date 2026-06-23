@@ -5,6 +5,7 @@ import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.inventory.RecipeBookMenu;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -17,7 +18,10 @@ import java.util.Set;
 public class PipelineContext {
 
     // ── Input (set before pipeline runs) ──
-    public final List<RecipeCollection> collections;
+    /** The original list passed by vanilla — NEVER mutated. */
+    public final List<RecipeCollection> originalCollections;
+    /** Mutable working list — stages transform this copy. */
+    public List<RecipeCollection> workingList;
     public final RecipeBookMenu<?, ?> menu;
     public final Minecraft minecraft;
     public final boolean resetPage;
@@ -45,7 +49,8 @@ public class PipelineContext {
     PipelineContext(List<RecipeCollection> collections, RecipeBookMenu<?, ?> menu,
                     Minecraft minecraft, boolean resetPage, long slotHash,
                     boolean inventoryChanged, Class<?> menuClass, Object rbipVariant) {
-        this.collections = collections;
+        this.originalCollections = collections;
+        this.workingList = new ArrayList<>(collections); // defensive copy
         this.menu = menu;
         this.minecraft = minecraft;
         this.resetPage = resetPage;

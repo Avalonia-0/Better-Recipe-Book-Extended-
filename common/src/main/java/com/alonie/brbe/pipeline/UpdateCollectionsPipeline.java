@@ -75,8 +75,8 @@ public final class UpdateCollectionsPipeline {
             // ── Stage 3: RBIP_FILTER ──
             List<RecipeCollection> filtered = rbipFilter(ctx, component);
             if (filtered != null) {
-                ctx.collections.clear();
-                ctx.collections.addAll(filtered);
+                ctx.workingList.clear();
+                ctx.workingList.addAll(filtered);
             }
 
             // ── Stage 4: FOR_EACH ──
@@ -209,12 +209,12 @@ public final class UpdateCollectionsPipeline {
 
         if (changedItems != null && RecipeIndex.isBuilt()) {
             Set<RecipeCollection> dirty = RecipeIndex.getAffected(changedItems);
-            if (dirty.size() < ctx.collections.size() / 2) {
+            if (dirty.size() < ctx.workingList.size() / 2) {
                 incremental = true;
                 ctx.dirtySet = dirty;
                 PerfTimer.start("vanilla.forEach-incr");
                 int processed = 0;
-                for (RecipeCollection coll : ctx.collections) {
+                for (RecipeCollection coll : ctx.workingList) {
                     if (dirty.contains(coll)) {
                         PartialCraftingUtil.clearCategory(coll);
                         ((Consumer<RecipeCollection>) vanillaConsumer).accept(coll);
@@ -223,13 +223,13 @@ public final class UpdateCollectionsPipeline {
                 }
                 PerfTimer.end("vanilla.forEach-incr");
                 BetterRecipeBook.LOGGER.info("[BRBE-Pipeline] INCR dirty={}/{} items={}",
-                        processed, ctx.collections.size(), changedItems.size());
+                        processed, ctx.workingList.size(), changedItems.size());
             }
         }
 
         if (!incremental) {
             PerfTimer.start("vanilla.forEach");
-            ctx.collections.forEach((Consumer<RecipeCollection>) vanillaConsumer);
+            ctx.workingList.forEach((Consumer<RecipeCollection>) vanillaConsumer);
             PerfTimer.end("vanilla.forEach");
 
             // Build the reverse index on first full run
@@ -248,7 +248,7 @@ public final class UpdateCollectionsPipeline {
 
         PerfTimer.start("incompatible.mark");
         Iterable<RecipeCollection> targets = ctx.dirtySet != null
-                ? (Iterable<RecipeCollection>) ctx.dirtySet : ctx.collections;
+                ? (Iterable<RecipeCollection>) ctx.dirtySet : ctx.workingList;
         for (RecipeCollection coll : targets) {
             IncompatibleCraftingUtil.markIncompatibleRecipes(coll);
         }
@@ -266,7 +266,7 @@ public final class UpdateCollectionsPipeline {
         try {
             Set<Item> inventoryItems = PartialCraftingUtil.hashInventory(ctx.menu.slots);
             Iterable<RecipeCollection> targets = ctx.dirtySet != null
-                    ? (Iterable<RecipeCollection>) ctx.dirtySet : ctx.collections;
+                    ? (Iterable<RecipeCollection>) ctx.dirtySet : ctx.workingList;
 
             PerfTimer.start("partial.step0-clear");
             for (RecipeCollection coll : targets) {
@@ -313,7 +313,7 @@ public final class UpdateCollectionsPipeline {
         var registryAccess = level.registryAccess();
         List<RecipeCollection> filtered = new ArrayList<>();
 
-        for (RecipeCollection coll : ctx.collections) {
+        for (RecipeCollection coll : ctx.workingList) {
             for (RecipeHolder<?> recipe : coll.getRecipes()) {
                 var result = recipe.value().getResultItem(registryAccess);
                 if (result != null && !result.isEmpty() && query.matches(result, cache)) {
@@ -322,19 +322,19 @@ public final class UpdateCollectionsPipeline {
                 }
             }
         }
-        ctx.collections.clear();
-        ctx.collections.addAll(filtered);
+        ctx.workingList.clear();
+        ctx.workingList.addAll(filtered);
     }
 
     private static void pinSort(PipelineContext ctx) {
         if (!BetterRecipeBook.config.enablePinning) return;
         PerfTimer.start("pinSort");
-        List<RecipeCollection> temp = new ArrayList<>(ctx.collections);
+        List<RecipeCollection> temp = new ArrayList<>(ctx.workingList);
         for (RecipeCollection coll : temp) {
             if (BetterRecipeBook.pinnedRecipeManager.has(
                     com.alonie.brbe.generic.pins.PinnableRecipeCollection.of(coll))) {
-                ctx.collections.remove(coll);
-                ctx.collections.add(0, coll);
+                ctx.workingList.remove(coll);
+                ctx.workingList.add(0, coll);
             }
         }
         PerfTimer.end("pinSort");
@@ -356,7 +356,7 @@ public final class UpdateCollectionsPipeline {
         List<RecipeCollection> middle = new ArrayList<>();
         List<RecipeCollection> back = new ArrayList<>();
 
-        for (RecipeCollection c : ctx.collections) {
+        for (RecipeCollection c : ctx.workingList) {
             if (hasPartialData) {
                 CollectionCategory cat = PartialCraftingUtil.categorize(c);
                 if (useFullSort) {
@@ -375,17 +375,17 @@ public final class UpdateCollectionsPipeline {
             }
         }
 
-        ctx.collections.clear();
-        ctx.collections.addAll(front);
-        ctx.collections.addAll(middle);
-        ctx.collections.addAll(back);
+        ctx.workingList.clear();
+        ctx.workingList.addAll(front);
+        ctx.workingList.addAll(middle);
+        ctx.workingList.addAll(back);
         PerfTimer.end("sort");
 
-        ctx.finalPageList = ctx.collections;
+        ctx.finalPageList = ctx.workingList;
     }
 
     private static void pageUpdate(PipelineContext ctx, RecipeBookComponent component) {
-        List<RecipeCollection> list = ctx.cacheWasHit ? ctx.cachedPageList : ctx.collections;
+        List<RecipeCollection> list = ctx.cacheWasHit ? ctx.cachedPageList : ctx.workingList;
         if (ctx.finalPageList == null && !ctx.cacheWasHit) {
             ctx.finalPageList = list;
         }
