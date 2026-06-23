@@ -3,6 +3,8 @@ package com.alonie.brbe.cache;
 import com.alonie.brbe.BetterRecipeBook;
 import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.util.context.ContextMap;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
@@ -176,6 +178,9 @@ public final class VanillaRecipeCache {
                 "[BRBE-CACHE] complement: {} injected, {} skipped (known now {})",
                 injectedCount, skippedCount, known.size());
 
+        // Validate a sample of injected entries — check if they resolve to real items
+        validateSample(known);
+
         dumpStatus();
     }
 
@@ -212,6 +217,70 @@ public final class VanillaRecipeCache {
             BetterRecipeBook.LOGGER.info("  ⚠ No complement activity — server may have sent all recipes, or module didn't run yet");
         }
         BetterRecipeBook.LOGGER.info("====================================================");
+    }
+
+    /**
+     * Validates a sample of entries in the known map by attempting to resolve
+     * their result items.  Logs a warning if any entry produces air stacks.
+     */
+    private static void validateSample(Map<RecipeDisplayId, RecipeDisplayEntry> known) {
+        int localChecked = 0;
+        int serverChecked = 0;
+        int localAir = 0;
+        int serverAir = 0;
+        StringBuilder localSamples = new StringBuilder();
+        StringBuilder serverSamples = new StringBuilder();
+
+        for (Map.Entry<RecipeDisplayId, RecipeDisplayEntry> e : known.entrySet()) {
+            boolean isLocal = e.getKey().index() < 0;
+            if (isLocal && localChecked >= SAMPLE_SIZE) continue;
+            if (!isLocal && serverChecked >= SAMPLE_SIZE) continue;
+
+            List<ItemStack> results;
+            try {
+                results = e.getValue().resultItems(null); // ContextMap unused for ItemSlotDisplay/ItemStackSlotDisplay
+            } catch (Exception ex) {
+                results = List.of();
+            }
+
+            boolean hasAir = results.isEmpty() || results.stream().allMatch(
+                    s -> s == null || s.isEmpty());
+            String info = e.getKey().index() + "=" + (results.isEmpty() ? "[]" :
+                    results.stream().map(s -> s.isEmpty() ? "AIR" : s.getHoverName().getString())
+                            .reduce((a, b) -> a + "," + b).orElse("?"));
+
+            if (isLocal) {
+                localChecked++;
+                if (hasAir) {
+                    localAir++;
+                    if (localSamples.length() < 200) {
+                        if (localSamples.length() > 0) localSamples.append("; ");
+                        localSamples.append(info);
+                    }
+                }
+            } else {
+                serverChecked++;
+                if (hasAir) {
+                    serverAir++;
+                    if (serverSamples.length() < 200) {
+                        if (serverSamples.length() > 0) serverSamples.append("; ");
+                        serverSamples.append(info);
+                    }
+                }
+            }
+        }
+
+        BetterRecipeBook.LOGGER.info(
+                "[BRBE-CACHE] validate: local {}/{} air, server {}/{} air",
+                localAir, localChecked, serverAir, serverChecked);
+        if (localAir > 0) {
+            BetterRecipeBook.LOGGER.warn(
+                    "[BRBE-CACHE] local air samples: {}", localSamples);
+        }
+        if (serverAir > 0) {
+            BetterRecipeBook.LOGGER.warn(
+                    "[BRBE-CACHE] server air samples: {}", serverSamples);
+        }
     }
 
     // ---- Helpers ----
