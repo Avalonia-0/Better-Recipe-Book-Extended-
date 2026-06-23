@@ -20,9 +20,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -45,10 +43,7 @@ public abstract class RecipeBookComponentMixin {
     @Shadow @Final
     protected Minecraft minecraft;
 
-    // Per-menu-class slot hash, not global static.  Each screen type (InventoryScreen,
-    // CraftingScreen, etc.) tracks its own hash so that closing and reopening the same
-    // screen type can skip the vanilla forEach when inventory is unchanged.
-    private static final Map<Class<?>, Long> brbe$lastSlotHashes = new HashMap<>();
+    private static long brbe$lastSlotHash;
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;forEach(Ljava/util/function/Consumer;)V"))
     private void betterRecipeBook$injectIntoDataSets(
@@ -57,15 +52,13 @@ public abstract class RecipeBookComponentMixin {
 
         // ── Compute slot hash BEFORE calling vanilla forEach ──
         long slotHash = PartialCraftingUtil.slotHash(this.menu.slots);
-        Class<?> menuClass = this.menu.getClass();
-        Long lastHash = brbe$lastSlotHashes.get(menuClass);
-        boolean inventoryChanged = (lastHash == null || slotHash != lastHash);
+        boolean inventoryChanged = (slotHash != brbe$lastSlotHash);
 
         if (inventoryChanged) {
             PerfTimer.start("vanilla.forEach");
             collections.forEach(consumer);
             PerfTimer.end("vanilla.forEach");
-            brbe$lastSlotHashes.put(menuClass, slotHash);
+            brbe$lastSlotHash = slotHash;
         } else {
             // Vanilla forEach re-populates craftable from scratch (150ms on ATM10).
             // RecipeCollection objects are reused across updateCollections calls;

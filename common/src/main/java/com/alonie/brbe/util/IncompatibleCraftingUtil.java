@@ -7,18 +7,47 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapelessRecipe;
 
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
 public final class IncompatibleCraftingUtil {
-    private static final WeakHashMap<RecipeCollection, Set<ResourceLocation>> INCOMPATIBLE_RECIPES = new WeakHashMap<>();
-    private static final WeakHashMap<RecipeCollection, Integer> CHECKED_COLLECTIONS = new WeakHashMap<>();
+
+    // ── Stable-key cache layer ───────────────────────────────────────────
+    private static final WeakHashMap<RecipeCollection, List<ResourceLocation>> KEY_CACHE = new WeakHashMap<>();
+    private static final Map<List<ResourceLocation>, Set<ResourceLocation>> INCOMPATIBLE_RECIPES = new HashMap<>();
+    private static final Map<List<ResourceLocation>, Integer> CHECKED_COLLECTIONS = new HashMap<>();
     private static int filteringGeneration;
     private static boolean filteringActive;
 
     private IncompatibleCraftingUtil() {}
+
+    private static List<ResourceLocation> stableKey(RecipeCollection collection) {
+        List<ResourceLocation> key = KEY_CACHE.get(collection);
+        if (key != null) return key;
+
+        List<RecipeHolder<?>> recipes = collection.getRecipes();
+        key = new ArrayList<>(recipes.size());
+        for (RecipeHolder<?> holder : recipes) {
+            key.add(holder.id());
+        }
+        key = Collections.unmodifiableList(key);
+        KEY_CACHE.put(collection, key);
+        return key;
+    }
+
+    public static void clearCaches() {
+        KEY_CACHE.clear();
+        INCOMPATIBLE_RECIPES.clear();
+        CHECKED_COLLECTIONS.clear();
+        filteringGeneration = 0;
+        filteringActive = false;
+    }
 
     public static boolean isActive() {
         return filteringActive;
@@ -28,7 +57,6 @@ public final class IncompatibleCraftingUtil {
         filteringActive = active;
         if (active) {
             if (filteringGeneration == Integer.MAX_VALUE) {
-                // Generation counter wrapped — clear all caches to avoid stale comparisons
                 INCOMPATIBLE_RECIPES.clear();
                 CHECKED_COLLECTIONS.clear();
                 filteringGeneration = 0;
@@ -38,7 +66,8 @@ public final class IncompatibleCraftingUtil {
     }
 
     public static void markIncompatibleRecipes(RecipeCollection collection) {
-        CHECKED_COLLECTIONS.put(collection, filteringGeneration);
+        List<ResourceLocation> key = stableKey(collection);
+        CHECKED_COLLECTIONS.put(key, filteringGeneration);
         Set<ResourceLocation> incompatible = null;
         RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
 
@@ -59,24 +88,25 @@ public final class IncompatibleCraftingUtil {
         }
 
         if (incompatible != null && !incompatible.isEmpty()) {
-            INCOMPATIBLE_RECIPES.put(collection, incompatible);
+            INCOMPATIBLE_RECIPES.put(key, incompatible);
         } else {
-            INCOMPATIBLE_RECIPES.remove(collection);
+            INCOMPATIBLE_RECIPES.remove(key);
         }
     }
 
     public static void markIncompatibleOnCollection(RecipeCollection collection, ResourceLocation id) {
-        CHECKED_COLLECTIONS.put(collection, filteringGeneration);
-        Set<ResourceLocation> existing = INCOMPATIBLE_RECIPES.get(collection);
+        List<ResourceLocation> key = stableKey(collection);
+        CHECKED_COLLECTIONS.put(key, filteringGeneration);
+        Set<ResourceLocation> existing = INCOMPATIBLE_RECIPES.get(key);
         if (existing != null) {
             existing.add(id);
         } else {
-            INCOMPATIBLE_RECIPES.put(collection, new HashSet<>(Collections.singleton(id)));
+            INCOMPATIBLE_RECIPES.put(key, new HashSet<>(Collections.singleton(id)));
         }
     }
 
     public static boolean isIncompatible(RecipeCollection collection, ResourceLocation id) {
-        Set<ResourceLocation> set = INCOMPATIBLE_RECIPES.get(collection);
+        Set<ResourceLocation> set = INCOMPATIBLE_RECIPES.get(stableKey(collection));
         return set != null && set.contains(id);
     }
 
@@ -93,7 +123,7 @@ public final class IncompatibleCraftingUtil {
     }
 
     public static boolean hasIncompatibleRecipes(RecipeCollection collection) {
-        Set<ResourceLocation> set = INCOMPATIBLE_RECIPES.get(collection);
+        Set<ResourceLocation> set = INCOMPATIBLE_RECIPES.get(stableKey(collection));
         return set != null && !set.isEmpty();
     }
 }

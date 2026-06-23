@@ -13,18 +13,61 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.WeakHashMap;
 
 public final class PartialCraftingUtil {
-    private static final WeakHashMap<RecipeCollection, Set<ResourceLocation>> PARTIAL_RECIPES = new WeakHashMap<>();
-    private static final WeakHashMap<RecipeCollection, Integer> CHECKED_COLLECTIONS = new WeakHashMap<>();
+
+    // ── Stable-key cache layer ───────────────────────────────────────────
+    // Key memoization: maps RecipeCollection (object identity) → stable key.
+    // WeakHashMap so keys auto-clean when RecipeCollections are GC'd.
+    private static final WeakHashMap<RecipeCollection, List<ResourceLocation>> KEY_CACHE = new WeakHashMap<>();
+
+    // Data caches: use stable keys (recipe ID lists) instead of object
+    // identity.  Survives RecipeCollection recreation by external mods.
+    private static final Map<List<ResourceLocation>, Set<ResourceLocation>> PARTIAL_RECIPES = new HashMap<>();
+    private static final Map<List<ResourceLocation>, Integer> CHECKED_COLLECTIONS = new HashMap<>();
+
     private static int filteringGeneration;
     private static boolean filteringActive;
 
-    private PartialCraftingUtil() {
+    private PartialCraftingUtil() {}
+
+    /**
+     * Builds a stable, value-based key from a RecipeCollection's recipe IDs.
+     * The key is memoized per RecipeCollection instance for performance;
+     * if the RecipeCollection is recreated (e.g. by an external mod), the key
+     * is recomputed from the new object but still matches the old key because
+     * recipe IDs don't change.
+     */
+    private static List<ResourceLocation> stableKey(RecipeCollection collection) {
+        List<ResourceLocation> key = KEY_CACHE.get(collection);
+        if (key != null) return key;
+
+        List<RecipeHolder<?>> recipes = collection.getRecipes();
+        key = new ArrayList<>(recipes.size());
+        for (RecipeHolder<?> holder : recipes) {
+            key.add(holder.id());
+        }
+        key = Collections.unmodifiableList(key);
+        KEY_CACHE.put(collection, key);
+        return key;
+    }
+
+    /**
+     * Clears all cached state.  Call when the recipe manager reloads
+     * (datapack reload, server sync) to prevent stale entries.
+     */
+    public static void clearCaches() {
+        KEY_CACHE.clear();
+        PARTIAL_RECIPES.clear();
+        CHECKED_COLLECTIONS.clear();
+        filteringGeneration = 0;
+        filteringActive = false;
     }
 
     /**
@@ -50,11 +93,8 @@ public final class PartialCraftingUtil {
     }
 
     /**
-     * Pre-computes a set of items present in the inventory slots for fast O(1)
-     * ingredient matching.  Call once per {@code updateCollections()} instead of
-     * per-collection.
+     * Simple 64-bit hash of slot state (item presence + counts).
      */
-    /** Simple 64-bit hash of slot state (item presence + counts). */
     public static long slotHash(NonNullList<Slot> slots) {
         long h = 1;
         for (Slot slot : slots) {
@@ -92,7 +132,9 @@ public final class PartialCraftingUtil {
     public static boolean markPartialMaterials(RecipeCollection collection, Set<Item> inventoryItems) {
         if (!enabled()) return false;
         if (wasCheckedForPartialMaterials(collection)) return hasPartialMaterials(collection);
-        CHECKED_COLLECTIONS.put(collection, filteringGeneration);
+
+        List<ResourceLocation> key = stableKey(collection);
+        CHECKED_COLLECTIONS.put(key, filteringGeneration);
         boolean markedAny = false;
         Set<ResourceLocation> partialRecipes = new HashSet<>();
 
@@ -110,9 +152,9 @@ public final class PartialCraftingUtil {
         }
 
         if (markedAny) {
-            PARTIAL_RECIPES.put(collection, partialRecipes);
+            PARTIAL_RECIPES.put(key, partialRecipes);
         } else {
-            PARTIAL_RECIPES.remove(collection);
+            PARTIAL_RECIPES.remove(key);
         }
 
         return markedAny;
@@ -120,13 +162,14 @@ public final class PartialCraftingUtil {
 
     public static void markPartialMaterial(RecipeCollection collection, ResourceLocation recipeId) {
         if (!enabled()) return;
-        PARTIAL_RECIPES.put(collection, new HashSet<>(Collections.singleton(recipeId)));
-        CHECKED_COLLECTIONS.put(collection, filteringGeneration);
+        List<ResourceLocation> key = stableKey(collection);
+        CHECKED_COLLECTIONS.put(key, filteringGeneration);
+        PARTIAL_RECIPES.put(key, new HashSet<>(Collections.singleton(recipeId)));
     }
 
     public static boolean wasCheckedForPartialMaterials(RecipeCollection collection) {
         if (!enabled()) return false;
-        Integer generation = CHECKED_COLLECTIONS.get(collection);
+        Integer generation = CHECKED_COLLECTIONS.get(stableKey(collection));
         return filteringActive && generation != null && generation == filteringGeneration;
     }
 
@@ -136,13 +179,13 @@ public final class PartialCraftingUtil {
 
     public static boolean isPartiallyCraftable(RecipeCollection collection, ResourceLocation recipeId) {
         if (!enabled()) return false;
-        Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(collection);
+        Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(stableKey(collection));
         return partialRecipes != null && partialRecipes.contains(recipeId);
     }
 
     public static boolean hasPartialMaterials(RecipeCollection collection) {
         if (!enabled()) return false;
-        Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(collection);
+        Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(stableKey(collection));
         return partialRecipes != null && !partialRecipes.isEmpty();
     }
 
@@ -169,7 +212,7 @@ public final class PartialCraftingUtil {
 
     public static List<RecipeHolder<?>> getPartiallyCraftableRecipes(RecipeCollection collection) {
         if (!enabled()) return Collections.emptyList();
-        Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(collection);
+        Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(stableKey(collection));
         if (partialRecipes == null || partialRecipes.isEmpty()) {
             return Collections.emptyList();
         }
