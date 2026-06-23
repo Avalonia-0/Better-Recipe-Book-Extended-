@@ -6,24 +6,22 @@ import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.WeakHashMap;
 
 /**
  * Tracks which recipes in a RecipeCollection require a 3×3 crafting grid
  * and are therefore incompatible with the 2×2 inventory crafting grid.
  * <p>
- * Follows the same {@link WeakHashMap} pattern as {@link PartialCraftingUtil}.
+ * Delegates storage and generation tracking to {@link RecipeCollectionTagger}.
  */
 public final class IncompatibleCraftingUtil {
-    private static final WeakHashMap<RecipeCollection, Set<RecipeDisplayId>> INCOMPATIBLE_RECIPES = new WeakHashMap<>();
-    private static final WeakHashMap<RecipeCollection, Integer> CHECKED_COLLECTIONS = new WeakHashMap<>();
-    private static int filteringGeneration;
+    private static final RecipeCollectionTagger<RecipeDisplayId> tagger = new RecipeCollectionTagger<>();
     private static boolean filteringActive;
 
     private IncompatibleCraftingUtil() {}
+
+    // ---- Lifecycle ----
 
     public static boolean isActive() {
         return filteringActive;
@@ -31,17 +29,23 @@ public final class IncompatibleCraftingUtil {
 
     public static void beginFiltering(boolean active) {
         filteringActive = active;
-        if (active) {
-            filteringGeneration++;
-        }
+        tagger.beginFiltering(active);
     }
+
+    // ---- Freshness ----
+
+    public static boolean wasChecked(RecipeCollection collection) {
+        return tagger.wasChecked(collection);
+    }
+
+    // ---- Marking ----
 
     /**
      * Scans a RecipeCollection for recipes that need a 3×3 grid
      * ({@code ShapedCraftingRecipeDisplay} with width &gt; 2 or height &gt; 2).
      */
     public static void markIncompatibleRecipes(RecipeCollection collection) {
-        CHECKED_COLLECTIONS.put(collection, filteringGeneration);
+        tagger.markAsChecked(collection);
         Set<RecipeDisplayId> incompatible = null;
 
         for (RecipeDisplayEntry entry : collection.getRecipes()) {
@@ -60,31 +64,22 @@ public final class IncompatibleCraftingUtil {
         }
 
         if (incompatible != null && !incompatible.isEmpty()) {
-            INCOMPATIBLE_RECIPES.put(collection, incompatible);
+            tagger.setAllTags(collection, incompatible);
         } else {
-            INCOMPATIBLE_RECIPES.remove(collection);
+            tagger.clearTags(collection);
         }
     }
 
     /** Call when a collection is split (ungroup) to preserve the incompatible mark. */
     public static void markIncompatibleOnCollection(RecipeCollection collection, RecipeDisplayId id) {
-        CHECKED_COLLECTIONS.put(collection, filteringGeneration);
-        Set<RecipeDisplayId> existing = INCOMPATIBLE_RECIPES.get(collection);
-        if (existing != null) {
-            existing.add(id);
-        } else {
-            INCOMPATIBLE_RECIPES.put(collection, new HashSet<>(Collections.singleton(id)));
-        }
+        tagger.markAsChecked(collection);
+        tagger.addTag(collection, id);
     }
 
-    public static boolean wasChecked(RecipeCollection collection) {
-        Integer generation = CHECKED_COLLECTIONS.get(collection);
-        return filteringActive && generation != null && generation == filteringGeneration;
-    }
+    // ---- Queries ----
 
     public static boolean isIncompatible(RecipeCollection collection, RecipeDisplayId id) {
-        Set<RecipeDisplayId> set = INCOMPATIBLE_RECIPES.get(collection);
-        return set != null && set.contains(id);
+        return tagger.hasTag(collection, id);
     }
 
     /**
@@ -105,7 +100,6 @@ public final class IncompatibleCraftingUtil {
     }
 
     public static boolean hasIncompatibleRecipes(RecipeCollection collection) {
-        Set<RecipeDisplayId> set = INCOMPATIBLE_RECIPES.get(collection);
-        return set != null && !set.isEmpty();
+        return tagger.hasAnyTag(collection);
     }
 }

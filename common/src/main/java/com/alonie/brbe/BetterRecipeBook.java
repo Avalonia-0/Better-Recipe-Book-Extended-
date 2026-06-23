@@ -96,8 +96,11 @@ public class BetterRecipeBook {
 
             configHolder = AutoConfig.getConfigHolder(Config.class);
             configHolder.registerSaveListener((holder, cfg) -> {
+                boolean unlockChanged = config == null || config.newRecipes.unlockAll != cfg.newRecipes.unlockAll;
                 BetterRecipeBook.config = cfg;
-                RecipeUnlockUtil.syncToConfig();
+                if (unlockChanged) {
+                    RecipeUnlockUtil.syncToConfig();
+                }
                 return InteractionResult.SUCCESS;
             });
             config = configHolder.getConfig();
