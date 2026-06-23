@@ -49,9 +49,11 @@ public abstract class RecipeBookComponentMixin {
      * {@code updateCollections}.  This is the point where the vanilla Consumer
      * (which calls {@code canCraft()} on each collection) is available.
      *
-     * <p>We capture it, run the full pipeline, then clear the collections list
-     * so downstream vanilla code (filters, page update) operates on empty data.
-     * The pipeline has already called {@code page.updateCollections}.
+     * <p>We capture it, run the full pipeline, then let vanilla continue
+     * with the original list.  The pipeline already called
+     * {@code page.updateCollections} with the processed results, and the
+     * downstream page-update redirect is a no-op — so vanilla's filter/sort
+     * work on the list harmlessly.
      */
     @Redirect(method = "updateCollections",
             at = @At(value = "INVOKE",
@@ -64,9 +66,10 @@ public abstract class RecipeBookComponentMixin {
                 this.menu, this.minecraft, collections,
                 brbe$capturedResetPage, consumer);
 
-        // Clear so vanilla's downstream filter/sort/page-update are no-ops.
-        // The pipeline already updated the page with the correct results.
-        collections.clear();
+        // Do NOT clear or mutate collections — vanilla's downstream code
+        // (filter, sort, page.updateCollections) continues with the
+        // original list, but the page-update redirect is a no-op so the
+        // pipeline's results are preserved.
     }
 
     /**
