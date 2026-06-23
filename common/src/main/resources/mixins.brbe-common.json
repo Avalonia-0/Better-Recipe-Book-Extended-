@@ -35,7 +35,7 @@
     "incompletecrafting.RecipeButtonMixin",
     "incompletecrafting.RecipeButtonSafetyMixin",
     "incompletecrafting.RecipeBookComponentMixin",
-    "search.RecipeBookComponentMixin",
+    "pipeline.RecipeBookComponentMixin",
     "instantcraft.ClientPacketListenerMixin",
     "instantcraft.MultiPlayerGameModeMixin",
     "instantcraft.RecipeBookComponentMixin",
@@ -48,10 +48,11 @@
     "settings.RecipeBookComponentMixin",
     "centered.RecipeBookComponentMixin",
     "toasts.RemoveToasts",
-    "ungroup.RecipeBookComponentMixin",
     "unlockrecipes.ClientPacketListenerMixin",
     "unlockrecipes.MinecraftMixin",
-    "unlockrecipes.RecipeButtonMixin"
+    "unlockrecipes.MultiPlayerGameModeMixin",
+    "unlockrecipes.RecipeButtonMixin",
+    "localcache.ClientRecipeBookMixin"
   ],
   "injectors": {
     "defaultRequire": 1

@@ -1,11 +1,11 @@
 package com.alonie.brbe;
 
 import com.mojang.blaze3d.platform.InputConstants;
-import dev.architectury.registry.client.keymappings.KeyMappingRegistry;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.config.Config;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.util.BRBHelper;
+import com.alonie.brbe.cache.VanillaRecipeCache;
 import com.alonie.brbe.util.RecipeUnlockUtil;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.ConfigHolder;
@@ -88,22 +88,35 @@ public class BetterRecipeBook {
         queuedScroll = 0;
         isFilteringNone = true;
 
-        AutoConfig.register(Config.class, Toml4jConfigSerializer::new);
+        // Cloth Config not yet available for 26.2 — skip registration gracefully.
+        // Config no longer implements ConfigData to avoid runtime linkage, so
+        // raw-type casts are needed to bypass AutoConfig's generic bound.
+        try {
+            AutoConfig.register(Config.class, Toml4jConfigSerializer::new);
 
-        configHolder = AutoConfig.getConfigHolder(Config.class);
-        configHolder.registerSaveListener((holder, config) -> {
-            BetterRecipeBook.config = config;
-            RecipeUnlockUtil.syncToConfig();
-            return InteractionResult.SUCCESS;
-        });
-        config = configHolder.getConfig();
+            configHolder = AutoConfig.getConfigHolder(Config.class);
+            configHolder.registerSaveListener((holder, cfg) -> {
+                boolean unlockChanged = config == null || config.newRecipes.unlockAll != cfg.newRecipes.unlockAll;
+                BetterRecipeBook.config = cfg;
+                if (unlockChanged) {
+                    RecipeUnlockUtil.syncToConfig();
+                }
+                return InteractionResult.SUCCESS;
+            });
+            config = configHolder.getConfig();
+        } catch (Exception e) {
+            BetterRecipeBook.LOGGER.warn("[BRBE] Config error: {}", e.getMessage());
+        }
 
         pinnedRecipeManager = new PinnedRecipeManager();
         pinnedRecipeManager.read();
         instantCraftingManager = new InstantCraftingManager();
 
-        KeyMappingRegistry.register(PIN_MAPPING);
-        KeyMappingRegistry.register(RECIPE_VIEW_MAPPING);
-        KeyMappingRegistry.register(USAGE_VIEW_MAPPING);
+        VanillaRecipeCache.init();
+
+        // KeyMapping registration moved to platform entry points
+        // KeyBindingHelper.registerKeyBinding(PIN_MAPPING);
+        // KeyBindingHelper.registerKeyBinding(RECIPE_VIEW_MAPPING);
+        // KeyBindingHelper.registerKeyBinding(USAGE_VIEW_MAPPING);
     }
 }
