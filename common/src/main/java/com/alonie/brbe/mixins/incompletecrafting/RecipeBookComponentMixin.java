@@ -8,12 +8,15 @@ import com.alonie.brbe.util.CollectionCategory;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.PerfTimer;
+import com.alonie.brbe.util.RecipeIndex;
+import com.alonie.brbe.util.SlotTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.inventory.RecipeBookMenu;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -26,6 +29,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Set;
 import java.util.function.Consumer;
 
 /**
@@ -70,6 +74,8 @@ public abstract class RecipeBookComponentMixin {
         List<RecipeCollection> cached = BookStateCache.get(screenClass, slotHash);
 
         if (cached != null) {
+            BetterRecipeBook.LOGGER.info("[BRBE-Cache] HIT {} (hash={}, {} colls)",
+                    screenClass.getSimpleName(), slotHash, cached.size());
             RecipeBookPage page = ((RecipeBookComponentAccessor) (Object) this).getRecipeBookPage();
             page.updateCollections(cached, resetPage);
             brbe$lastSlotHash = slotHash;
@@ -87,6 +93,8 @@ public abstract class RecipeBookComponentMixin {
         if (this.minecraft == null || this.minecraft.screen == null) return;
 
         Class<?> screenClass = this.minecraft.screen.getClass();
+        BetterRecipeBook.LOGGER.info("[BRBE-Cache] SAVE {} (hash={}, {} colls)",
+                screenClass.getSimpleName(), brbe$lastSlotHash, brbe$lastPageList.size());
         BookStateCache.put(screenClass, brbe$lastSlotHash, brbe$lastPageList);
     }
 
@@ -95,20 +103,48 @@ public abstract class RecipeBookComponentMixin {
             List<RecipeCollection> collections, Consumer<? super RecipeCollection> consumer) {
         PerfTimer.begin();
 
-        // ── Compute slot hash BEFORE calling vanilla forEach ──
+        // ── Phase D: detect changed items for incremental update ──
         long slotHash = PartialCraftingUtil.slotHash(this.menu.slots);
         boolean inventoryChanged = (slotHash != brbe$lastSlotHash);
+        Class<?> menuClass = this.menu.getClass();
+        Set<Item> changedItems = null;
+        java.util.Set<RecipeCollection> dirtySet = null;
+        boolean incremental = false;
 
         if (inventoryChanged) {
-            PerfTimer.start("vanilla.forEach");
-            collections.forEach(consumer);
-            PerfTimer.end("vanilla.forEach");
+            changedItems = SlotTracker.changedItems(menuClass, this.menu.slots);
+
+            if (changedItems != null && RecipeIndex.isBuilt()) {
+                dirtySet = RecipeIndex.getAffected(changedItems);
+                if (dirtySet.size() < collections.size() / 2) {
+                    incremental = true;
+                }
+            }
+
+            if (incremental) {
+                PerfTimer.start("vanilla.forEach-incr");
+                int processed = 0;
+                for (RecipeCollection coll : collections) {
+                    if (dirtySet.contains(coll)) {
+                        consumer.accept(coll);
+                        processed++;
+                    }
+                }
+                PerfTimer.end("vanilla.forEach-incr");
+                BetterRecipeBook.LOGGER.info("[BRBE-Incr] dirty={}/{} items={}",
+                        processed, collections.size(), changedItems.size());
+            } else {
+                PerfTimer.start("vanilla.forEach");
+                collections.forEach(consumer);
+                PerfTimer.end("vanilla.forEach");
+
+                // Build the reverse index from all known collections
+                if (!RecipeIndex.isBuilt() && this.minecraft != null
+                        && this.minecraft.player != null) {
+                    RecipeIndex.build(this.minecraft.player.getRecipeBook().getCollections());
+                }
+            }
             brbe$lastSlotHash = slotHash;
-        } else {
-            // Vanilla forEach re-populates craftable from scratch (150ms on ATM10).
-            // RecipeCollection objects are reused across updateCollections calls;
-            // their craftable/fitsDimensions data from the previous call is still
-            // valid when inventory hasn't changed.  Skip the entire forEach.
         }
 
         // ── Gate variables ──
@@ -118,7 +154,6 @@ public abstract class RecipeBookComponentMixin {
         boolean retainIncompatible = onInventory
                 && BetterRecipeBook.config.showAllRecipesInSurvival;
 
-        // Only skip everything when BOTH features are off.
         if (!retainPartial && !retainIncompatible) {
             PerfTimer.logAndReset("updateCollections (no-op)");
             return;
@@ -139,22 +174,26 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
-        // Skip BRBE partial pass when inventory hasn't changed AND the
-        // vanilla forEach was also skipped (craftable data is still fresh).
         if (!inventoryChanged) {
             PerfTimer.logAndReset("updateCollections (cache-hit, fully skipped)");
             return;
         }
 
         // Activate generation tracking — wrapped in try/finally so that
-        // filteringActive is always cleared even if an exception is thrown
-        // (prevents permanent cache-bypass from a leaked filteringActive=true).
+        // filteringActive is always cleared even if an exception is thrown.
         PartialCraftingUtil.beginFilteringUpdate(true);
         try {
-            java.util.Set<net.minecraft.world.item.Item> inventoryItems = PartialCraftingUtil.hashInventory(this.menu.slots);
+            java.util.Set<net.minecraft.world.item.Item> inventoryItems =
+                    PartialCraftingUtil.hashInventory(this.menu.slots);
+
+            // When incremental, only clear/mark dirty collections.
+            // Non-dirty collections keep their previous partial marks
+            // (which are still valid since their ingredients haven't changed).
+            Iterable<RecipeCollection> targets = incremental
+                    ? (Iterable<RecipeCollection>) dirtySet : collections;
 
             PerfTimer.start("partial.step0-clear");
-            for (RecipeCollection collection : collections) {
+            for (RecipeCollection collection : targets) {
                 if (PartialCraftingUtil.hasPartialMaterials(collection)) {
                     RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
                     for (RecipeHolder<?> holder : collection.getRecipes()) {
@@ -168,7 +207,7 @@ public abstract class RecipeBookComponentMixin {
 
             PerfTimer.start("partial.markAndInject");
             int collCount = 0;
-            for (RecipeCollection collection : collections) {
+            for (RecipeCollection collection : targets) {
                 collCount++;
                 PartialCraftingUtil.markPartialMaterials(collection, inventoryItems);
 
@@ -183,7 +222,8 @@ public abstract class RecipeBookComponentMixin {
             }
             PerfTimer.end("partial.markAndInject");
 
-            PerfTimer.logAndReset("updateCollections (" + collCount + " coll)");
+            PerfTimer.logAndReset("updateCollections ("
+                    + (incremental ? "incr:" : "") + collCount + " coll)");
         } finally {
             PartialCraftingUtil.beginFilteringUpdate(false);
         }
@@ -197,14 +237,10 @@ public abstract class RecipeBookComponentMixin {
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;Z)V"))
     private void betterRecipeBook$sortBeforePageUpdate(RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber) {
         PerfTimer.start("sort");
-        // 1.21.1 doesn't pass isFiltering to page.updateCollections —
-        // read it from the player's recipe book instead.
         boolean filtering = this.minecraft != null
                 && this.minecraft.player != null
                 && this.minecraft.player.getRecipeBook().isFiltering(this.menu);
 
-        // Sort when partialCraftingEnabled is active, or when
-        // partialMarkingEnabled is active AND the vanilla filter is on.
         boolean shouldSort = BetterRecipeBook.config.partialCraftingEnabled
                 || (BetterRecipeBook.config.partialMarkingEnabled && filtering);
         if (!shouldSort) {
@@ -212,10 +248,7 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
-        // 3-group when partialCraftingEnabled is on (filter button hidden)
-        // OR vanilla filter is active. Otherwise 2-group.
-        boolean useFullSort = BetterRecipeBook.config.partialCraftingEnabled
-                || filtering;
+        boolean useFullSort = BetterRecipeBook.config.partialCraftingEnabled || filtering;
         boolean hasPartialData = BetterRecipeBook.config.partialMarkingEnabled;
 
         List<RecipeCollection> front = new ArrayList<>();
