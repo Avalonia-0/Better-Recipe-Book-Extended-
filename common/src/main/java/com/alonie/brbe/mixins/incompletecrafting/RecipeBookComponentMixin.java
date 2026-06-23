@@ -71,11 +71,15 @@ public abstract class RecipeBookComponentMixin {
 
         long slotHash = PartialCraftingUtil.slotHash(this.menu.slots);
         Class<?> screenClass = this.minecraft.screen.getClass();
-        List<RecipeCollection> cached = BookStateCache.get(screenClass, slotHash);
+        // Include RBIP creative tab in the cache key so switching tabs
+        // doesn't return stale results filtered for a different tab.
+        Object variant = com.alonie.recipebookispain_extended.RecipeBookIsPain.activeCreativeTab;
+        List<RecipeCollection> cached = BookStateCache.get(screenClass, slotHash, variant);
 
         if (cached != null) {
-            BetterRecipeBook.LOGGER.info("[BRBE-Cache] HIT {} (hash={}, {} colls)",
-                    screenClass.getSimpleName(), slotHash, cached.size());
+            BetterRecipeBook.LOGGER.info("[BRBE-Cache] HIT {} (hash={}, variant={}, {} colls)",
+                    screenClass.getSimpleName(), slotHash,
+                    variant != null ? "rbip" : "none", cached.size());
             RecipeBookPage page = ((RecipeBookComponentAccessor) (Object) this).getRecipeBookPage();
             page.updateCollections(cached, resetPage);
             brbe$lastSlotHash = slotHash;
@@ -93,9 +97,11 @@ public abstract class RecipeBookComponentMixin {
         if (this.minecraft == null || this.minecraft.screen == null) return;
 
         Class<?> screenClass = this.minecraft.screen.getClass();
-        BetterRecipeBook.LOGGER.info("[BRBE-Cache] SAVE {} (hash={}, {} colls)",
-                screenClass.getSimpleName(), brbe$lastSlotHash, brbe$lastPageList.size());
-        BookStateCache.put(screenClass, brbe$lastSlotHash, brbe$lastPageList);
+        Object variant = com.alonie.recipebookispain_extended.RecipeBookIsPain.activeCreativeTab;
+        BetterRecipeBook.LOGGER.info("[BRBE-Cache] SAVE {} (hash={}, variant={}, {} colls)",
+                screenClass.getSimpleName(), brbe$lastSlotHash,
+                variant != null ? "rbip" : "none", brbe$lastPageList.size());
+        BookStateCache.put(screenClass, brbe$lastSlotHash, brbe$lastPageList, variant);
     }
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;forEach(Ljava/util/function/Consumer;)V"))
