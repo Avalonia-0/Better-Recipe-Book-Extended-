@@ -1,7 +1,9 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
+import com.alonie.brbe.util.BookStateCache;
 import com.alonie.brbe.util.CollectionCategory;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
@@ -16,8 +18,11 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -44,6 +49,46 @@ public abstract class RecipeBookComponentMixin {
     protected Minecraft minecraft;
 
     private static long brbe$lastSlotHash;
+
+    // Holds the final filtered/sorted list from the last sortBeforePageUpdate
+    // redirect, so the TAIL inject can save it to BookStateCache.
+    @Unique
+    private List<RecipeCollection> brbe$lastPageList;
+
+    /**
+     * HEAD inject — checks BookStateCache before the vanilla updateCollections
+     * pipeline runs.  If the cache has results for this screen type + slot hash,
+     * restores them and cancels the entire vanilla method (including all our
+     * redirects), saving ~150ms on the forEach + partial marking pass.
+     */
+    @Inject(method = "updateCollections", at = @At("HEAD"), cancellable = true)
+    private void betterRecipeBook$checkResultCache(boolean resetPage, CallbackInfo ci) {
+        if (this.minecraft == null || this.minecraft.screen == null) return;
+
+        long slotHash = PartialCraftingUtil.slotHash(this.menu.slots);
+        Class<?> screenClass = this.minecraft.screen.getClass();
+        List<RecipeCollection> cached = BookStateCache.get(screenClass, slotHash);
+
+        if (cached != null) {
+            RecipeBookPage page = ((RecipeBookComponentAccessor) (Object) this).getRecipeBookPage();
+            page.updateCollections(cached, resetPage);
+            brbe$lastSlotHash = slotHash;
+            ci.cancel();
+        }
+    }
+
+    /**
+     * TAIL inject — after the pipeline completes, saves the final page results
+     * to BookStateCache so the next screen reopen can skip the pipeline.
+     */
+    @Inject(method = "updateCollections", at = @At("TAIL"))
+    private void betterRecipeBook$saveResultCache(boolean resetPage, CallbackInfo ci) {
+        if (brbe$lastPageList == null || brbe$lastPageList.isEmpty()) return;
+        if (this.minecraft == null || this.minecraft.screen == null) return;
+
+        Class<?> screenClass = this.minecraft.screen.getClass();
+        BookStateCache.put(screenClass, brbe$lastSlotHash, brbe$lastPageList);
+    }
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;forEach(Ljava/util/function/Consumer;)V"))
     private void betterRecipeBook$injectIntoDataSets(
@@ -200,6 +245,10 @@ public abstract class RecipeBookComponentMixin {
         list.addAll(middle);
         list.addAll(back);
         PerfTimer.end("sort");
+
+        // Capture the final sorted list for the TAIL cache save.
+        this.brbe$lastPageList = list;
+
         page.updateCollections(list, resetPageNumber);
     }
 }

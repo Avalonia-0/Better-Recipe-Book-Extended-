@@ -3,6 +3,7 @@ package com.alonie.brbe.mixins.unlockrecipes;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.interfaces.unlockrecipes.IMixinRecipeManager;
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
+import com.alonie.brbe.util.BookStateCache;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.RecipeMenuUtil;
@@ -43,9 +44,10 @@ public abstract class ClientPacketListenerMixin {
         switch (packet.getState()) {
             case INIT:
                 serverUnlockedRecipes.clear();
-                // Recipe list was rebuilt — invalidate all stable-key caches
+                // Recipe list was rebuilt — invalidate all caches
                 PartialCraftingUtil.clearCaches();
                 IncompatibleCraftingUtil.clearCaches();
+                BookStateCache.clear();
             case ADD:
                 serverUnlockedRecipes.addAll(packet.getRecipes());
                 break;
@@ -58,9 +60,10 @@ public abstract class ClientPacketListenerMixin {
     @Inject(method = "handleUpdateRecipes", at = @At(value = "RETURN"))
     public void onUpdateRecipes(ClientboundUpdateRecipesPacket packet, CallbackInfo ci) {
         // Recipe manager was reloaded (datapack reload / server sync) —
-        // invalidate stable-key caches since recipe IDs may have changed.
+        // invalidate all caches since recipe IDs may have changed.
         PartialCraftingUtil.clearCaches();
         IncompatibleCraftingUtil.clearCaches();
+        BookStateCache.clear();
         RecipeUnlockUtil.unlockRecipesIfRequired();
     }
 
