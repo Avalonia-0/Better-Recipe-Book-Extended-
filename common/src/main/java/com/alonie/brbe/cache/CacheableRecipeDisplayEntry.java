@@ -60,6 +60,9 @@ public final class CacheableRecipeDisplayEntry {
     /** The result item registry ID (e.g. "minecraft:bread"), or null if not available. */
     public String resultItem() { return resultItem; }
 
+    /** The recipe book category (e.g. "crafting_building_blocks"), or null. */
+    public String categoryName() { return categoryName; }
+
     // ======== From JSON ========
 
     /**
