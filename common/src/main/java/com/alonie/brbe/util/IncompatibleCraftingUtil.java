@@ -26,7 +26,15 @@ public final class IncompatibleCraftingUtil {
 
     public static void beginFiltering(boolean active) {
         filteringActive = active;
-        if (active) filteringGeneration++;
+        if (active) {
+            if (filteringGeneration == Integer.MAX_VALUE) {
+                // Generation counter wrapped — clear all caches to avoid stale comparisons
+                INCOMPATIBLE_RECIPES.clear();
+                CHECKED_COLLECTIONS.clear();
+                filteringGeneration = 0;
+            }
+            filteringGeneration++;
+        }
     }
 
     public static void markIncompatibleRecipes(RecipeCollection collection) {

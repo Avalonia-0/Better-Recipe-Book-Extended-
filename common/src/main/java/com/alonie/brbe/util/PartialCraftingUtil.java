@@ -39,6 +39,12 @@ public final class PartialCraftingUtil {
     public static void beginFilteringUpdate(boolean active) {
         filteringActive = active;
         if (active) {
+            if (filteringGeneration == Integer.MAX_VALUE) {
+                // Generation counter wrapped — clear all caches to avoid stale comparisons
+                PARTIAL_RECIPES.clear();
+                CHECKED_COLLECTIONS.clear();
+                filteringGeneration = 0;
+            }
             filteringGeneration++;
         }
     }

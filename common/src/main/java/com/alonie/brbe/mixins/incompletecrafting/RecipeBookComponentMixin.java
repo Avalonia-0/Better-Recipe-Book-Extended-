@@ -20,7 +20,9 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 /**
@@ -43,7 +45,10 @@ public abstract class RecipeBookComponentMixin {
     @Shadow @Final
     protected Minecraft minecraft;
 
-    private static long brbe$lastSlotHash;
+    // Per-menu-class slot hash, not global static.  Each screen type (InventoryScreen,
+    // CraftingScreen, etc.) tracks its own hash so that closing and reopening the same
+    // screen type can skip the vanilla forEach when inventory is unchanged.
+    private static final Map<Class<?>, Long> brbe$lastSlotHashes = new HashMap<>();
 
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;forEach(Ljava/util/function/Consumer;)V"))
     private void betterRecipeBook$injectIntoDataSets(
@@ -52,13 +57,15 @@ public abstract class RecipeBookComponentMixin {
 
         // ── Compute slot hash BEFORE calling vanilla forEach ──
         long slotHash = PartialCraftingUtil.slotHash(this.menu.slots);
-        boolean inventoryChanged = (slotHash != brbe$lastSlotHash);
+        Class<?> menuClass = this.menu.getClass();
+        Long lastHash = brbe$lastSlotHashes.get(menuClass);
+        boolean inventoryChanged = (lastHash == null || slotHash != lastHash);
 
         if (inventoryChanged) {
             PerfTimer.start("vanilla.forEach");
             collections.forEach(consumer);
             PerfTimer.end("vanilla.forEach");
-            brbe$lastSlotHash = slotHash;
+            brbe$lastSlotHashes.put(menuClass, slotHash);
         } else {
             // Vanilla forEach re-populates craftable from scratch (150ms on ATM10).
             // RecipeCollection objects are reused across updateCollections calls;
@@ -101,43 +108,47 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
-        // Activate generation tracking
+        // Activate generation tracking — wrapped in try/finally so that
+        // filteringActive is always cleared even if an exception is thrown
+        // (prevents permanent cache-bypass from a leaked filteringActive=true).
         PartialCraftingUtil.beginFilteringUpdate(true);
+        try {
+            java.util.Set<net.minecraft.world.item.Item> inventoryItems = PartialCraftingUtil.hashInventory(this.menu.slots);
 
-        java.util.Set<net.minecraft.world.item.Item> inventoryItems = PartialCraftingUtil.hashInventory(this.menu.slots);
-
-        PerfTimer.start("partial.step0-clear");
-        for (RecipeCollection collection : collections) {
-            if (PartialCraftingUtil.hasPartialMaterials(collection)) {
-                RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
-                for (RecipeHolder<?> holder : collection.getRecipes()) {
-                    if (PartialCraftingUtil.isPartiallyCraftable(collection, holder.id())) {
-                        accessor.betterRecipeBook$getCraftable().remove(holder);
+            PerfTimer.start("partial.step0-clear");
+            for (RecipeCollection collection : collections) {
+                if (PartialCraftingUtil.hasPartialMaterials(collection)) {
+                    RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+                    for (RecipeHolder<?> holder : collection.getRecipes()) {
+                        if (PartialCraftingUtil.isPartiallyCraftable(collection, holder.id())) {
+                            accessor.betterRecipeBook$getCraftable().remove(holder);
+                        }
                     }
                 }
             }
-        }
-        PerfTimer.end("partial.step0-clear");
+            PerfTimer.end("partial.step0-clear");
 
-        PerfTimer.start("partial.markAndInject");
-        int collCount = 0;
-        for (RecipeCollection collection : collections) {
-            collCount++;
-            PartialCraftingUtil.markPartialMaterials(collection, inventoryItems);
+            PerfTimer.start("partial.markAndInject");
+            int collCount = 0;
+            for (RecipeCollection collection : collections) {
+                collCount++;
+                PartialCraftingUtil.markPartialMaterials(collection, inventoryItems);
 
-            if (PartialCraftingUtil.hasPartialMaterials(collection)) {
-                RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
-                for (RecipeHolder<?> holder : collection.getRecipes()) {
-                    if (PartialCraftingUtil.isPartiallyCraftable(collection, holder.id())) {
-                        accessor.betterRecipeBook$getCraftable().add(holder);
+                if (PartialCraftingUtil.hasPartialMaterials(collection)) {
+                    RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+                    for (RecipeHolder<?> holder : collection.getRecipes()) {
+                        if (PartialCraftingUtil.isPartiallyCraftable(collection, holder.id())) {
+                            accessor.betterRecipeBook$getCraftable().add(holder);
+                        }
                     }
                 }
             }
-        }
-        PerfTimer.end("partial.markAndInject");
+            PerfTimer.end("partial.markAndInject");
 
-        PartialCraftingUtil.beginFilteringUpdate(false);
-        PerfTimer.logAndReset("updateCollections (" + collCount + " coll)");
+            PerfTimer.logAndReset("updateCollections (" + collCount + " coll)");
+        } finally {
+            PartialCraftingUtil.beginFilteringUpdate(false);
+        }
     }
 
     /**
