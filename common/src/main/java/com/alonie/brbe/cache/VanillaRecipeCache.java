@@ -144,6 +144,7 @@ public final class VanillaRecipeCache {
         int nextId = -1; // cache IDs are negative — never collide with server IDs (≥ 0)
         int injectedCount = 0;
         int skippedCount = 0;
+        int filteredCount = 0;
 
         for (CacheableRecipeDisplayEntry cEntry : cache.values()) {
             try {
@@ -160,6 +161,24 @@ public final class VanillaRecipeCache {
                 RecipeDisplayId newId = new RecipeDisplayId(nextId--);
                 RecipeDisplayEntry entry = cEntry.toEntry(newId);
                 if (entry != null) {
+                    // Pre-validate: skip entries whose result items don't resolve
+                    List<ItemStack> results;
+                    try {
+                        results = entry.resultItems(null);
+                    } catch (Exception resEx) {
+                        results = List.of();
+                    }
+                    if (results.isEmpty() || results.stream().allMatch(
+                            s -> s == null || s.isEmpty())) {
+                        filteredCount++;
+                        if (filteredCount <= 5) {
+                            BetterRecipeBook.LOGGER.warn(
+                                    "[BRBE-CACHE] filtered air entry: key={} resultItem={}",
+                                    cEntry.recipeKey(), cEntry.resultItem());
+                        }
+                        continue; // don't inject entries that resolve to air
+                    }
+
                     known.put(newId, entry);
                     injectedCount++;
                     if (lastComplemented.size() < SAMPLE_SIZE) {
@@ -175,8 +194,8 @@ public final class VanillaRecipeCache {
         }
 
         BetterRecipeBook.LOGGER.info(
-                "[BRBE-CACHE] complement: {} injected, {} skipped (known now {})",
-                injectedCount, skippedCount, known.size());
+                "[BRBE-CACHE] complement: {} injected, {} skipped, {} filtered (known now {})",
+                injectedCount, skippedCount, filteredCount, known.size());
 
         // Validate a sample of injected entries — check if they resolve to real items
         validateSample(known);
@@ -241,11 +260,15 @@ public final class VanillaRecipeCache {
                 results = e.getValue().resultItems(null); // ContextMap unused for ItemSlotDisplay/ItemStackSlotDisplay
             } catch (Exception ex) {
                 results = List.of();
+                BetterRecipeBook.LOGGER.warn("[BRBE-CACHE] validate exception for id={}: {}",
+                        e.getKey().index(), ex.toString());
             }
 
+            // Include display type for debugging
+            String displayType = e.getValue().display().getClass().getSimpleName();
             boolean hasAir = results.isEmpty() || results.stream().allMatch(
                     s -> s == null || s.isEmpty());
-            String info = e.getKey().index() + "=" + (results.isEmpty() ? "[]" :
+            String info = e.getKey().index() + "(" + displayType + ")=" + (results.isEmpty() ? "[]" :
                     results.stream().map(s -> s.isEmpty() ? "AIR" : s.getHoverName().getString())
                             .reduce((a, b) -> a + "," + b).orElse("?"));
 

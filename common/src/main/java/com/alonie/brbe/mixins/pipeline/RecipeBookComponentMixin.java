@@ -11,6 +11,8 @@ import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -68,7 +70,14 @@ public abstract class RecipeBookComponentMixin {
         // VanillaRecipeCache can complement server-provided recipes before
         // updateCollections reads from the pre-built collection cache.
         if (book != null && VanillaRecipeCache.hasEntries()) {
-            book.rebuildCollections();
+            try {
+                book.rebuildCollections();
+            } catch (Exception e) {
+                BetterRecipeBook.LOGGER.error("[BRBE-CACHE] rebuildCollections failed in updateCollections hook: {}", e.toString());
+            }
+        } else {
+            BetterRecipeBook.LOGGER.warn("[BRBE-CACHE] updateCollections hook: book={}, hasEntries={}",
+                    book != null ? "present" : "NULL", VanillaRecipeCache.hasEntries());
         }
 
         brbe$savedSearchText = null;
