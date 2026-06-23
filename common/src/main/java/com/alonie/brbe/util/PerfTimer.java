@@ -63,7 +63,7 @@ public final class PerfTimer {
                     long nanos = e.getLongValue();
                     long cnt = counts.getLong(section);
                     long avg = cnt > 0 ? nanos / cnt : nanos;
-                    LOGGER.info("  {:>30} : {:>6}ms  ({:>4}x, avg {:>5}µs)",
+                    LOGGER.info("  {} : {}ms ({}x, avg {}µs)",
                             section, nanos / 1_000_000, cnt, avg / 1_000);
                 });
         accumNanos.clear();

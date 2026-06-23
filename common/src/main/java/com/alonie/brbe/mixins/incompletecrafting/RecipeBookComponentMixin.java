@@ -126,6 +126,7 @@ public abstract class RecipeBookComponentMixin {
                 int processed = 0;
                 for (RecipeCollection coll : collections) {
                     if (dirtySet.contains(coll)) {
+                        PartialCraftingUtil.clearCategory(coll);
                         consumer.accept(coll);
                         processed++;
                     }
@@ -160,9 +161,14 @@ public abstract class RecipeBookComponentMixin {
         }
 
         // ── Incompatible recipe marking ──
-        if (retainIncompatible) {
+        // Only needed when the collection list or inventory changed.
+        // Result depends purely on recipe dimensions, so it's idempotent
+        // and safe to skip when neither changed.
+        if (retainIncompatible && inventoryChanged) {
             PerfTimer.start("incompatible.mark");
-            for (RecipeCollection collection : collections) {
+            Iterable<RecipeCollection> incTargets = incremental
+                    ? (Iterable<RecipeCollection>) dirtySet : collections;
+            for (RecipeCollection collection : incTargets) {
                 IncompatibleCraftingUtil.markIncompatibleRecipes(collection);
             }
             PerfTimer.end("incompatible.mark");
