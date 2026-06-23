@@ -40,21 +40,34 @@ public class BetterRecipeBookClientNeoForge {
         RecipeBookIsPain.isOwOLoaded = RecipeBookIsPain.PLATFORM.isModLoaded("owo");
         RecipeBookIsPain.LOGGER.info("[RBIP] NeoForge platform initialized, isOwOLoaded={}", RecipeBookIsPain.isOwOLoaded);
 
-        // Defer REI compat registration until client starts (after all mods are loaded)
-        ClientLifecycleEvent.CLIENT_STARTED.register(client -> ReiCompat.register());
+        // Defer REI compat registration until client starts (after all mods are loaded).
+        // Also force-reset overlay visibility at this point — by CLIENT_STARTED,
+        // JEI/REI have finished initializing so the reflective state manipulation
+        // will actually take effect.
+        ClientLifecycleEvent.CLIENT_STARTED.register(client -> {
+            ReiCompat.register();
+            // Ensure overlays start in the correct state regardless of init order
+            if (BetterRecipeBook.config != null) {
+                OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
+            }
+        });
 
         ClientGuiEvent.INIT_POST.register((screen, access) -> {
             if (screen != null) {
                 registeredScreens.remove(screen);
                 // Apply overlay hide state immediately when screen opens (no flash)
-                OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
+                if (BetterRecipeBook.config != null) {
+                    OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
+                }
             }
         });
 
         ClientTickEvent.CLIENT_POST.register(client -> {
             Screen screen = client.screen;
             // Per-tick JEI state enforcement — reads real JEI state, no internal tracking
-            if (BetterRecipeBook.config.hideReiJeiOverlay && screen != null) {
+            if (BetterRecipeBook.config != null
+                    && BetterRecipeBook.config.hideReiJeiOverlay
+                    && screen != null) {
                 OverlayHider.ensureJeiOverlayHidden();
             }
             if (screen == null || registeredScreens.contains(screen) || !TopLayerOverlayRenderer.hasOverlay(screen)) {

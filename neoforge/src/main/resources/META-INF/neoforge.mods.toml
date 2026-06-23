@@ -36,6 +36,13 @@ ordering = "AFTER"
 side = "CLIENT"
 
 [[dependencies.brbe]]
+modId = "cloth_config"
+type = "required"
+versionRange = "[15,)"
+ordering = "AFTER"
+side = "CLIENT"
+
+[[dependencies.brbe]]
 modId = "jei"
 type = "optional"
 versionRange = "[27,)"
