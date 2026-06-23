@@ -1,8 +1,10 @@
 package com.alonie.brbe.mixins.pipeline;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.cache.VanillaRecipeCache;
 import com.alonie.brbe.search.SearchQuery;
 import com.alonie.brbe.util.CollectionPipeline;
+import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
@@ -44,6 +46,8 @@ public abstract class RecipeBookComponentMixin {
 
     @Shadow protected EditBox searchBox;
 
+    @Shadow private ClientRecipeBook book;
+
     @Unique
     private String brbe$savedSearchText;
 
@@ -59,6 +63,14 @@ public abstract class RecipeBookComponentMixin {
      */
     @Inject(method = "updateCollections", at = @At("HEAD"))
     private void brbe$saveSearchText(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
+        // In 26.1.2, ClientRecipeBook.add() / remove() / clear() no longer
+        // call rebuildCollections().  Force a rebuild here so that
+        // VanillaRecipeCache can complement server-provided recipes before
+        // updateCollections reads from the pre-built collection cache.
+        if (book != null && VanillaRecipeCache.hasEntries()) {
+            book.rebuildCollections();
+        }
+
         brbe$savedSearchText = null;
         brbe$parsedQuery = null;
 
