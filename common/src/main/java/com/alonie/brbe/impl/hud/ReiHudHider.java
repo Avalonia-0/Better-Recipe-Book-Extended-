@@ -44,6 +44,15 @@ public final class ReiHudHider implements HudHider {
     }
 
     @Override
+    public void forceShow() {
+        if (!isReiLoaded()) return;
+        try {
+            Object instance = getReiConfigClass().getMethod("getInstance").invoke(null);
+            getReiConfigClass().getMethod("setOverlayVisible", boolean.class).invoke(instance, true);
+        } catch (ReflectiveOperationException ignored) {}
+    }
+
+    @Override
     public void reset() {
         hidden = false;
         saved = false;

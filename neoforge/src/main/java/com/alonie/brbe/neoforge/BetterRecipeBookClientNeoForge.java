@@ -41,12 +41,13 @@ public class BetterRecipeBookClientNeoForge {
         RecipeBookIsPain.LOGGER.info("[RBIP] NeoForge platform initialized, isOwOLoaded={}", RecipeBookIsPain.isOwOLoaded);
 
         // Defer REI compat registration until client starts (after all mods are loaded).
-        // Also force-reset overlay visibility at this point — by CLIENT_STARTED,
-        // JEI/REI have finished initializing so the reflective state manipulation
-        // will actually take effect.
+        // Also unconditionally force overlays visible — setOverlaysHidden(false) is
+        // a no-op on fresh start (currentlyHidden=false), so we use forceShowOverlays()
+        // which bypasses all guards and directly sets JEI/REI to visible via reflection.
         ClientLifecycleEvent.CLIENT_STARTED.register(client -> {
             ReiCompat.register();
-            // Ensure overlays start in the correct state regardless of init order
+            OverlayHider.forceShowOverlays();
+            // Then apply the persisted config state (normally a no-op since default is false)
             if (BetterRecipeBook.config != null) {
                 OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
             }

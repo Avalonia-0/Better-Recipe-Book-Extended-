@@ -19,6 +19,9 @@ public interface HudHider {
     /** Restore the overlay to the saved snapshot. */
     void restoreState();
 
+    /** Unconditionally force the overlay visible — ignores saved state. */
+    default void forceShow() {}
+
     /** Reset all tracked state (e.g. on world unload). */
     default void reset() {}
 }

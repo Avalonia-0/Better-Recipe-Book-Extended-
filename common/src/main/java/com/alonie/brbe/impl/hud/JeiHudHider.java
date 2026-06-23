@@ -89,6 +89,20 @@ public final class JeiHudHider implements HudHider {
     }
 
     @Override
+    public void forceShow() {
+        Class<?> tsClass = getJeiToggleStateClass();
+        if (tsClass == null) return;
+        Object ts = getJeiToggleState();
+        if (ts == null) return;
+        try {
+            if (!(Boolean) tsClass.getMethod("isOverlayEnabled").invoke(ts))
+                tsClass.getMethod("toggleOverlayEnabled").invoke(ts);
+            if (!(Boolean) tsClass.getMethod("isBookmarkOverlayEnabled").invoke(ts))
+                tsClass.getMethod("toggleBookmarkEnabled").invoke(ts);
+        } catch (Exception ignored) {}
+    }
+
+    @Override
     public void reset() {
         saved = false;
         savedOverlayEnabled = savedBookmarkEnabled = savedCheatEnabled = null;

@@ -51,4 +51,16 @@ public final class OverlayHider {
         currentlyHidden = false;
         HIDERS.forEach(HudHider::reset);
     }
+
+    /**
+     * Unconditionally force overlays to be visible — bypasses the
+     * {@code currentlyHidden} guard and saved-state checks.  Used at
+     * startup to fix NeoForge init-order races where JEI/REI might
+     * boot in an inconsistent state.
+     */
+    public static void forceShowOverlays() {
+        HIDERS.forEach(HudHider::forceShow);
+        currentlyHidden = false;
+        HIDERS.forEach(HudHider::reset);
+    }
 }
