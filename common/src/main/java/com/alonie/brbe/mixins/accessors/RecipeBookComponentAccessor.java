@@ -29,6 +29,9 @@ public interface RecipeBookComponentAccessor {
     @Accessor("xOffset")
     int getXOffset();
 
+    @Accessor("selectedTab")
+    net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton getSelectedTab();
+
     @Accessor("SEARCH_HINT")
     static Component getSEARCH_HINT() {
         throw new AssertionError();

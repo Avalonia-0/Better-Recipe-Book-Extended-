@@ -149,11 +149,19 @@ public final class UpdateCollectionsPipeline {
     }
 
     private static List<RecipeCollection> rbipFilter(PipelineContext ctx, RecipeBookComponent component) {
-        // RBIP creative tab filtering — mirrors ClientRecipeBookMixin logic.
-        // Returns null if no filtering is needed (use original collections).
+        // Mirror the original RBIP @Redirect guard: only filter when
+        // a creative tab is active AND the category is UNKNOWN.
+        // Vanilla tabs (CRAFTING_SEARCH etc.) should NOT be filtered
+        // even if activeCreativeTab is still set from a previous click.
         if (ctx.rbipVariant == null) return null;
+
+        var accessor = (RecipeBookComponentAccessor) component;
+        var selectedTab = accessor.getSelectedTab();
+        if (selectedTab == null || selectedTab.getCategory() != net.minecraft.client.RecipeBookCategories.UNKNOWN) {
+            return null; // vanilla tab active — don't filter
+        }
+
         var rbipTab = (net.minecraft.world.item.CreativeModeTab) ctx.rbipVariant;
-        if (rbipTab == null) return null;
 
         try {
             var player = ctx.minecraft.player;
