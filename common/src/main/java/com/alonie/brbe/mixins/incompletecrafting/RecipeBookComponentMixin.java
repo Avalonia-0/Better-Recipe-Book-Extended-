@@ -5,10 +5,10 @@ import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
 import com.alonie.brbe.util.CollectionCategory;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
+import com.alonie.brbe.util.RecipeBookState;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
-import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
@@ -25,7 +25,6 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -45,6 +44,15 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "updateCollections", at = @At("HEAD"))
     private void betterRecipeBook$trackPartialFilteringUpdate(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
+        RecipeBookState.beginCollectionProcessing();
+        // When the player switches tabs or reopens the recipe book
+        // (resetPageNumber=true), the collections list contains entirely new
+        // RecipeCollection objects that have never been through
+        // markPartialMaterials.  Reset the slot hash so the removeIf gate
+        // below doesn't skip partial evaluation for these new collections.
+        if (resetPageNumber) {
+            this.brbe$lastSlotHash = 0;
+        }
         boolean retainIncompatible = BetterRecipeBook.config.showAllRecipesInSurvival
                 && !isFiltering
                 && this.minecraft != null
@@ -86,18 +94,22 @@ public abstract class RecipeBookComponentMixin {
         this.brbe$lastSlotHash = slotHash;
 
         // Step 0: Clear previously-injected partial IDs from craftable set.
-        // Skip 3×3 recipes when showAllRecipesInSurvival is off on the
-        // inventory screen — they were never injected (see injection guard
-        // below), so removing them would only destroy vanilla's own craftable
-        // marking and cause markPartialMaterials to see isCraftable()==false,
-        // re-tagging them as partial.  That creates an infinite cycle where
-        // a fully-craftable 3×3 recipe permanently shows the "partial" overlay.
+        // Skip 3×3 recipes when showAllRecipesInSurvival is off — they were
+        // never injected (see injection guard below), so removing them would
+        // only destroy vanilla's own craftable marking and cause
+        // markPartialMaterials to see isCraftable()==false, re-tagging them
+        // as partial.  That creates an infinite cycle where a fully-craftable
+        // 3×3 recipe permanently shows the "partial" overlay.
+        //
+        // Uses EvenIfStale queries intentionally: Step 0 needs to see what
+        // was injected in the PREVIOUS generation so it can undo those
+        // injections before re-evaluating.
         for (RecipeCollection collection : collections) {
-            if (PartialCraftingUtil.hasPartialMaterials(collection)) {
+            if (PartialCraftingUtil.hasPartialMaterialsEvenIfStale(collection)) {
                 RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
                 for (RecipeDisplayEntry entry : collection.getRecipes()) {
                     RecipeDisplayId id = entry.id();
-                    if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
+                    if (PartialCraftingUtil.isPartiallyCraftableEvenIfStale(collection, id)) {
                         if (filter3x3 && brbe$needsLargerGrid(entry.display())) {
                             continue; // never injected — leave vanilla craftable alone
                         }
@@ -107,7 +119,6 @@ public abstract class RecipeBookComponentMixin {
             }
         }
 
-        // Activate generation tracking so collections are skipped if already checked
         PartialCraftingUtil.beginFilteringUpdate(true);
         java.util.Set<net.minecraft.world.item.Item> inventoryItems = PartialCraftingUtil.hashInventory(this.menu.slots);
 
@@ -121,9 +132,9 @@ public abstract class RecipeBookComponentMixin {
                     RecipeDisplayId id = entry.id();
                     if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
                         // Don't inject 3×3 partial recipes when showAllRecipesInSurvival
-                        // is off on the inventory screen — they can't be crafted in the
-                        // 2×2 grid and would otherwise survive the vanilla filter, producing
-                        // "air placeholder" ghost recipe slots.
+                        // is off — they can't be crafted in the 2×2 grid and would
+                        // otherwise survive the vanilla filter, producing "air
+                        // placeholder" ghost recipe slots.
                         if (filter3x3 && brbe$needsLargerGrid(entry.display())) {
                             continue;
                         }
@@ -138,8 +149,8 @@ public abstract class RecipeBookComponentMixin {
         // ── Root-cause cleanup: purge 3×3 recipes from the partial set ──
         // markPartialMaterials can be over-aggressive — it marks any recipe
         // that has at least one matching ingredient in the inventory and is
-        // not already in the craftable set.  For 3×3 recipes in a 2×2 grid
-        // when showAllRecipesInSurvival=false, this is never useful: the
+        // not already in the craftable set.  For 3×3 recipes when
+        // showAllRecipesInSurvival=false, this is never useful: the
         // injection guard above skips them, and if we leave them in
         // PARTIAL_RECIPES Step 0 will destroy vanilla's craftable marking
         // on the next call, creating a permanent "partial" degradation loop.
@@ -181,11 +192,10 @@ public abstract class RecipeBookComponentMixin {
             if (!predicate.test(collection)) return false;
             if (keepPartial && PartialCraftingUtil.hasPartialMaterials(collection)) {
                 // Even if collection has partial materials, when
-                // showAllRecipesInSurvival is off on the inventory screen,
-                // skip the keep-Partial protection if EVERY partial recipe
-                // in the collection needs a 3×3 grid. The injection loop
-                // above already skipped those, so the collection would
-                // render as an air placeholder.
+                // showAllRecipesInSurvival is off, skip the keep-partial
+                // protection if EVERY partial recipe in the collection
+                // needs a 3×3 grid. The injection loop above already skipped
+                // those, so the collection would render as an air placeholder.
                 if (filter3x3
                         && brbe$allPartialRecipesNeedLargerGrid(collection)) {
                     return true; // remove
@@ -197,53 +207,6 @@ public abstract class RecipeBookComponentMixin {
         });
 
         return removed;
-    }
-
-    @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;ZZ)V"))
-    private void betterRecipeBook$sortCraftableBeforePartial(
-            RecipeBookPage page, List<RecipeCollection> list, boolean resetPageNumber, boolean isFiltering) {
-        // Sort when partialCraftingEnabled is active, or when
-        // partialMarkingEnabled is active AND the vanilla filter is on.
-        boolean shouldSort = BetterRecipeBook.config.partialCraftingEnabled
-                || (BetterRecipeBook.config.partialMarkingEnabled && isFiltering);
-        if (!shouldSort) {
-            page.updateCollections(list, resetPageNumber, isFiltering);
-            return;
-        }
-
-        // 3-group when partialCraftingEnabled is on (filter button hidden)
-        // OR vanilla filter is active. Otherwise 2-group.
-        boolean useFullSort = BetterRecipeBook.config.partialCraftingEnabled
-                || isFiltering;
-        boolean hasPartialData = BetterRecipeBook.config.partialMarkingEnabled;
-
-        List<RecipeCollection> front = new ArrayList<>();
-        List<RecipeCollection> middle = new ArrayList<>();
-        List<RecipeCollection> back = new ArrayList<>();
-
-        for (RecipeCollection c : list) {
-            if (hasPartialData) {
-                CollectionCategory cat = PartialCraftingUtil.categorize(c);
-                if (useFullSort) {
-                    switch (cat) {
-                        case TRULY_CRAFTABLE -> front.add(c);
-                        case PARTIAL -> middle.add(c);
-                        case UNASSIGNED -> back.add(c);
-                    }
-                } else {
-                    if (cat != CollectionCategory.UNASSIGNED) front.add(c);
-                    else back.add(c);
-                }
-            } else {
-                if (c.hasCraftable()) front.add(c); else back.add(c);
-            }
-        }
-
-        list.clear();
-        list.addAll(front);
-        list.addAll(middle);
-        list.addAll(back);
-        page.updateCollections(list, resetPageNumber, isFiltering);
     }
 
     /** True if a crafting display needs more than a 2×2 grid. */

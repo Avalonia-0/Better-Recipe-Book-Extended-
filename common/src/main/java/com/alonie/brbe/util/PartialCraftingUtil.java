@@ -1,12 +1,12 @@
 package com.alonie.brbe.util;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.core.NonNullList;
 import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
@@ -22,13 +22,9 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.WeakHashMap;
 
 public final class PartialCraftingUtil {
-    private static final WeakHashMap<RecipeCollection, Set<RecipeDisplayId>> PARTIAL_RECIPES = new WeakHashMap<>();
-    private static final WeakHashMap<RecipeCollection, Integer> CHECKED_COLLECTIONS = new WeakHashMap<>();
-    private static int filteringGeneration;
-    private static boolean filteringActive;
+    private static final RecipeCollectionTagger<RecipeDisplayId> tagger = new RecipeCollectionTagger<>();
 
     private PartialCraftingUtil() {
     }
@@ -42,18 +38,19 @@ public final class PartialCraftingUtil {
         return BetterRecipeBook.config.partialMarkingEnabled;
     }
 
+    // ---- Generation / freshness (delegated to tagger) ----
+
     public static void beginFilteringUpdate(boolean active) {
-        filteringActive = active;
-        if (active) {
-            filteringGeneration++;
-        }
+        tagger.beginFiltering(active);
     }
 
-    /**
-     * Pre-computes a set of items present in the inventory slots for fast O(1)
-     * ingredient matching.  Call once per {@code updateCollections()} instead of
-     * per-collection.
-     */
+    public static boolean wasCheckedForPartialMaterials(RecipeCollection collection) {
+        if (!enabled()) return false;
+        return tagger.wasChecked(collection);
+    }
+
+    // ---- Inventory hashing (unchanged) ----
+
     public static long slotHash(NonNullList<Slot> slots) {
         long h = 1;
         for (Slot slot : slots) {
@@ -66,8 +63,8 @@ public final class PartialCraftingUtil {
         return h;
     }
 
-        public static java.util.Set<net.minecraft.world.item.Item> hashInventory(NonNullList<Slot> slots) {
-        java.util.Set<net.minecraft.world.item.Item> inventoryItems = new java.util.HashSet<>();
+    public static java.util.Set<Item> hashInventory(NonNullList<Slot> slots) {
+        java.util.Set<Item> inventoryItems = new java.util.HashSet<>();
         for (Slot slot : slots) {
             ItemStack stack = slot.getItem();
             if (!stack.isEmpty()) {
@@ -77,14 +74,16 @@ public final class PartialCraftingUtil {
         return inventoryItems;
     }
 
+    // ---- Marking ----
+
     public static boolean markPartialMaterials(RecipeCollection collection, NonNullList<Slot> slots) {
         return markPartialMaterials(collection, hashInventory(slots));
     }
 
-    public static boolean markPartialMaterials(RecipeCollection collection, java.util.Set<net.minecraft.world.item.Item> inventoryItems) {
+    public static boolean markPartialMaterials(RecipeCollection collection, java.util.Set<Item> inventoryItems) {
         if (!enabled()) return false;
-        if (wasCheckedForPartialMaterials(collection)) return hasPartialMaterials(collection);
-        CHECKED_COLLECTIONS.put(collection, filteringGeneration);
+        if (tagger.wasChecked(collection)) return tagger.hasAnyTag(collection);
+        tagger.markAsChecked(collection);
         boolean markedAny = false;
         Set<RecipeDisplayId> partialRecipes = new HashSet<>();
         for (RecipeDisplayEntry recipe : collection.getRecipes()) {
@@ -100,9 +99,9 @@ public final class PartialCraftingUtil {
         }
 
         if (markedAny) {
-            PARTIAL_RECIPES.put(collection, partialRecipes);
+            tagger.setAllTags(collection, partialRecipes);
         } else {
-            PARTIAL_RECIPES.remove(collection);
+            tagger.clearTags(collection);
         }
 
         return markedAny;
@@ -110,8 +109,8 @@ public final class PartialCraftingUtil {
 
     public static void markPartialMaterial(RecipeCollection collection, RecipeDisplayId recipeDisplayId) {
         if (!enabled()) return;
-        PARTIAL_RECIPES.put(collection, new HashSet<>(Collections.singleton(recipeDisplayId)));
-        CHECKED_COLLECTIONS.put(collection, filteringGeneration);
+        tagger.addTag(collection, recipeDisplayId);
+        tagger.markAsChecked(collection);
     }
 
     /**
@@ -121,31 +120,48 @@ public final class PartialCraftingUtil {
      */
     public static void unmarkPartial(RecipeCollection collection, RecipeDisplayId id) {
         if (!enabled()) return;
-        Set<RecipeDisplayId> set = PARTIAL_RECIPES.get(collection);
-        if (set != null) {
-            set.remove(id);
-            if (set.isEmpty()) {
-                PARTIAL_RECIPES.remove(collection);
-            }
-        }
+        tagger.removeTag(collection, id);
     }
 
-    public static boolean wasCheckedForPartialMaterials(RecipeCollection collection) {
-        if (!enabled()) return false;
-        Integer generation = CHECKED_COLLECTIONS.get(collection);
-        return filteringActive && generation != null && generation == filteringGeneration;
-    }
+    // ---- Queries ----
 
+    /**
+     * Generation-aware query: true only if the recipe was marked as partial
+     * in the <em>current</em> generation.  Safe for button rendering and
+     * general use — never returns stale data.
+     */
     public static boolean isPartiallyCraftable(RecipeCollection collection, RecipeDisplayId recipeDisplayId) {
         if (!enabled()) return false;
-        Set<RecipeDisplayId> partialRecipes = PARTIAL_RECIPES.get(collection);
-        return partialRecipes != null && partialRecipes.contains(recipeDisplayId);
+        return tagger.hasTag(collection, recipeDisplayId);
     }
 
+    /**
+     * Stale-data query: true even if the recipe was marked in a previous
+     * generation.  Only Step 0 (undo-injection) and root-cause cleanup
+     * should use this.
+     */
+    public static boolean isPartiallyCraftableEvenIfStale(RecipeCollection collection, RecipeDisplayId id) {
+        if (!enabled()) return false;
+        return tagger.hasTagEvenIfStale(collection, id);
+    }
+
+    /**
+     * Generation-aware query: true only if the collection has partial
+     * materials marked in the <em>current</em> generation.
+     */
     public static boolean hasPartialMaterials(RecipeCollection collection) {
         if (!enabled()) return false;
-        Set<RecipeDisplayId> partialRecipes = PARTIAL_RECIPES.get(collection);
-        return partialRecipes != null && !partialRecipes.isEmpty();
+        return tagger.hasAnyTag(collection);
+    }
+
+    /**
+     * Stale-data query: true even if partial data is from a previous
+     * generation.  Only Step 0 should use this — it needs to know what
+     * was injected last cycle so it can undo those injections.
+     */
+    public static boolean hasPartialMaterialsEvenIfStale(RecipeCollection collection) {
+        if (!enabled()) return false;
+        return tagger.hasAnyTagEvenIfStale(collection);
     }
 
     /**
@@ -172,14 +188,13 @@ public final class PartialCraftingUtil {
 
     public static List<RecipeDisplayEntry> getPartiallyCraftableRecipes(RecipeCollection collection) {
         if (!enabled()) return Collections.emptyList();
-        Set<RecipeDisplayId> partialRecipes = PARTIAL_RECIPES.get(collection);
-        if (partialRecipes == null || partialRecipes.isEmpty()) {
+        if (!tagger.hasAnyTag(collection)) {
             return Collections.emptyList();
         }
 
         List<RecipeDisplayEntry> recipes = new ArrayList<>();
         for (RecipeDisplayEntry recipe : collection.getRecipes()) {
-            if (partialRecipes.contains(recipe.id())) {
+            if (tagger.hasTag(collection, recipe.id())) {
                 recipes.add(recipe);
             }
         }
@@ -194,8 +209,7 @@ public final class PartialCraftingUtil {
             return selectedRecipes;
         }
 
-        Set<RecipeDisplayId> partialRecipes = PARTIAL_RECIPES.get(collection);
-        if (partialRecipes == null || partialRecipes.isEmpty()) {
+        if (!tagger.hasAnyTag(collection)) {
             return selectedRecipes;
         }
 
@@ -206,7 +220,7 @@ public final class PartialCraftingUtil {
         }
 
         for (RecipeDisplayEntry recipe : collection.getRecipes()) {
-            if (partialRecipes.contains(recipe.id()) && !existingIds.contains(recipe.id())) {
+            if (tagger.hasTag(collection, recipe.id()) && !existingIds.contains(recipe.id())) {
                 combinedRecipes.add(recipe);
             }
         }
@@ -214,11 +228,13 @@ public final class PartialCraftingUtil {
         return combinedRecipes;
     }
 
+    // ---- Ingredient matching helpers (unchanged) ----
+
     private static boolean hasMatchingIngredient(List<Ingredient> ingredients, NonNullList<Slot> slots) {
         return hasMatchingIngredientFast(ingredients, hashInventory(slots));
     }
 
-    private static boolean hasMatchingIngredientFast(List<Ingredient> ingredients, java.util.Set<net.minecraft.world.item.Item> inventoryItems) {
+    private static boolean hasMatchingIngredientFast(List<Ingredient> ingredients, java.util.Set<Item> inventoryItems) {
         for (Ingredient ingredient : ingredients) {
             if (ingredient.isEmpty()) {
                 continue;
@@ -235,7 +251,7 @@ public final class PartialCraftingUtil {
         return hasMatchingDisplayIngredientFast(display, hashInventory(slots));
     }
 
-    private static boolean hasMatchingDisplayIngredientFast(RecipeDisplay display, java.util.Set<net.minecraft.world.item.Item> inventoryItems) {
+    private static boolean hasMatchingDisplayIngredientFast(RecipeDisplay display, java.util.Set<Item> inventoryItems) {
         if (display instanceof ShapedCraftingRecipeDisplay shaped) {
             return hasMatchingSlotDisplayFast(shaped.ingredients(), inventoryItems);
         }
@@ -251,7 +267,7 @@ public final class PartialCraftingUtil {
         return hasMatchingSlotDisplayFast(ingredients, hashInventory(slots));
     }
 
-    private static boolean hasMatchingSlotDisplayFast(List<SlotDisplay> ingredients, java.util.Set<net.minecraft.world.item.Item> inventoryItems) {
+    private static boolean hasMatchingSlotDisplayFast(List<SlotDisplay> ingredients, java.util.Set<Item> inventoryItems) {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null) {
             return false;

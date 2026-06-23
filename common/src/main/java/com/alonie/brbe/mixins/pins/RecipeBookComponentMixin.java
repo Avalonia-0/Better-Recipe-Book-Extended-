@@ -8,8 +8,6 @@ import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Unique;
-import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 import java.util.List;
 
@@ -30,9 +28,4 @@ public abstract class RecipeBookComponentMixin implements IPinningComponent<Pinn
         }
     }
 
-    @ModifyArg(method = "updateCollections", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;ZZ)V"))
-    private List<RecipeCollection> updateCollections(List<RecipeCollection> list) {
-        this.betterRecipeBook$sortByPinsInPlaceCollection(list);
-        return list;
-    }
 }
