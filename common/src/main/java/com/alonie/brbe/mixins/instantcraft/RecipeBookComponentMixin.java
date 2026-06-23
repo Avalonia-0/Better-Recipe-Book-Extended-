@@ -61,7 +61,7 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;render(Lnet/minecraft/client/gui/GuiGraphics;IIIIF)V"))
     public void render(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (betterRecipeBook$shouldSkip()) {
+        if (betterRecipeBook$shouldSkip() || this.betterRecipeBook$instantCraftButton == null) {
             return;
         }
 
@@ -70,7 +70,7 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     public void mouseClicked(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
-        if (this.isVisible() && !betterRecipeBook$shouldSkip()) {
+        if (this.isVisible() && !betterRecipeBook$shouldSkip() && this.betterRecipeBook$instantCraftButton != null) {
             if (this.betterRecipeBook$instantCraftButton.mouseClicked(mouseX, mouseY, button)) {
                 boolean bl = BetterRecipeBook.instantCraftingManager.toggleEnabled();
                 this.betterRecipeBook$instantCraftButton.setStateTriggered(bl);
@@ -85,7 +85,7 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
-        if (this.betterRecipeBook$instantCraftButton.isHoveredOrFocused()) {
+        if (this.betterRecipeBook$instantCraftButton != null && this.betterRecipeBook$instantCraftButton.isHoveredOrFocused()) {
             Component text = this.betterRecipeBook$instantCraftButton.isStateTriggered() ? TOGGLE_INSTANT_CRAFT_ON_TEXT : TOGGLE_INSTANT_CRAFT_OFF_TEXT;
             if (this.minecraft.screen != null) {
                 gui.renderComponentTooltip(minecraft.font, List.of(text), mouseX, mouseY);
