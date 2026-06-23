@@ -52,7 +52,8 @@
     "unlockrecipes.MinecraftMixin",
     "unlockrecipes.MultiPlayerGameModeMixin",
     "unlockrecipes.RecipeButtonMixin",
-    "localcache.ClientRecipeBookMixin"
+    "localcache.ClientRecipeBookMixin",
+    "localcache.ClientPacketListenerMixin"
   ],
   "injectors": {
     "defaultRequire": 1
