@@ -27,12 +27,10 @@ import java.util.stream.Collectors;
  *   <li>Servers with custom recipes → custom entries are preserved</li>
  * </ul>
  *
- * <h3>Debugging</h3>
- * Set the system property {@code brbe.cache.debug=true} to enable verbose
- * complement logs.  When enabled, the first complement of each session
- * prints a full status report including sample recipe keys and a
- * per-category breakdown.  Call {@link #dumpStatus()} at any time to
- * re-print the report.
+ * <h3>Status reporting</h3>
+ * A status report is printed automatically after each complement cycle,
+ * showing sample recipe keys and a per-category breakdown of injected
+ * vs skipped counts.  Call {@link #dumpStatus()} at any time to re-print.
  *
  * <h3>ID-space partition</h3>
  * Cache entries use <b>negative</b> {@link RecipeDisplayId} values (starting
@@ -43,20 +41,15 @@ import java.util.stream.Collectors;
  */
 public final class VanillaRecipeCache {
 
-    // ---- Debug ----
-
-    /** Set with {@code -Dbrbe.cache.debug=true} to enable verbose complement logging. */
-    private static final boolean DEBUG = Boolean.getBoolean("brbe.cache.debug");
-
-    /** Max recipe keys to log in debug output (avoid log spam). */
-    private static final int DEBUG_SAMPLE_SIZE = 15;
+    /** Max recipe keys to log per category (avoid log spam). */
+    private static final int SAMPLE_SIZE = 15;
 
     // ---- State ----
 
     /** All cached vanilla recipe entries, loaded at init from classpath. */
     private static final Map<String, CacheableRecipeDisplayEntry> cache = new LinkedHashMap<>();
 
-    /** Snapshot of the last complement operation for debugging. */
+    /** Snapshot of the last complement operation for status reporting. */
     private static final List<String> lastComplemented = new ArrayList<>();
     private static final List<String> lastSkipped = new ArrayList<>();
     private static final List<String> lastServerItems = new ArrayList<>();
@@ -78,25 +71,21 @@ public final class VanillaRecipeCache {
         BetterRecipeBook.LOGGER.info("[BRBE-CACHE] init loaded {} vanilla recipes from classpath",
                 cache.size());
 
-        if (DEBUG) {
-            // Print category distribution at init time
-            Map<String, Long> byCategory = cache.values().stream()
-                    .collect(Collectors.groupingBy(
-                            e -> e.categoryName() != null ? e.categoryName() : "null",
-                            LinkedHashMap::new, Collectors.counting()));
-            BetterRecipeBook.LOGGER.info("[BRBE-CACHE] DEBUG cache by category: {}", byCategory);
-        }
+        // Print category distribution at init time
+        Map<String, Long> byCategory = cache.values().stream()
+                .collect(Collectors.groupingBy(
+                        e -> e.categoryName() != null ? e.categoryName() : "null",
+                        LinkedHashMap::new, Collectors.counting()));
+        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] cache by category: {}", byCategory);
     }
 
     /** Called from MinecraftMixin on disconnect. Resets session-only state. */
     public static void clear() {
         BetterRecipeBook.LOGGER.info("[BRBE-CACHE] session cleared");
-        if (DEBUG) {
-            lastComplemented.clear();
-            lastSkipped.clear();
-            lastServerItems.clear();
-            lastCategoryBreakdown.clear();
-        }
+        lastComplemented.clear();
+        lastSkipped.clear();
+        lastServerItems.clear();
+        lastCategoryBreakdown.clear();
     }
 
     // ---- Detection and orchestration ----
@@ -129,13 +118,11 @@ public final class VanillaRecipeCache {
      * by the server-provided recipe set.
      */
     private static void complement(Map<RecipeDisplayId, RecipeDisplayEntry> known) {
-        // Clear debug snapshots from previous run
-        if (DEBUG) {
-            lastComplemented.clear();
-            lastSkipped.clear();
-            lastServerItems.clear();
-            lastCategoryBreakdown.clear();
-        }
+        // Clear snapshots from previous run
+        lastComplemented.clear();
+        lastSkipped.clear();
+        lastServerItems.clear();
+        lastCategoryBreakdown.clear();
 
         // 1. Collect result item IDs from server-provided entries
         Set<String> serverResultItems = new HashSet<>();
@@ -143,13 +130,13 @@ public final class VanillaRecipeCache {
             String resultId = extractResultItemId(entry.display().result());
             if (resultId != null) {
                 serverResultItems.add(resultId);
-                if (DEBUG && lastServerItems.size() < DEBUG_SAMPLE_SIZE) {
+                if (lastServerItems.size() < SAMPLE_SIZE) {
                     lastServerItems.add(resultId);
                 }
             }
         }
-        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] server covers {} unique result items",
-                serverResultItems.size());
+        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] server covers {} unique result items (sample {} shown in report)",
+                serverResultItems.size(), Math.min(SAMPLE_SIZE, lastServerItems.size()));
 
         // 2. Inject local entries whose result item is NOT already covered
         int nextId = -1; // cache IDs are negative — never collide with server IDs (≥ 0)
@@ -161,12 +148,10 @@ public final class VanillaRecipeCache {
                 String cat = cEntry.categoryName() != null ? cEntry.categoryName() : "unknown";
                 if (cEntry.resultItem() != null && serverResultItems.contains(cEntry.resultItem())) {
                     skippedCount++;
-                    if (DEBUG) {
-                        if (lastSkipped.size() < DEBUG_SAMPLE_SIZE) {
-                            lastSkipped.add(cEntry.recipeKey() + " → " + cEntry.resultItem());
-                        }
-                        lastCategoryBreakdown.computeIfAbsent(cat, k -> new int[2])[1]++;
+                    if (lastSkipped.size() < SAMPLE_SIZE) {
+                        lastSkipped.add(cEntry.recipeKey() + " → " + cEntry.resultItem());
                     }
+                    lastCategoryBreakdown.computeIfAbsent(cat, k -> new int[2])[1]++;
                     continue; // server already covers this result item
                 }
 
@@ -175,12 +160,10 @@ public final class VanillaRecipeCache {
                 if (entry != null) {
                     known.put(newId, entry);
                     injectedCount++;
-                    if (DEBUG) {
-                        if (lastComplemented.size() < DEBUG_SAMPLE_SIZE) {
-                            lastComplemented.add(cEntry.recipeKey() + " → " + cEntry.resultItem());
-                        }
-                        lastCategoryBreakdown.computeIfAbsent(cat, k -> new int[2])[0]++;
+                    if (lastComplemented.size() < SAMPLE_SIZE) {
+                        lastComplemented.add(cEntry.recipeKey() + " → " + cEntry.resultItem());
                     }
+                    lastCategoryBreakdown.computeIfAbsent(cat, k -> new int[2])[0]++;
                 }
             } catch (Exception e) {
                 BetterRecipeBook.LOGGER.warn(
@@ -193,23 +176,19 @@ public final class VanillaRecipeCache {
                 "[BRBE-CACHE] complement: {} injected, {} skipped (known now {})",
                 injectedCount, skippedCount, known.size());
 
-        // First complement of session → dump full report when debugging
-        if (DEBUG) {
-            dumpStatus();
-        }
+        dumpStatus();
     }
 
-    // ---- Debug ----
+    // ---- Status reporting ----
 
     /**
      * Prints a full complement status report to the log.
-     * Called automatically after the first complement when debug is enabled;
-     * can also be called manually (e.g. from a keybind or command hook).
+     * Called automatically after each complement cycle; can also be
+     * called manually from a keybind or command hook.
      */
     public static void dumpStatus() {
         BetterRecipeBook.LOGGER.info("========== [BRBE-CACHE] STATUS REPORT ==========");
         BetterRecipeBook.LOGGER.info("  Cache size : {} vanilla recipes", cache.size());
-        BetterRecipeBook.LOGGER.info("  Debug mode : {}", DEBUG ? "ON" : "OFF (set -Dbrbe.cache.debug=true)");
 
         if (lastServerItems.isEmpty() && lastComplemented.isEmpty() && lastSkipped.isEmpty()) {
             BetterRecipeBook.LOGGER.info("  (no complement has run this session)");
