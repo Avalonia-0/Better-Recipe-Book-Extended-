@@ -57,6 +57,9 @@ public final class CacheableRecipeDisplayEntry {
 
     public String recipeKey() { return recipeKey; }
 
+    /** The result item registry ID (e.g. "minecraft:bread"), or null if not available. */
+    public String resultItem() { return resultItem; }
+
     // ======== From JSON ========
 
     /**

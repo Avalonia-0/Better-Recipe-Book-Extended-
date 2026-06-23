@@ -2,8 +2,10 @@ package com.alonie.brbe.cache;
 
 import com.alonie.brbe.BetterRecipeBook;
 import net.minecraft.client.ClientRecipeBook;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
+import net.minecraft.world.item.crafting.display.SlotDisplay;
 
 import java.util.*;
 
@@ -13,8 +15,16 @@ import java.util.*;
  * Recipes are loaded from the classpath (Minecraft JAR) at startup by
  * {@link VanillaRecipeLoader} — no file I/O, no singleplayer capture needed.
  *
- * On recipe-sparse servers (known.size() &lt; 50), cached entries are injected
- * into {@link ClientRecipeBook#known} before rebuildCollections().
+ * <h3>Complement mode</h3>
+ * Instead of a fixed threshold, the cache now uses <b>complement injection</b>:
+ * only local entries whose result item is NOT already covered by the server
+ * are injected.  This handles:
+ * <ul>
+ *   <li>Servers that send zero recipes → all local recipes injected</li>
+ *   <li>Servers that send a partial set (e.g. 60 of 1200) → missing recipes filled in</li>
+ *   <li>Servers that send a complete set → nothing injected</li>
+ *   <li>Servers with custom recipes → custom entries are preserved</li>
+ * </ul>
  *
  * <h3>ID-space partition</h3>
  * Cache entries use <b>negative</b> {@link RecipeDisplayId} values (starting
@@ -24,9 +34,6 @@ import java.util.*;
  * the server sends later.
  */
 public final class VanillaRecipeCache {
-
-    /** Maximum known recipes to consider server "sparse" and trigger injection. */
-    private static final int SPARSE_THRESHOLD = 50;
 
     // ---- State ----
 
@@ -61,32 +68,55 @@ public final class VanillaRecipeCache {
 
     /**
      * Called before ClientRecipeBook.rebuildCollections().
-     * If the server looks recipe-sparse and we have a cache, inject entries.
+     * Complements the server-provided recipe set with locally-cached vanilla
+     * entries for any result items the server didn't cover.
      */
     public static void detectAndInject(ClientRecipeBook recipeBook,
                                         Map<RecipeDisplayId, RecipeDisplayEntry> known) {
         if (cache.isEmpty()) return;
 
-        int count = known.size();
-        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] pre-rebuild known count: {}", count);
+        int serverCount = (int) known.keySet().stream().filter(id -> id.index() >= 0).count();
+        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] pre-rebuild known count: {} (server: {})",
+                known.size(), serverCount);
 
-        if (count < SPARSE_THRESHOLD) {
-            // Purge any previously-injected cache entries (negative IDs) before
-            // re-injecting.  This is safe because server IDs are always ≥ 0.
-            known.keySet().removeIf(id -> id.index() < 0);
-            injectInto(recipeBook, known);
-        }
+        // Purge any previously-injected cache entries (negative IDs) before
+        // re-injecting.  Server IDs are always ≥ 0.
+        known.keySet().removeIf(id -> id.index() < 0);
+
+        // Complement: inject local entries for result items the server didn't send
+        complement(known);
     }
 
-    // ---- Inject ----
+    // ---- Complement ----
 
-    private static void injectInto(ClientRecipeBook recipeBook,
-                                    Map<RecipeDisplayId, RecipeDisplayEntry> known) {
+    /**
+     * Injects locally-cached entries for any result item not already covered
+     * by the server-provided recipe set.
+     */
+    private static void complement(Map<RecipeDisplayId, RecipeDisplayEntry> known) {
+        // 1. Collect result item IDs from server-provided entries
+        Set<String> serverResultItems = new HashSet<>();
+        for (RecipeDisplayEntry entry : known.values()) {
+            String resultId = extractResultItemId(entry.display().result());
+            if (resultId != null) {
+                serverResultItems.add(resultId);
+            }
+        }
+        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] server covers {} unique result items",
+                serverResultItems.size());
+
+        // 2. Inject local entries whose result item is NOT already covered
         int nextId = -1; // cache IDs are negative — never collide with server IDs (≥ 0)
         int injectedCount = 0;
+        int skippedCount = 0;
 
         for (CacheableRecipeDisplayEntry cEntry : cache.values()) {
             try {
+                if (cEntry.resultItem() != null && serverResultItems.contains(cEntry.resultItem())) {
+                    skippedCount++;
+                    continue; // server already covers this result item
+                }
+
                 RecipeDisplayId newId = new RecipeDisplayId(nextId--);
                 RecipeDisplayEntry entry = cEntry.toEntry(newId);
                 if (entry != null) {
@@ -95,14 +125,34 @@ public final class VanillaRecipeCache {
                 }
             } catch (Exception e) {
                 BetterRecipeBook.LOGGER.warn(
-                        "[BRBE-CACHE] failed to reconstruct entry {}: {}",
+                        "[BRBE-CACHE] failed to complement entry {}: {}",
                         cEntry.recipeKey(), e.getMessage());
             }
         }
 
         BetterRecipeBook.LOGGER.info(
-                "[BRBE-CACHE] injected {} cached entries (known now {})",
-                injectedCount, known.size());
+                "[BRBE-CACHE] complement: {} injected, {} skipped (known now {})",
+                injectedCount, skippedCount, known.size());
+    }
+
+    // ---- Helpers ----
+
+    /**
+     * Extracts the registry item ID from a SlotDisplay result.
+     * Handles {@link SlotDisplay.ItemSlotDisplay} and
+     * {@link SlotDisplay.ItemStackSlotDisplay}; returns {@code null}
+     * for tag, composite, and empty displays (which can't resolve to
+     * a single item).
+     */
+    static String extractResultItemId(SlotDisplay slot) {
+        if (slot instanceof SlotDisplay.ItemSlotDisplay itemSlot) {
+            return BuiltInRegistries.ITEM.getKey(itemSlot.item().value()).toString();
+        }
+        if (slot instanceof SlotDisplay.ItemStackSlotDisplay stackSlot) {
+            return BuiltInRegistries.ITEM.getKey(stackSlot.stack().item().value()).toString();
+        }
+        // TagSlotDisplay, Composite, Empty — no single item ID
+        return null;
     }
 
     // ---- Queries ----
