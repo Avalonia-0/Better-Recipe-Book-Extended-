@@ -15,11 +15,11 @@ public class RecipeManagerMixin implements IMixinRecipeManager {
     // map for keeping track of unlocked recipes
     // we want this to be an instance variable to avoid any funny business
     @Unique
-    private final Set<RecipeDisplayId> betterRecipeBook$serverUnlockedRecipes = new HashSet<>();
+    private final Set<RecipeDisplayId> brbe$serverUnlockedRecipes = new HashSet<>();
 
     @Override
-    public Set<RecipeDisplayId> betterRecipeBook$getServerUnlockedRecipes() {
-        return betterRecipeBook$serverUnlockedRecipes;
+    public Set<RecipeDisplayId> brbe$getServerUnlockedRecipes() {
+        return brbe$serverUnlockedRecipes;
     }
 
 }

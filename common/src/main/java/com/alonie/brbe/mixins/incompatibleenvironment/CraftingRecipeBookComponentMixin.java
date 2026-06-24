@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class CraftingRecipeBookComponentMixin {
 
     @Inject(method = "canDisplay", at = @At("RETURN"), cancellable = true)
-    private void betterRecipeBook$showAllRecipes(RecipeDisplay recipeDisplay, CallbackInfoReturnable<Boolean> cir) {
+    private void brbe$showAllRecipes(RecipeDisplay recipeDisplay, CallbackInfoReturnable<Boolean> cir) {
         if (!cir.getReturnValue()
                 && BetterRecipeBook.config.showAllRecipesInSurvival
                 && Minecraft.getInstance().screen instanceof InventoryScreen

@@ -6,9 +6,12 @@ import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.fabric.compat.rei.ReiCompatHandler;
 import com.alonie.brbe.impl.hud.JeiHudHider;
 import com.alonie.brbe.impl.hud.ReiHudHider;
+import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keymapping.v1.KeyMappingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
 import net.minecraft.client.gui.screens.Screen;
 
@@ -21,8 +24,21 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        // Register key mappings (previously in common via Architectury KeyMappingRegistry)
+        KeyMappingHelper.registerKeyMapping(BetterRecipeBook.PIN_MAPPING);
+        KeyMappingHelper.registerKeyMapping(BetterRecipeBook.RECIPE_VIEW_MAPPING);
+        KeyMappingHelper.registerKeyMapping(BetterRecipeBook.USAGE_VIEW_MAPPING);
+
         // Register platform-specific providers
         PlatformPotionUtilImpl.init();
+
+        // Register PotionLoader lifecycle hooks (was in Architectury ClientLifecycleEvent.CLIENT_LEVEL_LOAD)
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            if (client.level != null) PotionLoader.load(client.level);
+        });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            PotionLoader.clear();
+        });
 
         // Register optional compat handlers
         ReiCompatHandler.register();
@@ -31,7 +47,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         // Register HUD hiders (JEI + REI overlay control)
         OverlayHider.register(new JeiHudHider());
         OverlayHider.register(new ReiHudHider());
-        
+
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             this.registeredScreens.remove(screen);
             // Apply overlay hide state immediately when screen opens (no flash)

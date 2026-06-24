@@ -15,7 +15,7 @@ import java.util.List;
 public abstract class RecipeBookComponentMixin implements IPinningComponent<PinnableRecipeCollection> {
 
     @Unique
-    public void betterRecipeBook$sortByPinsInPlaceCollection(List<RecipeCollection> results) {
+    public void brbe$sortByPinsInPlaceCollection(List<RecipeCollection> results) {
         List<RecipeCollection> tempResults = Lists.newArrayList(results);
 
         if (BetterRecipeBook.config.enablePinning) {

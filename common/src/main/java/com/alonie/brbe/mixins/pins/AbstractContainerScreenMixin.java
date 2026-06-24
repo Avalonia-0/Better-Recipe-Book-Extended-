@@ -29,7 +29,7 @@ public abstract class AbstractContainerScreenMixin {
     @Shadow @Final private RecipeBookComponent<?> recipeBookComponent;
 
     @Inject(method = "mouseClicked", at = @At(value = "HEAD"), cancellable = true)
-    public void betterRecipeBook$clickVisibleOverlayFirst(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+    public void brbe$clickVisibleOverlayFirst(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
         RecipeBookComponent<?> book = this.recipeBookComponent;
         if (!book.isVisible()) {
             return;
@@ -42,7 +42,7 @@ public abstract class AbstractContainerScreenMixin {
     }
 
     @Inject(method = "extractRenderState", at = @At(value = "RETURN"))
-    public void betterRecipeBook$renderVisibleOverlayOnTop(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+    public void brbe$renderVisibleOverlayOnTop(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
         RecipeBookComponent<?> book = this.recipeBookComponent;
         if (!book.isVisible()) {
             return;

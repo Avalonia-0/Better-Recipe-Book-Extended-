@@ -20,7 +20,7 @@ import java.util.List;
 public abstract class RecipeButtonMixin {
 
     @Inject(method = "getTooltipText", at = @At("RETURN"))
-    private void betterRecipeBook$appendModName(ItemStack itemStack, CallbackInfoReturnable<List<Component>> cir) {
+    private void brbe$appendModName(ItemStack itemStack, CallbackInfoReturnable<List<Component>> cir) {
         if (!BetterRecipeBook.config.showModName) {
             return;
         }

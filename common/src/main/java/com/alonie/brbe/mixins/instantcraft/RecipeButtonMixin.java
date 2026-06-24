@@ -19,13 +19,13 @@ public class RecipeButtonMixin {
 
     @Shadow private RecipeCollection collection;
 
-    @Unique private List<RecipeDisplayId> betterRecipeBook$lastClicked;
+    @Unique private List<RecipeDisplayId> brbe$lastClicked;
 
     @Inject(method = "init", at = @At(value = "HEAD"))
     public void init(RecipeCollection collection, RecipeBookPage recipeBookPage, CallbackInfo ci) {
         if (BetterRecipeBook.instantCraftingManager.lastHoveredCollection == collection) {
             BetterRecipeBook.instantCraftingManager.lastHoveredCollection = null;
-            betterRecipeBook$lastClicked = List.of(BetterRecipeBook.instantCraftingManager.getLastClickedRecipe());
+            brbe$lastClicked = List.of(BetterRecipeBook.instantCraftingManager.getLastClickedRecipe());
         }
     }
 }

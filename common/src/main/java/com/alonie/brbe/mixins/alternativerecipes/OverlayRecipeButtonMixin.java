@@ -62,17 +62,17 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
 
         gui.pose().pushMatrix();
         if (BetterRecipeBook.config.alternativeRecipes.onHover && !this.isHoveredOrFocused()) { // if show alternatives recipe is enabled and recipe is not hovered, show the result item
-            ItemStack recipeOutput = betterRecipeBook$getRecipeOutput();
+            ItemStack recipeOutput = brbe$getRecipeOutput();
             gui.item(recipeOutput, getX() + 4, getY() + 4);
         } else { // otherwise display the crafting recipe
             gui.pose().translate(this.getX() + 2, this.getY() + 2);
             for (Object rawPos : this.slots) {
                 OverlayRecipeButtonPosAccessor pos = (OverlayRecipeButtonPosAccessor) rawPos;
                 gui.pose().pushMatrix();
-                gui.pose().translate(pos.betterRecipeBook$getX(), pos.betterRecipeBook$getY());
+                gui.pose().translate(pos.brbe$getX(), pos.brbe$getY());
                 gui.pose().scale(0.375f, 0.375f);
                 gui.pose().translate(-8.0F, -8.0F);
-                gui.item(pos.betterRecipeBook$selectIngredient(0), 0, 0);
+                gui.item(pos.brbe$selectIngredient(0), 0, 0);
                 gui.pose().popMatrix();
             }
         }
@@ -81,13 +81,13 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         ci.cancel();
     }
 
-    private ItemStack betterRecipeBook$getRecipeOutput() {
+    private ItemStack brbe$getRecipeOutput() {
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null || minecraft.level == null) {
             return ItemStack.EMPTY;
         }
 
-        Map<RecipeDisplayId, RecipeDisplayEntry> known = ((ClientRecipeBookAccessor) minecraft.player.getRecipeBook()).betterRecipeBook$getKnown();
+        Map<RecipeDisplayId, RecipeDisplayEntry> known = ((ClientRecipeBookAccessor) minecraft.player.getRecipeBook()).brbe$getKnown();
         RecipeDisplayEntry entry = known.get(this.recipe);
         if (entry == null) {
             return ItemStack.EMPTY;

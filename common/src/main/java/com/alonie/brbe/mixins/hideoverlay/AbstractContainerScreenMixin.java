@@ -33,7 +33,7 @@ public abstract class AbstractContainerScreenMixin {
     protected Slot hoveredSlot;
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
-    private void betterRecipeBook$handleKeysOnHiddenOverlay(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+    private void brbe$handleKeysOnHiddenOverlay(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
         if (!BetterRecipeBook.config.hideReiJeiOverlay) {
             return;
         }

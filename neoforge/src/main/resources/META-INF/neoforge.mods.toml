@@ -29,13 +29,6 @@ ordering = "NONE"
 side = "CLIENT"
 
 [[dependencies.brbe]]
-modId = "architectury"
-type = "required"
-versionRange = "[13,)"
-ordering = "AFTER"
-side = "CLIENT"
-
-[[dependencies.brbe]]
 modId = "cloth_config"
 type = "required"
 versionRange = "[15,)"

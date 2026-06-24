@@ -43,7 +43,7 @@ public abstract class RecipeBookComponentMixin {
     private long brbe$lastSlotHash;
 
     @Inject(method = "updateCollections", at = @At("HEAD"))
-    private void betterRecipeBook$trackPartialFilteringUpdate(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
+    private void brbe$trackPartialFilteringUpdate(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
         RecipeBookState.beginCollectionProcessing();
         // When the player switches tabs or reopens the recipe book
         // (resetPageNumber=true), the collections list contains entirely new
@@ -65,7 +65,7 @@ public abstract class RecipeBookComponentMixin {
     // filter) so that the search filter and the crafting-table filter still
     // run vanilla's own predicate with our already-modified craftable set.
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z", ordinal = 0))
-    private boolean betterRecipeBook$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
+    private boolean brbe$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
         // ── Gate variables: single point of truth for each concern ──
         boolean onInventoryScreen = this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
@@ -113,7 +113,7 @@ public abstract class RecipeBookComponentMixin {
                         if (filter3x3 && brbe$needsLargerGrid(entry.display())) {
                             continue; // never injected — leave vanilla craftable alone
                         }
-                        accessor.betterRecipeBook$getCraftable().remove(id);
+                        accessor.brbe$getCraftable().remove(id);
                     }
                 }
             }
@@ -138,7 +138,7 @@ public abstract class RecipeBookComponentMixin {
                         if (filter3x3 && brbe$needsLargerGrid(entry.display())) {
                             continue;
                         }
-                        accessor.betterRecipeBook$getCraftable().add(id);
+                        accessor.brbe$getCraftable().add(id);
                     }
                 }
             }
