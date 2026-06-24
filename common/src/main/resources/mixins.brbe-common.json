@@ -33,6 +33,7 @@
     "instantcraft.RecipeBookComponentMixin",
     "instantcraft.RecipeBookPageMixin",
     "instantcraft.RecipeButtonMixin",
+    "pipeline.RecipeBookComponentMixin",
     "incompletecrafting.RecipeBookComponentMixin",
     "incompletecrafting.RecipeButtonMixin",
     "RecipeBookComponentTabIconOffsetMixin",

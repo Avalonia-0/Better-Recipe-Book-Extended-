@@ -10,6 +10,7 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -57,7 +58,73 @@ public final class CollectionPipeline {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // Stage 2: Pins sort (in-place)
+    // Stage 2: Ungroup split
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Splits multi-recipe collections into single-recipe collections when
+     * {@code alternativeRecipes.noGrouped} is enabled.  Returns a new list.
+     */
+    public static List<RecipeCollection> applyUngroup(List<RecipeCollection> collections) {
+        if (!BetterRecipeBook.config.alternativeRecipes.noGrouped) {
+            return collections;
+        }
+
+        List<RecipeCollection> split = new ArrayList<>(collections.size());
+        for (RecipeCollection collection : collections) {
+            List<RecipeHolder<?>> recipes = collection.getRecipes();
+            if (recipes.size() <= 1) {
+                split.add(collection);
+                continue;
+            }
+
+            var source = (com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor) collection;
+            boolean restrictToCraftableOrPartial = PartialCraftingUtil.hasPartialMaterials(collection)
+                    || collection.hasCraftable();
+            boolean addedAny = false;
+
+            for (RecipeHolder<?> recipe : recipes) {
+                // Only split recipes that fit dimensions
+                boolean fits = false;
+                for (var h : source.getFitsDimensions()) {
+                    if (h.id().equals(recipe.id())) { fits = true; break; }
+                }
+                if (!fits) continue;
+
+                boolean isCraftable = false;
+                for (var h : source.brbe$getCraftable()) {
+                    if (h.id().equals(recipe.id())) { isCraftable = true; break; }
+                }
+                boolean isPartial = PartialCraftingUtil.isPartiallyCraftable(collection, recipe.id());
+                if (restrictToCraftableOrPartial && !isCraftable && !isPartial) {
+                    continue;
+                }
+
+                RecipeCollection child = new RecipeCollection(
+                        collection.registryAccess(),
+                        Collections.singletonList(recipe));
+                if (isCraftable) {
+                    var ca = (com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor) child;
+                    ca.brbe$getCraftable().add(recipe);
+                }
+                if (isPartial) {
+                    PartialCraftingUtil.markPartialMaterial(child, recipe.id());
+                }
+
+                split.add(child);
+                addedAny = true;
+            }
+
+            if (!addedAny && !restrictToCraftableOrPartial) {
+                split.add(collection);
+            }
+        }
+
+        return split;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Stage 3: Pins sort (in-place — was Stage 2 before ungroup added)
     // ═══════════════════════════════════════════════════════════════
 
     /**

@@ -29,13 +29,6 @@ ordering = "NONE"
 side = "CLIENT"
 
 [[dependencies.brbe]]
-modId = "architectury"
-type = "required"
-versionRange = "[13,)"
-ordering = "AFTER"
-side = "CLIENT"
-
-[[dependencies.brbe]]
 modId = "jei"
 type = "optional"
 versionRange = "[19,)"
@@ -55,14 +48,4 @@ config = "mixins.brbe-common-compat.json"
 config = "mixins.brbe-jei.json"
 
 [[mixins]]
-config = "mixins.brbe-rei-common.json"
-
-[[mixins]]
 config = "rbip-neoforge.mixins.json"
-
-[[dependencies.brbe]]
-modId = "roughlyenoughitems"
-type = "optional"
-versionRange = "[16,)"
-ordering = "AFTER"
-side = "CLIENT"
