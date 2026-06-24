@@ -13,5 +13,5 @@ public interface RecipeCollectionAccessor {
     Set<RecipeHolder<?>> getFitsDimensions();
 
     @Accessor("craftable")
-    Set<RecipeHolder<?>> betterRecipeBook$getCraftable();
+    Set<RecipeHolder<?>> brbe$getCraftable();
 }

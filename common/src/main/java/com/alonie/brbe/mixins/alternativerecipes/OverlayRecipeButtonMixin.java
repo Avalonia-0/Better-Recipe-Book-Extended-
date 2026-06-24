@@ -75,13 +75,13 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
             for (Object rawPos : this.ingredientPos) {
                 OverlayRecipeButtonPosAccessor pos = (OverlayRecipeButtonPosAccessor) rawPos;
                 gui.pose().pushPose();
-                gui.pose().translate(pos.betterRecipeBook$getX(), pos.betterRecipeBook$getY(), 0.0);
+                gui.pose().translate(pos.brbe$getX(), pos.brbe$getY(), 0.0);
                 // if furnace menu, keep items at default scale, so it isn't tiny
                 if (!((OverlayRecipeComponentAccessor) field_3113).isFurnaceMenu()) {
                     gui.pose().scale(0.375f, 0.375f, 1.0f);
                 }
                 gui.pose().translate(-8.0, -8.0, 0.0);
-                ItemStack[] ingredients = pos.betterRecipeBook$getIngredients();
+                ItemStack[] ingredients = pos.brbe$getIngredients();
                 if (ingredients.length > 0) {
                     gui.renderItem(ingredients[Mth.floor(((OverlayRecipeComponentAccessor) field_3113).getTime() / 30.0f) % ingredients.length], 0, 0);
                 }

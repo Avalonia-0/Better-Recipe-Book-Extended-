@@ -2,16 +2,20 @@ package com.alonie.brbe.fabric;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.fabric.PlatformPotionUtilImpl;
+import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.impl.hud.JeiHudHider;
 import com.alonie.brbe.impl.hud.ReiHudHider;
-import com.alonie.brbe.compat.OverlayHider;
+import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.fabric.FabricPlatform;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 
 import java.util.Collections;
@@ -23,8 +27,21 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        // Register key mappings (previously in common via Architectury KeyMappingRegistry)
+        KeyBindingHelper.registerKeyBinding(BetterRecipeBook.PIN_MAPPING);
+        KeyBindingHelper.registerKeyBinding(BetterRecipeBook.RECIPE_VIEW_MAPPING);
+        KeyBindingHelper.registerKeyBinding(BetterRecipeBook.USAGE_VIEW_MAPPING);
+
         // Register platform-specific providers
         PlatformPotionUtilImpl.init();
+
+        // Register PotionLoader lifecycle hooks (was in Architectury ClientLifecycleEvent.CLIENT_LEVEL_LOAD)
+        ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
+            if (client.level != null) PotionLoader.load(client.level);
+        });
+        ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
+            PotionLoader.clear();
+        });
 
         // Register HUD hiders (JEI + REI overlay control)
         OverlayHider.register(new JeiHudHider());

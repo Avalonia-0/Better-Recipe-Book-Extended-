@@ -74,6 +74,12 @@ public final class PartialCraftingUtil {
         filteringActive = false;
     }
 
+    /** Clear only the category cache — called when forEach/partialMark
+     *  have re-evaluated craftability, invalidating categorization. */
+    public static void clearCategoryCache() {
+        CATEGORY_CACHE.clear();
+    }
+
     /** Invalidate the category cache for a specific collection (e.g. because
      *  its craftable/partial status just changed during incremental update). */
     public static void clearCategory(RecipeCollection collection) {
@@ -197,6 +203,25 @@ public final class PartialCraftingUtil {
         if (!enabled()) return false;
         Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(stableKey(collection));
         return partialRecipes != null && !partialRecipes.isEmpty();
+    }
+
+    /**
+     * Removes a single recipe from the partial-materials set for a collection.
+     * Used by the 3×3 grid cleanup step to prevent partial-recipe degradation
+     * loops — recipes that need a 3×3 grid are never injected into craftable
+     * when showAllRecipesInSurvival is off, but markPartialMaterials can still
+     * tag them as partial.  Removing them here breaks the cycle.
+     */
+    public static void unmarkPartial(RecipeCollection collection, ResourceLocation recipeId) {
+        if (!enabled()) return;
+        List<ResourceLocation> key = stableKey(collection);
+        Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(key);
+        if (partialRecipes != null) {
+            partialRecipes.remove(recipeId);
+            if (partialRecipes.isEmpty()) {
+                PARTIAL_RECIPES.remove(key);
+            }
+        }
     }
 
     /**

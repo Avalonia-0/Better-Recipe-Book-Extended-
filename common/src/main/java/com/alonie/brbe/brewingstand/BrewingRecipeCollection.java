@@ -58,16 +58,7 @@ public class BrewingRecipeCollection extends GenericRecipeBookCollection<Brewabl
 
     @Override
     protected boolean atleastOnePartiallyCraftable(NonNullList<Slot> slots) {
-        for (BrewableResult recipe : this.recipes) {
-            if (!recipe.hasMaterials(this.category, slots)) {
-                boolean hasIngredient = recipe.hasIngredient(slots);
-                boolean hasInput = recipe.hasInput(this.category, slots);
-                if ((hasIngredient || hasInput) && !(hasIngredient && hasInput)) {
-                    return true;
-                }
-            }
-        }
-        return false;
+        return !getPartiallyCraftableRecipes(slots).isEmpty();
     }
 
     @Override

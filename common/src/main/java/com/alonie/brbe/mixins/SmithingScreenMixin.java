@@ -91,7 +91,7 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (this.betterRecipeBook$clickTopLayerOverlay(mouseX, mouseY, button)) {
+        if (this.brbe$clickTopLayerOverlay(mouseX, mouseY, button)) {
             return true;
         }
 
@@ -147,27 +147,27 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     }
 
     @Override
-    public boolean betterRecipeBook$hasTopLayerOverlay() {
+    public boolean brbe$hasTopLayerOverlay() {
         return this._$recipeBookComponent.isVisible()
                 && this._$recipeBookComponent.recipesPage instanceof SmithingRecipeBookPage page
                 && page.overlayIsVisible();
     }
 
     @Override
-    public void betterRecipeBook$renderTopLayerOverlay(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        if (this.betterRecipeBook$hasTopLayerOverlay()) {
+    public void brbe$renderTopLayerOverlay(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        if (this.brbe$hasTopLayerOverlay()) {
             ((SmithingRecipeBookPage) this._$recipeBookComponent.recipesPage).overlay.render(guiGraphics, mouseX, mouseY, partialTick);
         }
     }
 
     @Override
-    public boolean betterRecipeBook$clickTopLayerOverlay(double mouseX, double mouseY, int button) {
-        return this.betterRecipeBook$hasTopLayerOverlay() && this._$recipeBookComponent.mouseClicked(mouseX, mouseY, button);
+    public boolean brbe$clickTopLayerOverlay(double mouseX, double mouseY, int button) {
+        return this.brbe$hasTopLayerOverlay() && this._$recipeBookComponent.mouseClicked(mouseX, mouseY, button);
     }
 
     @Override
-    public ScreenRectangle betterRecipeBook$getTopLayerOverlayBounds() {
-        if (this.betterRecipeBook$hasTopLayerOverlay()) {
+    public ScreenRectangle brbe$getTopLayerOverlayBounds() {
+        if (this.brbe$hasTopLayerOverlay()) {
             return ((SmithingRecipeBookPage) this._$recipeBookComponent.recipesPage).overlay.getBounds();
         }
 

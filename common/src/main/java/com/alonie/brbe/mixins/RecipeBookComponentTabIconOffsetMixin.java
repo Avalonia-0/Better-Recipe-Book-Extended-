@@ -19,13 +19,13 @@ public abstract class RecipeBookComponentTabIconOffsetMixin {
     private List<RecipeBookTabButton> tabButtons;
 
     @Inject(method = "updateTabs", at = @At("RETURN"))
-    private void betterRecipeBook$offsetTopAndBottomTabIcons(CallbackInfo ci) {
+    private void brbe$offsetTopAndBottomTabIcons(CallbackInfo ci) {
         RecipeBookTabButton firstVisibleButton = null;
         RecipeBookTabButton lastVisibleButton = null;
 
         for (RecipeBookTabButton button : this.tabButtons) {
             RecipeBookTabButtonIconOffset offset = (RecipeBookTabButtonIconOffset) button;
-            offset.betterRecipeBook$setIconYOffset(0);
+            offset.brbe$setIconYOffset(0);
             if (!button.visible) {
                 continue;
             }
@@ -37,10 +37,10 @@ public abstract class RecipeBookComponentTabIconOffsetMixin {
         }
 
         if (firstVisibleButton != null) {
-            ((RecipeBookTabButtonIconOffset) firstVisibleButton).betterRecipeBook$setIconYOffset(-1);
+            ((RecipeBookTabButtonIconOffset) firstVisibleButton).brbe$setIconYOffset(-1);
         }
         if (lastVisibleButton != null && lastVisibleButton != firstVisibleButton) {
-            ((RecipeBookTabButtonIconOffset) lastVisibleButton).betterRecipeBook$setIconYOffset(1);
+            ((RecipeBookTabButtonIconOffset) lastVisibleButton).brbe$setIconYOffset(1);
         }
     }
 }

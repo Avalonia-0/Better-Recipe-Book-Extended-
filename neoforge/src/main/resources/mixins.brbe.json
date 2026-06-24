@@ -1,7 +1,7 @@
 {
   "required": true,
   "minVersion": "0.8",
-  "package": "com.alonie.brbe.neoforge.mixins",
+  "package": "com.alonie.brbe.neoforge.Mixins",
   "compatibilityLevel": "JAVA_16",
   "client": [
     "accessors.NeoForgePotionBrewingAccessor"

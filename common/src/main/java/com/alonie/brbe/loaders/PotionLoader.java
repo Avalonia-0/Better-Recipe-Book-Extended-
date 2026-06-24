@@ -1,7 +1,5 @@
 package com.alonie.brbe.loaders;
 
-import dev.architectury.event.events.client.ClientLifecycleEvent;
-import dev.architectury.event.events.common.LifecycleEvent;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.BrewableResult;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -15,11 +13,12 @@ public class PotionLoader {
     public static List<BrewableResult> POTIONS = new ArrayList<>();
 
     public static void init() {
-        ClientLifecycleEvent.CLIENT_LEVEL_LOAD.register(PotionLoader::load);
-        LifecycleEvent.SERVER_LEVEL_UNLOAD.register((clientLevel) -> PotionLoader.clear());
+        // PotionLoader lifecycle registration is now done in platform entry points
+        // (BetterRecipeBookClientFabric / BetterRecipeBookClientNeoForge).
+        // This no-arg init method only initializes the list.
     }
 
-    private static void load(ClientLevel level) {
+    public static void load(ClientLevel level) {
         PotionLoader.clearNoLog();
 
         List<?> MIXES = getPotionMixes(level);

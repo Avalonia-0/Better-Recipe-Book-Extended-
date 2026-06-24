@@ -9,7 +9,6 @@ import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.RecipeIndex;
 import com.alonie.brbe.util.RecipeMenuUtil;
 import com.alonie.brbe.util.RecipeUnlockUtil;
-import com.alonie.brbe.util.SlotTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.RecipeUpdateListener;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -42,7 +41,7 @@ public abstract class ClientPacketListenerMixin {
     @Inject(method = "handleAddOrRemoveRecipes", at = @At(value = "RETURN"))
     public void onAddOrRemoveRecipes(ClientboundRecipePacket packet, CallbackInfo ci) {
         //System.out.println("addOrRemoveRecipes %s: %s".formatted(packet.getState(), Joiner.on(", ").join(packet.getRecipes())));
-        Set<ResourceLocation> serverUnlockedRecipes = ((IMixinRecipeManager) recipeManager).betterRecipeBook$getServerUnlockedRecipes();
+        Set<ResourceLocation> serverUnlockedRecipes = ((IMixinRecipeManager) recipeManager).brbe$getServerUnlockedRecipes();
         switch (packet.getState()) {
             case INIT:
                 serverUnlockedRecipes.clear();
@@ -50,7 +49,6 @@ public abstract class ClientPacketListenerMixin {
                 PartialCraftingUtil.clearCaches();
                 IncompatibleCraftingUtil.clearCaches();
                 BookStateCache.clear();
-                SlotTracker.clear();
                 RecipeIndex.clear();
             case ADD:
                 serverUnlockedRecipes.addAll(packet.getRecipes());
@@ -68,7 +66,6 @@ public abstract class ClientPacketListenerMixin {
         PartialCraftingUtil.clearCaches();
         IncompatibleCraftingUtil.clearCaches();
         BookStateCache.clear();
-        SlotTracker.clear();
         RecipeIndex.clear();
         RecipeUnlockUtil.unlockRecipesIfRequired();
     }

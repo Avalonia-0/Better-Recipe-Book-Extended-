@@ -14,7 +14,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Mixin(RecipeButton.class)
@@ -22,21 +21,14 @@ public class RecipeButtonMixin {
 
     @Shadow private RecipeCollection collection;
 
-    @Unique private List<RecipeHolder<?>> betterRecipeBook$lastClicked;
-
-    @Inject(method = "getOrderedRecipes", at = @At(value = "RETURN"), cancellable = true, locals = LocalCapture.CAPTURE_FAILSOFT)
-    public void getOrderedRecipes(CallbackInfoReturnable<List<RecipeHolder<?>>> cir, List<RecipeHolder<?>> holders) {
-        if (holders.isEmpty() && betterRecipeBook$lastClicked != null) {
-            cir.setReturnValue(new ArrayList<>(betterRecipeBook$lastClicked));
-        }
-    }
+    @Unique public static List<RecipeHolder<?>> brbe$lastClicked;
 
     @Inject(method = "init", at = @At(value = "HEAD"))
     public void init(RecipeCollection collection, RecipeBookPage recipeBookPage, CallbackInfo ci) {
         if (BetterRecipeBook.instantCraftingManager.lastHoveredCollection == collection
                 && BetterRecipeBook.instantCraftingManager.lastClickedRecipe != null) {
             BetterRecipeBook.instantCraftingManager.lastHoveredCollection = null;
-            betterRecipeBook$lastClicked = List.of(BetterRecipeBook.instantCraftingManager.lastClickedRecipe);
+            brbe$lastClicked = List.of(BetterRecipeBook.instantCraftingManager.lastClickedRecipe);
         }
     }
 

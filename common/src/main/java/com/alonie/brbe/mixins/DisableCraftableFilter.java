@@ -24,7 +24,7 @@ public abstract class DisableCraftableFilter {
     protected StateSwitchingButton filterButton;
 
     @Inject(method = "initVisuals", at = @At("TAIL"))
-    private void betterRecipeBook$hideFilterButton(CallbackInfo ci) {
+    private void brbe$hideFilterButton(CallbackInfo ci) {
         if (!BetterRecipeBook.config.partialCraftingEnabled) return;
         this.filterButton.visible = false;
         this.filterButton.active = false;

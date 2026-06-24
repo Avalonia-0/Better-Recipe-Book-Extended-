@@ -15,7 +15,6 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
-import java.util.ArrayList;
 import java.util.List;
 
 @Mixin(RecipeButton.class)
@@ -23,38 +22,9 @@ public abstract class RecipeButtonMixin {
 
     @Shadow private RecipeCollection collection;
     @Shadow public abstract RecipeHolder<?> getRecipe();
-    @Shadow
-    private List<RecipeHolder<?>> getOrderedRecipes() {
-        throw new AssertionError();
-    }
-
-    /**
-     * Safety net: ensures the button's recipe list is never empty.
-     * If getOrderedRecipes() returns empty (which can happen when
-     * fitsDimensions injection fails), populate it with the collection's
-     * incompatible recipes so renderWidget doesn't crash with / by zero.
-     */
-    @Inject(method = "getOrderedRecipes", at = @At("RETURN"), cancellable = true)
-    private void betterRecipeBook$ensureNonEmptyRecipes(
-            CallbackInfoReturnable<List<RecipeHolder<?>>> cir) {
-        List<RecipeHolder<?>> recipes = cir.getReturnValue();
-        if (recipes != null && !recipes.isEmpty()) return;
-        if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
-        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
-
-        List<RecipeHolder<?>> fallback = new ArrayList<>();
-        for (RecipeHolder<?> holder : this.collection.getRecipes()) {
-            if (IncompatibleCraftingUtil.checkIncompatible(this.collection, holder.id())) {
-                fallback.add(holder);
-            }
-        }
-        if (!fallback.isEmpty()) {
-            cir.setReturnValue(fallback);
-        }
-    }
 
     @Inject(method = "getTooltipText", at = @At("RETURN"))
-    private void betterRecipeBook$appendIncompatibleWarning(
+    private void brbe$appendIncompatibleWarning(
             CallbackInfoReturnable<List<Component>> cir) {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;

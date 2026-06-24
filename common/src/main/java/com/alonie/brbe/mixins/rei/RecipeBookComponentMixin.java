@@ -31,7 +31,7 @@ public abstract class RecipeBookComponentMixin {
 
     /** The ItemStack of the ghost ingredient currently under the mouse. */
     @Unique
-    private ItemStack betterRecipeBook$hoveredGhostStack;
+    private ItemStack brbe$hoveredGhostStack;
 
     /**
      * Track which ghost ingredient the mouse is hovering over during the
@@ -39,10 +39,10 @@ public abstract class RecipeBookComponentMixin {
      * {@code renderGhostRecipeTooltip(GuiGraphics, int x, int y, int mouseX, int mouseY)}
      */
     @Inject(method = "renderGhostRecipeTooltip", at = @At("HEAD"))
-    private void betterRecipeBook$captureGhostHover(GuiGraphics gui, int x, int y, int mouseX, int mouseY, CallbackInfo ci) {
+    private void brbe$captureGhostHover(GuiGraphics gui, int x, int y, int mouseX, int mouseY, CallbackInfo ci) {
         GhostRecipe ghostRecipe = ((RecipeBookComponentAccessor) this).getGhostRecipe();
         if (ghostRecipe == null || ghostRecipe.size() == 0) {
-            this.betterRecipeBook$hoveredGhostStack = null;
+            this.brbe$hoveredGhostStack = null;
             return;
         }
 
@@ -51,16 +51,16 @@ public abstract class RecipeBookComponentMixin {
             int sx = ing.getX() + x;
             int sy = ing.getY() + y;
             if (mouseX >= sx && mouseX < sx + 16 && mouseY >= sy && mouseY < sy + 16) {
-                this.betterRecipeBook$hoveredGhostStack = ing.getItem();
+                this.brbe$hoveredGhostStack = ing.getItem();
                 return;
             }
         }
 
-        this.betterRecipeBook$hoveredGhostStack = null;
+        this.brbe$hoveredGhostStack = null;
     }
 
     @Inject(method = "keyPressed", at = @At("RETURN"), cancellable = true)
-    private void betterRecipeBook$handleItemViewKeys(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+    private void brbe$handleItemViewKeys(int keyCode, int scanCode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
         if (!ItemViewCompat.isLoaded() || cir.getReturnValueZ()) {
             return;
         }
@@ -73,6 +73,11 @@ public abstract class RecipeBookComponentMixin {
         // ── 1. Recipe buttons ──────────────────────────────────────────
         for (RecipeButton button : ((RecipeBookPageAccessor) page).getButtons()) {
             if (!button.isHoveredOrFocused()) {
+                continue;
+            }
+            // Guard against null collection (can happen when page state
+            // changes between render and key-press on some modpacks).
+            if (button.getCollection() == null || button.getRecipe() == null) {
                 continue;
             }
 
@@ -90,7 +95,7 @@ public abstract class RecipeBookComponentMixin {
         }
 
         // ── 2. Ghost items ─────────────────────────────────────────────
-        ItemStack ghostStack = this.betterRecipeBook$hoveredGhostStack;
+        ItemStack ghostStack = this.brbe$hoveredGhostStack;
         if (ghostStack != null && !ghostStack.isEmpty()) {
             if (BetterRecipeBook.RECIPE_VIEW_MAPPING.matches(keyCode, scanCode)) {
                 cir.setReturnValue(ItemViewCompat.openRecipeView(ghostStack));

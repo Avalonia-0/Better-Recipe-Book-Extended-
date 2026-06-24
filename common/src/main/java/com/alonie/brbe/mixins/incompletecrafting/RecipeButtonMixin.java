@@ -48,7 +48,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         method = "getOrderedRecipes",
         at = @At(value = "INVOKE", target = "Lnet/minecraft/stats/RecipeBook;isFiltering(Lnet/minecraft/world/inventory/RecipeBookMenu;)Z")
     )
-    private boolean betterRecipeBook$disableFilteringInOrdered(RecipeBook book, RecipeBookMenu<?, ?> menu) {
+    private boolean brbe$disableFilteringInOrdered(RecipeBook book, RecipeBookMenu<?, ?> menu) {
         return false;
     }
 
@@ -56,17 +56,17 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         method = "renderWidget",
         at = @At(value = "INVOKE", target = "Lnet/minecraft/stats/RecipeBook;isFiltering(Lnet/minecraft/world/inventory/RecipeBookMenu;)Z")
     )
-    private boolean betterRecipeBook$disableFilteringInRender(RecipeBook book, RecipeBookMenu<?, ?> menu) {
+    private boolean brbe$disableFilteringInRender(RecipeBook book, RecipeBookMenu<?, ?> menu) {
         return false;
     }
 
     @Redirect(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
-    private boolean betterRecipeBook$renderPartiallyCraftableAsCraftable(RecipeCollection collection, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+    private boolean brbe$renderPartiallyCraftableAsCraftable(RecipeCollection collection, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         return collection.hasCraftable() || PartialCraftingUtil.hasPartialMaterials(collection);
     }
 
     @Inject(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderFakeItem(Lnet/minecraft/world/item/ItemStack;II)V", shift = At.Shift.BEFORE))
-    private void betterRecipeBook$renderPartialOverlay(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void brbe$renderPartialOverlay(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         List<RecipeHolder<?>> recipes = this.getOrderedRecipes();
         if (recipes.isEmpty()) return;
 
@@ -77,7 +77,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     }
 
     @Inject(method = "getOrderedRecipes", at = @At("RETURN"), cancellable = true)
-    private void betterRecipeBook$filterOrderedRecipes(CallbackInfoReturnable<List<RecipeHolder<?>>> cir) {
+    private void brbe$filterOrderedRecipes(CallbackInfoReturnable<List<RecipeHolder<?>>> cir) {
         List<RecipeHolder<?>> result = new ArrayList<>(cir.getReturnValue());
 
         // Step 1: add partially-craftable recipes.
@@ -120,13 +120,21 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
             if (!filtered.isEmpty()) {
                 cir.setReturnValue(filtered);
             }
+            // Fallthrough to safety net if still empty (below)
         } else if (!result.equals(cir.getReturnValue())) {
             cir.setReturnValue(result);
+        }
+
+        // Step 3: safety net — ensure result is never empty to avoid
+        // / by zero in renderWidget's currentIndex % size().
+        List<RecipeHolder<?>> finalResult = cir.getReturnValue();
+        if (finalResult == null || finalResult.isEmpty()) {
+            cir.setReturnValue(new ArrayList<>(this.collection.getRecipes()));
         }
     }
 
     @Inject(method = "isOnlyOption", at = @At("RETURN"), cancellable = true)
-    private void betterRecipeBook$allowNestedAlternativeOverlay(CallbackInfoReturnable<Boolean> cir) {
+    private void brbe$allowNestedAlternativeOverlay(CallbackInfoReturnable<Boolean> cir) {
         // Already returning false (multi-option) — nothing to fix.
         if (!cir.getReturnValue()) {
             return;

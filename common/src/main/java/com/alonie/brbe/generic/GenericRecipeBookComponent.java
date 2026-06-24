@@ -64,7 +64,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
     /** The ghost ingredient ItemStack the mouse was over during the last tooltip render. */
     @Nullable
-    private ItemStack betterRecipeBook$lastHoveredGhostItem;
+    private ItemStack brbe$lastHoveredGhostItem;
 
     protected GenericRecipeBookComponent() {
     }
@@ -224,7 +224,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             }
 
             // ── 2. Ghost items ─────────────────────────────────────────
-            ItemStack ghostStack = this.betterRecipeBook$lastHoveredGhostItem;
+            ItemStack ghostStack = this.brbe$lastHoveredGhostItem;
             if (ghostStack != null && !ghostStack.isEmpty()) {
                 if (BetterRecipeBook.RECIPE_VIEW_MAPPING.matches(i, j)) {
                     return ItemViewCompat.openRecipeView(ghostStack);
@@ -274,39 +274,41 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         if (this.selectedTab == null) return;
         if (this.searchBox == null) return;
 
-        // Create a copy to not mess with the original list
         List<C> results = new ArrayList<>(this.getCollectionsForCategory());
 
         String string = this.searchBox.getValue();
         if (!string.isEmpty()) {
             SearchQuery query = SearchQuery.parse(string);
             SearchCache cache = new SearchCache();
-            results.removeIf(collection -> {
-                for (R recipe : collection.getRecipes()) {
-                    ItemStack result = recipe.getResult(registryAccess, selectedTab.getCategory());
-                    if (result != null && !result.isEmpty() && query.matches(result, cache)) {
-                        return false; // Keep collection — at least one recipe matches
-                    }
-                }
-                return true; // Remove collection — no recipes match
-            });
+            results.removeIf(collection -> !matchesSearch(collection, query, cache));
         }
 
-        if (BRBBookSettings.isFiltering(this.getRecipeBookType())) {
+        boolean isFiltering = BRBBookSettings.isFiltering(this.getRecipeBookType());
+        if (isFiltering) {
             results.removeIf((result) -> !result.atleastOneCraftable(this.menu.slots)
                     && !result.atleastOnePartiallyCraftable(this.menu.slots));
         }
 
-        this.betterRecipeBook$sortByPinsInPlace(results);
+        this.brbe$sortByPinsInPlace(results);
 
-        if (BRBBookSettings.isFiltering(this.getRecipeBookType())) {
-            this.betterRecipeBook$sortCraftableBeforePartial(results);
+        if (isFiltering) {
+            this.brbe$sortCraftableBeforePartial(results);
         }
 
         this.recipesPage.setResults(results, b, selectedTab.getCategory());
     }
 
-    private void betterRecipeBook$sortCraftableBeforePartial(List<C> results) {
+    private boolean matchesSearch(C collection, SearchQuery query, SearchCache cache) {
+        for (R recipe : collection.getRecipes()) {
+            ItemStack result = recipe.getResult(registryAccess, selectedTab.getCategory());
+            if (result != null && !result.isEmpty() && query.matches(result, cache)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void brbe$sortCraftableBeforePartial(List<C> results) {
         List<C> craftableResults = new ArrayList<>();
         List<C> partialResults = new ArrayList<>();
 
@@ -476,7 +478,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         }
 
         this.ghostRecipe.drawTooltip(gui, x, y, mouseX, mouseY);
-        this.betterRecipeBook$lastHoveredGhostItem = this.ghostRecipe.getLastHoveredItem();
+        this.brbe$lastHoveredGhostItem = this.ghostRecipe.getLastHoveredItem();
     }
 
     protected void refreshTabButtons() {

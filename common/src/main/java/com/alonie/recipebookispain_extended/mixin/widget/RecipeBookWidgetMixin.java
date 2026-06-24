@@ -114,26 +114,19 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     @Unique private int rbip$pageControlX;
     @Unique private int rbip$pageControlY;
 
-    // ── initVisuals TAIL: create creative buttons ─────────────
+    // ── initVisuals TAIL: defer actual creation to first render ──
+
+    @Unique private boolean rbip$tabsNeedBuild = true;
 
     @Inject(at = @At("TAIL"), method = "initVisuals")
     private void rbip$injectCreativeTabs(CallbackInfo ci) {
-        if (!RecipeBookIsPainExtendedConfig.enabled()) return;
-
-        RecipeBookIsPain.ensureInitialized();
-        List<CreativeModeTab> creativeTabs = RecipeBookIsPain.CRAFTING_LIST;
-        if (creativeTabs.isEmpty()) return;
-
-        rbip$creativeButtons.clear();
-        rbip$buttonToTab.clear();
-        for (CreativeModeTab tab : creativeTabs) {
-            RecipeBookTabButton btn = new RecipeBookTabButton(RecipeBookCategories.UNKNOWN);
-            ((CreativeTabButtonAccess) btn).rbip$setCreativeTab(tab);
-            rbip$creativeButtons.add(btn);
-            rbip$buttonToTab.put(btn, tab);
-        }
-        this.rbip$rebuildTabList();
-        RecipeBookIsPain.LOGGER.info("[RBIP] {} creative tabs", rbip$creativeButtons.size());
+        // Defer widget creation to the first render frame.
+        rbip$tabsNeedBuild = true;
+        // Clear stale RBIP state from previous screen session.
+        // Without this, activeCreativeTab can persist across screen
+        // close/reopen, causing the pipeline to use a stale variant.
+        RecipeBookIsPain.activeCreativeTab = null;
+        RecipeBookIsPain.activeFurnaceType = null;
     }
 
     // ── updateTabs TAIL: rebuild after vanilla refresh ─────────
@@ -151,6 +144,12 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         // Don't render page controls or tooltips when the book is collapsed
         if (!this.visible) return;
+
+        // Incremental creative tab filter: process 2 tabs per frame.
+        // Avoids blocking the first render frame for 250ms on large modpacks.
+        if (rbip$filterBaseRecipes != null) {
+            rbip$filterOneFrame();
+        }
 
         // Consume scroll
         int scroll = RecipeBookIsPain.rbip$consumeScroll();
@@ -186,10 +185,20 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         }
     }
 
-    // ── render HEAD: hot-reload ────────────────────────────────
+    // ── render HEAD: hot-reload + deferred tab creation ──────────
 
     @Inject(at = @At("HEAD"), method = "render")
     private void rbip$hotReload(GuiGraphics g, int mx, int my, float d, CallbackInfo ci) {
+        // Deferred tab creation: initVisuals sets a flag, we do the
+        // expensive widget creation here on the first render frame.
+        // This keeps initVisuals fast (0ms instead of 200-300ms).
+        if (rbip$tabsNeedBuild) {
+            rbip$tabsNeedBuild = false;
+            if (RecipeBookIsPainExtendedConfig.enabled()) {
+                rbip$buildCreativeTabs();
+            }
+        }
+
         if (!RecipeBookIsPainExtendedConfig.reloadIfChanged()) return;
         RecipeBookIsPain.LOGGER.info("[RBIP] Config changed — reload");
 
@@ -222,6 +231,24 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     @SuppressWarnings("unused")
     @Invoker("updateTabs")
     public abstract void rbip$invokeUpdateTabs();
+
+    @Unique
+    private void rbip$buildCreativeTabs() {
+        RecipeBookIsPain.ensureInitialized();
+        List<CreativeModeTab> creativeTabs = RecipeBookIsPain.CRAFTING_LIST;
+        if (creativeTabs.isEmpty()) return;
+
+        rbip$creativeButtons.clear();
+        rbip$buttonToTab.clear();
+        for (CreativeModeTab tab : creativeTabs) {
+            RecipeBookTabButton btn = new RecipeBookTabButton(RecipeBookCategories.UNKNOWN);
+            ((CreativeTabButtonAccess) btn).rbip$setCreativeTab(tab);
+            rbip$creativeButtons.add(btn);
+            rbip$buttonToTab.put(btn, tab);
+        }
+        this.rbip$rebuildTabList();
+        RecipeBookIsPain.LOGGER.info("[RBIP] {} creative tabs (deferred build)", rbip$creativeButtons.size());
+    }
 
     // ── mouseClicked HEAD: creative tabs + page controls ───────
 
@@ -308,27 +335,49 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
             if (rbip$isSearchCategory(cat)) {
                 if (search == null) search = btn;
             }
-            // All non-search vanilla sub-category tabs are excluded —
-            // they are replaced by creative tabs for every screen type.
-        }
-
-        // Filter creative buttons: only show tabs that have at least one matching recipe
-        List<RecipeCollection> baseRecipes = (this.book != null)
-                ? this.book.getCollection(rbip$getSearchCategory())
-                : List.of();
-        List<RecipeBookTabButton> filteredCreative = new ArrayList<>();
-        for (RecipeBookTabButton btn : rbip$creativeButtons) {
-            CreativeModeTab tab = rbip$buttonToTab.get(btn);
-            if (tab == null) continue;
-            if (rbip$hasRecipeInCategory(baseRecipes, tab)) {
-                filteredCreative.add(btn);
-            }
         }
 
         this.rbip$pinnedTab = search;
         this.rbip$pageableTabs = keep;
-        this.rbip$pageableTabs.addAll(filteredCreative);
+
+        // Deferred filtering: show ALL creative tabs immediately on the
+        // first frame, then filter to only tabs with matching recipes over
+        // subsequent frames.  Filtering 30 tabs × 25145 collections takes
+        // ~250ms — doing it synchronously blocks the render frame.
+        this.rbip$pageableTabs.addAll(rbip$creativeButtons);
         this.rbip$applyPagination(true);
+        rbip$filterGeneration++; // increment so render TAIL starts filtering
+    }
+
+    @Unique private int rbip$filterGeneration;
+    @Unique private int rbip$filterIndex;
+    @Unique private List<RecipeCollection> rbip$filterBaseRecipes;
+
+    // Called from render TAIL: process 2 tabs per frame until all filtered.
+    @Unique
+    private boolean rbip$filterOneFrame() {
+        if (rbip$filterBaseRecipes == null) {
+            rbip$filterBaseRecipes = (this.book != null)
+                    ? this.book.getCollection(rbip$getSearchCategory())
+                    : List.of();
+            rbip$filterIndex = 0;
+        }
+        int processed = 0;
+        while (rbip$filterIndex < rbip$creativeButtons.size() && processed < 2) {
+            RecipeBookTabButton btn = rbip$creativeButtons.get(rbip$filterIndex);
+            CreativeModeTab tab = rbip$buttonToTab.get(btn);
+            if (tab != null && !rbip$hasRecipeInCategory(rbip$filterBaseRecipes, tab)) {
+                rbip$pageableTabs.remove(btn);
+            }
+            rbip$filterIndex++;
+            processed++;
+        }
+        if (rbip$filterIndex >= rbip$creativeButtons.size()) {
+            rbip$filterBaseRecipes = null; // done
+            rbip$applyPagination(true);
+            return true; // filtering complete
+        }
+        return false;
     }
 
     @Unique

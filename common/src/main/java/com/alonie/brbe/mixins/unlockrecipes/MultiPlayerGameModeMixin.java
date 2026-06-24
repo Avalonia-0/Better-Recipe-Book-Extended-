@@ -57,7 +57,7 @@ public abstract class MultiPlayerGameModeMixin {
             }
             lastRecipe.canCraft(contents, menu.getGridWidth(), menu.getGridHeight(), minecraft.player.getRecipeBook());
 
-            Set<ResourceLocation> serverUnlockedRecipes = ((IMixinRecipeManager) minecraft.getConnection().getRecipeManager()).betterRecipeBook$getServerUnlockedRecipes();
+            Set<ResourceLocation> serverUnlockedRecipes = ((IMixinRecipeManager) minecraft.getConnection().getRecipeManager()).brbe$getServerUnlockedRecipes();
 
             // if we don't have all the items place a client side ghost recipe
             if (!lastRecipe.isCraftable(recipe)) {

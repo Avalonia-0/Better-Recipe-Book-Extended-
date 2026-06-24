@@ -1,6 +1,5 @@
 package com.alonie.brbe.compat;
 
-import dev.architectury.platform.Platform;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
@@ -20,12 +19,15 @@ public class CompatMixinPlugin implements IMixinConfigPlugin {
 
     @Override
     public boolean shouldApplyMixin(String targetClassName, String mixinClassName) {
-        // mousewheelie compat
+        // mousewheelie compat — use reflection to avoid compile-time coupling to FabricLoader
+        // (NeoForge does not ship fabric-loader at runtime)
         if (mixinClassName.equals("com.alonie.brbe.compat.mixins.mousewheelie.MixinMWClient")) {
             try {
-                return Platform.isModLoaded("mousewheelie");
-            } catch (Exception e) {
-                // ModList.get() returns null during mixin init on NeoForge
+                Class<?> fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader");
+                Object instance = fabricLoader.getMethod("getInstance").invoke(null);
+                return (boolean) instance.getClass().getMethod("isModLoaded", String.class)
+                        .invoke(instance, "mousewheelie");
+            } catch (Throwable e) {
                 return false;
             }
         }

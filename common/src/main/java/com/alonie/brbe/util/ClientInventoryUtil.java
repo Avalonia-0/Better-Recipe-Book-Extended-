@@ -69,6 +69,25 @@ public class ClientInventoryUtil {
      * @param wholeStack drop the whole stack or a single item
      * @param force If we should perform the drop even if the item is air for the client
      */
+    /**
+     * Moves an item from a slot to a target slot by picking up from source and placing into target.
+     * Stores any overflow back into the player inventory.
+     * @param menu the container menu
+     * @param fromSlotIndex the index in the slot list to take from
+     * @param toSlotId the container slot id to place into
+     */
+    public static void moveItemToSlot(AbstractContainerMenu menu, int fromSlotIndex, int toSlotId) {
+        assert Minecraft.getInstance().gameMode != null;
+        storeItem(-1, i -> i > 4);
+        Minecraft.getInstance().gameMode.handleInventoryMouseClick(
+                menu.containerId, menu.getSlot(fromSlotIndex).index, 0, ClickType.PICKUP,
+                Minecraft.getInstance().player);
+        Minecraft.getInstance().gameMode.handleInventoryMouseClick(
+                menu.containerId, toSlotId, 0, ClickType.PICKUP,
+                Minecraft.getInstance().player);
+        storeItem(-1, i -> i > 4);
+    }
+
     public static void dropItem(int slot, boolean wholeStack, boolean force) {
         MultiPlayerGameMode gameMode = Minecraft.getInstance().gameMode;
         Minecraft minecraft = Minecraft.getInstance();

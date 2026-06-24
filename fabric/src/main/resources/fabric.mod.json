@@ -38,7 +38,7 @@
     ]
   },
   "mixins": [
-    "mixins.brbe-fabric.json",
+    "mixins.brbe.json",
     "mixins.brbe-common.json",
     "mixins.brbe-common-compat.json",
     "mixins.brbe-jei.json",
@@ -47,7 +47,6 @@
   ],
   "depends": {
     "fabric-api": "*",
-    "minecraft": ">=1.21.1",
-    "architectury": ">=13"
+    "minecraft": ">=1.21.1"
   }
 }

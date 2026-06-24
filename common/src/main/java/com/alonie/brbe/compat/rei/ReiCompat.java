@@ -2,15 +2,14 @@ package com.alonie.brbe.compat.rei;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.compat.ItemViewCompat;
-import dev.architectury.platform.Platform;
 import net.minecraft.world.item.ItemStack;
 
 public class ReiCompat {
     private static volatile boolean registered;
 
-    /** Called from platform-specific init (deferred via ClientLifecycleEvent.CLIENT_STARTED). */
+    /** Called from platform-specific init. */
     public static void register() {
-        if (!Platform.isModLoaded("roughlyenoughitems")) return;
+        if (!isModLoaded("roughlyenoughitems")) return;
 
         ItemViewCompat.setHandler(new ReiHandler() {
             @Override
@@ -68,5 +67,16 @@ public class ReiCompat {
 
     public interface ReiHandler extends ItemViewCompat.Handler {
         // inherits openRecipeView(ItemStack) and openUsageView(ItemStack)
+    }
+
+    private static boolean isModLoaded(String modId) {
+        try {
+            Class<?> fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader");
+            Object instance = fabricLoader.getMethod("getInstance").invoke(null);
+            return (boolean) instance.getClass().getMethod("isModLoaded", String.class)
+                    .invoke(instance, modId);
+        } catch (Throwable e) {
+            return false;
+        }
     }
 }

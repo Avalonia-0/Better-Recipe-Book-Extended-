@@ -26,6 +26,9 @@ public final class PerfTimer {
             ThreadLocal.withInitial(Object2LongOpenHashMap::new);
     private static boolean enabled;
 
+    /** Set by pipeline pageUpdate to trigger render-frame timing log. */
+    public static boolean logNextRenderFrame;
+
     private PerfTimer() {}
 
     /** Call at the top of updateCollections to arm. */

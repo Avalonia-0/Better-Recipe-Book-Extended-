@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(Screen.class)
 public abstract class ScreenRenderMixin {
     @Inject(method = "render", at = @At("TAIL"))
-    private void betterRecipeBook$renderTopLayerOverlay(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
+    private void brbe$renderTopLayerOverlay(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick, CallbackInfo ci) {
         TopLayerOverlayRenderer.render((Screen) (Object) this, guiGraphics, mouseX, mouseY, partialTick);
     }
 }

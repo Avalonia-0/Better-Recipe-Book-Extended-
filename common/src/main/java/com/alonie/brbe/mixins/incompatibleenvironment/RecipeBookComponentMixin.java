@@ -24,7 +24,7 @@ public abstract class RecipeBookComponentMixin {
     @Shadow private RecipeBookTabButton selectedTab;
 
     @Inject(method = "setupGhostRecipe", at = @At("HEAD"), cancellable = true)
-    private void betterRecipeBook$preventIncompatibleRecipeClick(
+    private void brbe$preventIncompatibleRecipeClick(
             RecipeHolder<?> recipe, List list, CallbackInfo ci) {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;

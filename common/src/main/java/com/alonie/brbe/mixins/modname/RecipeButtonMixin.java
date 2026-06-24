@@ -17,7 +17,7 @@ import java.util.List;
 public abstract class RecipeButtonMixin {
 
     @Inject(method = "getTooltipText", locals = LocalCapture.CAPTURE_FAILHARD, at = @At("RETURN"))
-    private void betterRecipeBook$appendModName(CallbackInfoReturnable<List<Component>> cir, ItemStack itemStack, List<Component> list) {
+    private void brbe$appendModName(CallbackInfoReturnable<List<Component>> cir, ItemStack itemStack, List<Component> list) {
         if (!BetterRecipeBook.config.showModName) {
             return;
         }

@@ -4,11 +4,11 @@ import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 
 public interface TopLayerOverlayProvider {
-    boolean betterRecipeBook$hasTopLayerOverlay();
+    boolean brbe$hasTopLayerOverlay();
 
-    void betterRecipeBook$renderTopLayerOverlay(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick);
+    void brbe$renderTopLayerOverlay(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick);
 
-    boolean betterRecipeBook$clickTopLayerOverlay(double mouseX, double mouseY, int button);
+    boolean brbe$clickTopLayerOverlay(double mouseX, double mouseY, int button);
 
-    ScreenRectangle betterRecipeBook$getTopLayerOverlayBounds();
+    ScreenRectangle brbe$getTopLayerOverlayBounds();
 }

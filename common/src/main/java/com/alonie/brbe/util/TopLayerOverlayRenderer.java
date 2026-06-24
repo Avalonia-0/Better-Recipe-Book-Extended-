@@ -11,7 +11,7 @@ public final class TopLayerOverlayRenderer {
 
     public static boolean hasOverlay(Screen screen) {
         if (screen instanceof TopLayerOverlayProvider provider) {
-            return provider.betterRecipeBook$hasTopLayerOverlay();
+            return provider.brbe$hasTopLayerOverlay();
         }
 
         return false;
@@ -19,15 +19,15 @@ public final class TopLayerOverlayRenderer {
 
     public static void render(Screen screen, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         if (screen instanceof TopLayerOverlayProvider provider) {
-            if (provider.betterRecipeBook$hasTopLayerOverlay()) {
-                provider.betterRecipeBook$renderTopLayerOverlay(guiGraphics, mouseX, mouseY, partialTick);
+            if (provider.brbe$hasTopLayerOverlay()) {
+                provider.brbe$renderTopLayerOverlay(guiGraphics, mouseX, mouseY, partialTick);
             }
         }
     }
 
     public static ScreenRectangle getOverlayBounds(Screen screen) {
         if (screen instanceof TopLayerOverlayProvider provider) {
-            return provider.betterRecipeBook$getTopLayerOverlayBounds();
+            return provider.brbe$getTopLayerOverlayBounds();
         }
         return null;
     }
