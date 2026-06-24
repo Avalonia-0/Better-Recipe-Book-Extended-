@@ -4,6 +4,6 @@
   "package": "com.alonie.brbe.fabric.Mixins",
   "compatibilityLevel": "JAVA_16",
   "client": [
-    "accessors.FabricPotionBrewingAccessor"
+    "Accessors.FabricPotionBrewingAccessor"
   ]
 }

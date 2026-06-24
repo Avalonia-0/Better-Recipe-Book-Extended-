@@ -4,6 +4,6 @@
   "package": "com.alonie.brbe.neoforge.Mixins",
   "compatibilityLevel": "JAVA_16",
   "client": [
-    "accessors.NeoForgePotionBrewingAccessor"
+    "Accessors.NeoForgePotionBrewingAccessor"
   ]
 }
