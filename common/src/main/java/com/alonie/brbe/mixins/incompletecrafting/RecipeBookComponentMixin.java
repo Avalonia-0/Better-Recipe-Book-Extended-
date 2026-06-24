@@ -112,37 +112,6 @@ public abstract class RecipeBookComponentMixin {
     }
 
     // ══════════════════════════════════════════════════════════
-    // Stage 1: HEAD — timing + save advanced search text
-    // ══════════════════════════════════════════════════════════
-
-    @Inject(method = "updateCollections", at = @At("HEAD"))
-    private void brbe$updateCollectionsHead(boolean resetPage, CallbackInfo ci) {
-        BetterRecipeBook.LOGGER.info("[BRBE-Timing] updateCollections START (+{}ms from initVisuals)",
-                (System.nanoTime() - brbe$cycleStartNanos) / 1_000_000);
-
-        // Clear cross-screen cache on tab switch / search / filter toggle
-        // to prevent stale data from a different tab from being served.
-        if (resetPage) {
-            BookStateCache.clear();
-        }
-
-        brbe$savedSearchText = null;
-        brbe$parsedQuery = null;
-
-        if (searchBox != null) {
-            String text = searchBox.getValue();
-            if (text != null && !text.isEmpty()) {
-                SearchQuery query = SearchQuery.parse(text);
-                if (query.isAdvanced()) {
-                    brbe$savedSearchText = text;
-                    brbe$parsedQuery = query;
-                    searchBox.setValue("");
-                }
-            }
-        }
-    }
-
-    // ══════════════════════════════════════════════════════════
     // Stage 2: REDIRECT List.forEach — cache check + data marking
     // ══════════════════════════════════════════════════════════
 
@@ -205,59 +174,6 @@ public abstract class RecipeBookComponentMixin {
         }
     }
 
-    // ══════════════════════════════════════════════════════════
-    // Stage 3: REDIRECT page.updateCollections — restore cache
-    //           or run CollectionPipeline on vanilla-filtered list
-    // ══════════════════════════════════════════════════════════
-
-    @Redirect(method = "updateCollections",
-            at = @At(value = "INVOKE",
-                    target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;Z)V"))
-    private void brbe$runPipeline(RecipeBookPage page, List<RecipeCollection> list,
-                                              boolean resetPageNumber) {
-
-        if (brbe$cacheWasHit) {
-            page.updateCollections(brbe$cachedList, resetPageNumber);
-            brbe$cachedList = null;
-            brbe$cacheWasHit = false;
-            PerfTimer.logNextRenderFrame = true;
-            return;
-        }
-
-        // Run CollectionPipeline on the vanilla-filtered list
-        if (brbe$parsedQuery != null && minecraft.level != null) {
-            list = CollectionPipeline.applySearch(list, brbe$parsedQuery, minecraft.level);
-        }
-        CollectionPipeline.applyPins(list);
-
-        boolean isFiltering = minecraft.player != null
-                && minecraft.player.getRecipeBook().isFiltering(menu);
-        boolean shouldSort = BetterRecipeBook.config.partialCraftingEnabled
-                || (BetterRecipeBook.config.partialMarkingEnabled && isFiltering);
-        if (shouldSort) {
-            boolean useFullSort = BetterRecipeBook.config.partialCraftingEnabled || isFiltering;
-            boolean hasPartialData = BetterRecipeBook.config.partialMarkingEnabled;
-            list = CollectionPipeline.applyPartialSort(list, useFullSort, hasPartialData);
-        }
-        list = CollectionPipeline.applyFilterToggle(list, isFiltering);
-
-        brbe$cacheSave(list);
-        page.updateCollections(list, resetPageNumber);
-        PerfTimer.logNextRenderFrame = true;
-    }
-
-    // ══════════════════════════════════════════════════════════
-    // Stage 4: TAIL — restore search text
-    // ══════════════════════════════════════════════════════════
-
-    @Inject(method = "updateCollections", at = @At("TAIL"))
-    private void brbe$restoreSearchText(boolean resetPage, CallbackInfo ci) {
-        if (brbe$savedSearchText != null && searchBox != null) {
-            searchBox.setValue(brbe$savedSearchText);
-            brbe$savedSearchText = null;
-            brbe$parsedQuery = null;
-        }
-    }
 
     // ══════════════════════════════════════════════════════════
     // Helpers
