@@ -2,12 +2,9 @@ package com.alonie.brbe.cache;
 
 import com.alonie.brbe.BetterRecipeBook;
 import net.minecraft.client.ClientRecipeBook;
-import net.minecraft.core.registries.BuiltInRegistries;
-import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
-import net.minecraft.world.item.crafting.display.SlotDisplay;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -18,21 +15,16 @@ import java.util.stream.Collectors;
  * Recipes are loaded from the classpath (Minecraft JAR) at startup by
  * {@link VanillaRecipeLoader} — no file I/O, no singleplayer capture needed.
  *
- * <h3>Complement mode</h3>
- * Instead of a fixed threshold, the cache uses <b>complement injection</b>:
- * only local entries whose result item is NOT already covered by the server
- * are injected.  This handles:
- * <ul>
- *   <li>Servers that send zero recipes → all local recipes injected</li>
- *   <li>Servers that send a partial set (e.g. 60 of 1200) → missing recipes filled in</li>
- *   <li>Servers that send a complete set → nothing injected</li>
- *   <li>Servers with custom recipes → custom entries are preserved</li>
- * </ul>
+ * <h3>Always-inject mode</h3>
+ * Every time {@link ClientRecipeBook#rebuildCollections()} runs, cached
+ * entries are unconditionally injected into the {@code known} map (minus
+ * entries that resolve to air).  Because cache entries use <b>negative</b>
+ * {@link RecipeDisplayId} values and server entries use non-negative IDs,
+ * there is zero collision risk.
  *
- * <h3>Status reporting</h3>
- * A status report is printed automatically after each complement cycle,
- * showing sample recipe keys and a per-category breakdown of injected
- * vs skipped counts.  Call {@link #dumpStatus()} at any time to re-print.
+ * <p>This means the recipe book always contains ALL vanilla recipes
+ * regardless of how many the server sends — the user sees the complete
+ * set even on servers that only send a partial recipe book (e.g. Hypixel).
  *
  * <h3>ID-space partition</h3>
  * Cache entries use <b>negative</b> {@link RecipeDisplayId} values (starting
@@ -51,11 +43,11 @@ public final class VanillaRecipeCache {
     /** All cached vanilla recipe entries, loaded at init from classpath. */
     private static final Map<String, CacheableRecipeDisplayEntry> cache = new LinkedHashMap<>();
 
-    /** Snapshot of the last complement operation for status reporting. */
-    private static final List<String> lastComplemented = new ArrayList<>();
-    private static final List<String> lastSkipped = new ArrayList<>();
-    private static final List<String> lastServerItems = new ArrayList<>();
-    private static final Map<String, int[]> lastCategoryBreakdown = new LinkedHashMap<>(); // cat -> [injected, skipped]
+    /** Snapshot of the last injection for status reporting. */
+    private static final List<String> lastInjected = new ArrayList<>();
+    private static final List<String> lastFiltered = new ArrayList<>();
+    private static final Map<String, Integer> lastCategoryBreakdown = new LinkedHashMap<>();
+    private static int lastServerCount = 0;
 
     private VanillaRecipeCache() {}
 
@@ -72,8 +64,6 @@ public final class VanillaRecipeCache {
         }
         BetterRecipeBook.LOGGER.info("[BRBE-CACHE] init loaded {} vanilla recipes from classpath",
                 cache.size());
-
-        // Print category distribution at init time
         Map<String, Long> byCategory = cache.values().stream()
                 .collect(Collectors.groupingBy(
                         e -> e.categoryName() != null ? e.categoryName() : "null",
@@ -84,246 +74,117 @@ public final class VanillaRecipeCache {
     /** Called from MinecraftMixin on disconnect. Resets session-only state. */
     public static void clear() {
         BetterRecipeBook.LOGGER.info("[BRBE-CACHE] session cleared");
-        lastComplemented.clear();
-        lastSkipped.clear();
-        lastServerItems.clear();
+        lastInjected.clear();
+        lastFiltered.clear();
         lastCategoryBreakdown.clear();
+        lastServerCount = 0;
     }
 
-    // ---- Detection and orchestration ----
+    // ---- Detection and injection ----
 
     /**
      * Called before ClientRecipeBook.rebuildCollections().
-     * Complements the server-provided recipe set with locally-cached vanilla
-     * entries for any result items the server didn't cover.
+     * Purges old cache entries (negative IDs) from previous injection,
+     * then re-injects all currently-valid cached entries.
      */
     public static void detectAndInject(ClientRecipeBook recipeBook,
                                         Map<RecipeDisplayId, RecipeDisplayEntry> known) {
         if (cache.isEmpty()) return;
 
-        int serverCount = (int) known.keySet().stream().filter(id -> id.index() >= 0).count();
+        lastServerCount = (int) known.keySet().stream().filter(id -> id.index() >= 0).count();
         BetterRecipeBook.LOGGER.info("[BRBE-CACHE] pre-rebuild known count: {} (server: {})",
-                known.size(), serverCount);
+                known.size(), lastServerCount);
 
         // Purge any previously-injected cache entries (negative IDs) before
         // re-injecting.  Server IDs are always ≥ 0.
         known.keySet().removeIf(id -> id.index() < 0);
 
-        // Complement: inject local entries for result items the server didn't send
-        complement(known);
+        // Inject all valid cached entries unconditionally
+        injectAll(known);
     }
 
-    // ---- Complement ----
+    // ---- Injection ----
 
     /**
-     * Injects locally-cached entries for any result item not already covered
-     * by the server-provided recipe set.
+     * Injects ALL cached entries that resolve to valid items into the known map.
+     * Entries that produce air (empty result stacks) are filtered out.
      */
-    private static void complement(Map<RecipeDisplayId, RecipeDisplayEntry> known) {
-        // Clear snapshots from previous run
-        lastComplemented.clear();
-        lastSkipped.clear();
-        lastServerItems.clear();
+    private static void injectAll(Map<RecipeDisplayId, RecipeDisplayEntry> known) {
+        // Clear snapshots
+        lastInjected.clear();
+        lastFiltered.clear();
         lastCategoryBreakdown.clear();
 
-        // 1. Collect result item IDs from server-provided entries
-        Set<String> serverResultItems = new HashSet<>();
-        for (RecipeDisplayEntry entry : known.values()) {
-            String resultId = extractResultItemId(entry.display().result());
-            if (resultId != null) {
-                serverResultItems.add(resultId);
-                if (lastServerItems.size() < SAMPLE_SIZE) {
-                    lastServerItems.add(resultId);
-                }
-            }
-        }
-        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] server covers {} unique result items (sample {} shown in report)",
-                serverResultItems.size(), Math.min(SAMPLE_SIZE, lastServerItems.size()));
-
-        // 2. Inject local entries whose result item is NOT already covered
-        int nextId = -1; // cache IDs are negative — never collide with server IDs (≥ 0)
+        int nextId = -1;
         int injectedCount = 0;
-        int skippedCount = 0;
         int filteredCount = 0;
 
         for (CacheableRecipeDisplayEntry cEntry : cache.values()) {
             try {
                 String cat = cEntry.categoryName() != null ? cEntry.categoryName() : "unknown";
-                if (cEntry.resultItem() != null && serverResultItems.contains(cEntry.resultItem())) {
-                    skippedCount++;
-                    if (lastSkipped.size() < SAMPLE_SIZE) {
-                        lastSkipped.add(cEntry.recipeKey() + " → " + cEntry.resultItem());
-                    }
-                    lastCategoryBreakdown.computeIfAbsent(cat, k -> new int[2])[1]++;
-                    continue; // server already covers this result item
-                }
 
                 RecipeDisplayId newId = new RecipeDisplayId(nextId--);
                 RecipeDisplayEntry entry = cEntry.toEntry(newId);
-                if (entry != null) {
-                    // Pre-validate: skip entries whose result items don't resolve
-                    List<ItemStack> results;
-                    try {
-                        results = entry.resultItems(null);
-                    } catch (Exception resEx) {
-                        results = List.of();
-                    }
-                    if (results.isEmpty() || results.stream().allMatch(
-                            s -> s == null || s.isEmpty())) {
-                        filteredCount++;
-                        if (filteredCount <= 5) {
-                            BetterRecipeBook.LOGGER.warn(
-                                    "[BRBE-CACHE] filtered air entry: key={} resultItem={}",
-                                    cEntry.recipeKey(), cEntry.resultItem());
-                        }
-                        continue; // don't inject entries that resolve to air
-                    }
-
-                    known.put(newId, entry);
-                    injectedCount++;
-                    if (lastComplemented.size() < SAMPLE_SIZE) {
-                        lastComplemented.add(cEntry.recipeKey() + " → " + cEntry.resultItem());
-                    }
-                    lastCategoryBreakdown.computeIfAbsent(cat, k -> new int[2])[0]++;
+                if (entry == null) {
+                    filteredCount++;
+                    continue;
                 }
+
+                // Pre-validate: skip entries whose result items don't resolve
+                // These are recipe types we can't reconstruct (e.g. smithing_trim)
+                List<ItemStack> results;
+                try {
+                    results = entry.resultItems(null);
+                } catch (Exception resEx) {
+                    results = List.of();
+                }
+                if (results.isEmpty() || results.stream().allMatch(
+                        s -> s == null || s.isEmpty())) {
+                    filteredCount++;
+                    if (lastFiltered.size() < SAMPLE_SIZE) {
+                        lastFiltered.add(cEntry.recipeKey() + " → " + cEntry.resultItem());
+                    }
+                    continue;
+                }
+
+                known.put(newId, entry);
+                injectedCount++;
+                if (lastInjected.size() < SAMPLE_SIZE) {
+                    lastInjected.add(cEntry.recipeKey() + " → " + cEntry.resultItem());
+                }
+                lastCategoryBreakdown.merge(cat, 1, Integer::sum);
             } catch (Exception e) {
-                BetterRecipeBook.LOGGER.warn(
-                        "[BRBE-CACHE] failed to complement entry {}: {}",
+                BetterRecipeBook.LOGGER.warn("[BRBE-CACHE] failed to inject entry {}: {}",
                         cEntry.recipeKey(), e.getMessage());
             }
         }
 
         BetterRecipeBook.LOGGER.info(
-                "[BRBE-CACHE] complement: {} injected, {} skipped, {} filtered (known now {})",
-                injectedCount, skippedCount, filteredCount, known.size());
+                "[BRBE-CACHE] injected: {} cached, {} filtered (known now {}, server count {})",
+                injectedCount, filteredCount, known.size(), lastServerCount);
 
-        // Validate a sample of injected entries — check if they resolve to real items
-        validateSample(known);
+        if (filteredCount > 0) {
+            BetterRecipeBook.LOGGER.warn("[BRBE-CACHE] filtered air entries (first {}): {}",
+                    Math.min(SAMPLE_SIZE, lastFiltered.size()), lastFiltered);
+        }
 
         dumpStatus();
     }
 
     // ---- Status reporting ----
 
-    /**
-     * Prints a full complement status report to the log.
-     * Called automatically after each complement cycle; can also be
-     * called manually from a keybind or command hook.
-     */
     public static void dumpStatus() {
         BetterRecipeBook.LOGGER.info("========== [BRBE-CACHE] STATUS REPORT ==========");
-        BetterRecipeBook.LOGGER.info("  Cache size : {} vanilla recipes", cache.size());
+        BetterRecipeBook.LOGGER.info("  Cache size: {}, server recipes in known: {}",
+                cache.size(), lastServerCount);
 
-        if (lastServerItems.isEmpty() && lastComplemented.isEmpty() && lastSkipped.isEmpty()) {
-            BetterRecipeBook.LOGGER.info("  (no complement has run this session)");
-        } else {
-            BetterRecipeBook.LOGGER.info("  Server items (sample {}): {}",
-                    lastServerItems.size(), lastServerItems);
-            BetterRecipeBook.LOGGER.info("  Complemented (sample {}): {}",
-                    lastComplemented.size(), lastComplemented);
-            BetterRecipeBook.LOGGER.info("  Skipped (sample {}): {}",
-                    lastSkipped.size(), lastSkipped);
-
-            if (!lastCategoryBreakdown.isEmpty()) {
-                BetterRecipeBook.LOGGER.info("  By category (injected / skipped):");
-                lastCategoryBreakdown.forEach((cat, counts) ->
-                        BetterRecipeBook.LOGGER.info("    {} : {} / {}", cat, counts[0], counts[1]));
-            }
+        if (!lastInjected.isEmpty()) {
+            BetterRecipeBook.LOGGER.info("  Injected (sample {}): {}", lastInjected.size(), lastInjected);
         }
-
-        // Quick health check
-        if (!cache.isEmpty() && lastComplemented.isEmpty() && lastSkipped.isEmpty()) {
-            BetterRecipeBook.LOGGER.info("  ⚠ No complement activity — server may have sent all recipes, or module didn't run yet");
+        if (!lastCategoryBreakdown.isEmpty()) {
+            BetterRecipeBook.LOGGER.info("  By category (injected): {}", lastCategoryBreakdown);
         }
-        BetterRecipeBook.LOGGER.info("====================================================");
-    }
-
-    /**
-     * Validates a sample of entries in the known map by attempting to resolve
-     * their result items.  Logs a warning if any entry produces air stacks.
-     */
-    private static void validateSample(Map<RecipeDisplayId, RecipeDisplayEntry> known) {
-        int localChecked = 0;
-        int serverChecked = 0;
-        int localAir = 0;
-        int serverAir = 0;
-        StringBuilder localSamples = new StringBuilder();
-        StringBuilder serverSamples = new StringBuilder();
-
-        for (Map.Entry<RecipeDisplayId, RecipeDisplayEntry> e : known.entrySet()) {
-            boolean isLocal = e.getKey().index() < 0;
-            if (isLocal && localChecked >= SAMPLE_SIZE) continue;
-            if (!isLocal && serverChecked >= SAMPLE_SIZE) continue;
-
-            List<ItemStack> results;
-            try {
-                results = e.getValue().resultItems(null); // ContextMap unused for ItemSlotDisplay/ItemStackSlotDisplay
-            } catch (Exception ex) {
-                results = List.of();
-                BetterRecipeBook.LOGGER.warn("[BRBE-CACHE] validate exception for id={}: {}",
-                        e.getKey().index(), ex.toString());
-            }
-
-            // Include display type for debugging
-            String displayType = e.getValue().display().getClass().getSimpleName();
-            boolean hasAir = results.isEmpty() || results.stream().allMatch(
-                    s -> s == null || s.isEmpty());
-            String info = e.getKey().index() + "(" + displayType + ")=" + (results.isEmpty() ? "[]" :
-                    results.stream().map(s -> s.isEmpty() ? "AIR" : s.getHoverName().getString())
-                            .reduce((a, b) -> a + "," + b).orElse("?"));
-
-            if (isLocal) {
-                localChecked++;
-                if (hasAir) {
-                    localAir++;
-                    if (localSamples.length() < 200) {
-                        if (localSamples.length() > 0) localSamples.append("; ");
-                        localSamples.append(info);
-                    }
-                }
-            } else {
-                serverChecked++;
-                if (hasAir) {
-                    serverAir++;
-                    if (serverSamples.length() < 200) {
-                        if (serverSamples.length() > 0) serverSamples.append("; ");
-                        serverSamples.append(info);
-                    }
-                }
-            }
-        }
-
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-CACHE] validate: local {}/{} air, server {}/{} air",
-                localAir, localChecked, serverAir, serverChecked);
-        if (localAir > 0) {
-            BetterRecipeBook.LOGGER.warn(
-                    "[BRBE-CACHE] local air samples: {}", localSamples);
-        }
-        if (serverAir > 0) {
-            BetterRecipeBook.LOGGER.warn(
-                    "[BRBE-CACHE] server air samples: {}", serverSamples);
-        }
-    }
-
-    // ---- Helpers ----
-
-    /**
-     * Extracts the registry item ID from a SlotDisplay result.
-     * Handles {@link SlotDisplay.ItemSlotDisplay} and
-     * {@link SlotDisplay.ItemStackSlotDisplay}; returns {@code null}
-     * for tag, composite, and empty displays (which can't resolve to
-     * a single item).
-     */
-    static String extractResultItemId(SlotDisplay slot) {
-        if (slot instanceof SlotDisplay.ItemSlotDisplay itemSlot) {
-            return BuiltInRegistries.ITEM.getKey(itemSlot.item().value()).toString();
-        }
-        if (slot instanceof SlotDisplay.ItemStackSlotDisplay stackSlot) {
-            return BuiltInRegistries.ITEM.getKey(stackSlot.stack().item().value()).toString();
-        }
-        // TagSlotDisplay, Composite, Empty — no single item ID
-        return null;
+        BetterRecipeBook.LOGGER.info("================================================");
     }
 
     // ---- Queries ----
@@ -331,7 +192,7 @@ public final class VanillaRecipeCache {
     /**
      * Returns true if {@code id} was generated by the local cache rather than
      * the server.  Cache entries always use negative indices; server IDs are
-     * always non-negative, so this is a zero-collision check.
+     * always non-negative.
      */
     public static boolean isLocalRecipe(RecipeDisplayId id) {
         return id.index() < 0;
