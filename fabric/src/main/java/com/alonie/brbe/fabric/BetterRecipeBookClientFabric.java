@@ -22,7 +22,6 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        BetterRecipeBook.ensureCategories();
         // Register key mappings (previously in common via Architectury KeyMappingRegistry)
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.PIN_MAPPING);
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.RECIPE_VIEW_MAPPING);
