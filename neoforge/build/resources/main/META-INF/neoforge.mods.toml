@@ -5,7 +5,7 @@ license = "MIT"
 
 [[mods]]
 modId = "brbe"
-version = "2.1.1"
+version = "2.1.4c"
 displayName = "Better Recipe Book (Extended)"
 authors = "marshmallow"
 credits = "ruvaldak, Felix14-v2, buiawpkgew1, TauCubed, MehradN, notlin4"
@@ -29,9 +29,9 @@ ordering = "NONE"
 side = "CLIENT"
 
 [[dependencies.brbe]]
-modId = "architectury"
+modId = "cloth_config"
 type = "required"
-versionRange = "[13,)"
+versionRange = "[15,)"
 ordering = "AFTER"
 side = "CLIENT"
 
