@@ -113,7 +113,13 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
                     filtered.add(r);
                 }
             }
-            cir.setReturnValue(filtered);
+            // Guard: if the filter accidentally emptied the list
+            // (can happen when the pipeline updates craftable sets while
+            //  buttons still reference old state), keep the original list
+            // to avoid / by zero in renderWidget's currentIndex % size().
+            if (!filtered.isEmpty()) {
+                cir.setReturnValue(filtered);
+            }
         } else if (!result.equals(cir.getReturnValue())) {
             cir.setReturnValue(result);
         }
