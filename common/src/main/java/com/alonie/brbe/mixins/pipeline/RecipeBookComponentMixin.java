@@ -68,11 +68,9 @@ public abstract class RecipeBookComponentMixin {
         if (text == null || text.isEmpty()) return;
 
         SearchQuery query = SearchQuery.parse(text);
-        if (query.isAdvanced()) {
-            brbe$savedSearchText = text;
-            brbe$parsedQuery = query;
-            searchBox.setValue("");
-        }
+        brbe$savedSearchText = text;
+        brbe$parsedQuery = query;
+        searchBox.setValue("");
     }
 
     /**
