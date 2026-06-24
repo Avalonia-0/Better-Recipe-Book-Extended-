@@ -1,5 +1,6 @@
 package com.alonie.brbe.mixins.localcache;
 
+import com.alonie.brbe.cache.VanillaRecipeCache;
 import com.alonie.brbe.util.RecipeBookState;
 import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
@@ -13,15 +14,26 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.Map;
 
 /**
- * Hooks into ClientRecipeBook.rebuildCollections() to inject locally-cached
- * vanilla recipe entries before the rebuild on recipe-sparse servers.
+ * Hooks into ClientRecipeBook to inject locally-cached vanilla recipe
+ * entries into the {@code known} map at multiple lifecycle points.
  *
- * Recipes are loaded at mod init from the Minecraft JAR's built-in recipe JSONs.
- * No capture step or file I/O needed.
+ * <h3>Why multiple hooks</h3>
+ * In 26.1.2, {@code rebuildCollections()} is only called from
+ * {@code ClientPacketListener.refreshRecipeBook()}, which fires when
+ * recipe packets arrive.  Servers like Hypixel do not send recipe
+ * packets, so rebuildCollections is never called during gameplay.
  *
- * Delegates to {@link RecipeBookState} for lifecycle coordination —
- * cache injection happens inside {@code beginCycle()}, and state cleanup
- * happens inside {@code endCycle()}.
+ * <p>To handle all server behaviors, we inject cache entries at three
+ * points:
+ * <ol>
+ *   <li><b>Constructor RETURN</b> — initial injection during client
+ *       init, before any server communication.</li>
+ *   <li><b>clear() RETURN</b> — re-inject after servers that send
+ *       recipe packets with {@code replace=true} wipe the known map.</li>
+ *   <li><b>rebuildCollections() HEAD</b> — refresh injection when
+ *       collections are rebuilt (handles servers that DO send
+ *       non-replace recipe packets).</li>
+ * </ol>
  */
 @Mixin(ClientRecipeBook.class)
 public abstract class ClientRecipeBookMixin {
@@ -29,16 +41,31 @@ public abstract class ClientRecipeBookMixin {
     @Shadow
     private Map<RecipeDisplayId, RecipeDisplayEntry> known;
 
-    /**
-     * Begin the rebuildCollections lifecycle.
-     * RecipeBookState.beginCycle() handles cache injection internally.
-     */
+    // ---- Constructor hook: initial injection during client init ----
+
+    @Inject(method = "<init>", at = @At("RETURN"))
+    private void brbe$onConstruct(CallbackInfo ci) {
+        if (VanillaRecipeCache.hasEntries()) {
+            VanillaRecipeCache.detectAndInject((ClientRecipeBook) (Object) this, known);
+        }
+    }
+
+    // ---- clear() hook: re-inject after server wipes known map ----
+
+    @Inject(method = "clear", at = @At("RETURN"))
+    private void brbe$onClear(CallbackInfo ci) {
+        if (VanillaRecipeCache.hasEntries()) {
+            VanillaRecipeCache.detectAndInject((ClientRecipeBook) (Object) this, known);
+        }
+    }
+
+    // ---- rebuildCollections hooks: refresh during normal builds ----
+
     @Inject(method = "rebuildCollections", at = @At("HEAD"))
     private void brbe$preRebuildInjectCache(CallbackInfo ci) {
         RecipeBookState.beginCycle((ClientRecipeBook) (Object) this, known);
     }
 
-    /** End the rebuildCollections lifecycle. */
     @Inject(method = "rebuildCollections", at = @At("RETURN"))
     private void brbe$postRebuildEndCycle(CallbackInfo ci) {
         com.alonie.brbe.BetterRecipeBook.LOGGER.info(
