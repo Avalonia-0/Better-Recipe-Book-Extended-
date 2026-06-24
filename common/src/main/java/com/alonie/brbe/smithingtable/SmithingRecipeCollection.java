@@ -45,13 +45,7 @@ public class SmithingRecipeCollection extends GenericRecipeBookCollection<BRBSmi
 
     @Override
     public boolean atleastOnePartiallyCraftable(NonNullList<Slot> slots) {
-        for (BRBSmithingRecipe recipe : this.recipes) {
-            if (recipe.hasPartialMaterials(slots, registryAccess)) {
-                return true;
-            }
-        }
-
-        return false;
+        return !getPartiallyCraftableRecipes(slots).isEmpty();
     }
 
     @Override

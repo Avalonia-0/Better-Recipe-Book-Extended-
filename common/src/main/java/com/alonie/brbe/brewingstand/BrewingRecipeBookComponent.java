@@ -155,19 +155,11 @@ public class BrewingRecipeBookComponent extends GenericRecipeBookComponent<Brewi
 
             if (ItemStack.isSameItemSameComponents(inputStack, itemStack)) {
                 if (usedInputSlots <= 2) {
-                    assert Minecraft.getInstance().gameMode != null;
-                    ClientInventoryUtil.storeItem(-1, i -> i > 4);
-                    Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, menu.getSlot(slotIndex).index, 0, ClickType.PICKUP, Minecraft.getInstance().player);
-                    Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, menu.getSlot(usedInputSlots).index, 0, ClickType.PICKUP, Minecraft.getInstance().player);
-                    ClientInventoryUtil.storeItem(-1, i -> i > 4);
+                    ClientInventoryUtil.moveItemToSlot(menu, slotIndex, menu.getSlot(usedInputSlots).index);
                     ++usedInputSlots;
                 }
             } else if (ClientCompat.firstIngredientItem(ingredient).getItem().equals(slot.getItem().getItem())) {
-                assert Minecraft.getInstance().gameMode != null;
-                ClientInventoryUtil.storeItem(-1, i -> i > 4);
-                Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, menu.getSlot(slotIndex).index, 0, ClickType.PICKUP, Minecraft.getInstance().player);
-                Minecraft.getInstance().gameMode.handleInventoryMouseClick(menu.containerId, menu.getSlot(3).index, 0, ClickType.PICKUP, Minecraft.getInstance().player);
-                ClientInventoryUtil.storeItem(-1, i -> i > 4);
+                ClientInventoryUtil.moveItemToSlot(menu, slotIndex, menu.getSlot(3).index);
             }
 
             ++slotIndex;

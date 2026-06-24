@@ -29,13 +29,6 @@ ordering = "NONE"
 side = "CLIENT"
 
 [[dependencies.brbe]]
-modId = "architectury"
-type = "required"
-versionRange = "[13,)"
-ordering = "AFTER"
-side = "CLIENT"
-
-[[dependencies.brbe]]
 modId = "jei"
 type = "optional"
 versionRange = "[27,)"

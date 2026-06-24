@@ -95,7 +95,7 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (this.betterRecipeBook$clickTopLayerOverlay(event, doubleClick)) {
+        if (this.brbe$clickTopLayerOverlay(event, doubleClick)) {
             return true;
         }
 
@@ -103,22 +103,22 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     }
 
     @Override
-    public boolean betterRecipeBook$hasTopLayerOverlay() {
+    public boolean brbe$hasTopLayerOverlay() {
         return this._$recipeBookComponent.isVisible()
                 && this._$recipeBookComponent.recipesPage instanceof SmithingRecipeBookPage page
                 && page.overlayIsVisible();
     }
 
     @Override
-    public void betterRecipeBook$renderTopLayerOverlay(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        if (this.betterRecipeBook$hasTopLayerOverlay()) {
+    public void brbe$renderTopLayerOverlay(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        if (this.brbe$hasTopLayerOverlay()) {
             ((SmithingRecipeBookPage) this._$recipeBookComponent.recipesPage).overlay.render(guiGraphics, mouseX, mouseY, partialTick);
         }
     }
 
     @Override
-    public boolean betterRecipeBook$clickTopLayerOverlay(MouseButtonEvent event, boolean doubleClick) {
-        if (this.betterRecipeBook$hasTopLayerOverlay()
+    public boolean brbe$clickTopLayerOverlay(MouseButtonEvent event, boolean doubleClick) {
+        if (this.brbe$hasTopLayerOverlay()
                 && this._$recipeBookComponent.mouseClicked(event, doubleClick)) {
             return true;
         }
@@ -127,8 +127,8 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     }
 
     @Override
-    public ScreenRectangle betterRecipeBook$getTopLayerOverlayBounds() {
-        if (this.betterRecipeBook$hasTopLayerOverlay()) {
+    public ScreenRectangle brbe$getTopLayerOverlayBounds() {
+        if (this.brbe$hasTopLayerOverlay()) {
             return ((SmithingRecipeBookPage) this._$recipeBookComponent.recipesPage).overlay.getBounds();
         }
 

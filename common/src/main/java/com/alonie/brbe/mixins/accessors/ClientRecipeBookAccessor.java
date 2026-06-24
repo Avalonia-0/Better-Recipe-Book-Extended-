@@ -11,5 +11,5 @@ import java.util.Map;
 @Mixin(ClientRecipeBook.class)
 public interface ClientRecipeBookAccessor {
     @Accessor("known")
-    Map<RecipeDisplayId, RecipeDisplayEntry> betterRecipeBook$getKnown();
+    Map<RecipeDisplayId, RecipeDisplayEntry> brbe$getKnown();
 }

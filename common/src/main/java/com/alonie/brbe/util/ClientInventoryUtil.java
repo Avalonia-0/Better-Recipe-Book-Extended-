@@ -23,15 +23,15 @@ public class ClientInventoryUtil {
      * @param fromSlot the location of the item, -1 to store the item being carried by the cursor
      * @param indexCheck the bounds of the "storage" - if the predicate returns false, that slot will not be used as storage
      */
-    public static boolean storeItem(int fromSlot, Predicate<Integer> indexCheck) {
+    public static void storeItem(int fromSlot, Predicate<Integer> indexCheck) {
         MultiPlayerGameMode gameMode = Minecraft.getInstance().gameMode;
         Minecraft minecraft = Minecraft.getInstance();
         AbstractContainerMenu menu = minecraft.player.containerMenu;
-        if (menu == null) return false;
+        if (menu == null) return;
 
         // if fromSlot is null assume the item is being carried
         if (fromSlot >= 0) {
-            if (menu.slots.get(fromSlot).getItem().isEmpty()) return false;
+            if (menu.slots.get(fromSlot).getItem().isEmpty()) return;
 
             // if there is already an item in the hand, drop it.
             if (!menu.getCarried().isEmpty()) {
@@ -40,7 +40,7 @@ public class ClientInventoryUtil {
 
             gameMode.handleInventoryMouseClick(menu.containerId, fromSlot, 0, ClickType.PICKUP, minecraft.player);
         } else if (menu.getCarried().isEmpty()) {
-            return true;
+            return;
         }
 
         // sort the slots so full slots will be checked first
@@ -58,7 +58,9 @@ public class ClientInventoryUtil {
                 }
             }
         }
-        return count <= 0 || menu.getCarried().isEmpty();
+        if (count > 0) {
+            dropItem(-1, true, false);
+        }
     }
 
     /**
@@ -67,6 +69,25 @@ public class ClientInventoryUtil {
      * @param wholeStack drop the whole stack or a single item
      * @param force If we should perform the drop even if the item is air for the client
      */
+    /**
+     * Moves an item from a slot to a target slot by picking up from source and placing into target.
+     * Stores any overflow back into the player inventory.
+     * @param menu the container menu
+     * @param fromSlotIndex the index in the slot list to take from
+     * @param toSlotId the container slot id to place into
+     */
+    public static void moveItemToSlot(AbstractContainerMenu menu, int fromSlotIndex, int toSlotId) {
+        assert Minecraft.getInstance().gameMode != null;
+        storeItem(-1, i -> i > 4);
+        Minecraft.getInstance().gameMode.handleInventoryMouseClick(
+                menu.containerId, menu.getSlot(fromSlotIndex).index, 0, ClickType.PICKUP,
+                Minecraft.getInstance().player);
+        Minecraft.getInstance().gameMode.handleInventoryMouseClick(
+                menu.containerId, toSlotId, 0, ClickType.PICKUP,
+                Minecraft.getInstance().player);
+        storeItem(-1, i -> i > 4);
+    }
+
     public static void dropItem(int slot, boolean wholeStack, boolean force) {
         MultiPlayerGameMode gameMode = Minecraft.getInstance().gameMode;
         Minecraft minecraft = Minecraft.getInstance();

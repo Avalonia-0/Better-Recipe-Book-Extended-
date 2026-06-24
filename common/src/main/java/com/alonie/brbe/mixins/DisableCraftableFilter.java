@@ -21,14 +21,14 @@ public abstract class DisableCraftableFilter {
     protected CycleButton<Boolean> filterButton;
 
     @Inject(method = "initVisuals", at = @At("TAIL"))
-    private void betterRecipeBook$hideFilterButton(CallbackInfo ci) {
+    private void brbe$hideFilterButton(CallbackInfo ci) {
         if (!BetterRecipeBook.config.partialCraftingEnabled) return;
         this.filterButton.visible = false;
         this.filterButton.active = false;
     }
 
     @Inject(method = "isFiltering", at = @At("RETURN"), cancellable = true)
-    private void betterRecipeBook$disableFiltering(CallbackInfoReturnable<Boolean> cir) {
+    private void brbe$disableFiltering(CallbackInfoReturnable<Boolean> cir) {
         if (!BetterRecipeBook.config.partialCraftingEnabled) return;
         cir.setReturnValue(false);
     }

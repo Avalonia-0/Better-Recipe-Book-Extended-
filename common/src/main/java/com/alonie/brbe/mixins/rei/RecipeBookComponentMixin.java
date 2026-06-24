@@ -38,19 +38,19 @@ public abstract class RecipeBookComponentMixin {
     protected Minecraft minecraft;
 
     @Unique
-    private Slot betterRecipeBook$hoveredSlot;
+    private Slot brbe$hoveredSlot;
 
     /**
      * Capture the hovered slot during tooltip rendering so it is available
      * in {@code keyPressed} for ghost-item lookup.
      */
     @Inject(method = "renderTooltip", at = @At("HEAD"))
-    private void betterRecipeBook$captureHoveredSlot(GuiGraphics gui, int mouseX, int mouseY, Slot slot, CallbackInfo ci) {
-        this.betterRecipeBook$hoveredSlot = slot;
+    private void brbe$captureHoveredSlot(GuiGraphics gui, int mouseX, int mouseY, Slot slot, CallbackInfo ci) {
+        this.brbe$hoveredSlot = slot;
     }
 
     @Inject(method = "keyPressed", at = @At("RETURN"), cancellable = true)
-    private void betterRecipeBook$handleReiKeys(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+    private void brbe$handleReiKeys(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
         if (!ItemViewCompat.isLoaded()) {
             return;
         }
@@ -79,7 +79,7 @@ public abstract class RecipeBookComponentMixin {
         }
 
         // ── 2. Ghost items ─────────────────────────────────────────────
-        Slot slot = this.betterRecipeBook$hoveredSlot;
+        Slot slot = this.brbe$hoveredSlot;
         if (slot == null) return;
 
         GhostSlots ghostSlots = accessor.getGhostSlots();

@@ -46,7 +46,7 @@ public abstract class MultiPlayerGameModeMixin {
 
         if ((isUnlockAll || isCacheRecipe) && minecraft.player != null && minecraft.gameMode != null &&
                 minecraft.screen instanceof AbstractRecipeBookScreen<?> screen && minecraft.player.containerMenu instanceof RecipeBookMenu menu) {
-            RecipeBookComponent<?> comp = ((AbstractRecipeBookScreenAccessor) screen).betterRecipeBook$getRecipeBookComponent();
+            RecipeBookComponent<?> comp = ((AbstractRecipeBookScreenAccessor) screen).brbe$getRecipeBookComponent();
 
             RecipeBookPage page = ((RecipeBookComponentAccessor) comp).getRecipeBookPage();
             RecipeCollection lastRecipe = page.getLastClickedRecipeCollection();

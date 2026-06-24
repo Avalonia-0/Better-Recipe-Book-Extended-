@@ -21,7 +21,7 @@ public final class TopLayerOverlayRenderer {
 
     public static boolean hasOverlay(Screen screen) {
         if (screen instanceof TopLayerOverlayProvider provider) {
-            return provider.betterRecipeBook$hasTopLayerOverlay();
+            return provider.brbe$hasTopLayerOverlay();
         }
 
         return getVanillaOverlay(screen) != null;
@@ -29,9 +29,9 @@ public final class TopLayerOverlayRenderer {
 
     public static void render(Screen screen, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
         if (screen instanceof TopLayerOverlayProvider provider) {
-            if (provider.betterRecipeBook$hasTopLayerOverlay()) {
+            if (provider.brbe$hasTopLayerOverlay()) {
                 guiGraphics.nextStratum();
-                provider.betterRecipeBook$renderTopLayerOverlay(guiGraphics, mouseX, mouseY, partialTick);
+                provider.brbe$renderTopLayerOverlay(guiGraphics, mouseX, mouseY, partialTick);
             }
             return;
         }
@@ -45,7 +45,7 @@ public final class TopLayerOverlayRenderer {
 
     public static ScreenRectangle getOverlayBounds(Screen screen) {
         if (screen instanceof TopLayerOverlayProvider provider) {
-            return provider.betterRecipeBook$getTopLayerOverlayBounds();
+            return provider.brbe$getTopLayerOverlayBounds();
         }
 
         OverlayRecipeComponent overlay = getVanillaOverlay(screen);
@@ -57,7 +57,7 @@ public final class TopLayerOverlayRenderer {
             return null;
         }
 
-        RecipeBookComponent<?> book = ((AbstractRecipeBookScreenAccessor) recipeBookScreen).betterRecipeBook$getRecipeBookComponent();
+        RecipeBookComponent<?> book = ((AbstractRecipeBookScreenAccessor) recipeBookScreen).brbe$getRecipeBookComponent();
         if (!book.isVisible()) {
             return null;
         }

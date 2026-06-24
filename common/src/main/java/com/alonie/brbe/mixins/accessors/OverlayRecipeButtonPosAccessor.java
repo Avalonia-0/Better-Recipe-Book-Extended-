@@ -8,11 +8,11 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 @Mixin(targets = "net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent$OverlayRecipeButton$Pos")
 public interface OverlayRecipeButtonPosAccessor {
     @Accessor("x")
-    int betterRecipeBook$getX();
+    int brbe$getX();
 
     @Accessor("y")
-    int betterRecipeBook$getY();
+    int brbe$getY();
 
     @Invoker("selectIngredient")
-    ItemStack betterRecipeBook$selectIngredient(int index);
+    ItemStack brbe$selectIngredient(int index);
 }
