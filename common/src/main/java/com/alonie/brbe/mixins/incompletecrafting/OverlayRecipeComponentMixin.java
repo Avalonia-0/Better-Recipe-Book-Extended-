@@ -40,23 +40,16 @@ public class OverlayRecipeComponentMixin {
         return PartialCraftingUtil.getPartiallyCraftableRecipes(collection);
     }
 
-    // Replace fragile @ModifyVariable(index=13) with @Redirect on Math.ceilDiv
-    // which computes the column count in OverlayRecipeComponent.init().
-    // The vanilla code does: columns = Math.min(5, Math.ceilDiv(recipeCount, 5))
-    // We redirect ceilDiv to use our expanded recipe count (including partials).
-    @Redirect(method = "init",
-              at = @At(value = "INVOKE", target = "Ljava/lang/Math;ceilDiv(II)I"))
-    private int brbe$expandColumns(int dividend, int divisor,
-                                    RecipeCollection collection, ContextMap contextMap,
-                                    boolean isFiltering, int x, int y, int overlayX,
-                                    int overlayY, float width) {
+    @ModifyVariable(method = "init", index = 13, at = @At("STORE"))
+    private int brbe$expandColumnsAfterFiveRows(int columns, RecipeCollection collection, ContextMap contextMap, boolean isFiltering, int x, int y, int overlayX, int overlayY, float width) {
         int recipeCount = collection.getSelectedRecipes(RecipeCollection.CraftableStatus.CRAFTABLE).size();
         if (!isFiltering) {
             recipeCount += collection.getSelectedRecipes(RecipeCollection.CraftableStatus.NOT_CRAFTABLE).size();
         } else {
             recipeCount += PartialCraftingUtil.getPartiallyCraftableRecipes(collection).size();
         }
-        return Math.ceilDiv(Math.max(recipeCount, dividend), divisor);
+
+        return AlternativeOverlayLayout.columnsFor(recipeCount);
     }
 
     @ModifyVariable(method = "render", index = 5, at = @At("STORE"))
