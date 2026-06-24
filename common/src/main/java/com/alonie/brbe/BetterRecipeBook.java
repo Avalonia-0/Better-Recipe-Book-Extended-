@@ -83,6 +83,7 @@ public class BetterRecipeBook {
     }
 
     public static void init() {
+        ensureCategories();
         PotionLoader.init();
 
         queuedScroll = 0;
