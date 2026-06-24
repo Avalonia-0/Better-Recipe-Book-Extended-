@@ -45,18 +45,25 @@ public abstract class ClientRecipeBookMixin {
 
     @Inject(method = "<init>", at = @At("RETURN"))
     private void brbe$onConstruct(CallbackInfo ci) {
-        if (VanillaRecipeCache.hasEntries()) {
-            VanillaRecipeCache.detectAndInject((ClientRecipeBook) (Object) this, known);
-        }
+        if (!VanillaRecipeCache.hasEntries()) return;
+        ClientRecipeBook self = (ClientRecipeBook) (Object) this;
+        VanillaRecipeCache.detectAndInject(self, known);
+        // Force rebuildCollections so injected entries are categorized
+        // into collectionsByTab. Without this, recipes are in known
+        // but invisible in the UI.
+        self.rebuildCollections();
     }
 
     // ---- clear() hook: re-inject after server wipes known map ----
 
     @Inject(method = "clear", at = @At("RETURN"))
     private void brbe$onClear(CallbackInfo ci) {
-        if (VanillaRecipeCache.hasEntries()) {
-            VanillaRecipeCache.detectAndInject((ClientRecipeBook) (Object) this, known);
-        }
+        if (!VanillaRecipeCache.hasEntries()) return;
+        ClientRecipeBook self = (ClientRecipeBook) (Object) this;
+        VanillaRecipeCache.detectAndInject(self, known);
+        // Force rebuildCollections so the re-injected entries are
+        // categorized for the UI.
+        self.rebuildCollections();
     }
 
     // ---- rebuildCollections hooks: refresh during normal builds ----
