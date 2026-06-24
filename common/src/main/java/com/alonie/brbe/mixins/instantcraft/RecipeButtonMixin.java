@@ -11,8 +11,6 @@ import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
-import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
 import java.util.List;
 
@@ -21,7 +19,7 @@ public class RecipeButtonMixin {
 
     @Shadow private RecipeCollection collection;
 
-    @Unique public static List<RecipeHolder<?>> brbe$lastClicked;
+    @Unique private static List<RecipeHolder<?>> brbe$lastClicked;
 
     @Inject(method = "init", at = @At(value = "HEAD"))
     public void init(RecipeCollection collection, RecipeBookPage recipeBookPage, CallbackInfo ci) {
