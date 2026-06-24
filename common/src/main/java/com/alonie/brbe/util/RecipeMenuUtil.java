@@ -18,6 +18,9 @@ public class RecipeMenuUtil {
         if (menu instanceof AbstractCraftingMenu craftingMenu) {
             return craftingMenu.getInputGridSlots().stream().anyMatch(inputSlot -> inputSlot.index == slot);
         }
+        if (menu instanceof AbstractFurnaceMenu) {
+            return false; // Furnaces do not have a crafting grid
+        }
 
         return slot > 0 && slot < menu.slots.size();
     }
@@ -26,11 +29,17 @@ public class RecipeMenuUtil {
         if (menu instanceof AbstractCraftingMenu craftingMenu) {
             return craftingMenu.getResultSlot().index == slot;
         }
+        if (menu instanceof AbstractFurnaceMenu furnaceMenu) {
+            return furnaceMenu.getResultSlot().index == slot;
+        }
 
         return slot == 0;
     }
 
     public static boolean isCraftingMenuSlot(RecipeBookMenu menu, int slot) {
+        if (menu instanceof AbstractFurnaceMenu) {
+            return false; // Furnace slots are not crafting-menu slots for item-moving purposes
+        }
         return isCraftingGridSlot(menu, slot) || isResultSlot(menu, slot);
     }
 
