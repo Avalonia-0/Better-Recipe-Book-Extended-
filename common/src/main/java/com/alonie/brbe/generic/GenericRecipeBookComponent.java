@@ -98,6 +98,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     public void init(int width, int height, Minecraft minecraft, boolean widthNarrow, M menu, @Nullable Consumer<ItemStack> onGhostRecipeUpdate, RegistryAccess registryAccess) {
+        BetterRecipeBook.ensureCategories();
         this.minecraft = minecraft;
         this.width = width;
         this.height = height;

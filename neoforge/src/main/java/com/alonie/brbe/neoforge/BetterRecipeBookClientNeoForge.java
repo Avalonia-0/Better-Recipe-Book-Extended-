@@ -29,7 +29,6 @@ public class BetterRecipeBookClientNeoForge {
     private static final Set<Screen> registeredScreens = Collections.newSetFromMap(new WeakHashMap<>());
 
     public static void init() {
-        BetterRecipeBook.ensureCategories();
         // Register platform provider
         PlatformPotionUtilImpl.init();
 
