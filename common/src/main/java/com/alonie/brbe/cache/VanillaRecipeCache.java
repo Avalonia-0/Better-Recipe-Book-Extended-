@@ -166,20 +166,25 @@ public final class VanillaRecipeCache {
                     continue;
                 }
 
-                // Pre-validate: skip entries whose result items don't resolve
-                List<ItemStack> results;
-                try {
-                    results = entry.resultItems(null);
-                } catch (Exception resEx) {
-                    results = List.of();
-                }
-                if (results.isEmpty() || results.stream().allMatch(
-                        s -> s == null || s.isEmpty())) {
-                    filteredCount++;
-                    if (lastFiltered.size() < SAMPLE_SIZE) {
-                        lastFiltered.add(cEntry.recipeKey() + " → " + cEntry.resultItem());
+                // Pre-validate: skip entries whose result items don't resolve.
+                // Entries with null resultItem() — e.g. smithing trim recipes whose
+                // result is dynamically composed (template + material) — cannot be
+                // validated via resultItems(null), so we inject them unconditionally.
+                if (cEntry.resultItem() != null) {
+                    List<ItemStack> results;
+                    try {
+                        results = entry.resultItems(null);
+                    } catch (Exception resEx) {
+                        results = List.of();
                     }
-                    continue;
+                    if (results.isEmpty() || results.stream().allMatch(
+                            s -> s == null || s.isEmpty())) {
+                        filteredCount++;
+                        if (lastFiltered.size() < SAMPLE_SIZE) {
+                            lastFiltered.add(cEntry.recipeKey() + " → " + cEntry.resultItem());
+                        }
+                        continue;
+                    }
                 }
 
                 known.put(newId, entry);
