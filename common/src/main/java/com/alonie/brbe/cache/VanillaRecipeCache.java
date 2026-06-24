@@ -118,13 +118,15 @@ public final class VanillaRecipeCache {
                 RecipeDisplayEntry entry = cEntry.toEntry(newId);
                 if (entry == null) { filteredCount++; continue; }
                 List<ItemStack> results;
-                try { results = entry.resultItems(null); }
-                catch (Exception resEx) { results = List.of(); }
-                if (results.isEmpty() || results.stream().allMatch(s -> s == null || s.isEmpty())) {
-                    filteredCount++;
-                    if (lastFiltered.size() < SAMPLE_SIZE)
-                        lastFiltered.add(cEntry.recipeKey() + " → " + cEntry.resultItem());
-                    continue;
+                if (cEntry.resultItem() != null) {
+                    try { results = entry.resultItems(null); }
+                    catch (Exception resEx) { results = List.of(); }
+                    if (results.isEmpty() || results.stream().allMatch(s -> s == null || s.isEmpty())) {
+                        filteredCount++;
+                        if (lastFiltered.size() < SAMPLE_SIZE)
+                            lastFiltered.add(cEntry.recipeKey() + " → " + cEntry.resultItem());
+                        continue;
+                    }
                 }
                 known.put(newId, entry);
                 injectedCount++;
