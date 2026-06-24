@@ -120,6 +120,12 @@ public abstract class RecipeBookComponentMixin {
         BetterRecipeBook.LOGGER.info("[BRBE-Timing] updateCollections START (+{}ms from initVisuals)",
                 (System.nanoTime() - brbe$cycleStartNanos) / 1_000_000);
 
+        // Clear cross-screen cache on tab switch / search / filter toggle
+        // to prevent stale data from a different tab from being served.
+        if (resetPage) {
+            BookStateCache.clear();
+        }
+
         brbe$savedSearchText = null;
         brbe$parsedQuery = null;
 
@@ -176,7 +182,10 @@ public abstract class RecipeBookComponentMixin {
         }
 
         // Step 2: Partial material marking & injection
-        if (retainPartial && inventoryChanged) {
+        // Must run whenever Step 0 ran (i.e., when partials were cleared),
+        // not only on inventory change. Otherwise partial markings are lost
+        // after cache invalidation until the next inventory change.
+        if (retainPartial && (inventoryChanged || retainIncompatible)) {
             Set<Item> inventoryItems = PartialCraftingUtil.hashInventory(menu.slots);
             brbe$markAndInjectPartials(collections, filter3x3, inventoryItems);
             PartialCraftingUtil.clearCategoryCache();

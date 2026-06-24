@@ -2,6 +2,7 @@ package com.alonie.brbe.mixins.ungroup;
 
 import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.RecipeBookCategories;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
@@ -41,6 +42,13 @@ public class ClientRecipeBookMixin extends RecipeBook {
                     }
                 }
             }
+
+            // Clear partial-crafting caches: the newly-created single-recipe
+            // collections are not in PartialCraftingUtil's WeakHashMap key cache.
+            // Forcing a fresh scan on the next updateCollections pass ensures
+            // partial-craftable state is computed for the split collections.
+            PartialCraftingUtil.clearCaches();
+
             cir.setReturnValue(list2);
         }
     }
