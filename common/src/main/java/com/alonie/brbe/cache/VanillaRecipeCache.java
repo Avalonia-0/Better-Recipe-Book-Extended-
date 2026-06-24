@@ -2,9 +2,11 @@ package com.alonie.brbe.cache;
 
 import com.alonie.brbe.BetterRecipeBook;
 import net.minecraft.client.ClientRecipeBook;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
+import net.minecraft.world.item.crafting.display.SlotDisplay;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -99,17 +101,41 @@ public final class VanillaRecipeCache {
         // re-injecting.  Server IDs are always ≥ 0.
         known.keySet().removeIf(id -> id.index() < 0);
 
-        // Inject all valid cached entries unconditionally
-        injectAll(known);
+        if (lastServerCount == 0) {
+            // No server recipes: inject ALL (Hypixel, no-packet servers)
+            injectEntries(known, Set.of());
+        } else {
+            // Server sent recipes: complement — only inject what server didn't cover
+            Set<String> serverResultItems = collectServerResultItems(known);
+            injectEntries(known, serverResultItems);
+        }
+    }
+
+    /**
+     * Collects result item IDs from server-provided entries (positive IDs).
+     */
+    private static Set<String> collectServerResultItems(Map<RecipeDisplayId, RecipeDisplayEntry> known) {
+        Set<String> items = new HashSet<>();
+        for (RecipeDisplayEntry entry : known.values()) {
+            String rid = extractResultItemId(entry.display().result());
+            if (rid != null) items.add(rid);
+        }
+        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] server covers {} unique result items",
+                items.size());
+        return items;
     }
 
     // ---- Injection ----
 
     /**
-     * Injects ALL cached entries that resolve to valid items into the known map.
-     * Entries that produce air (empty result stacks) are filtered out.
+     * Injects cached entries into the known map.
+     *
+     * @param serverResultItems result item IDs already covered by the server.
+     *        Entries with result items in this set are skipped.
+     *        Pass an empty set to inject all valid entries.
      */
-    private static void injectAll(Map<RecipeDisplayId, RecipeDisplayEntry> known) {
+    private static void injectEntries(Map<RecipeDisplayId, RecipeDisplayEntry> known,
+                                       Set<String> serverResultItems) {
         // Clear snapshots
         lastInjected.clear();
         lastFiltered.clear();
@@ -117,10 +143,20 @@ public final class VanillaRecipeCache {
 
         int nextId = -1;
         int injectedCount = 0;
+        int skippedCount = 0;
         int filteredCount = 0;
+        boolean complementMode = !serverResultItems.isEmpty();
 
         for (CacheableRecipeDisplayEntry cEntry : cache.values()) {
             try {
+                // In complement mode, skip entries already covered by the server
+                if (complementMode
+                        && cEntry.resultItem() != null
+                        && serverResultItems.contains(cEntry.resultItem())) {
+                    skippedCount++;
+                    continue;
+                }
+
                 String cat = cEntry.categoryName() != null ? cEntry.categoryName() : "unknown";
 
                 RecipeDisplayId newId = new RecipeDisplayId(nextId--);
@@ -131,7 +167,6 @@ public final class VanillaRecipeCache {
                 }
 
                 // Pre-validate: skip entries whose result items don't resolve
-                // These are recipe types we can't reconstruct (e.g. smithing_trim)
                 List<ItemStack> results;
                 try {
                     results = entry.resultItems(null);
@@ -159,9 +194,10 @@ public final class VanillaRecipeCache {
             }
         }
 
+        String mode = complementMode ? "complement" : "all";
         BetterRecipeBook.LOGGER.info(
-                "[BRBE-CACHE] injected: {} cached, {} filtered (known now {}, server count {})",
-                injectedCount, filteredCount, known.size(), lastServerCount);
+                "[BRBE-CACHE] injected ({}): {} cached, {} skipped, {} filtered (known now {})",
+                mode, injectedCount, skippedCount, filteredCount, known.size());
 
         if (filteredCount > 0) {
             BetterRecipeBook.LOGGER.warn("[BRBE-CACHE] filtered air entries (first {}): {}",
@@ -185,6 +221,24 @@ public final class VanillaRecipeCache {
             BetterRecipeBook.LOGGER.info("  By category (injected): {}", lastCategoryBreakdown);
         }
         BetterRecipeBook.LOGGER.info("================================================");
+    }
+
+    // ---- Helpers ----
+
+    /**
+     * Extracts the registry item ID from a SlotDisplay result.
+     * Handles {@link SlotDisplay.ItemSlotDisplay} and
+     * {@link SlotDisplay.ItemStackSlotDisplay}; returns {@code null}
+     * for tag, composite, and empty displays.
+     */
+    static String extractResultItemId(SlotDisplay slot) {
+        if (slot instanceof SlotDisplay.ItemSlotDisplay itemSlot) {
+            return BuiltInRegistries.ITEM.getKey(itemSlot.item().value()).toString();
+        }
+        if (slot instanceof SlotDisplay.ItemStackSlotDisplay stackSlot) {
+            return BuiltInRegistries.ITEM.getKey(stackSlot.stack().item().value()).toString();
+        }
+        return null;
     }
 
     // ---- Queries ----
