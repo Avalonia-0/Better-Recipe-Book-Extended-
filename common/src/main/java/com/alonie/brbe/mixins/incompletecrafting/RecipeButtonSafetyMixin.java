@@ -29,7 +29,7 @@ public abstract class RecipeButtonSafetyMixin {
      * and the code tries to calculate index % 0.
      */
     @Inject(method = "getDisplayStack", at = @At("HEAD"), cancellable = true)
-    private void betterRecipeBook$safeGetDisplayStack(CallbackInfoReturnable<ItemStack> cir) {
+    private void brbe$safeGetDisplayStack(CallbackInfoReturnable<ItemStack> cir) {
         try {
             // Probe: getCurrentRecipe() will throw ArithmeticException if the
             // ordered recipe list is empty (same root cause as getDisplayStack)

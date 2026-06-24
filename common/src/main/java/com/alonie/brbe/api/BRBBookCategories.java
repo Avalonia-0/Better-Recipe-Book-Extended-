@@ -13,7 +13,7 @@ import java.util.List;
 import java.util.Map;
 
 public class BRBBookCategories {
-    public static Map<BRBHelper.Book, List<Category>> categories = new HashMap<>();
+    private static final Map<BRBHelper.Book, List<Category>> categories = new HashMap<>();
 
     @Nullable
     public static List<Category> getCategories(BRBHelper.Book book) {

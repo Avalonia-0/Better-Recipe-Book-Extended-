@@ -77,24 +77,12 @@ public class SmithingRecipeBookComponent extends GenericRecipeBookComponent<Smit
             ItemStack itemStack = slot.getItem();
 
             if (result.requiresTemplate() && result.getTemplate().test(itemStack)) {
-                assert Minecraft.getInstance().gameMode != null;
-                ClientInventoryUtil.storeItem(-1, i -> i > 4);
-                Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, menu.getSlot(slotIndex).index, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
-                Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, SmithingMenu.TEMPLATE_SLOT, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
-                ClientInventoryUtil.storeItem(-1, i -> i > 4);
+                ClientInventoryUtil.moveItemToSlot(menu, slotIndex, SmithingMenu.TEMPLATE_SLOT);
             } else if (!placedBase && !itemStack.has(DataComponents.TRIM) && result.getBase().getItem().equals(itemStack.getItem())) {
-                assert Minecraft.getInstance().gameMode != null;
-                ClientInventoryUtil.storeItem(-1, i -> i > 4);
-                Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, menu.getSlot(slotIndex).index, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
-                Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, SmithingMenu.BASE_SLOT, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
-                ClientInventoryUtil.storeItem(-1, i -> i > 4);
+                ClientInventoryUtil.moveItemToSlot(menu, slotIndex, SmithingMenu.BASE_SLOT);
                 placedBase = true;
             } else if (result.requiresAddition() && result.getAddition().test(itemStack)) {
-                assert Minecraft.getInstance().gameMode != null;
-                ClientInventoryUtil.storeItem(-1, i -> i > 4);
-                Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, menu.getSlot(slotIndex).index, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
-                Minecraft.getInstance().gameMode.handleContainerInput(menu.containerId, SmithingMenu.ADDITIONAL_SLOT, 0, ContainerInput.PICKUP, Minecraft.getInstance().player);
-                ClientInventoryUtil.storeItem(-1, i -> i > 4);
+                ClientInventoryUtil.moveItemToSlot(menu, slotIndex, SmithingMenu.ADDITIONAL_SLOT);
             }
 
             ++slotIndex;

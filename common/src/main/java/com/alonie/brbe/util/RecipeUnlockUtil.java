@@ -17,11 +17,11 @@ import java.util.Set;
 
 public class RecipeUnlockUtil {
 
-    private static IntegratedServer betterRecipeBook$server;
-    private static java.util.UUID betterRecipeBook$playerId;
-    private static Set<ResourceKey<Recipe<?>>> betterRecipeBook$originalRecipes = Set.of();
-    private static Set<RecipeDisplayId> betterRecipeBook$originalRecipeDisplays = Set.of();
-    private static boolean betterRecipeBook$hasSnapshot;
+    private static IntegratedServer brbe$server;
+    private static java.util.UUID brbe$playerId;
+    private static Set<ResourceKey<Recipe<?>>> brbe$originalRecipes = Set.of();
+    private static Set<RecipeDisplayId> brbe$originalRecipeDisplays = Set.of();
+    private static boolean brbe$hasSnapshot;
 
     /**
      * Applies the current config to the integrated server's recipe book when available.
@@ -35,14 +35,14 @@ public class RecipeUnlockUtil {
     }
 
     public static void restoreRecipes() {
-        if (!betterRecipeBook$hasSnapshot || betterRecipeBook$server == null || betterRecipeBook$playerId == null) {
-            betterRecipeBook$clearSession();
+        if (!brbe$hasSnapshot || brbe$server == null || brbe$playerId == null) {
+            brbe$clearSession();
             return;
         }
 
-        IntegratedServer server = betterRecipeBook$server;
-        java.util.UUID playerId = betterRecipeBook$playerId;
-        Set<ResourceKey<Recipe<?>>> originalRecipes = Set.copyOf(betterRecipeBook$originalRecipes);
+        IntegratedServer server = brbe$server;
+        java.util.UUID playerId = brbe$playerId;
+        Set<ResourceKey<Recipe<?>>> originalRecipes = Set.copyOf(brbe$originalRecipes);
 
         server.submit(() -> {
             ServerPlayer serverPlayer = server.getPlayerList().getPlayer(playerId);
@@ -51,7 +51,7 @@ public class RecipeUnlockUtil {
             }
 
             ServerRecipeBook recipeBook = serverPlayer.getRecipeBook();
-            Set<ResourceKey<Recipe<?>>> recipesToRemove = new HashSet<>(((ServerRecipeBookAccessor) recipeBook).betterRecipeBook$getKnown());
+            Set<ResourceKey<Recipe<?>>> recipesToRemove = new HashSet<>(((ServerRecipeBookAccessor) recipeBook).brbe$getKnown());
             recipesToRemove.removeAll(originalRecipes);
             if (recipesToRemove.isEmpty()) {
                 return;
@@ -67,7 +67,7 @@ public class RecipeUnlockUtil {
             }
         }).join();
 
-        betterRecipeBook$clearSession();
+        brbe$clearSession();
     }
 
     public static void unlockRecipes() {
@@ -82,23 +82,23 @@ public class RecipeUnlockUtil {
         }
 
         java.util.UUID playerId = minecraft.player.getUUID();
-        Set<RecipeDisplayId> clientKnownDisplays = Set.copyOf(((ClientRecipeBookAccessor) minecraft.player.getRecipeBook()).betterRecipeBook$getKnown().keySet());
+        Set<RecipeDisplayId> clientKnownDisplays = Set.copyOf(((ClientRecipeBookAccessor) minecraft.player.getRecipeBook()).brbe$getKnown().keySet());
         server.submit(() -> {
             ServerPlayer serverPlayer = server.getPlayerList().getPlayer(playerId);
             if (serverPlayer == null) {
                 return;
             }
 
-            if (betterRecipeBook$hasSnapshot && betterRecipeBook$server == server && playerId.equals(betterRecipeBook$playerId)) {
+            if (brbe$hasSnapshot && brbe$server == server && playerId.equals(brbe$playerId)) {
                 return;
             }
 
-            if (!betterRecipeBook$hasSnapshot || betterRecipeBook$server != server || !playerId.equals(betterRecipeBook$playerId)) {
-                betterRecipeBook$server = server;
-                betterRecipeBook$playerId = playerId;
-                betterRecipeBook$originalRecipes = Set.copyOf(((ServerRecipeBookAccessor) serverPlayer.getRecipeBook()).betterRecipeBook$getKnown());
-                betterRecipeBook$originalRecipeDisplays = clientKnownDisplays;
-                betterRecipeBook$hasSnapshot = true;
+            if (!brbe$hasSnapshot || brbe$server != server || !playerId.equals(brbe$playerId)) {
+                brbe$server = server;
+                brbe$playerId = playerId;
+                brbe$originalRecipes = Set.copyOf(((ServerRecipeBookAccessor) serverPlayer.getRecipeBook()).brbe$getKnown());
+                brbe$originalRecipeDisplays = clientKnownDisplays;
+                brbe$hasSnapshot = true;
             }
 
             serverPlayer.awardRecipes(server.getRecipeManager().getRecipes());
@@ -107,15 +107,15 @@ public class RecipeUnlockUtil {
 
     public static boolean isTemporarilyUnlocked(RecipeDisplayId recipeDisplayId) {
         return BetterRecipeBook.config.newRecipes.unlockAll
-                && betterRecipeBook$hasSnapshot
-                && !betterRecipeBook$originalRecipeDisplays.contains(recipeDisplayId);
+                && brbe$hasSnapshot
+                && !brbe$originalRecipeDisplays.contains(recipeDisplayId);
     }
 
-    private static void betterRecipeBook$clearSession() {
-        betterRecipeBook$server = null;
-        betterRecipeBook$playerId = null;
-        betterRecipeBook$originalRecipes = Set.of();
-        betterRecipeBook$originalRecipeDisplays = Set.of();
-        betterRecipeBook$hasSnapshot = false;
+    private static void brbe$clearSession() {
+        brbe$server = null;
+        brbe$playerId = null;
+        brbe$originalRecipes = Set.of();
+        brbe$originalRecipeDisplays = Set.of();
+        brbe$hasSnapshot = false;
     }
 }

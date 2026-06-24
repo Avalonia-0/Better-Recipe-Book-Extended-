@@ -124,6 +124,9 @@ public abstract class RecipeBookComponentMixin {
             }
         }
 
+        // Stage 5: Filter toggle — remove non-craftable collections when filtering
+        list = CollectionPipeline.applyFilterToggle(list, isFiltering);
+
         page.updateCollections(list, resetPageNumber, isFiltering);
     }
 }

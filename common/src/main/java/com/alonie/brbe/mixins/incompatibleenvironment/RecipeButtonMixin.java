@@ -25,7 +25,7 @@ public abstract class RecipeButtonMixin {
     @Shadow public abstract RecipeDisplayId getCurrentRecipe();
 
     @Inject(method = "getTooltipText", at = @At("RETURN"))
-    private void betterRecipeBook$appendIncompatibleWarning(
+    private void brbe$appendIncompatibleWarning(
             ItemStack itemStack,
             CallbackInfoReturnable<List<Component>> cir) {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;

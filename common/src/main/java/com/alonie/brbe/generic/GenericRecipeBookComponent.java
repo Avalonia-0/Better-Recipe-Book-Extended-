@@ -82,7 +82,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
     /** The ghost ingredient ItemStack the mouse was over during the last tooltip render. */
     @Nullable
-    private ItemStack betterRecipeBook$lastHoveredGhostItem;
+    private ItemStack brbe$lastHoveredGhostItem;
 
 //    private int timesInventoryChanged;
 
@@ -258,7 +258,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             }
 
             // ── 2. Ghost items ─────────────────────────────────────────
-            ItemStack ghostStack = this.betterRecipeBook$lastHoveredGhostItem;
+            ItemStack ghostStack = this.brbe$lastHoveredGhostItem;
             if (ghostStack != null && !ghostStack.isEmpty()) {
                 if (ClientCompat.matches(BetterRecipeBook.RECIPE_VIEW_MAPPING, i, j, k)) {
                     return ItemViewCompat.openRecipeView(ghostStack);
@@ -341,15 +341,15 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
                     && !result.atleastOnePartiallyCraftable(this.menu.slots));
         }
 
-        this.betterRecipeBook$sortByPinsInPlace(results);
+        this.brbe$sortByPinsInPlace(results);
         if (BRBBookSettings.isFiltering(this.getRecipeBookType())) {
-            this.betterRecipeBook$sortCraftableBeforePartial(results);
+            this.brbe$sortCraftableBeforePartial(results);
         }
 
         this.recipesPage.setResults(results, b, selectedTab.getCategory());
     }
 
-    private void betterRecipeBook$sortCraftableBeforePartial(List<C> results) {
+    private void brbe$sortCraftableBeforePartial(List<C> results) {
         List<C> craftableResults = new ArrayList<>();
         List<C> partialResults = new ArrayList<>();
 
@@ -559,7 +559,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         }
 
         this.ghostRecipe.drawTooltip(gui, x, y, mouseX, mouseY);
-        this.betterRecipeBook$lastHoveredGhostItem = this.ghostRecipe.getLastHoveredItem();
+        this.brbe$lastHoveredGhostItem = this.ghostRecipe.getLastHoveredItem();
     }
 
     protected void refreshTabButtons() {

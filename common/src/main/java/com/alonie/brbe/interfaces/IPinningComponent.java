@@ -7,7 +7,7 @@ import com.alonie.brbe.generic.pins.Pinnable;
 import java.util.List;
 
 public interface IPinningComponent<T extends Pinnable> {
-    default void betterRecipeBook$sortByPinsInPlace(List<T> results) {
+    default void brbe$sortByPinsInPlace(List<T> results) {
         List<T> tempResults = Lists.newArrayList(results);
 
         if (BetterRecipeBook.config.enablePinning) {

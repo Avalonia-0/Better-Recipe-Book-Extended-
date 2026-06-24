@@ -10,8 +10,8 @@ import java.util.Set;
 @Mixin(RecipeCollection.class)
 public interface RecipeCollectionAccessor {
     @Accessor("craftable")
-    Set<RecipeDisplayId> betterRecipeBook$getCraftable();
+    Set<RecipeDisplayId> brbe$getCraftable();
 
     @Accessor("selected")
-    Set<RecipeDisplayId> betterRecipeBook$getSelected();
+    Set<RecipeDisplayId> brbe$getSelected();
 }

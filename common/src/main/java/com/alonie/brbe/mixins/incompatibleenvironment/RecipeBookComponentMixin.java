@@ -16,7 +16,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "tryPlaceRecipe", at = @At("HEAD"), cancellable = true)
-    private void betterRecipeBook$preventIncompatiblePlacement(
+    private void brbe$preventIncompatiblePlacement(
             RecipeCollection collection, RecipeDisplayId id, boolean isFiltering,
             CallbackInfoReturnable<Boolean> cir) {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;

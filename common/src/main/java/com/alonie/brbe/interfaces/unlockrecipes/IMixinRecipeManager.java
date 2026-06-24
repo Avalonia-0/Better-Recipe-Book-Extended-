@@ -9,6 +9,6 @@ import java.util.Set;
  */
 public interface IMixinRecipeManager {
 
-    Set<RecipeDisplayId> betterRecipeBook$getServerUnlockedRecipes();
+    Set<RecipeDisplayId> brbe$getServerUnlockedRecipes();
 
 }

@@ -56,7 +56,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;getSelectedRecipes(Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection$CraftableStatus;)Ljava/util/List;"),
         require = 1
     )
-    private List<RecipeDisplayEntry> betterRecipeBook$filterSelectedRecipes(
+    private List<RecipeDisplayEntry> brbe$filterSelectedRecipes(
             RecipeCollection collection, RecipeCollection.CraftableStatus status) {
         List<RecipeDisplayEntry> result = collection.getSelectedRecipes(status);
 
@@ -93,7 +93,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     }
 
     @Redirect(method = "extractWidgetRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
-    private boolean betterRecipeBook$renderCurrentRecipeCraftability(RecipeCollection collection, GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
+    private boolean brbe$renderCurrentRecipeCraftability(RecipeCollection collection, GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick) {
         try {
             RecipeDisplayId currentRecipe = this.getCurrentRecipe();
             return collection.isCraftable(currentRecipe) || PartialCraftingUtil.isPartiallyCraftable(collection, currentRecipe);
@@ -103,7 +103,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     }
 
     @Inject(method = "isOnlyOption", at = @At("RETURN"), cancellable = true)
-    private void betterRecipeBook$allowNestedAlternativeOverlay(CallbackInfoReturnable<Boolean> cir) {
+    private void brbe$allowNestedAlternativeOverlay(CallbackInfoReturnable<Boolean> cir) {
         // Already returning false (multi-option) — nothing to fix.
         if (!cir.getReturnValue()) {
             return;
@@ -126,7 +126,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
      * alternatives.
      */
     @Inject(method = "hasMultipleRecipes", at = @At("RETURN"), cancellable = true)
-    private void betterRecipeBook$restoreMultiRecipeIndicator(CallbackInfoReturnable<Boolean> cir) {
+    private void brbe$restoreMultiRecipeIndicator(CallbackInfoReturnable<Boolean> cir) {
         if (cir.getReturnValue()) {
             return; // Already reporting multiple — nothing to fix.
         }
@@ -148,7 +148,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
      * the same item to appear overlapped with itself.
      */
     @Inject(method = "init", at = @At("TAIL"))
-    private void betterRecipeBook$suppressStackingWithSingleEntry(
+    private void brbe$suppressStackingWithSingleEntry(
             RecipeCollection collection, boolean filteringCraftable,
             RecipeBookPage recipeBookPage, ContextMap contextMap, CallbackInfo ci) {
         if (this.allRecipesHaveSameResultDisplay
@@ -160,7 +160,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     }
 
     @Inject(method = "extractWidgetRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fakeItem(Lnet/minecraft/world/item/ItemStack;II)V", shift = At.Shift.BEFORE))
-    private void betterRecipeBook$renderPartialOverlay(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+    private void brbe$renderPartialOverlay(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         RecipeDisplayId currentRecipe;
         try {
             currentRecipe = this.getCurrentRecipe();

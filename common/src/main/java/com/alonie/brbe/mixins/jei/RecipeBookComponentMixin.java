@@ -26,19 +26,19 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class RecipeBookComponentMixin {
 
     @Unique
-    private Slot betterRecipeBook$hoveredSlot;
+    private Slot brbe$hoveredSlot;
 
     /**
      * Capture the hovered slot during tooltip extraction so it is available
      * in {@code keyPressed} for ghost-item lookup.
      */
     @Inject(method = "extractTooltip", at = @At("HEAD"))
-    private void betterRecipeBook$captureHoveredSlot(GuiGraphicsExtractor gui, int mouseX, int mouseY, Slot slot, CallbackInfo ci) {
-        this.betterRecipeBook$hoveredSlot = slot;
+    private void brbe$captureHoveredSlot(GuiGraphicsExtractor gui, int mouseX, int mouseY, Slot slot, CallbackInfo ci) {
+        this.brbe$hoveredSlot = slot;
     }
 
     @Inject(method = "keyPressed", at = @At("RETURN"), cancellable = true)
-    private void betterRecipeBook$handleJeiKeys(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+    private void brbe$handleJeiKeys(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
         if (!ItemViewCompat.isLoaded() || cir.getReturnValueZ()) {
             return;
         }
@@ -66,7 +66,7 @@ public abstract class RecipeBookComponentMixin {
         }
 
         // ── 2. Ghost items ─────────────────────────────────────────────
-        Slot slot = this.betterRecipeBook$hoveredSlot;
+        Slot slot = this.brbe$hoveredSlot;
         if (slot == null) {
             return;
         }

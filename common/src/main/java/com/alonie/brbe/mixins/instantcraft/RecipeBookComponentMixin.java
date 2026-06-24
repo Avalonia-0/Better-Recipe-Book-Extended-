@@ -28,12 +28,12 @@ public abstract class RecipeBookComponentMixin {
     @Shadow private int xOffset;
     @Shadow public abstract boolean isVisible();
 
-    @Unique protected StateSwitchingButton betterRecipeBook$instantCraftButton;
+    @Unique protected StateSwitchingButton brbe$instantCraftButton;
     @Unique private static final Component TOGGLE_INSTANT_CRAFT_ON_TEXT = Component.translatable("brbe.gui.instantCraft.on");
     @Unique private static final Component TOGGLE_INSTANT_CRAFT_OFF_TEXT = Component.translatable("brbe.gui.instantCraft.off");
 
     @Unique
-    private boolean betterRecipeBook$shouldSkip() {
+    private boolean brbe$shouldSkip() {
         if (!BetterRecipeBook.config.instantCraft.showButton) {
             return true;
         }
@@ -43,56 +43,56 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "initVisuals", at = @At("RETURN"))
     public void reset(CallbackInfo ci) {
-        if (betterRecipeBook$shouldSkip()) {
+        if (brbe$shouldSkip()) {
             return;
         }
 
         int i = (this.width - 147) / 2 - this.xOffset;
         int j = (this.height - 166) / 2;
 
-        this.betterRecipeBook$instantCraftButton = new StateSwitchingButton(i + 110, j + 137, 26, 18, false);
-        this.betterRecipeBook$instantCraftButton.useStateTriggeredForTexture(true);
-        this.betterRecipeBook$instantCraftButton.setStateTriggered(BetterRecipeBook.instantCraftingManager.isEnabled());
-        this.betterRecipeBook$instantCraftButton.initTextureValues(BRBTextures.RECIPE_BOOK_INSTANT_CRAFT_BUTTON_SPRITES);
-        BetterRecipeBook.instantCraftingManager.lastInstantCraftButton = this.betterRecipeBook$instantCraftButton;
+        this.brbe$instantCraftButton = new StateSwitchingButton(i + 110, j + 137, 26, 18, false);
+        this.brbe$instantCraftButton.useStateTriggeredForTexture(true);
+        this.brbe$instantCraftButton.setStateTriggered(BetterRecipeBook.instantCraftingManager.isEnabled());
+        this.brbe$instantCraftButton.initTextureValues(BRBTextures.RECIPE_BOOK_INSTANT_CRAFT_BUTTON_SPRITES);
+        BetterRecipeBook.instantCraftingManager.lastInstantCraftButton = this.brbe$instantCraftButton;
     }
 
     @Inject(method = "extractRenderState", at = @At("RETURN"))
     public void render(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (betterRecipeBook$shouldSkip() || this.betterRecipeBook$instantCraftButton == null) {
+        if (brbe$shouldSkip() || this.brbe$instantCraftButton == null) {
             return;
         }
 
-        this.betterRecipeBook$instantCraftButton.setStateTriggered(BetterRecipeBook.instantCraftingManager.isEnabled());
-        this.betterRecipeBook$instantCraftButton.visible = this.isVisible();
+        this.brbe$instantCraftButton.setStateTriggered(BetterRecipeBook.instantCraftingManager.isEnabled());
+        this.brbe$instantCraftButton.visible = this.isVisible();
         if (!this.isVisible()) {
             return;
         }
 
-        this.betterRecipeBook$instantCraftButton.extractRenderState(gui, mouseX, mouseY, delta);
+        this.brbe$instantCraftButton.extractRenderState(gui, mouseX, mouseY, delta);
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     public void mouseClicked(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
-        if (!this.isVisible() || betterRecipeBook$shouldSkip() || this.betterRecipeBook$instantCraftButton == null) {
+        if (!this.isVisible() || brbe$shouldSkip() || this.brbe$instantCraftButton == null) {
             return;
         }
 
-        if (this.betterRecipeBook$instantCraftButton.mouseClicked(event.x(), event.y(), event.button())) {
+        if (this.brbe$instantCraftButton.mouseClicked(event.x(), event.y(), event.button())) {
             boolean enabled = BetterRecipeBook.instantCraftingManager.toggleEnabled();
-            this.betterRecipeBook$instantCraftButton.setStateTriggered(enabled);
+            this.brbe$instantCraftButton.setStateTriggered(enabled);
             cir.setReturnValue(true);
         }
     }
 
     @Inject(method = "extractTooltip", at = @At("RETURN"))
     public void drawTooltip(GuiGraphicsExtractor gui, int mouseX, int mouseY, Slot hoveredSlot, CallbackInfo ci) {
-        if (!this.isVisible() || betterRecipeBook$shouldSkip() || this.betterRecipeBook$instantCraftButton == null) {
+        if (!this.isVisible() || brbe$shouldSkip() || this.brbe$instantCraftButton == null) {
             return;
         }
 
-        if (this.betterRecipeBook$instantCraftButton.isHoveredOrFocused() && this.minecraft.gui.screen() != null) {
-            Component text = this.betterRecipeBook$instantCraftButton.isStateTriggered() ? TOGGLE_INSTANT_CRAFT_ON_TEXT : TOGGLE_INSTANT_CRAFT_OFF_TEXT;
+        if (this.brbe$instantCraftButton.isHoveredOrFocused() && this.minecraft.gui.screen() != null) {
+            Component text = this.brbe$instantCraftButton.isStateTriggered() ? TOGGLE_INSTANT_CRAFT_ON_TEXT : TOGGLE_INSTANT_CRAFT_OFF_TEXT;
             ClientCompat.setComponentTooltipForNextFrame(gui, java.util.List.of(text), mouseX, mouseY);
         }
     }

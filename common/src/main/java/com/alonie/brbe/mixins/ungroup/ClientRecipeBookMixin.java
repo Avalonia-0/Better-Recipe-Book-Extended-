@@ -42,11 +42,11 @@ public class ClientRecipeBookMixin extends RecipeBook {
                         RecipeCollectionAccessor sourceAccessor = (RecipeCollectionAccessor) recipeResultCollection;
                         RecipeCollectionAccessor splitAccessor = (RecipeCollectionAccessor) splitCollection;
 
-                        if (sourceAccessor.betterRecipeBook$getSelected().contains(recipe.id())) {
-                            splitAccessor.betterRecipeBook$getSelected().add(recipe.id());
+                        if (sourceAccessor.brbe$getSelected().contains(recipe.id())) {
+                            splitAccessor.brbe$getSelected().add(recipe.id());
                         }
-                        if (sourceAccessor.betterRecipeBook$getCraftable().contains(recipe.id())) {
-                            splitAccessor.betterRecipeBook$getCraftable().add(recipe.id());
+                        if (sourceAccessor.brbe$getCraftable().contains(recipe.id())) {
+                            splitAccessor.brbe$getCraftable().add(recipe.id());
                         }
 
                         // Mark incompatible directly (original collection hasn't been

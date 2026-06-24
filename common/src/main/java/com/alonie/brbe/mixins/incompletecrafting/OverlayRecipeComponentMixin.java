@@ -22,12 +22,12 @@ public class OverlayRecipeComponentMixin {
     private List<?> recipeButtons;
 
     @Redirect(method = "init", at = @At(value = "INVOKE", target = "Ljava/util/Collections;emptyList()Ljava/util/List;"))
-    private List<RecipeDisplayEntry> betterRecipeBook$showPartiallyCraftableAlternatives(RecipeCollection collection, ContextMap contextMap, boolean isFiltering, int x, int y, int overlayX, int overlayY, float width) {
+    private List<RecipeDisplayEntry> brbe$showPartiallyCraftableAlternatives(RecipeCollection collection, ContextMap contextMap, boolean isFiltering, int x, int y, int overlayX, int overlayY, float width) {
         return PartialCraftingUtil.getPartiallyCraftableRecipes(collection);
     }
 
     @ModifyVariable(method = "init", index = 13, at = @At("STORE"))
-    private int betterRecipeBook$expandColumnsAfterFiveRows(int columns, RecipeCollection collection, ContextMap contextMap, boolean isFiltering, int x, int y, int overlayX, int overlayY, float width) {
+    private int brbe$expandColumnsAfterFiveRows(int columns, RecipeCollection collection, ContextMap contextMap, boolean isFiltering, int x, int y, int overlayX, int overlayY, float width) {
         int recipeCount = collection.getSelectedRecipes(RecipeCollection.CraftableStatus.CRAFTABLE).size();
         if (!isFiltering) {
             recipeCount += collection.getSelectedRecipes(RecipeCollection.CraftableStatus.NOT_CRAFTABLE).size();
@@ -39,7 +39,7 @@ public class OverlayRecipeComponentMixin {
     }
 
     @ModifyVariable(method = "extractRenderState", index = 5, at = @At("STORE"))
-    private int betterRecipeBook$renderExpandedColumnsAfterFiveRows(int columns) {
+    private int brbe$renderExpandedColumnsAfterFiveRows(int columns) {
         return AlternativeOverlayLayout.columnsFor(this.recipeButtons.size());
     }
 }

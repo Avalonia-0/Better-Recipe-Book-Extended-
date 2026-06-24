@@ -98,11 +98,11 @@ public final class CollectionPipeline {
             boolean addedAny = false;
 
             for (RecipeDisplayEntry recipe : recipes) {
-                if (!source.betterRecipeBook$getSelected().contains(recipe.id())) {
+                if (!source.brbe$getSelected().contains(recipe.id())) {
                     continue;
                 }
 
-                boolean isCraftable = source.betterRecipeBook$getCraftable().contains(recipe.id());
+                boolean isCraftable = source.brbe$getCraftable().contains(recipe.id());
                 boolean isPartial = PartialCraftingUtil.isPartiallyCraftable(collection, recipe.id());
                 if (restrictToCraftableOrPartial && !isCraftable && !isPartial) {
                     continue;
@@ -110,9 +110,9 @@ public final class CollectionPipeline {
 
                 RecipeCollection child = new RecipeCollection(Collections.singletonList(recipe));
                 RecipeCollectionAccessor childAccessor = (RecipeCollectionAccessor) child;
-                childAccessor.betterRecipeBook$getSelected().add(recipe.id());
+                childAccessor.brbe$getSelected().add(recipe.id());
                 if (isCraftable) {
-                    childAccessor.betterRecipeBook$getCraftable().add(recipe.id());
+                    childAccessor.brbe$getCraftable().add(recipe.id());
                 }
                 if (isPartial) {
                     PartialCraftingUtil.markPartialMaterial(child, recipe.id());
@@ -190,6 +190,29 @@ public final class CollectionPipeline {
         result.addAll(front);
         result.addAll(middle);
         result.addAll(back);
+        return result;
+    }
+
+    // ---- Stage 5: Filter toggle ----
+
+    /**
+     * Removes collections that have no craftable (and, when partial marking
+     * is enabled, no partially-craftable) recipes.  Returns a new list.
+     * When the filter toggle is off, returns the original list unchanged.
+     */
+    public static List<RecipeCollection> applyFilterToggle(
+            List<RecipeCollection> collections,
+            boolean isFiltering) {
+        if (!isFiltering) return collections;
+
+        boolean hasPartial = BetterRecipeBook.config.partialMarkingEnabled;
+        List<RecipeCollection> result = new ArrayList<>();
+        for (RecipeCollection coll : collections) {
+            boolean keep = hasPartial
+                    ? coll.hasCraftable() || PartialCraftingUtil.hasPartialMaterials(coll)
+                    : coll.hasCraftable();
+            if (keep) result.add(coll);
+        }
         return result;
     }
 }

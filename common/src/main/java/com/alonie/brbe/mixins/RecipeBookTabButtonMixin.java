@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 @Mixin(RecipeBookTabButton.class)
 public abstract class RecipeBookTabButtonMixin implements RecipeBookTabButtonIconOffset {
     @Unique
-    private int betterRecipeBook$iconYOffset;
+    private int brbe$iconYOffset;
 
     @ModifyArg(
             method = "extractIcon",
@@ -20,12 +20,12 @@ public abstract class RecipeBookTabButtonMixin implements RecipeBookTabButtonIco
             ),
             index = 2
     )
-    private int betterRecipeBook$offsetIconY(int y) {
-        return y + this.betterRecipeBook$iconYOffset;
+    private int brbe$offsetIconY(int y) {
+        return y + this.brbe$iconYOffset;
     }
 
     @Override
-    public void betterRecipeBook$setIconYOffset(int iconYOffset) {
-        this.betterRecipeBook$iconYOffset = iconYOffset;
+    public void brbe$setIconYOffset(int iconYOffset) {
+        this.brbe$iconYOffset = iconYOffset;
     }
 }

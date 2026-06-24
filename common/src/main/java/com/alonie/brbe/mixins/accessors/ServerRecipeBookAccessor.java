@@ -11,5 +11,5 @@ import java.util.Set;
 @Mixin(ServerRecipeBook.class)
 public interface ServerRecipeBookAccessor {
     @Accessor("known")
-    Set<ResourceKey<Recipe<?>>> betterRecipeBook$getKnown();
+    Set<ResourceKey<Recipe<?>>> brbe$getKnown();
 }
