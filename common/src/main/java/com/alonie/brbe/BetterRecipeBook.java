@@ -6,11 +6,14 @@ import com.alonie.brbe.config.Config;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.util.BRBHelper;
+import com.alonie.brbe.util.BrbeLogger;
+import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.RecipeUnlockUtil;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.ConfigHolder;
 import me.shedaniel.autoconfig.serializer.Toml4jConfigSerializer;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -22,6 +25,14 @@ public class BetterRecipeBook {
     public static final String MOD_ID = "brbe";
 
     private static int queuedScroll;
+
+    /**
+     * Set to {@code true} by the config save listener when any config value
+     * changes.  Recipe book components check this flag on each render frame
+     * and call {@code updateCollections()} to refresh the display.  Reset to
+     * {@code false} after the refresh is triggered.
+     */
+    public static volatile boolean configChanged = false;
 
     public static Config config;
     public static ConfigHolder<Config> configHolder;
@@ -68,6 +79,15 @@ public class BetterRecipeBook {
     public static BRBBookCategories.Category SMITHING_TRIM = SMITHING.createCategory(new ItemStack(Items.NETHERITE_CHESTPLATE));
 
     public static void init() {
+        // Force early class-loading of CollectionCategory to avoid
+        // NoClassDefFoundError on NeoForge when partialCraftingEnabled
+        // is toggled ON for the first time (lazy loading issue).
+        @SuppressWarnings("unused")
+        Class<com.alonie.brbe.util.CollectionCategory> _cc = com.alonie.brbe.util.CollectionCategory.class;
+
+        // Initialise debug logger (no-op unless -Dbrbe.debug=true)
+        BrbeLogger.init(Minecraft.getInstance().gameDirectory.toPath());
+
         PotionLoader.init();
         ReiCompat.register();
 
@@ -77,7 +97,21 @@ public class BetterRecipeBook {
 
         configHolder = AutoConfig.getConfigHolder(Config.class);
         configHolder.registerSaveListener((holder, config) -> {
+            // Log config transition
+            Config old = BetterRecipeBook.config;
+            BrbeLogger.log(BrbeLogger.Category.CONFIG,
+                    "Save listener — configChanged SET, partialCraftingEnabled: %s→%s, partialMarkingEnabled: %s→%s, enablePinning: %s→%s, noGrouped: %s→%s",
+                    old != null ? old.partialCraftingEnabled : "null",
+                    config.partialCraftingEnabled,
+                    old != null ? old.partialMarkingEnabled : "null",
+                    config.partialMarkingEnabled,
+                    old != null ? old.enablePinning : "null",
+                    config.enablePinning,
+                    old != null ? old.alternativeRecipes.noGrouped : "null",
+                    config.alternativeRecipes.noGrouped);
+
             BetterRecipeBook.config = config;
+            BetterRecipeBook.configChanged = true;
             RecipeUnlockUtil.syncToConfig();
             com.alonie.recipebookispain_extended.RecipeBookIsPain.onConfigChanged();
             return InteractionResult.SUCCESS;

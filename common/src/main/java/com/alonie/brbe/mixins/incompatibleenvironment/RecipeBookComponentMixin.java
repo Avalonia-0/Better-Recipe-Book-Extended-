@@ -29,6 +29,14 @@ public abstract class RecipeBookComponentMixin {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
 
+        // Check via the recipe directly (works for RBIP creative tabs
+        // where book.getCollection() may return null for non-vanilla categories)
+        if (IncompatibleCraftingUtil.checkIncompatible(recipe)) {
+            ci.cancel();
+            return;
+        }
+
+        // Fallback: also check via vanilla collections (handles edge cases)
         List<RecipeCollection> collections = this.book.getCollection(selectedTab.getCategory());
         if (collections == null) return;
 

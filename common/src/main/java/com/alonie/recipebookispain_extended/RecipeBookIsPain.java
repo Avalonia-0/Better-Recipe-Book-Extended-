@@ -38,6 +38,9 @@ public class RecipeBookIsPain {
     private static boolean initialized;
     private static boolean initAttempted;
 
+    /** Incremented when tab→item mappings are rebuilt. Used by cache consumers. */
+    public static int recipeGeneration;
+
     /** The currently-selected creative tab (set by RecipeBookWidgetMixin). */
     public static CreativeModeTab activeCreativeTab;
 
@@ -115,6 +118,7 @@ public class RecipeBookIsPain {
             LOGGER.info("[RBIP] DISABLED — skipping init");
             if (initialized) {
                 initialized = false;
+                recipeGeneration++;
                 CRAFTING_LIST.clear();
                 CRAFTING_SEARCH_LIST.clear();
                 TAB_ITEMS.clear();
@@ -139,6 +143,8 @@ public class RecipeBookIsPain {
             TAB_ITEMS.clear();
             ITEM_TO_TAB.clear();
 
+            // ── Strategy A: use getDisplayItems() (vanilla + NeoForge) ──
+            int tabCount = 0;
             for (CreativeModeTab tab : CreativeModeTabs.allTabs()) {
                 if (!shouldMirror(tab)) continue;
                 try {
@@ -147,7 +153,6 @@ public class RecipeBookIsPain {
                         if (!stack.isEmpty()) {
                             Item item = stack.getItem();
                             items.add(item);
-                            // Store item→tab mapping (first tab wins)
                             ITEM_TO_TAB.putIfAbsent(item, tab);
                         }
                     }
@@ -155,13 +160,49 @@ public class RecipeBookIsPain {
                         TAB_ITEMS.put(tab, items);
                         CRAFTING_LIST.add(tab);
                         CRAFTING_SEARCH_LIST.add(tab);
+                        tabCount++;
                     }
                 } catch (Exception e) {
                     LOGGER.error("[RBIP] Error processing tab: {}", tab.getDisplayName().getString(), e);
                 }
             }
+
+            // ── Strategy B: fallback — scan BuiltInRegistries.ITEM ──
+            // On Fabric getDisplayItems() can return empty when the creative
+            // inventory has not been opened yet.  NeoForge does not have this
+            // issue because it uses Mojang names directly.
+            if (tabCount == 0) {
+                LOGGER.info("[RBIP] getDisplayItems() returned empty — falling back to BuiltInRegistries.ITEM scan");
+                for (Item item : net.minecraft.core.registries.BuiltInRegistries.ITEM) {
+                    ItemStack stack = new ItemStack(item);
+                    if (stack.isEmpty()) continue;
+                    for (CreativeModeTab tab : CreativeModeTabs.allTabs()) {
+                        if (!shouldMirror(tab)) continue;
+                        try {
+                            if (tab.contains(stack)) {
+                                ITEM_TO_TAB.putIfAbsent(item, tab);
+                                TAB_ITEMS.computeIfAbsent(tab, k -> new HashSet<>()).add(item);
+                                break;
+                            }
+                        } catch (Exception ignored) {}
+                    }
+                }
+                // Build CRAFTING_LIST from the TAB_ITEMS map
+                for (CreativeModeTab tab : CreativeModeTabs.allTabs()) {
+                    if (!shouldMirror(tab)) continue;
+                    Set<Item> items = TAB_ITEMS.get(tab);
+                    if (items != null && !items.isEmpty()) {
+                        CRAFTING_LIST.add(tab);
+                        CRAFTING_SEARCH_LIST.add(tab);
+                    }
+                }
+            }
+
+            recipeGeneration++;
             initialized = true;
-            LOGGER.info("[RBIP] OK — {} tabs, {} items mapped", CRAFTING_LIST.size(), ITEM_TO_TAB.size());
+            LOGGER.info("[RBIP] OK — {} tabs, {} items mapped (strategy: {})",
+                    CRAFTING_LIST.size(), ITEM_TO_TAB.size(),
+                    tabCount > 0 ? "getDisplayItems" : "registry scan");
         } catch (Exception e) {
             LOGGER.error("[RBIP] Init failed", e);
         }
@@ -178,6 +219,7 @@ public class RecipeBookIsPain {
         LOGGER.info("[RBIP] onConfigChanged()");
         initialized = false;
         initAttempted = false;
+        recipeGeneration++;
         CRAFTING_LIST.clear();
         CRAFTING_SEARCH_LIST.clear();
         TAB_ITEMS.clear();

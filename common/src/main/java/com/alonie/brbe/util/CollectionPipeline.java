@@ -2,6 +2,7 @@ package com.alonie.brbe.util;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.generic.pins.PinnableRecipeCollection;
+import com.alonie.brbe.generic.pins.PipelineCollection;
 import com.alonie.brbe.search.SearchCache;
 import com.alonie.brbe.search.SearchQuery;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
@@ -110,6 +111,13 @@ public final class CollectionPipeline {
                 if (isPartial) {
                     PartialCraftingUtil.markPartialMaterial(child, recipe.id());
                 }
+                // Populate fitsDimensions so the child collection displays properly.
+                // Without this, the child appears as an empty group because vanilla
+                // checks fitsDimensions to determine which recipes are visible.
+                {
+                    var childAcc = (com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor) child;
+                    childAcc.getFitsDimensions().add(recipe);
+                }
 
                 split.add(child);
                 addedAny = true;
@@ -146,48 +154,73 @@ public final class CollectionPipeline {
     }
 
     // ═══════════════════════════════════════════════════════════════
-    // Stage 3: Partial sort
+    // Stage 4: Partial sort (pin-aware)
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Sorts collections: truly-craftable first, then partially-craftable,
-     * then uncraftable.  Returns a new list with the sorted order.
+     * Sorts collections with pinned recipes always at highest priority,
+     * then fully-craftable, then partially-craftable, then uncraftable.
      *
-     * @param useFullSort   three-bucket sort (true) vs two-bucket (false)
+     * <p>Pin priority is absolute: a pinned uncraftable recipe comes
+     * before an unpinned craftable one.  Within each pin group, the
+     * standard category ordering applies.
+     *
      * @param hasPartialData whether partial-material data is available
+     *                       (controls whether partial recipes get a
+     *                       dedicated middle bucket vs grouped with
+     *                       uncraftable)
      */
     public static List<RecipeCollection> applyPartialSort(
             List<RecipeCollection> collections,
-            boolean useFullSort,
             boolean hasPartialData) {
 
-        List<RecipeCollection> front = new ArrayList<>();
-        List<RecipeCollection> middle = new ArrayList<>();
-        List<RecipeCollection> back = new ArrayList<>();
+        // Phase 1: split by pin status
+        List<RecipeCollection> pinnedCraftable = new ArrayList<>();
+        List<RecipeCollection> pinnedPartial = new ArrayList<>();
+        List<RecipeCollection> pinnedUncraftable = new ArrayList<>();
+        List<RecipeCollection> unpinnedCraftable = new ArrayList<>();
+        List<RecipeCollection> unpinnedPartial = new ArrayList<>();
+        List<RecipeCollection> unpinnedUncraftable = new ArrayList<>();
 
         for (RecipeCollection c : collections) {
+            boolean isPinned = BetterRecipeBook.config.enablePinning
+                    && BetterRecipeBook.pinnedRecipeManager.has(
+                        PinnableRecipeCollection.of(c));
+
             if (hasPartialData) {
                 CollectionCategory cat = PartialCraftingUtil.categorize(c);
-                if (useFullSort) {
+                if (isPinned) {
                     switch (cat) {
-                        case TRULY_CRAFTABLE -> front.add(c);
-                        case PARTIAL -> middle.add(c);
-                        case UNASSIGNED -> back.add(c);
+                        case TRULY_CRAFTABLE -> pinnedCraftable.add(c);
+                        case PARTIAL -> pinnedPartial.add(c);
+                        case UNASSIGNED -> pinnedUncraftable.add(c);
                     }
                 } else {
-                    if (cat != CollectionCategory.UNASSIGNED) front.add(c);
-                    else back.add(c);
+                    switch (cat) {
+                        case TRULY_CRAFTABLE -> unpinnedCraftable.add(c);
+                        case PARTIAL -> unpinnedPartial.add(c);
+                        case UNASSIGNED -> unpinnedUncraftable.add(c);
+                    }
                 }
             } else {
-                if (c.hasCraftable()) front.add(c);
-                else back.add(c);
+                if (c.hasCraftable()) {
+                    if (isPinned) pinnedCraftable.add(c);
+                    else unpinnedCraftable.add(c);
+                } else {
+                    if (isPinned) pinnedUncraftable.add(c);
+                    else unpinnedUncraftable.add(c);
+                }
             }
         }
 
+        // Phase 2: assemble — pinned before unpinned in each category
         List<RecipeCollection> result = new ArrayList<>(collections.size());
-        result.addAll(front);
-        result.addAll(middle);
-        result.addAll(back);
+        result.addAll(pinnedCraftable);
+        result.addAll(pinnedPartial);
+        result.addAll(pinnedUncraftable);
+        result.addAll(unpinnedCraftable);
+        result.addAll(unpinnedPartial);
+        result.addAll(unpinnedUncraftable);
         return result;
     }
 
@@ -211,6 +244,97 @@ public final class CollectionPipeline {
             boolean keep = hasPartial
                     ? coll.hasCraftable() || PartialCraftingUtil.hasPartialMaterials(coll)
                     : coll.hasCraftable();
+            if (keep) result.add(coll);
+        }
+        return result;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Generic overloads (PipelineCollection)
+    // These work with both vanilla RecipeCollection (via
+    // VanillaPipelineCollection adapter) and GenericRecipeBookCollection.
+    // ═══════════════════════════════════════════════════════════════
+
+    /**
+     * Moves pinned collections to the front of the list.  Mutates the
+     * list in-place.  Works with any {@link PipelineCollection}.
+     */
+    public static <T extends PipelineCollection> void applyPinsGeneric(List<T> collections) {
+        if (!BetterRecipeBook.config.enablePinning) return;
+        if (collections.size() <= 1) return;
+
+        List<T> snapshot = new ArrayList<>(collections);
+        for (T coll : snapshot) {
+            if (BetterRecipeBook.pinnedRecipeManager.has(coll)) {
+                collections.remove(coll);
+                collections.add(0, coll);
+            }
+        }
+    }
+
+    /**
+     * Sorts collections with pinned recipes always at highest priority,
+     * then fully-craftable, then partially-craftable, then uncraftable.
+     *
+     * <p>Pin priority is absolute: a pinned uncraftable recipe comes
+     * before an unpinned craftable one.  Works with any
+     * {@link PipelineCollection}.
+     */
+    public static <T extends PipelineCollection> List<T> applyPartialSortGeneric(
+            List<T> collections) {
+
+        List<T> pinnedCraftable = new ArrayList<>();
+        List<T> pinnedPartial = new ArrayList<>();
+        List<T> pinnedUncraftable = new ArrayList<>();
+        List<T> unpinnedCraftable = new ArrayList<>();
+        List<T> unpinnedPartial = new ArrayList<>();
+        List<T> unpinnedUncraftable = new ArrayList<>();
+
+        for (T c : collections) {
+            boolean isPinned = BetterRecipeBook.config.enablePinning
+                    && BetterRecipeBook.pinnedRecipeManager.has(c);
+
+            boolean craftable = c.hasAnyCraftable();
+            boolean partial = c.hasAnyPartiallyCraftable();
+
+            if (isPinned) {
+                if (craftable) pinnedCraftable.add(c);
+                else if (partial) pinnedPartial.add(c);
+                else pinnedUncraftable.add(c);
+            } else {
+                if (craftable) unpinnedCraftable.add(c);
+                else if (partial) unpinnedPartial.add(c);
+                else unpinnedUncraftable.add(c);
+            }
+        }
+
+        List<T> result = new ArrayList<>(collections.size());
+        result.addAll(pinnedCraftable);
+        result.addAll(pinnedPartial);
+        result.addAll(pinnedUncraftable);
+        result.addAll(unpinnedCraftable);
+        result.addAll(unpinnedPartial);
+        result.addAll(unpinnedUncraftable);
+        return result;
+    }
+
+    /**
+     * Removes collections that have no craftable (and, when partial marking
+     * is enabled, no partially-craftable) recipes.  Returns a new list.
+     * When the filter toggle is off, returns the original list unchanged.
+     * Works with any {@link PipelineCollection}.
+     */
+    public static <T extends PipelineCollection> List<T> applyFilterToggleGeneric(
+            List<T> collections,
+            boolean isFiltering) {
+        if (!isFiltering) return collections;
+
+        boolean hasPartial = BetterRecipeBook.config.partialMarkingEnabled;
+        List<T> result = new ArrayList<>();
+        for (T coll : collections) {
+            boolean keep = hasPartial
+                    ? coll.hasAnyCraftable() || coll.hasAnyPartiallyCraftable()
+                    : coll.hasAnyCraftable();
             if (keep) result.add(coll);
         }
         return result;

@@ -123,7 +123,7 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
         }
     }
 
-    @Redirect(method = "renderBg", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/CyclingSlotBackground;render(Lnet/minecraft/world/inventory/AbstractContainerMenu;Lnet/minecraft/client/gui/GuiGraphics;FII)V"))
+    @Redirect(method = "renderBg", require = 0, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/CyclingSlotBackground;render(Lnet/minecraft/world/inventory/AbstractContainerMenu;Lnet/minecraft/client/gui/GuiGraphics;FII)V"))
     public void renderBg(CyclingSlotBackground instance, AbstractContainerMenu slot, GuiGraphics bl, float g, int k, int arg) {
         if (!BetterRecipeBook.config.enableBook || !_$recipeBookComponent.isShowingGhostRecipe()) {
             instance.render(this.menu, bl, g, this.leftPos, this.topPos);

@@ -1,5 +1,6 @@
 package com.alonie.brbe.util;
 
+import com.alonie.brbe.BetterRecipeBook;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 
 import java.util.ArrayList;
@@ -32,15 +33,26 @@ public final class BookStateCache {
     private BookStateCache() {}
 
     public static List<RecipeCollection> get(Class<?> screenClass, long slotHash, Object variant) {
+        return get(screenClass, slotHash, variant, false);
+    }
+
+    public static List<RecipeCollection> get(Class<?> screenClass, long slotHash,
+                                              Object variant, boolean isFiltering) {
         Map<String, List<RecipeCollection>> screenCache = CACHE.get(screenClass);
         if (screenCache == null) return null;
-        return screenCache.get(cacheKey(slotHash, variant));
+        return screenCache.get(cacheKey(slotHash, variant, isFiltering));
     }
 
     public static void put(Class<?> screenClass, long slotHash,
                            List<RecipeCollection> collections, Object variant) {
+        put(screenClass, slotHash, collections, variant, false);
+    }
+
+    public static void put(Class<?> screenClass, long slotHash,
+                           List<RecipeCollection> collections, Object variant,
+                           boolean isFiltering) {
         CACHE.computeIfAbsent(screenClass, k -> new HashMap<>())
-              .put(cacheKey(slotHash, variant),
+              .put(cacheKey(slotHash, variant, isFiltering),
                    new ArrayList<>(collections)); // shallow copy — safe without incremental path
     }
 
@@ -49,6 +61,13 @@ public final class BookStateCache {
     }
 
     private static String cacheKey(long slotHash, Object variant) {
-        return slotHash + "/" + (variant != null ? variant.hashCode() : "none");
+        return cacheKey(slotHash, variant, false);
+    }
+
+    private static String cacheKey(long slotHash, Object variant, boolean isFiltering) {
+        return slotHash + "/" + (variant != null ? variant.hashCode() : "none")
+                + "/filter=" + isFiltering
+                + "/pc=" + BetterRecipeBook.config.partialCraftingEnabled
+                + "/pm=" + BetterRecipeBook.config.partialMarkingEnabled;
     }
 }

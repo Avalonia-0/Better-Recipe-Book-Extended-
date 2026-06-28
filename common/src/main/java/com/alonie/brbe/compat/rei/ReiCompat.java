@@ -69,14 +69,27 @@ public class ReiCompat {
         // inherits openRecipeView(ItemStack) and openUsageView(ItemStack)
     }
 
+    /**
+     * Cross-loader mod-detection using reflection.
+     * Tries NeoForge first (ModList), then Fabric (FabricLoader).
+     */
     private static boolean isModLoaded(String modId) {
+        // NeoForge / Forge
         try {
-            Class<?> fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader");
-            Object instance = fabricLoader.getMethod("getInstance").invoke(null);
-            return (boolean) instance.getClass().getMethod("isModLoaded", String.class)
+            Class<?> modList = Class.forName("net.neoforged.fml.ModList");
+            Object instance = modList.getMethod("get").invoke(null);
+            return (boolean) instance.getClass().getMethod("isLoaded", String.class)
                     .invoke(instance, modId);
-        } catch (Throwable e) {
-            return false;
+        } catch (Throwable e1) {
+            // Fabric
+            try {
+                Class<?> fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader");
+                Object instance = fabricLoader.getMethod("getInstance").invoke(null);
+                return (boolean) instance.getClass().getMethod("isModLoaded", String.class)
+                        .invoke(instance, modId);
+            } catch (Throwable e2) {
+                return false;
+            }
         }
     }
 }

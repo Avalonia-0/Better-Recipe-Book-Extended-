@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.util.BrbeLogger;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -62,7 +63,22 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Redirect(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
     private boolean brbe$renderPartiallyCraftableAsCraftable(RecipeCollection collection, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
-        return collection.hasCraftable() || PartialCraftingUtil.hasPartialMaterials(collection);
+        boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(collection);
+        if (hasPartial && !collection.hasCraftable()) {
+            // Self-heal: re-inject partials into the craftable set.
+            int healed = 0;
+            var ca = (com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor) collection;
+            for (var holder : collection.getRecipes()) {
+                if (PartialCraftingUtil.isPartiallyCraftable(collection, holder.id())) {
+                    ca.brbe$getCraftable().add(holder);
+                    healed++;
+                }
+            }
+            BrbeLogger.log(BrbeLogger.Category.STATE,
+                    "RecipeButton self-heal: healed %d partials, hasCraftable=%s",
+                    healed, collection.hasCraftable());
+        }
+        return collection.hasCraftable() || hasPartial;
     }
 
     @Inject(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderFakeItem(Lnet/minecraft/world/item/ItemStack;II)V", shift = At.Shift.BEFORE))
@@ -71,6 +87,9 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         if (recipes.isEmpty()) return;
 
         RecipeHolder<?> current = recipes.get(this.currentIndex % recipes.size());
+        // markPartialMaterials skips recipes already in the craftable set,
+        // so isPartiallyCraftable is mutually exclusive with isCraftable.
+        // No !collection.isCraftable(current) guard is needed.
         if (PartialCraftingUtil.isPartiallyCraftable(this.collection, current)) {
             gui.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + height - 1, 0x60FF3333);
         }

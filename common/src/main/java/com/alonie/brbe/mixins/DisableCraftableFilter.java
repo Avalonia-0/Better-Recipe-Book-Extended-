@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.util.BrbeLogger;
 import net.minecraft.client.gui.components.StateSwitchingButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import org.spongepowered.asm.mixin.Mixin;
@@ -25,7 +26,10 @@ public abstract class DisableCraftableFilter {
 
     @Inject(method = "initVisuals", at = @At("TAIL"))
     private void brbe$hideFilterButton(CallbackInfo ci) {
-        if (!BetterRecipeBook.config.partialCraftingEnabled) return;
+        boolean shouldHide = BetterRecipeBook.config.partialCraftingEnabled;
+        BrbeLogger.log(BrbeLogger.Category.FILTER,
+                "DisableCraftableFilter — pCE=%s hiding=%s", shouldHide, shouldHide);
+        if (!shouldHide) return;
         this.filterButton.visible = false;
         this.filterButton.active = false;
     }

@@ -2,6 +2,7 @@ package com.alonie.recipebookispain_extended.mixin.groups;
 
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.RecipeBookIsPainExtendedConfig;
+import com.alonie.brbe.util.RecipeBookDebugLogger;
 import net.minecraft.client.RecipeBookCategories;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
@@ -39,6 +40,7 @@ public abstract class ClientRecipeBookMixin {
 
     @Redirect(
             method = "updateCollections",
+            require = 0,
             at = @At(
                     value = "INVOKE",
                     target = "Lnet/minecraft/client/ClientRecipeBook;getCollection(Lnet/minecraft/client/RecipeBookCategories;)Ljava/util/List;"
@@ -50,6 +52,10 @@ public abstract class ClientRecipeBookMixin {
         if (!RecipeBookIsPainExtendedConfig.enabled()
                 || RecipeBookIsPain.activeCreativeTab == null
                 || category != RecipeBookCategories.UNKNOWN) {
+            if (RecipeBookDebugLogger.enabled && category == RecipeBookCategories.UNKNOWN) {
+                RecipeBookDebugLogger.onRbipFilterCollections(
+                        category.name(), 0, 0, RecipeBookIsPain.activeCreativeTab != null);
+            }
             return book.getCollection(category);
         }
 
@@ -78,6 +84,9 @@ public abstract class ClientRecipeBookMixin {
                 matching.add(collection);
             }
         }
+
+        RecipeBookDebugLogger.onRbipFilterCollections(
+                searchCategory.name(), allBase.size(), matching.size(), true);
 
         return matching;
     }

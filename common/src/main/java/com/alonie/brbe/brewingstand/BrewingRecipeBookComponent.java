@@ -41,14 +41,11 @@ public class BrewingRecipeBookComponent extends GenericRecipeBookComponent<Brewi
 
     @Override
     public void init(int parentWidth, int parentHeight, Minecraft client, boolean narrow, BrewingStandMenu menu, Consumer<ItemStack> onGhostRecipeUpdate, RegistryAccess registryAccess) {
-        super.init(parentWidth, parentHeight, client, narrow, menu, onGhostRecipeUpdate, registryAccess);
-
+        // recipesPage MUST be assigned before super.init() because
+        // super.init() -> setVisible(true) -> initVisuals() -> recipesPage.initialize()
         this.recipesPage = new GenericRecipePage<>(registryAccess, () -> new BrewableRecipeButton(registryAccess, () -> BRBBookSettings.isFiltering(this.getRecipeBookType())));
-        // this.cachedInvChangeCount = client.player.getInventory().getChangeCount();
 
-//        if (this.isVisible()) {
-        this.initVisuals();
-//        }
+        super.init(parentWidth, parentHeight, client, narrow, menu, onGhostRecipeUpdate, registryAccess);
 
         ghostRecipe.setRenderingPredicate((type, ingredient) -> {
             ItemStack slot = menu.slots.get(ingredient.getContainerSlot()).getItem();

@@ -12,6 +12,8 @@ import com.alonie.brbe.search.SearchCache;
 import com.alonie.brbe.search.SearchQuery;
 import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.util.BRBTextures;
+import com.alonie.brbe.util.BrbeLogger;
+import com.alonie.brbe.util.CollectionPipeline;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.*;
@@ -146,10 +148,29 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     public void render(GuiGraphics gui, int mouseX, int mouseY, float delta) {
         if (!this.isVisible()) return;
 
+        // Log render state before any processing
+        BrbeLogger.log(BrbeLogger.Category.RENDER,
+                "Generic render ENTER — configChanged=%s, visible=%s, doubleRefresh=%s",
+                BetterRecipeBook.configChanged, visible, doubleRefresh);
+
         if (this.doubleRefresh) {
             // Minecraft doesn't populate the inventory on initialization so this is the only solution I have
             updateCollections(true);
             this.doubleRefresh = false;
+        }
+
+        // When config changes (e.g. enablePinning, noGrouped toggled in the
+        // Cloth Config screen), reset recipe visibility state and do a full
+        // re-initialization so all UI elements and recipe ordering match.
+        if (BetterRecipeBook.configChanged) {
+            BrbeLogger.log(BrbeLogger.Category.RENDER,
+                    "Generic render — configChanged CONSUMED, calling initVisuals");
+            // Reset filter state: show all recipes after a config change,
+            // letting the pipeline handle sorting.  The user can re-toggle
+            // the filter button to their preference afterward.
+            BRBBookSettings.setFiltering(this.getRecipeBookType(), false);
+            initVisuals();
+            BetterRecipeBook.configChanged = false;
         }
 
         gui.pose().pushPose();
@@ -270,12 +291,22 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         }
     }
 
-    protected void updateCollections(boolean b) {
+    protected void updateCollections(boolean resetPageNumber) {
         if (this.selectedTab == null) return;
         if (this.searchBox == null) return;
 
+        BrbeLogger.log(BrbeLogger.Category.STATE,
+                "updateCollections ENTER (generic) — pCE=%s, pME=%s, eP=%s, isFiltering=%s, collections=%d",
+                BetterRecipeBook.config.partialCraftingEnabled,
+                BetterRecipeBook.config.partialMarkingEnabled,
+                BetterRecipeBook.config.enablePinning,
+                BRBBookSettings.isFiltering(this.getRecipeBookType()),
+                this.getCollectionsForCategory().size());
+
         List<C> results = new ArrayList<>(this.getCollectionsForCategory());
 
+        // Search filter — kept inline because result-item extraction
+        // differs fundamentally between vanilla and generic recipe types.
         String string = this.searchBox.getValue();
         if (!string.isEmpty()) {
             SearchQuery query = SearchQuery.parse(string);
@@ -283,19 +314,28 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             results.removeIf(collection -> !matchesSearch(collection, query, cache));
         }
 
+        // Delegate pin sort, partial sort, and filter toggle to the
+        // unified CollectionPipeline.  C extends GenericRecipeBookCollection
+        // which implements PipelineCollection, so the generic overloads
+        // work directly.
+        //
+        // Pin sort always applies (pinning is filter-independent).
+        // Partial sort applies when partialCraftingEnabled is ON (BRBE
+        // manages filtering) OR when the user has toggled the filter ON.
+        CollectionPipeline.applyPinsGeneric(results);
+
         boolean isFiltering = BRBBookSettings.isFiltering(this.getRecipeBookType());
-        if (isFiltering) {
-            results.removeIf((result) -> !result.atleastOneCraftable(this.menu.slots)
-                    && !result.atleastOnePartiallyCraftable(this.menu.slots));
+        boolean shouldSort = BetterRecipeBook.config.partialCraftingEnabled || isFiltering;
+        if (shouldSort) {
+            results = CollectionPipeline.applyPartialSortGeneric(results);
         }
+        results = CollectionPipeline.applyFilterToggleGeneric(results, shouldSort);
 
-        this.brbe$sortByPinsInPlace(results);
+        BrbeLogger.log(BrbeLogger.Category.STATE,
+                "updateCollections EXIT (generic) — shouldSort=%s, resultCount=%d",
+                shouldSort, results.size());
 
-        if (isFiltering) {
-            this.brbe$sortCraftableBeforePartial(results);
-        }
-
-        this.recipesPage.setResults(results, b, selectedTab.getCategory());
+        this.recipesPage.setResults(results, resetPageNumber, selectedTab.getCategory());
     }
 
     private boolean matchesSearch(C collection, SearchQuery query, SearchCache cache) {
@@ -306,23 +346,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             }
         }
         return false;
-    }
-
-    private void brbe$sortCraftableBeforePartial(List<C> results) {
-        List<C> craftableResults = new ArrayList<>();
-        List<C> partialResults = new ArrayList<>();
-
-        for (C result : results) {
-            if (result.atleastOneCraftable(this.menu.slots)) {
-                craftableResults.add(result);
-            } else {
-                partialResults.add(result);
-            }
-        }
-
-        results.clear();
-        results.addAll(craftableResults);
-        results.addAll(partialResults);
     }
 
     private void pirateSpeechForThePeople(String string) {
@@ -351,6 +374,19 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     protected void setVisible(boolean visible) {
+        BrbeLogger.log(BrbeLogger.Category.VISIBILITY,
+                "setVisible(%s) generic — current=%s, will call initVisuals=%s",
+                visible, this.visible, visible && !this.visible);
+
+        // Match vanilla behaviour: re-initialise when becoming visible.
+        // The vanilla RecipeBookComponent.setVisible(true) calls initVisuals(),
+        // which triggers updateCollections() and rebuilds all UI elements.
+        // Without this, the recipe book can show stale state after a config
+        // change if configChanged was consumed while the book was invisible.
+        if (visible && !this.visible) {
+            initVisuals();
+        }
+
         BRBBookSettings.setOpen(getRecipeBookType(), visible);
         this.visible = visible;
     }

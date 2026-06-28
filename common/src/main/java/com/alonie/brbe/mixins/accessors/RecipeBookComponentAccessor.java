@@ -5,6 +5,7 @@ import net.minecraft.client.gui.screens.recipebook.GhostRecipe;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.player.StackedContents;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.gen.Invoker;
@@ -23,8 +24,23 @@ public interface RecipeBookComponentAccessor {
     @Accessor("searchBox")
     void setSearchBox(EditBox searchBox);
 
+    @Accessor("stackedContents")
+    StackedContents getStackedContents();
+
+    @Invoker("updateStackedContents")
+    void updateStackedContentsInvoker();
+
+    @Invoker("updateScreenPosition")
+    int updateScreenPositionInvoker(int width, int backgroundWidth);
+
     @Invoker("updateCollections")
     void updateCollectionsInvoker(boolean b);
+
+    @Invoker("initVisuals")
+    void initVisualsInvoker();
+
+    @Accessor("visible")
+    boolean getVisible();
 
     @Accessor("xOffset")
     int getXOffset();

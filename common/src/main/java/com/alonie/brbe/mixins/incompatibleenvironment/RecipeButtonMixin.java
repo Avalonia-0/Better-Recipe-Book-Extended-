@@ -24,27 +24,39 @@ public abstract class RecipeButtonMixin {
     @Shadow private RecipeCollection collection;
     @Shadow public abstract RecipeHolder<?> getRecipe();
 
+    @Shadow private List<RecipeHolder<?>> getOrderedRecipes() {
+        throw new AssertionError();
+    }
+
     /**
-     * Safety net: ensures getOrderedRecipes() never returns an empty list,
-     * which would cause / by zero in renderWidget's currentIndex % size().
-     * Runs after incompletecrafting's filter (which may produce empty results
-     * when all recipes in a collection are uncraftable or don't fit the grid).
+     * When showAllRecipesInSurvival is on, ensures incompatible recipes
+     * still appear in the ordered list so the button has something to render.
+     * Without this, fully uncraftable-and-incompatible collections would
+     * produce an empty ordered list → / by zero in renderWidget.
      */
     @Inject(method = "getOrderedRecipes", at = @At("RETURN"), cancellable = true)
-    private void brbe$ensureNonEmptyRecipes(CallbackInfoReturnable<List<RecipeHolder<?>>> cir) {
+    private void betterRecipeBook$ensureNonEmptyRecipes(
+            CallbackInfoReturnable<List<RecipeHolder<?>>> cir) {
         List<RecipeHolder<?>> recipes = cir.getReturnValue();
-        if (recipes != null && !recipes.isEmpty()) return;
+        if ((recipes != null && !recipes.isEmpty())
+                || !BetterRecipeBook.config.showAllRecipesInSurvival
+                || !(Minecraft.getInstance().screen instanceof InventoryScreen)) {
+            return;
+        }
 
-        // Last resort: return all recipes from the collection.
-        // An empty list causes / by zero in renderWidget.
-        List<RecipeHolder<?>> fallback = new ArrayList<>(this.collection.getRecipes());
+        List<RecipeHolder<?>> fallback = new ArrayList<>();
+        for (RecipeHolder<?> holder : this.collection.getRecipes()) {
+            if (IncompatibleCraftingUtil.checkIncompatible(this.collection, holder.id())) {
+                fallback.add(holder);
+            }
+        }
         if (!fallback.isEmpty()) {
             cir.setReturnValue(fallback);
         }
     }
 
     @Inject(method = "getTooltipText", at = @At("RETURN"))
-    private void brbe$appendIncompatibleWarning(
+    private void betterRecipeBook$appendIncompatibleWarning(
             CallbackInfoReturnable<List<Component>> cir) {
         if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;

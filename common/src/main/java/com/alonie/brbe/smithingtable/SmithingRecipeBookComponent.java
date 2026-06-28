@@ -28,16 +28,14 @@ public class SmithingRecipeBookComponent extends GenericRecipeBookComponent<Smit
     private static final MutableComponent ONLY_CRAFTABLES_TOOLTIP = Component.translatable("brb.gui.smithable");
 
     public void init(int width, int height, Minecraft minecraft, boolean widthNarrow, SmithingMenu menu, Consumer<ItemStack> onGhostRecipeUpdate, RegistryAccess registryAccess, RecipeManager recipeManager) {
-        super.init(width, height, minecraft, widthNarrow, menu, onGhostRecipeUpdate, registryAccess);
-
         this.recipeManager = recipeManager;
         this.ghostRecipe = new SmithingGhostRecipe(onGhostRecipeUpdate, registryAccess);
         this.ghostRecipe.setDefaultRenderingPredicate(this.menu);
+        // recipesPage MUST be assigned before super.init() because
+        // super.init() -> setVisible(true) -> initVisuals() -> recipesPage.initialize()
         this.recipesPage = new SmithingRecipeBookPage(registryAccess, () -> BRBBookSettings.isFiltering(getRecipeBookType()));
 
-//        if (this.isVisible()) {
-        this.initVisuals();
-//        }
+        super.init(width, height, minecraft, widthNarrow, menu, onGhostRecipeUpdate, registryAccess);
     }
 
     @Override

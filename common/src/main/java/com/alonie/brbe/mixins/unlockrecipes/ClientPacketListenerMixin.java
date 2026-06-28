@@ -9,6 +9,7 @@ import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.RecipeIndex;
 import com.alonie.brbe.util.RecipeMenuUtil;
 import com.alonie.brbe.util.RecipeUnlockUtil;
+import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.RecipeUpdateListener;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -40,21 +41,29 @@ public abstract class ClientPacketListenerMixin {
 
     @Inject(method = "handleAddOrRemoveRecipes", at = @At(value = "RETURN"))
     public void onAddOrRemoveRecipes(ClientboundRecipePacket packet, CallbackInfo ci) {
-        //System.out.println("addOrRemoveRecipes %s: %s".formatted(packet.getState(), Joiner.on(", ").join(packet.getRecipes())));
         Set<ResourceLocation> serverUnlockedRecipes = ((IMixinRecipeManager) recipeManager).brbe$getServerUnlockedRecipes();
+        boolean invalidateCaches = false;
         switch (packet.getState()) {
             case INIT:
                 serverUnlockedRecipes.clear();
-                // Recipe list was rebuilt — invalidate all caches
                 PartialCraftingUtil.clearCaches();
                 IncompatibleCraftingUtil.clearCaches();
                 BookStateCache.clear();
                 RecipeIndex.clear();
+                invalidateCaches = true;
+                // fall through to ADD
             case ADD:
-                serverUnlockedRecipes.addAll(packet.getRecipes());
+                if (!packet.getRecipes().isEmpty()) {
+                    serverUnlockedRecipes.addAll(packet.getRecipes());
+                    if (!invalidateCaches) RecipeBookIsPain.recipeGeneration++;
+                }
                 break;
             case REMOVE:
-                packet.getRecipes().forEach(serverUnlockedRecipes::remove);
+                if (!packet.getRecipes().isEmpty()) {
+                    packet.getRecipes().forEach(serverUnlockedRecipes::remove);
+                    RecipeBookIsPain.recipeGeneration++;
+                }
+                break;
         }
         RecipeUnlockUtil.unlockRecipesIfRequired();
     }
@@ -67,6 +76,7 @@ public abstract class ClientPacketListenerMixin {
         IncompatibleCraftingUtil.clearCaches();
         BookStateCache.clear();
         RecipeIndex.clear();
+        RecipeBookIsPain.recipeGeneration++;
         RecipeUnlockUtil.unlockRecipesIfRequired();
     }
 

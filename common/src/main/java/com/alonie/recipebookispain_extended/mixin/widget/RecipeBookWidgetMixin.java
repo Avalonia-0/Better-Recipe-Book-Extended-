@@ -1,6 +1,7 @@
 package com.alonie.recipebookispain_extended.mixin.widget;
 
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
+import com.alonie.brbe.util.RecipeBookDebugLogger;
 import com.alonie.recipebookispain_extended.RbipScrollArea;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.RecipeBookIsPainExtendedConfig;
@@ -34,8 +35,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * 1.21.1 RBIP: 16-slot 3-edge tab layout matching 1.21.11 design.
@@ -104,15 +107,25 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     }
 
     // ── RBIP state ─────────────────────────────────────────────
+    // NOTE: All @Unique fields use lazy init via rbip$ensureFields()
+    // because Mixin field initializers are unreliable when many mixins
+    // target the same class (common in large modpacks like ATM10).
 
-    @Unique private final List<RecipeBookTabButton> rbip$creativeButtons = new ArrayList<>();
-    @Unique private final Map<RecipeBookTabButton, CreativeModeTab> rbip$buttonToTab = new HashMap<>();
+    @Unique private List<RecipeBookTabButton> rbip$creativeButtons;
+    @Unique private Map<RecipeBookTabButton, CreativeModeTab> rbip$buttonToTab;
     @Unique private RecipeBookTabButton rbip$pinnedTab;
-    @Unique private List<RecipeBookTabButton> rbip$pageableTabs = List.of();
+    @Unique private List<RecipeBookTabButton> rbip$pageableTabs;
     @Unique private int rbip$page;
     @Unique private int rbip$pageCount = 1;
     @Unique private int rbip$pageControlX;
     @Unique private int rbip$pageControlY;
+
+    @Unique
+    private void rbip$ensureFields() {
+        if (rbip$creativeButtons == null) rbip$creativeButtons = new ArrayList<>();
+        if (rbip$buttonToTab == null) rbip$buttonToTab = new HashMap<>();
+        if (rbip$pageableTabs == null) rbip$pageableTabs = new ArrayList<>();
+    }
 
     // ── initVisuals TAIL: defer actual creation to first render ──
 
@@ -133,7 +146,9 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Inject(at = @At("TAIL"), method = "updateTabs")
     private void rbip$afterUpdateTabs(CallbackInfo ci) {
-        if (!RecipeBookIsPainExtendedConfig.enabled() || rbip$creativeButtons.isEmpty()) return;
+        if (!RecipeBookIsPainExtendedConfig.enabled()) return;
+        rbip$ensureFields();
+        if (rbip$creativeButtons.isEmpty()) return;
         this.rbip$rebuildTabList();
     }
 
@@ -144,12 +159,6 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         // Don't render page controls or tooltips when the book is collapsed
         if (!this.visible) return;
-
-        // Incremental creative tab filter: process 2 tabs per frame.
-        // Avoids blocking the first render frame for 250ms on large modpacks.
-        if (rbip$filterBaseRecipes != null) {
-            rbip$filterOneFrame();
-        }
 
         // Consume scroll
         int scroll = RecipeBookIsPain.rbip$consumeScroll();
@@ -234,9 +243,13 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Unique
     private void rbip$buildCreativeTabs() {
+        rbip$ensureFields();
         RecipeBookIsPain.ensureInitialized();
         List<CreativeModeTab> creativeTabs = RecipeBookIsPain.CRAFTING_LIST;
-        if (creativeTabs.isEmpty()) return;
+        if (creativeTabs.isEmpty()) {
+            RecipeBookDebugLogger.onRbipTabsBuilt(0, 0);
+            return;
+        }
 
         rbip$creativeButtons.clear();
         rbip$buttonToTab.clear();
@@ -248,6 +261,7 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         }
         this.rbip$rebuildTabList();
         RecipeBookIsPain.LOGGER.info("[RBIP] {} creative tabs (deferred build)", rbip$creativeButtons.size());
+        RecipeBookDebugLogger.onRbipTabsBuilt(rbip$creativeButtons.size(), creativeTabs.size());
     }
 
     // ── mouseClicked HEAD: creative tabs + page controls ───────
@@ -255,6 +269,7 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     @Inject(at = @At("HEAD"), method = "mouseClicked", cancellable = true)
     private void rbip$handleClick(double mx, double my, int btn,
                                    CallbackInfoReturnable<Boolean> cir) {
+        rbip$ensureFields();
         if (!RecipeBookIsPainExtendedConfig.enabled() || btn != 0) return;
         // Don't process page-control or creative-tab clicks when book is collapsed
         if (!this.visible) return;
@@ -291,11 +306,15 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
             this.selectedTab = b;
             RecipeBookIsPain.activeCreativeTab = tab;
             // Also track furnace type for the @Redirect in ClientRecipeBookMixin
+            String furnaceType = null;
             if (this.menu instanceof AbstractFurnaceMenu furnaceMenu) {
                 RecipeBookIsPain.activeFurnaceType = RecipeBookIsPain.detectFurnaceType(furnaceMenu);
+                furnaceType = RecipeBookIsPain.activeFurnaceType.name();
             } else {
                 RecipeBookIsPain.activeFurnaceType = null;
             }
+            RecipeBookDebugLogger.onRbipTabSelected(
+                    tab.getDisplayName().getString(), furnaceType);
             ((RecipeBookComponentAccessor) this).updateCollectionsInvoker(false);
             cir.setReturnValue(true);
             return;
@@ -323,61 +342,90 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Unique
     private void rbip$rebuildTabList() {
-        // Separate search tab (any screen type), exclude all vanilla sub-categories
-        List<RecipeBookTabButton> keep = new ArrayList<>();
+        rbip$ensureFields();
+        // Find the search tab (any screen type) to use as pinned tab
         RecipeBookTabButton search = null;
-
         for (RecipeBookTabButton btn : this.tabButtons) {
             if (btn instanceof CreativeTabButtonAccess access && access.rbip$getCreativeTab() != null) continue;
             if (rbip$buttonToTab.containsKey(btn)) continue;
-
-            RecipeBookCategories cat = btn.getCategory();
-            if (rbip$isSearchCategory(cat)) {
+            if (rbip$isSearchCategory(btn.getCategory())) {
                 if (search == null) search = btn;
             }
         }
 
         this.rbip$pinnedTab = search;
-        this.rbip$pageableTabs = keep;
+        this.rbip$pageableTabs = new ArrayList<>();
 
-        // Deferred filtering: show ALL creative tabs immediately on the
-        // first frame, then filter to only tabs with matching recipes over
-        // subsequent frames.  Filtering 30 tabs × 25145 collections takes
-        // ~250ms — doing it synchronously blocks the render frame.
-        this.rbip$pageableTabs.addAll(rbip$creativeButtons);
+        // Compute which creative tabs have recipes (cached, single-pass).
+        // Uses ITEM_TO_TAB from RecipeBookIsPain for O(1) per-recipe lookup,
+        // avoiding the old incremental 2-tabs-per-frame approach entirely.
+        Set<CreativeModeTab> tabsWithRecipes = rbip$getTabsWithRecipes();
+
+        for (RecipeBookTabButton btn : rbip$creativeButtons) {
+            CreativeModeTab tab = rbip$buttonToTab.get(btn);
+            if (tab != null && tabsWithRecipes.contains(tab)) {
+                rbip$pageableTabs.add(btn);
+            }
+        }
+
         this.rbip$applyPagination(true);
-        rbip$filterGeneration++; // increment so render TAIL starts filtering
     }
 
-    @Unique private int rbip$filterGeneration;
-    @Unique private int rbip$filterIndex;
-    @Unique private List<RecipeCollection> rbip$filterBaseRecipes;
+    // ── Cached tab→recipes computation ───────────────────────────
+    // Cache is keyed by search category because different screen types
+    // (crafting / furnace / smoker / blast-furnace) have disjoint
+    // recipe sets.  A tab with crafting recipes may have zero furnace
+    // recipes and should be hidden on the furnace screen.
 
-    // Called from render TAIL: process 2 tabs per frame until all filtered.
+    /** Cache: category → tabs that have ≥1 unlocked recipe. */
     @Unique
-    private boolean rbip$filterOneFrame() {
-        if (rbip$filterBaseRecipes == null) {
-            rbip$filterBaseRecipes = (this.book != null)
-                    ? this.book.getCollection(rbip$getSearchCategory())
-                    : List.of();
-            rbip$filterIndex = 0;
+    private static final Map<RecipeBookCategories, Set<CreativeModeTab>> brbe$cachedRecipeTabs = new HashMap<>();
+
+    /** Generation at which the cache was built. */
+    @Unique
+    private static int brbe$cachedGeneration = -1;
+
+    /** unlockAll state at cache-build time. Toggling invalidates. */
+    @Unique
+    private static boolean brbe$cachedUnlockAll;
+
+    @Unique
+    private Set<CreativeModeTab> rbip$getTabsWithRecipes() {
+        RecipeBookCategories category = rbip$getSearchCategory();
+        // Global invalidation: recipes changed OR unlockAll toggled
+        boolean currentUnlockAll = com.alonie.brbe.BetterRecipeBook.config != null
+                && com.alonie.brbe.BetterRecipeBook.config.newRecipes.unlockAll;
+        if (brbe$cachedGeneration != RecipeBookIsPain.recipeGeneration
+                || brbe$cachedUnlockAll != currentUnlockAll) {
+            brbe$cachedRecipeTabs.clear();
+            brbe$cachedGeneration = RecipeBookIsPain.recipeGeneration;
+            brbe$cachedUnlockAll = currentUnlockAll;
         }
-        int processed = 0;
-        while (rbip$filterIndex < rbip$creativeButtons.size() && processed < 2) {
-            RecipeBookTabButton btn = rbip$creativeButtons.get(rbip$filterIndex);
-            CreativeModeTab tab = rbip$buttonToTab.get(btn);
-            if (tab != null && !rbip$hasRecipeInCategory(rbip$filterBaseRecipes, tab)) {
-                rbip$pageableTabs.remove(btn);
+        return brbe$cachedRecipeTabs.computeIfAbsent(category,
+                k -> rbip$computeTabsWithRecipes());
+    }
+
+    @Unique
+    private Set<CreativeModeTab> rbip$computeTabsWithRecipes() {
+        Set<CreativeModeTab> result = new HashSet<>();
+        if (this.book == null) return result;
+
+        List<RecipeCollection> collections = this.book.getCollection(rbip$getSearchCategory());
+        if (collections == null) return result;
+
+        for (RecipeCollection col : collections) {
+            for (RecipeHolder<?> holder : col.getRecipes()) {
+                ItemStack resultStack = holder.value().getResultItem(
+                        minecraft.level == null
+                                ? net.minecraft.client.Minecraft.getInstance().level.registryAccess()
+                                : minecraft.level.registryAccess());
+                if (!resultStack.isEmpty()) {
+                    CreativeModeTab tab = RecipeBookIsPain.getCreativeTabForItem(resultStack);
+                    if (tab != null) result.add(tab);
+                }
             }
-            rbip$filterIndex++;
-            processed++;
         }
-        if (rbip$filterIndex >= rbip$creativeButtons.size()) {
-            rbip$filterBaseRecipes = null; // done
-            rbip$applyPagination(true);
-            return true; // filtering complete
-        }
-        return false;
+        return result;
     }
 
     @Unique
@@ -388,20 +436,6 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
             return RecipeBookCategories.FURNACE_SEARCH;
         }
         return RecipeBookCategories.CRAFTING_SEARCH;
-    }
-
-    @Unique
-    private static boolean rbip$hasRecipeInCategory(List<RecipeCollection> collections, CreativeModeTab tab) {
-        for (RecipeCollection col : collections) {
-            for (RecipeHolder<?> holder : col.getRecipes()) {
-                ItemStack result = holder.value().getResultItem(
-                        net.minecraft.client.Minecraft.getInstance().level.registryAccess());
-                if (!result.isEmpty() && RecipeBookIsPain.isItemInTab(result, tab)) {
-                    return true;
-                }
-            }
-        }
-        return false;
     }
 
     // ── Pagination ─────────────────────────────────────────────

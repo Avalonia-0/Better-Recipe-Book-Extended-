@@ -3,6 +3,7 @@ package com.alonie.brbe.generic;
 import com.google.common.collect.ImmutableList;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.generic.pins.Pinnable;
+import com.alonie.brbe.generic.pins.PipelineCollection;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceLocation;
@@ -11,7 +12,7 @@ import net.minecraft.world.inventory.Slot;
 
 import java.util.List;
 
-public abstract class GenericRecipeBookCollection<R extends GenericRecipe, M extends AbstractContainerMenu> implements Pinnable {
+public abstract class GenericRecipeBookCollection<R extends GenericRecipe, M extends AbstractContainerMenu> implements Pinnable, PipelineCollection {
     protected final RegistryAccess registryAccess;
     protected List<R> recipes;
     protected M menu;
@@ -62,5 +63,17 @@ public abstract class GenericRecipeBookCollection<R extends GenericRecipe, M ext
             return List.of();
         }
         return this.getPartiallyCraftableRecipes(this.menu.slots);
+    }
+
+    // ---- PipelineCollection ----
+
+    @Override
+    public boolean hasAnyCraftable() {
+        return atleastOneCraftable(this.menu.slots);
+    }
+
+    @Override
+    public boolean hasAnyPartiallyCraftable() {
+        return atleastOnePartiallyCraftable(this.menu.slots);
     }
 }

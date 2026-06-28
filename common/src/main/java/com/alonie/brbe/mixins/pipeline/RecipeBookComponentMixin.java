@@ -1,147 +1,191 @@
 package com.alonie.brbe.mixins.pipeline;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.search.SearchQuery;
-import com.alonie.brbe.util.BookStateCache;
-import com.alonie.brbe.util.CollectionPipeline;
+import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
+import com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor;
+import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
+import com.alonie.brbe.util.BrbeLogger;
+import com.alonie.brbe.util.CollectionCategory;
 import com.alonie.brbe.util.PartialCraftingUtil;
-import com.alonie.brbe.util.PerfTimer;
+import com.alonie.brbe.util.VanillaPipelineCollection;
+import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
+import net.minecraft.world.inventory.RecipeBookMenu;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
-import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.Redirect;
+import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Pipeline + cache mixin for {@code RecipeBookComponent.updateCollections()}.
- *
- * <p>Handles search text management, BookStateCache lookup, and the
- * deterministic pipeline stages.  This mixin owns the
- * {@code @Redirect page.updateCollections} — there must be only one.
- *
- * <p>Runs AFTER the data-marking mixin
- * ({@code incompletecrafting/RecipeBookComponentMixin}),
- * which handles partial-material injection via {@code @Redirect List.forEach}.
- */
 @Mixin(RecipeBookComponent.class)
-public abstract class RecipeBookComponentMixin {
+public abstract class RecipeBookComponentMixin implements RecipeBookComponentAccessor {
 
     @Shadow @Final protected Minecraft minecraft;
+    @Shadow @Final protected RecipeBookMenu<?, ?> menu;
+    @Shadow private ClientRecipeBook book;
+    @Shadow @Final private RecipeBookPage recipeBookPage;
 
-    @Shadow protected EditBox searchBox;
+    // ═══════════════════════════════════════════════════════════════
+    // Config-change refresh (HEAD of render)
+    // ═══════════════════════════════════════════════════════════════
 
-    @Unique
-    private String brbe$savedSearchText;
+    @Inject(method = "render", at = @At("HEAD"))
+    private void brbe$refreshOnConfigChange(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        if (!BetterRecipeBook.configChanged) return;
+        if (!this.getVisible()) return;
 
-    @Unique
-    private SearchQuery brbe$parsedQuery;
+        BrbeLogger.log(BrbeLogger.Category.RENDER, "configChanged — full rebuild");
 
-    @Unique
-    private long brbe$lastSlotHash;
-
-    // ---- Search text save / restore ----
-
-    @Inject(method = "updateCollections", at = @At("HEAD"))
-    private void brbe$saveSearchText(boolean resetPageNumber, CallbackInfo ci) {
-        brbe$savedSearchText = null;
-        brbe$parsedQuery = null;
-
-        // Clear cross-screen cache on tab switch / search / filter toggle
-        if (resetPageNumber) {
-            BookStateCache.clear();
+        // Reset vanilla filter.
+        if (minecraft != null && minecraft.player != null) {
+            minecraft.player.getRecipeBook().setFiltering(
+                    menu.getRecipeBookType(), false);
         }
 
-        if (searchBox == null) return;
-        String text = searchBox.getValue();
-        if (text == null || text.isEmpty()) return;
+        // Request that the next updateCollections call forces a full
+        // rebuild (vanilla forEach + partial marking).  Must be set
+        // BEFORE initVisuals because initVisuals calls updateTabs() →
+        // updateCollections() internally, and the @Redirect needs to
+        // see the flag during that call.
+        PartialCraftingUtil.requestForceFullRefresh();
 
-        SearchQuery query = SearchQuery.parse(text);
-        if (query.isAdvanced()) {
-            brbe$savedSearchText = text;
-            brbe$parsedQuery = query;
-            searchBox.setValue("");
-        }
+        // Rebuild UI.  The TAIL inject on initVisuals handles
+        // populating the page (partial marking + craftable injection
+        // + sort + page.updateCollections) — no other calls needed.
+        this.initVisualsInvoker();
+        BetterRecipeBook.configChanged = false;
     }
 
-    @Inject(method = "updateCollections", at = @At("TAIL"))
-    private void brbe$restoreSearchText(boolean resetPageNumber, CallbackInfo ci) {
-        if (brbe$savedSearchText != null && searchBox != null) {
-            searchBox.setValue(brbe$savedSearchText);
-            brbe$savedSearchText = null;
-            brbe$parsedQuery = null;
-        }
+    // ═══════════════════════════════════════════════════════════════
+    // Populate page after initVisuals (handles re-open + config)
+    // ═══════════════════════════════════════════════════════════════
+
+    @Inject(method = "initVisuals", at = @At("TAIL"))
+    private void brbe$populateAfterInitVisuals(CallbackInfo ci) {
+        BrbeLogger.log(BrbeLogger.Category.STATE, "initVisuals TAIL");
+        populatePage(true);
     }
 
-    // ---- Pipeline with BookStateCache ----
+    /**
+     * Sort collections, populate fitsDimensions, and push to the page.
+     * Called from the TAIL of {@code initVisuals()} every time it runs.
+     *
+     * <p><b>Craftable-set management is handled by the
+     * {@code @Redirect} in {@code incompletecrafting/RecipeBookComponentMixin}
+     * which runs during {@code initVisuals → updateTabs → updateCollections}.</b>
+     * This method only sorts and pushes — it does NOT touch the
+     * craftable set or partial markings.  For config changes, the
+     * render hook sets {@code requestForceFullRefresh()} before
+     * {@code initVisuals()} so the Redirect forces a full rebuild.
+     *
+     * @param resetPage true when initVisuals is a fresh start (re-open,
+     *                  config change); false for mid-session updates.
+     */
+    private void populatePage(boolean resetPage) {
+        var tab = this.getSelectedTab();
+        if (tab == null) return;
 
-    @Redirect(method = "updateCollections",
-              at = @At(value = "INVOKE",
-                       target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;Z)V"))
-    private void brbe$runPipeline(RecipeBookPage page, List<RecipeCollection> list,
-                                   boolean resetPageNumber) {
+        List<RecipeCollection> collections =
+                new ArrayList<>(book.getCollection(tab.getCategory()));
 
-        // Compute slot hash for cache key
-        long slotHash = 0L;
-        if (minecraft.player != null && minecraft.player.containerMenu != null) {
-            slotHash = PartialCraftingUtil.slotHash(minecraft.player.containerMenu.slots);
-        }
+        if (collections.isEmpty()) return;
 
-        // BookStateCache: check for cached results
-        if (minecraft.screen != null) {
-            List<RecipeCollection> cached = BookStateCache.get(
-                    minecraft.screen.getClass(), slotHash, null);
-            if (cached != null) {
-                page.updateCollections(cached, resetPageNumber);
-                brbe$lastSlotHash = slotHash;
-                PerfTimer.logNextRenderFrame = true;
-                return;
+        BrbeLogger.log(BrbeLogger.Category.STATE,
+                "populatePage — %d collections, reset=%s", collections.size(), resetPage);
+
+        // Sort uses PARTIAL_RECIPES + craftable sets from the @Redirect
+        // that already ran during initVisuals → updateTabs → updateCollections.
+        sort(collections);
+
+        // Ensure every collection has fitsDimensions populated.
+        for (RecipeCollection c : collections) {
+            var ca = (RecipeCollectionAccessor) c;
+            if (ca.getFitsDimensions().isEmpty()) {
+                ca.getFitsDimensions().addAll(c.getRecipes());
             }
         }
 
-        // Stage 1: Advanced search filter
-        if (brbe$parsedQuery != null && minecraft.level != null) {
-            list = CollectionPipeline.applySearch(list, brbe$parsedQuery, minecraft.level);
+        BrbeLogger.log(BrbeLogger.Category.STATE,
+                "populatePage — recipeBookPage=%s, calling updateCollections",
+                recipeBookPage != null ? "ok" : "NULL");
+
+        recipeBookPage.updateCollections(collections, resetPage);
+
+        // Verify: check how many buttons the page actually has after.
+        var buttons = ((RecipeBookPageAccessor)(Object) recipeBookPage).getButtons();
+        int visible = 0;
+        for (var b : buttons) {
+            if (b.visible) visible++;
         }
+        BrbeLogger.log(BrbeLogger.Category.STATE,
+                "populatePage — after push: %d visible buttons", visible);
+    }
 
-        // Stage 2: Ungroup split
-        list = CollectionPipeline.applyUngroup(list);
+    // ═══════════════════════════════════════════════════════════════
+    // @ModifyArg (normal path)
+    // ═══════════════════════════════════════════════════════════════
 
-        // Stage 3: Pins sort (in-place)
-        CollectionPipeline.applyPins(list);
+    @ModifyArg(method = "updateCollections",
+               at = @At(value = "INVOKE",
+                        target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;updateCollections(Ljava/util/List;Z)V"),
+               index = 0)
+    private List<RecipeCollection> brbe$applySortPipeline(List<RecipeCollection> collections) {
+        sort(collections);
+        return collections;
+    }
 
-        // Stage 4: Partial sort
-        {
-            boolean shouldSort = BetterRecipeBook.config.partialCraftingEnabled
-                    || BetterRecipeBook.config.partialMarkingEnabled;
-            if (shouldSort) {
-                boolean useFullSort = BetterRecipeBook.config.partialCraftingEnabled;
-                boolean hasPartialData = BetterRecipeBook.config.partialMarkingEnabled;
-                list = CollectionPipeline.applyPartialSort(list, useFullSort, hasPartialData);
+    // ═══════════════════════════════════════════════════════════════
+    // Sort
+    // ═══════════════════════════════════════════════════════════════
+
+    private void sort(List<RecipeCollection> collections) {
+        if (collections == null || collections.isEmpty()) return;
+
+        if (BetterRecipeBook.config.enablePinning) {
+            List<RecipeCollection> snap = new ArrayList<>(collections);
+            for (RecipeCollection c : snap) {
+                if (BetterRecipeBook.pinnedRecipeManager.has(VanillaPipelineCollection.of(c))) {
+                    collections.remove(c);
+                    collections.add(0, c);
+                }
             }
         }
 
-        // Stage 5: Filter toggle
-        list = CollectionPipeline.applyFilterToggle(list,
-                BetterRecipeBook.config.partialMarkingEnabled
-                        || BetterRecipeBook.config.partialCraftingEnabled);
+        boolean brbe = BetterRecipeBook.config.partialCraftingEnabled;
+        boolean vanilla = minecraft != null && minecraft.player != null
+                && minecraft.player.getRecipeBook().isFiltering(menu);
+        if (!brbe && !vanilla) return;
 
-        // Persist to BookStateCache
-        if (minecraft.screen != null) {
-            BookStateCache.put(minecraft.screen.getClass(), slotHash, list, null);
+        boolean hasP = BetterRecipeBook.config.partialMarkingEnabled;
+        List<RecipeCollection> pC = new ArrayList<>(), pP = new ArrayList<>(), pU = new ArrayList<>();
+        List<RecipeCollection> uC = new ArrayList<>(), uP = new ArrayList<>(), uU = new ArrayList<>();
+
+        for (RecipeCollection c : collections) {
+            boolean pin = BetterRecipeBook.config.enablePinning
+                    && BetterRecipeBook.pinnedRecipeManager.has(VanillaPipelineCollection.of(c));
+            if (hasP) {
+                switch (PartialCraftingUtil.categorize(c)) {
+                    case TRULY_CRAFTABLE -> { if (pin) pC.add(c); else uC.add(c); }
+                    case PARTIAL         -> { if (pin) pP.add(c); else uP.add(c); }
+                    case UNASSIGNED      -> { if (pin) pU.add(c); else uU.add(c); }
+                }
+            } else {
+                if (c.hasCraftable()) { if (pin) pC.add(c); else uC.add(c); }
+                else                 { if (pin) pU.add(c); else uU.add(c); }
+            }
         }
 
-        brbe$lastSlotHash = slotHash;
-        page.updateCollections(list, resetPageNumber);
-        PerfTimer.logNextRenderFrame = true;
+        collections.clear();
+        collections.addAll(pC); collections.addAll(pP); collections.addAll(pU);
+        collections.addAll(uC); collections.addAll(uP); collections.addAll(uU);
     }
 }

@@ -57,7 +57,12 @@ public class InstantCraftingManager {
                 || client.gameMode == null
                 || !(client.screen instanceof AbstractContainerScreen<?> screen)) return;
 
+        // Only QUICK_MOVE if the current craft was triggered by a recipe-book
+        // click.  Without this guard, a stale lastCraftResult from a previous
+        // book interaction would auto-move a manually-crafted result before
+        // the player ever sees it — making it appear "invisible".
         if (lastCraftResult == null
+                || lastClickedRecipe == null
                 || !ItemStack.isSameItemSameComponents(itemStack, lastCraftResult)
                 || lastContainerId != screen.getMenu().containerId) return;
 
