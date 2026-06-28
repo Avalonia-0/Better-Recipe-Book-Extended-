@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.interfaces.ExpandedBookScreen;
 import com.alonie.brbe.interfaces.TopLayerOverlayProvider;
 import com.alonie.brbe.smithingtable.SmithingRecipeBookComponent;
 import com.alonie.brbe.smithingtable.SmithingRecipeBookPage;
@@ -29,7 +30,7 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(SmithingScreen.class)
-public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMenu> implements TopLayerOverlayProvider {
+public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMenu> implements TopLayerOverlayProvider, ExpandedBookScreen {
     @Shadow
     protected abstract void updateArmorStandPreview(ItemStack itemStack);
 
@@ -47,18 +48,19 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
         if (BetterRecipeBook.config.enableBook) {
             this._$widthNarrow = this.width < 379;
             this._$recipeBookComponent.init(this.width, this.height, this.minecraft, _$widthNarrow, this.menu, this::updateArmorStandPreview, Minecraft.getInstance().getConnection().registryAccess(), Minecraft.getInstance().getConnection().getRecipeManager());
+            this._$recipeBookComponent.setContainerImageWidth(this.imageWidth);
 
             if (!BetterRecipeBook.config.keepCentered) {
                 this.leftPos = this._$recipeBookComponent.findLeftEdge(this.width, this.imageWidth);
             }
 
             // NOTE : width and height are both 0
-            this.addRenderableWidget(new ImageButton(this.leftPos + 147, this.height / 2 - 75, 20, 18, BRBTextures.RECIPE_BOOK_BUTTON_SPRITES, (button) -> {
+            this.addRenderableWidget(new ImageButton(this.leftPos + this._$recipeBookComponent.getCurrentBookWidth(), this.height / 2 - 75, 20, 18, BRBTextures.RECIPE_BOOK_BUTTON_SPRITES, (button) -> {
                 this._$recipeBookComponent.toggleVisibility();
                 if (!BetterRecipeBook.config.keepCentered) {
                     this.leftPos = this._$recipeBookComponent.findLeftEdge(this.width, this.imageWidth);
                 }
-                button.setPosition(this.leftPos + 147, this.height / 2 - 75);
+                button.setPosition(this.leftPos + this._$recipeBookComponent.getCurrentBookWidth(), this.height / 2 - 75);
             }));
 
             this.addWidget(this._$recipeBookComponent);
@@ -163,6 +165,12 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     @Override
     public boolean brbe$clickTopLayerOverlay(double mouseX, double mouseY, int button) {
         return this.brbe$hasTopLayerOverlay() && this._$recipeBookComponent.mouseClicked(mouseX, mouseY, button);
+    }
+
+    @Override
+    public boolean brbe$isExpandedBookOpen() {
+        return this._$recipeBookComponent.isVisible()
+                && this._$recipeBookComponent.isExpanded();
     }
 
     @Override

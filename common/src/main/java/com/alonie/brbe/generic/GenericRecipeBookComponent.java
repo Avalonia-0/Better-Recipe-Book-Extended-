@@ -39,6 +39,11 @@ import java.util.function.Consumer;
 public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu, C extends GenericRecipeBookCollection<R, M>, R extends GenericRecipe> implements Renderable, NarratableEntry, GuiEventListener, ISettingsButton, RecipeShownListener, IPinningComponent<C> {
     protected static final Component SEARCH_HINT = RecipeBookComponentAccessor.getSEARCH_HINT();
     protected static final Component ALL_RECIPES_TOOLTIP = RecipeBookComponentAccessor.getALL_RECIPES_TOOLTIP();
+
+    /** Vanilla recipe book texture dimensions. */
+    public static final int VANILLA_BOOK_WIDTH = 147;
+    public static final int VANILLA_BOOK_HEIGHT = 166;
+
     boolean visible;
     protected boolean ignoreTextInput;
     protected Minecraft minecraft;
@@ -48,6 +53,8 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     protected boolean widthTooNarrow;
     protected int width;
     protected int height;
+    /** Container screen's imageWidth (typically 176). Used for expanded book width calculation. */
+    protected int containerImageWidth = 176;
     protected M menu;
     protected final StackedContents stackedContents = new StackedContents();
     protected StateSwitchingButton filterButton;
@@ -103,8 +110,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             this.xOffset = this.widthTooNarrow ? 0 : 86;
         }
 
-        int i = (this.width - 147) / 2 - this.xOffset;
-        int j = (this.height - 166) / 2;
+        int bookWidth = getCurrentBookWidth();
+        int i = (this.width - bookWidth) / 2 - this.xOffset;
+        int j = (this.height - VANILLA_BOOK_HEIGHT) / 2;
         this.stackedContents.clear();
         if (this.minecraft.player == null) return;
         this.minecraft.player.getInventory().fillStackedContents(this.stackedContents);
@@ -118,7 +126,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.searchBox.setValue(string);
         this.searchBox.setHint(SEARCH_HINT);
         this.settingsButton = createSettingsButton(i, j);
-        this.recipesPage.initialize(this.minecraft, i, j, menu, xOffset);
+        this.recipesPage.initialize(this.minecraft, i, j, menu, bookWidth);
         this.tabButtons.clear();
         this.filterButton = new StateSwitchingButton(i + 110, j + 12, 26, 16, BRBBookSettings.isFiltering(this.getRecipeBookType()));
         this.updateFilterButtonTooltip();
@@ -176,10 +184,14 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         gui.pose().pushPose();
         gui.pose().translate(0.0f, 0.0f, 100.0f);
 
-        // blit recipe book background texture
-        int blitX = (this.width - 147) / 2 - this.xOffset;
-        int blitY = (this.height - 166) / 2;
-        gui.blit(BRBTextures.RECIPE_BOOK_BACKGROUND_TEXTURE, blitX, blitY, 1, 1, 147, 166);
+        // blit recipe book background texture (stretched when expanded)
+        int bookWidth = getCurrentBookWidth();
+        int blitX = (this.width - bookWidth) / 2 - this.xOffset;
+        int blitY = (this.height - VANILLA_BOOK_HEIGHT) / 2;
+        gui.blit(BRBTextures.RECIPE_BOOK_BACKGROUND_TEXTURE, blitX, blitY,
+                bookWidth, VANILLA_BOOK_HEIGHT,
+                0, 0, VANILLA_BOOK_WIDTH, VANILLA_BOOK_HEIGHT,
+                256, 256);
 
         // render search box
         this.searchBox.render(gui, mouseX, mouseY, delta);
@@ -367,6 +379,36 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         return this.xOffset == 86;
     }
 
+    // ── Expanded recipe book ───────────────────────────────────────
+
+    /** Whether the recipe book is currently in expanded (full-width) mode. */
+    public boolean isExpanded() {
+        return BetterRecipeBook.config.expandedRecipeBook
+                && !this.widthTooNarrow
+                && this.isVisible();
+    }
+
+    /** The current rendered width of the recipe book — 147 normally, larger when expanded. */
+    public int getCurrentBookWidth() {
+        if (isExpanded()) {
+            return getExpandedWidth();
+        }
+        return VANILLA_BOOK_WIDTH;
+    }
+
+    /** Compute the expanded width: from the book's normal left edge to the inventory's right edge. */
+    protected int getExpandedWidth() {
+        int leftPos = findLeftEdge(this.width, this.containerImageWidth);
+        int inventoryRight = leftPos + this.containerImageWidth;
+        int bookLeft = (this.width - VANILLA_BOOK_WIDTH) / 2 - this.xOffset;
+        return inventoryRight - bookLeft;
+    }
+
+    /** Let the screen set the real container imageWidth for accurate width calculation. */
+    public void setContainerImageWidth(int imageWidth) {
+        this.containerImageWidth = imageWidth;
+    }
+
     @Override
     @NotNull
     public NarratableEntry.NarrationPriority narrationPriority() {
@@ -403,8 +445,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         if (!this.isVisible()) {
             return true;
         }
+        int bookWidth = getCurrentBookWidth();
         boolean bl = d < (double) i || e < (double) j || d >= (double) (i + k) || e >= (double) (j + l);
-        boolean bl2 = (double) (i - 147) < d && d < (double) i && (double) j < e && e < (double) (j + l);
+        boolean bl2 = (double) (i - bookWidth) < d && d < (double) i && (double) j < e && e < (double) (j + l);
         return bl && !bl2;
     }
 
@@ -412,7 +455,10 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (!this.isVisible()) return false;
 
-        if (this.recipesPage.mouseClicked(mouseX, mouseY, button, (this.width - 147) / 2 - this.xOffset, (this.height - 166) / 2, 147, 166)) {
+        if (this.recipesPage.mouseClicked(mouseX, mouseY, button,
+                (this.width - getCurrentBookWidth()) / 2 - this.xOffset,
+                (this.height - VANILLA_BOOK_HEIGHT) / 2,
+                getCurrentBookWidth(), VANILLA_BOOK_HEIGHT)) {
             this.handlePlaceRecipe();
             return true;
         }
@@ -518,8 +564,8 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     protected void refreshTabButtons() {
-        int i = (this.width - 147) / 2 - this.xOffset - 30;
-        int j = (this.height - 166) / 2 + 3;
+        int i = (this.width - getCurrentBookWidth()) / 2 - this.xOffset - 30;
+        int j = (this.height - VANILLA_BOOK_HEIGHT) / 2 + 3;
         int l = 0;
 
         for (BRBGroupButtonWidget button : this.tabButtons) {

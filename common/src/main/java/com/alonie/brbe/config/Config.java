@@ -11,6 +11,10 @@ public class Config implements ConfigData {
     @ConfigEntry.Category("ui")
     public boolean keepCentered = false;
 
+    @ConfigEntry.Category("ui")
+    @ConfigEntry.Gui.Tooltip()
+    public boolean expandedRecipeBook = false;
+
     @ConfigEntry.Gui.Tooltip()
     public boolean showModName = false;
 

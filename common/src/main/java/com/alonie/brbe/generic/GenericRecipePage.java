@@ -21,6 +21,7 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     protected Minecraft minecraft;
     protected int parentLeft;
     protected int parentTop;
+    protected int bookWidth = GenericRecipeBookComponent.VANILLA_BOOK_WIDTH;
     protected StateSwitchingButton forwardButton;
     protected StateSwitchingButton backButton;
     protected List<C> recipeCollections = ImmutableList.of();
@@ -29,7 +30,7 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     protected BRBBookCategories.Category category;
     protected int totalPages;
     protected int currentPage;
-    private final List<GenericRecipeButton<C, R, M>> buttons = Lists.newArrayListWithCapacity(20);
+    private final List<GenericRecipeButton<C, R, M>> buttons = Lists.newArrayListWithCapacity(80);
 
     public List<GenericRecipeButton<C, R, M>> getButtons() {
         return buttons;
@@ -39,25 +40,41 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     public GenericRecipePage(RegistryAccess registryAccess, Supplier<GenericRecipeButton<C, R, M>> recipeButtonSupplier) {
         this.registryAccess = registryAccess;
 
-        for (int i = 0; i < 20; ++i) {
+        for (int i = 0; i < 80; ++i) {
             this.buttons.add(recipeButtonSupplier.get());
         }
     }
 
-    protected void initialize(Minecraft client, int parentLeft, int parentTop, M menu, int leftOffset) {
+    /** Number of button columns based on current book width. */
+    public int getColumns() {
+        int availableWidth = bookWidth - 22; // 11px margin on each side
+        return Math.max(5, availableWidth / 25);
+    }
+
+    /** Buttons per page = columns × 4 rows. */
+    public int getButtonsPerPage() {
+        return getColumns() * 4;
+    }
+
+    protected void initialize(Minecraft client, int parentLeft, int parentTop, M menu, int bookWidth) {
         this.minecraft = client;
         this.menu = menu;
 
         this.parentLeft = parentLeft;
         this.parentTop = parentTop;
+        this.bookWidth = bookWidth;
 
-        this.forwardButton = new StateSwitchingButton(parentLeft + 93, parentTop + 137, 12, 17, false);
+        int cols = getColumns();
+
+        // Forward/back buttons moved to the right side in expanded mode
+        this.forwardButton = new StateSwitchingButton(parentLeft + bookWidth - 54, parentTop + 137, 12, 17, false);
         this.forwardButton.initTextureValues(BRBTextures.RECIPE_BOOK_PAGE_FORWARD_SPRITES);
-        this.backButton = new StateSwitchingButton(parentLeft + 38, parentTop + 137, 12, 17, true);
+        this.backButton = new StateSwitchingButton(parentLeft + bookWidth - 109, parentTop + 137, 12, 17, true);
         this.backButton.initTextureValues(BRBTextures.RECIPE_BOOK_PAGE_BACKWARD_SPRITES);
 
         for (int k = 0; k < this.buttons.size(); ++k) {
-            this.buttons.get(k).setPosition(parentLeft + 11 + 25 * (k % 5), parentTop + 31 + 25 * (k / 5));
+            this.buttons.get(k).setPosition(parentLeft + 11 + 25 * (k % cols), parentTop + 31 + 25 * (k / cols));
+            this.buttons.get(k).visible = false; // hidden until setResults activates them
         }
     }
 
@@ -104,7 +121,8 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     }
 
     public void updateButtonsForPage() {
-        int i = 20 * this.currentPage;
+        int bpp = getButtonsPerPage();
+        int i = bpp * this.currentPage;
 
         for (int j = 0; j < this.buttons.size(); ++j) {
             var button = this.buttons.get(j);
@@ -141,8 +159,8 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
 
         if (this.totalPages > 1) {
             String string = this.currentPage + 1 + "/" + this.totalPages;
-            int width = this.minecraft.font.width(string);
-            gui.drawString(this.minecraft.font, string, blitX - width / 2 + 73, blitY + 141, -1, false);
+            int stringWidth = this.minecraft.font.width(string);
+            gui.drawString(this.minecraft.font, string, blitX + bookWidth / 2 - stringWidth / 2, blitY + 141, -1, false);
         }
 
         this.hoveredButton = null;
@@ -158,15 +176,16 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         this.forwardButton.render(gui, mouseX, mouseY, delta);
     }
 
-    private static boolean isMouseOverRecipeBookPage(int mouseX, int mouseY, int left, int top) {
-        return mouseX >= left && mouseX < left + 147 && mouseY >= top && mouseY < top + 166;
+    private boolean isMouseOverRecipeBookPage(int mouseX, int mouseY, int left, int top) {
+        return mouseX >= left && mouseX < left + bookWidth && mouseY >= top && mouseY < top + GenericRecipeBookComponent.VANILLA_BOOK_HEIGHT;
     }
 
     public void setResults(List<C> recipeCollection, boolean resetCurrentPage, BRBBookCategories.Category category) {
         this.recipeCollections = recipeCollection;
         this.category = category;
 
-        this.totalPages = (int) Math.ceil((double) recipeCollection.size() / 20.0D);
+        int bpp = getButtonsPerPage();
+        this.totalPages = (int) Math.ceil((double) recipeCollection.size() / (double) bpp);
         if (this.totalPages <= this.currentPage || resetCurrentPage) {
             this.currentPage = 0;
         }
