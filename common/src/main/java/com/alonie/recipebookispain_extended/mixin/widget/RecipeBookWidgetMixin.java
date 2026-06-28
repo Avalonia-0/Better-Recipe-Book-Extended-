@@ -2,7 +2,6 @@ package com.alonie.recipebookispain_extended.mixin.widget;
 
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.util.RecipeBookDebugLogger;
-import com.alonie.recipebookispain_extended.RbipScrollArea;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.RecipeBookIsPainExtendedConfig;
 import com.alonie.recipebookispain_extended.access.CreativeTabButtonAccess;
@@ -632,41 +631,50 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Unique private static final int SCROLL_PADDING = 20;
 
+    // Simple bounding box: { left, top, right, bottom }
+    @Unique
+    private static int[] rbip$box(int l, int t, int r, int b) { return new int[]{l, t, r, b}; }
+    @Unique
+    private static int rbip$width(int[] box) { return box[2] - box[0]; }
+    @Unique
+    private static int rbip$height(int[] box) { return box[3] - box[1]; }
+
     @Unique
     private boolean rbip$isMouseOverAnyVisibleTab(double mouseX, double mouseY) {
-        RbipScrollArea topArea = null;
-        RbipScrollArea bottomArea = null;
+        int[] topArea = null;
+        int[] bottomArea = null;
 
         for (RecipeBookTabButton btn : this.tabButtons) {
             if (!btn.visible) continue;
             RecipeGroupButtonPlacement p = ((RecipeGroupButtonPlacementAccess) btn).rbip$getPlacement();
             if (p == RecipeGroupButtonPlacement.TOP) {
-                topArea = rbip$mergeScrollArea(topArea, rbip$expandedArea(btn));
+                int[] expanded = rbip$expandBox(btn);
+                topArea = topArea == null ? expanded : rbip$mergeBoxes(topArea, expanded);
             } else if (p == RecipeGroupButtonPlacement.BOTTOM) {
-                bottomArea = rbip$mergeScrollArea(bottomArea, rbip$expandedArea(btn));
+                int[] expanded = rbip$expandBox(btn);
+                bottomArea = bottomArea == null ? expanded : rbip$mergeBoxes(bottomArea, expanded);
             } else if (rbip$isInside(mouseX, mouseY, btn.getX(), btn.getY(), btn.getWidth(), btn.getHeight())) {
                 return true;
             }
         }
-        if (topArea != null && rbip$isInside(mouseX, mouseY, topArea.left(), topArea.top(),
-                topArea.width(), topArea.height())) return true;
-        if (bottomArea != null && rbip$isInside(mouseX, mouseY, bottomArea.left(), bottomArea.top(),
-                bottomArea.width(), bottomArea.height())) return true;
+        if (topArea != null && rbip$isInside(mouseX, mouseY, topArea[0], topArea[1],
+                rbip$width(topArea), rbip$height(topArea))) return true;
+        if (bottomArea != null && rbip$isInside(mouseX, mouseY, bottomArea[0], bottomArea[1],
+                rbip$width(bottomArea), rbip$height(bottomArea))) return true;
         return false;
     }
 
     @Unique
-    private RbipScrollArea rbip$expandedArea(RecipeBookTabButton btn) {
-        return new RbipScrollArea(
+    private int[] rbip$expandBox(RecipeBookTabButton btn) {
+        return rbip$box(
                 btn.getX(), btn.getY() - SCROLL_PADDING,
                 btn.getX() + btn.getWidth(), btn.getY() + btn.getHeight() + SCROLL_PADDING);
     }
 
     @Unique
-    private RbipScrollArea rbip$mergeScrollArea(RbipScrollArea a, RbipScrollArea b) {
-        if (a == null) return b;
-        return new RbipScrollArea(
-                Math.min(a.left(), b.left()), Math.min(a.top(), b.top()),
-                Math.max(a.right(), b.right()), Math.max(a.bottom(), b.bottom()));
+    private int[] rbip$mergeBoxes(int[] a, int[] b) {
+        return rbip$box(
+                Math.min(a[0], b[0]), Math.min(a[1], b[1]),
+                Math.max(a[2], b[2]), Math.max(a[3], b[3]));
     }
 }

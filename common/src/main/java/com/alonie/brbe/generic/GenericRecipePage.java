@@ -65,15 +65,18 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         this.bookWidth = bookWidth;
 
         int cols = getColumns();
+        int gridWidth = cols * 25;
+        int gridLeft = parentLeft + (bookWidth - gridWidth) / 2; // center the grid
 
-        // Forward/back buttons moved to the right side in expanded mode
-        this.forwardButton = new StateSwitchingButton(parentLeft + bookWidth - 54, parentTop + 137, 12, 17, false);
+        // Page buttons centered at the bottom
+        int pageCenterX = parentLeft + bookWidth / 2;
+        this.forwardButton = new StateSwitchingButton(pageCenterX + 3, parentTop + 137, 12, 17, false);
         this.forwardButton.initTextureValues(BRBTextures.RECIPE_BOOK_PAGE_FORWARD_SPRITES);
-        this.backButton = new StateSwitchingButton(parentLeft + bookWidth - 109, parentTop + 137, 12, 17, true);
+        this.backButton = new StateSwitchingButton(pageCenterX - 15, parentTop + 137, 12, 17, true);
         this.backButton.initTextureValues(BRBTextures.RECIPE_BOOK_PAGE_BACKWARD_SPRITES);
 
         for (int k = 0; k < this.buttons.size(); ++k) {
-            this.buttons.get(k).setPosition(parentLeft + 11 + 25 * (k % cols), parentTop + 31 + 25 * (k / cols));
+            this.buttons.get(k).setPosition(gridLeft + 25 * (k % cols), parentTop + 31 + 25 * (k / cols));
             this.buttons.get(k).visible = false; // hidden until setResults activates them
         }
     }

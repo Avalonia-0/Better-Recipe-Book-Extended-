@@ -188,23 +188,23 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             BetterRecipeBook.configChanged = false;
         }
 
-        gui.pose().pushPose();
-        gui.pose().translate(0.0f, 0.0f, 100.0f);
-
-        // Render recipe book background using 3-slice: left/right caps at
-        // native size, middle section tiled.  Avoids distorting borders.
         int bookWidth = getCurrentBookWidth();
         int blitX = getBookLeft();
         int blitY = getBookTop();
+
+        // Tab buttons render BEHIND the book (selected tab overlaps into book area)
+        for (BRBGroupButtonWidget widget : this.tabButtons) {
+            widget.render(gui, mouseX, mouseY, delta);
+        }
+
+        gui.pose().pushPose();
+        gui.pose().translate(0.0f, 0.0f, 100.0f);
+
+        // Render recipe book background using 3-slice
         brbe$renderBookBackground(gui, blitX, blitY, bookWidth);
 
         // render search box
         this.searchBox.render(gui, mouseX, mouseY, delta);
-
-        // render tab buttons
-        for (BRBGroupButtonWidget widget : this.tabButtons) {
-            widget.render(gui, mouseX, mouseY, delta);
-        }
 
         this.filterButton.render(gui, mouseX, mouseY, delta);
 

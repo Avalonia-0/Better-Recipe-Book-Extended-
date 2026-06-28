@@ -83,11 +83,13 @@ public abstract class ExpandedBookMixin {
             btn.setY(tabY + 27 * slot++);
         }
 
-        // Reposition recipe buttons to fill the expanded width (flex grid)
+        // Reposition recipe buttons — centered flex grid
         int cols = Math.max(5, (bookWidth - 22) / 25);
+        int gridWidth = cols * 25;
+        int gridLeft = bookX + (bookWidth - gridWidth) / 2;
         List<RecipeButton> buttons = ((RecipeBookPageAccessor) this.recipeBookPage).getButtons();
         for (int k = 0; k < buttons.size(); k++) {
-            buttons.get(k).setX(bookX + 11 + 25 * (k % cols));
+            buttons.get(k).setX(gridLeft + 25 * (k % cols));
             buttons.get(k).setY(bookY + 31 + 25 * (k / cols));
         }
     }
@@ -120,14 +122,20 @@ public abstract class ExpandedBookMixin {
         }
 
         int bookWidth = brbe$getBookWidth();
-        // Left edge stays fixed at vanilla position; expansion goes right only
         int blitX = (this.width - 147) / 2 - this.xOffset;
         int blitY = (this.height - 166) / 2;
 
-        // Left cap (7px) — border + shadows
+        // Render background at z=200 so it covers tabs (which are at z=100).
+        // Vanilla pushes z=100 before this call; we pop it, draw at z=200,
+        // then restore z=100 so remaining elements render correctly.
+        gui.pose().popPose();
+        gui.pose().pushPose();
+        gui.pose().translate(0, 0, 200);
+
+        // Left cap
         gui.blit(texture, blitX, blitY, 0, 0, BG_LEFT_CAP, 166, 256, 256);
 
-        // Body — tile across the expanded gap
+        // Body — tile
         int bodyStartX = blitX + BG_LEFT_CAP;
         int bodyEndX = blitX + bookWidth - BG_RIGHT_CAP;
         for (int bx = 0; bx < bodyEndX - bodyStartX; bx += BG_BODY) {
@@ -136,9 +144,14 @@ public abstract class ExpandedBookMixin {
                     BG_LEFT_CAP, 0, segW, 166, 256, 256);
         }
 
-        // Right cap (12px) — src X = 147 - 12 = 135
+        // Right cap
         gui.blit(texture, bodyEndX, blitY,
                 135, 0, BG_RIGHT_CAP, 166, 256, 256);
+
+        // Restore vanilla's z=100 for tabs, search, filter, page
+        gui.pose().popPose();
+        gui.pose().pushPose();
+        gui.pose().translate(0, 0, 100);
     }
 
     // ── isOffsetNextToMainGUI: expanded mode is always "next to gui" ─

@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins.instantcraft;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.util.BRBTextures;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -27,6 +28,7 @@ public abstract class RecipeBookComponentMixin {
     @Shadow private int height;
     @Shadow private int width;
     @Shadow private int xOffset;
+    @Shadow private boolean widthTooNarrow;
     @Shadow @Final private RecipeBookPage recipeBookPage;
 
     @Shadow public abstract boolean isVisible();
@@ -34,6 +36,16 @@ public abstract class RecipeBookComponentMixin {
     @Unique protected StateSwitchingButton brbe$instantCraftButton;
     @Unique private static final Component TOGGLE_INSTANT_CRAFT_ON_TEXT;
     @Unique private static final Component TOGGLE_INSTANT_CRAFT_OFF_TEXT;
+
+    @Unique
+    private int brbe$getExpandedBookWidth() {
+        if (!BetterRecipeBook.config.expandedRecipeBook || this.widthTooNarrow || !isVisible())
+            return 147;
+        int leftPos = ((RecipeBookComponentAccessor) this)
+                .updateScreenPositionInvoker(this.width, 176);
+        int bookLeft = (this.width - 147) / 2 - this.xOffset;
+        return (leftPos + 176) - bookLeft;
+    }
 
     @Unique
     private boolean brbe$shouldSkip() {
@@ -51,10 +63,13 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
-        int i = (this.width - 147) / 2 - this.xOffset;
+        int bookWidth = brbe$getExpandedBookWidth();
+        int i = (this.width - 147) / 2 - this.xOffset; // fixed left edge
         int j = (this.height - 166) / 2;
+        // Bottom-right: same right-edge alignment as filter button
+        int btnX = i + bookWidth - 37 - 26; // 37 = right margin, 26 = button width
 
-        this.brbe$instantCraftButton = new StateSwitchingButton(i + 110, j + 137, 26, 16 + 2, BetterRecipeBook.instantCraftingManager.isEnabled());
+        this.brbe$instantCraftButton = new StateSwitchingButton(btnX, j + 137, 26, 16 + 2, BetterRecipeBook.instantCraftingManager.isEnabled());
         BetterRecipeBook.instantCraftingManager.lastInstantCraftButton = this.brbe$instantCraftButton;
         this.brbe$instantCraftButton.initTextureValues(BRBTextures.RECIPE_BOOK_INSTANT_CRAFT_BUTTON_SPRITES);
     }
