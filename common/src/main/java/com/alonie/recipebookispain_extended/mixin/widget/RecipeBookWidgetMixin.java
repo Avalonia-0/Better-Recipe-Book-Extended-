@@ -585,7 +585,7 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     // ── Coordinate helpers ─────────────────────────────────────
 
-    @Unique private int rbip$getBookX() { return (width - rbip$getBookW()) / 2 - xOffset; }
+    @Unique private int rbip$getBookX() { return (width - VANILLA_BOOK_W) / 2 - xOffset; }
     @Unique private int rbip$getBookY() { return (height - VANILLA_BOOK_H) / 2; }
     @Unique private int rbip$getTabX() { return rbip$getBookX() - 30; }
     @Unique private int rbip$getTabY() { return rbip$getBookY() + 3; }

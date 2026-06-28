@@ -113,8 +113,8 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         }
 
         int bookWidth = getCurrentBookWidth();
-        int i = (this.width - bookWidth) / 2 - this.xOffset;
-        int j = (this.height - VANILLA_BOOK_HEIGHT) / 2;
+        int i = getBookLeft();
+        int j = getBookTop();
         this.stackedContents.clear();
         if (this.minecraft.player == null) return;
         this.minecraft.player.getInventory().fillStackedContents(this.stackedContents);
@@ -132,7 +132,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.settingsButton = createSettingsButton(i, j);
         this.recipesPage.initialize(this.minecraft, i, j, menu, bookWidth);
         this.tabButtons.clear();
-        // filter button: right-aligned, offset from right edge = 37 (matches vanilla 110 = 147-37)
+        // filter button: right-aligned from the book's right edge
         this.filterButton = new StateSwitchingButton(i + bookWidth - 37, j + 12, 26, 16,
                 BRBBookSettings.isFiltering(this.getRecipeBookType()));
         this.updateFilterButtonTooltip();
@@ -194,8 +194,8 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         // Render recipe book background using 3-slice: left/right caps at
         // native size, middle section tiled.  Avoids distorting borders.
         int bookWidth = getCurrentBookWidth();
-        int blitX = (this.width - bookWidth) / 2 - this.xOffset;
-        int blitY = (this.height - VANILLA_BOOK_HEIGHT) / 2;
+        int blitX = getBookLeft();
+        int blitY = getBookTop();
         brbe$renderBookBackground(gui, blitX, blitY, bookWidth);
 
         // render search box
@@ -398,6 +398,20 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     /**
+     * The left-edge X coordinate of the recipe book.  Always computed from
+     * the vanilla 147px width so the left side stays fixed regardless of
+     * expanded mode.  Expansion only extends the right edge.
+     */
+    public int getBookLeft() {
+        return (this.width - VANILLA_BOOK_WIDTH) / 2 - this.xOffset;
+    }
+
+    /** The top-edge Y coordinate of the recipe book. */
+    public int getBookTop() {
+        return (this.height - VANILLA_BOOK_HEIGHT) / 2;
+    }
+
+    /**
      * 3-slice background renderer: left/right caps at native size,
      * middle section tiled horizontally.  Borders and shadows stay
      * sharp regardless of book width.
@@ -522,8 +536,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         if (!this.isVisible()) return false;
 
         if (this.recipesPage.mouseClicked(mouseX, mouseY, button,
-                (this.width - getCurrentBookWidth()) / 2 - this.xOffset,
-                (this.height - VANILLA_BOOK_HEIGHT) / 2,
+                getBookLeft(), getBookTop(),
                 getCurrentBookWidth(), VANILLA_BOOK_HEIGHT)) {
             this.handlePlaceRecipe();
             return true;
@@ -635,8 +648,8 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     protected void refreshTabButtons() {
-        int i = (this.width - getCurrentBookWidth()) / 2 - this.xOffset - 30;
-        int j = (this.height - VANILLA_BOOK_HEIGHT) / 2 + 3;
+        int i = getBookLeft() - 30;
+        int j = getBookTop() + 3;
         int l = 0;
 
         for (BRBGroupButtonWidget button : this.tabButtons) {
@@ -650,9 +663,8 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
     /** Create or reposition the expanded-mode toggle button below the left-side tabs. */
     protected void refreshExpandedToggleButton() {
-        int bookWidth = getCurrentBookWidth();
-        int tabX = (this.width - bookWidth) / 2 - this.xOffset - 30;
-        int tabY = (this.height - VANILLA_BOOK_HEIGHT) / 2 + 3;
+        int tabX = getBookLeft() - 30;
+        int tabY = getBookTop() + 3;
         int buttonY = tabY + 27 * this.tabButtons.size() + 3; // below last tab + gap
 
         if (this.expandedToggleButton == null) {

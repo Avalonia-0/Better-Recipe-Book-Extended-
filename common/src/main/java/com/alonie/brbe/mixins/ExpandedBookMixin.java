@@ -62,7 +62,7 @@ public abstract class ExpandedBookMixin {
         if (!brbe$isExpanded()) return;
 
         int bookWidth = brbe$getBookWidth();
-        int bookX = (this.width - bookWidth) / 2 - this.xOffset;
+        int bookX = (this.width - 147) / 2 - this.xOffset; // fixed left edge
         int bookY = (this.height - 166) / 2;
 
         // Widen search box
@@ -108,7 +108,8 @@ public abstract class ExpandedBookMixin {
         }
 
         int bookWidth = brbe$getBookWidth();
-        int blitX = (this.width - bookWidth) / 2 - this.xOffset;
+        // Left edge stays fixed at vanilla position; expansion goes right only
+        int blitX = (this.width - 147) / 2 - this.xOffset;
         int blitY = (this.height - 166) / 2;
 
         // Left cap (7px) — border + shadows
