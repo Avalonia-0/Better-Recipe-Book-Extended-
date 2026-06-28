@@ -61,6 +61,13 @@ public class BRBTextures {
             ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/button_settings_highlighted")
     );
 
+    public static final WidgetSprites RECIPE_BOOK_EXPAND_BUTTON_SPRITES = new WidgetSprites(
+            ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/button_expand"),
+            ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/button_expand_disabled"),
+            ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/button_expand_highlighted"),
+            ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/button_expand_disabled_highlighted")
+    );
+
     public static final WidgetSprites RECIPE_BOOK_INSTANT_CRAFT_BUTTON_SPRITES = new WidgetSprites(
             ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/button_instantcraft"),
             ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/button_instantcraft_disabled"),

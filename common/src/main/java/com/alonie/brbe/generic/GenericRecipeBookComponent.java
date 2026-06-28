@@ -59,6 +59,8 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     protected final StackedContents stackedContents = new StackedContents();
     protected StateSwitchingButton filterButton;
     protected ImageButton settingsButton;
+    @Nullable
+    protected ImageButton expandedToggleButton;
     public GenericRecipePage<M, C, R> recipesPage;
     protected final List<BRBGroupButtonWidget> tabButtons = Lists.newArrayList();
     @Nullable
@@ -119,7 +121,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         // TODO: menu.fillCraftSlotsStackedContents(this.stackedContents);
         String string = this.searchBox != null ? this.searchBox.getValue() : "";
         Objects.requireNonNull(this.minecraft.font);
-        this.searchBox = new EditBox(this.minecraft.font, i + 25, j + 13, 81, this.minecraft.font.lineHeight + 5, Component.translatable("itemGroup.search"));
+        int searchWidth = isExpanded() ? bookWidth - 140 : 81;
+        this.searchBox = new EditBox(this.minecraft.font, i + 25, j + 13, searchWidth,
+                this.minecraft.font.lineHeight + 5, Component.translatable("itemGroup.search"));
         this.searchBox.setMaxLength(50);
         this.searchBox.setVisible(true);
         this.searchBox.setTextColor(0xFFFFFF);
@@ -128,7 +132,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.settingsButton = createSettingsButton(i, j);
         this.recipesPage.initialize(this.minecraft, i, j, menu, bookWidth);
         this.tabButtons.clear();
-        this.filterButton = new StateSwitchingButton(i + 110, j + 12, 26, 16, BRBBookSettings.isFiltering(this.getRecipeBookType()));
+        // filter button: right-aligned, offset from right edge = 37 (matches vanilla 110 = 147-37)
+        this.filterButton = new StateSwitchingButton(i + bookWidth - 37, j + 12, 26, 16,
+                BRBBookSettings.isFiltering(this.getRecipeBookType()));
         this.updateFilterButtonTooltip();
         this.filterButton.initTextureValues(BRBTextures.RECIPE_BOOK_FILTER_BUTTON_SPRITES);
 
@@ -151,6 +157,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.selectedTab.setStateTriggered(true);
         this.updateCollections(false);
         this.refreshTabButtons();
+        this.refreshExpandedToggleButton();
     }
 
     public void render(GuiGraphics gui, int mouseX, int mouseY, float delta) {
@@ -202,6 +209,10 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         }
 
         this.filterButton.render(gui, mouseX, mouseY, delta);
+
+        if (this.expandedToggleButton != null) {
+            this.expandedToggleButton.render(gui, mouseX, mouseY, delta);
+        }
 
         ISettingsButton.super.renderSettingsButton(this.settingsButton, gui, mouseX, mouseY, delta);
 
@@ -398,7 +409,13 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
     /** Compute the expanded width: from the book's normal left edge to the inventory's right edge. */
     protected int getExpandedWidth() {
-        int leftPos = findLeftEdge(this.width, this.containerImageWidth);
+        int leftPos;
+        if (BetterRecipeBook.config.keepCentered) {
+            // When centered, the inventory is at screen center
+            leftPos = (this.width - this.containerImageWidth) / 2;
+        } else {
+            leftPos = findLeftEdge(this.width, this.containerImageWidth);
+        }
         int inventoryRight = leftPos + this.containerImageWidth;
         int bookLeft = (this.width - VANILLA_BOOK_WIDTH) / 2 - this.xOffset;
         return inventoryRight - bookLeft;
@@ -481,6 +498,11 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         }
 
         if (ISettingsButton.super.settingsButtonMouseClicked(this.settingsButton, mouseX, mouseY, button)) {
+            return true;
+        }
+
+        if (this.expandedToggleButton != null
+                && this.expandedToggleButton.mouseClicked(mouseX, mouseY, button)) {
             return true;
         }
 
@@ -574,6 +596,29 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
                 button.visible = true;
             }
             button.setPosition(i, j + 27 * l++);
+        }
+    }
+
+    /** Create or reposition the expanded-mode toggle button below the left-side tabs. */
+    protected void refreshExpandedToggleButton() {
+        int bookWidth = getCurrentBookWidth();
+        int tabX = (this.width - bookWidth) / 2 - this.xOffset - 30;
+        int tabY = (this.height - VANILLA_BOOK_HEIGHT) / 2 + 3;
+        int buttonY = tabY + 27 * this.tabButtons.size() + 3; // below last tab + gap
+
+        if (this.expandedToggleButton == null) {
+            this.expandedToggleButton = new ImageButton(
+                    tabX, buttonY, 20, 18,
+                    BRBTextures.RECIPE_BOOK_BUTTON_SPRITES,
+                    button -> {
+                        BetterRecipeBook.config.expandedRecipeBook =
+                                !BetterRecipeBook.config.expandedRecipeBook;
+                        BetterRecipeBook.configChanged = true;
+                        // Force visual rebuild
+                        initVisuals();
+                    });
+        } else {
+            this.expandedToggleButton.setPosition(tabX, buttonY);
         }
     }
 
