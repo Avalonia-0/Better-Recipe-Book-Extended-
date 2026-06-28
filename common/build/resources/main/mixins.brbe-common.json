@@ -28,7 +28,6 @@
     "accessors.smithing.SmithingTransformRecipeAccessor",
     "accessors.smithing.SmithingTrimRecipeAccessor",
     "hideoverlay.AbstractContainerScreenMixin",
-    "HideInventoryForExpandedBook",
     "incompatibleenvironment.RecipeBookComponentMixin",
     "incompatibleenvironment.RecipeButtonMixin",
     "alternativerecipes.OverlayRecipeButtonMixin",
