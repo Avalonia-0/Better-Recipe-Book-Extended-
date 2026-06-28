@@ -86,26 +86,46 @@ public abstract class ExpandedBookMixin {
     private static final ResourceLocation RECIPE_BOOK_BG =
             ResourceLocation.withDefaultNamespace("textures/gui/recipe_book.png");
 
+    @Unique
+    private static final int BG_LEFT_CAP = 7;
+    @Unique
+    private static final int BG_RIGHT_CAP = 7;
+    @Unique
+    private static final int BG_BODY = 133; // 147 - 7 - 7
+
     @Redirect(method = "render",
             at = @At(value = "INVOKE",
                     target = "Lnet/minecraft/client/gui/GuiGraphics;blit(Lnet/minecraft/resources/ResourceLocation;IIIIII)V"),
             require = 0)
-    private void brbe$stretchBackground(GuiGraphics gui,
-                                         ResourceLocation texture,
-                                         int x, int y,
-                                         int u0, int v0,
-                                         int w, int h) {
-        if (brbe$isExpanded() && RECIPE_BOOK_BG.equals(texture)) {
-            int bookWidth = brbe$getBookWidth();
-            int blitX = (this.width - bookWidth) / 2 - this.xOffset;
-            int blitY = (this.height - 166) / 2;
-            gui.blit(texture, blitX, blitY,
-                    bookWidth, 166,
-                    0, 0, 147, 166,
-                    256, 256);
-        } else {
+    private void brbe$expandBackground(GuiGraphics gui,
+                                        ResourceLocation texture,
+                                        int x, int y,
+                                        int u0, int v0,
+                                        int w, int h) {
+        if (!brbe$isExpanded() || !RECIPE_BOOK_BG.equals(texture)) {
             gui.blit(texture, x, y, u0, v0, w, h);
+            return;
         }
+
+        int bookWidth = brbe$getBookWidth();
+        int blitX = (this.width - bookWidth) / 2 - this.xOffset;
+        int blitY = (this.height - 166) / 2;
+
+        // Left cap (7px) — border + shadows
+        gui.blit(texture, blitX, blitY, 0, 0, BG_LEFT_CAP, 166, 256, 256);
+
+        // Body — tile across the expanded gap
+        int bodyStartX = blitX + BG_LEFT_CAP;
+        int bodyEndX = blitX + bookWidth - BG_RIGHT_CAP;
+        for (int bx = 0; bx < bodyEndX - bodyStartX; bx += BG_BODY) {
+            int segW = Math.min(BG_BODY, bodyEndX - bodyStartX - bx);
+            gui.blit(texture, bodyStartX + bx, blitY,
+                    BG_LEFT_CAP, 0, segW, 166, 256, 256);
+        }
+
+        // Right cap (7px)
+        gui.blit(texture, bodyEndX, blitY,
+                140, 0, BG_RIGHT_CAP, 166, 256, 256);
     }
 
     // ── isOffsetNextToMainGUI: expanded mode is always "next to gui" ─

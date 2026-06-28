@@ -191,14 +191,12 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         gui.pose().pushPose();
         gui.pose().translate(0.0f, 0.0f, 100.0f);
 
-        // blit recipe book background texture (stretched when expanded)
+        // Render recipe book background using 3-slice: left/right caps at
+        // native size, middle section tiled.  Avoids distorting borders.
         int bookWidth = getCurrentBookWidth();
         int blitX = (this.width - bookWidth) / 2 - this.xOffset;
         int blitY = (this.height - VANILLA_BOOK_HEIGHT) / 2;
-        gui.blit(BRBTextures.RECIPE_BOOK_BACKGROUND_TEXTURE, blitX, blitY,
-                bookWidth, VANILLA_BOOK_HEIGHT,
-                0, 0, VANILLA_BOOK_WIDTH, VANILLA_BOOK_HEIGHT,
-                256, 256);
+        brbe$renderBookBackground(gui, blitX, blitY, bookWidth);
 
         // render search box
         this.searchBox.render(gui, mouseX, mouseY, delta);
@@ -397,6 +395,57 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         return BetterRecipeBook.config.expandedRecipeBook
                 && !this.widthTooNarrow
                 && this.isVisible();
+    }
+
+    /**
+     * 3-slice background renderer: left/right caps at native size,
+     * middle section tiled horizontally.  Borders and shadows stay
+     * sharp regardless of book width.
+     * <p>
+     * Vanilla recipe_book.png is 256×256 with the book background at
+     * UV (1,1) size (147,166).  We slice it into:
+     * <ul>
+     *   <li>Left cap:  7px — left border, shadow, tab notches</li>
+     *   <li>Body:     133px — fill area (tileable)</li>
+     *   <li>Right cap: 7px — right border, shadow</li>
+     * </ul>
+     */
+    private static final int BG_LEFT_CAP = 7;
+    private static final int BG_RIGHT_CAP = 7;
+    private static final int BG_BODY = VANILLA_BOOK_WIDTH - BG_LEFT_CAP - BG_RIGHT_CAP; // 133
+    private static final int BG_TEX_SIZE = 256;
+
+    private void brbe$renderBookBackground(GuiGraphics gui, int x, int y, int bookWidth) {
+        var tex = BRBTextures.RECIPE_BOOK_BACKGROUND_TEXTURE;
+
+        if (!isExpanded() || bookWidth <= VANILLA_BOOK_WIDTH) {
+            // Normal mode: single blit at native size
+            gui.blit(tex, x, y, 0, 0, VANILLA_BOOK_WIDTH, VANILLA_BOOK_HEIGHT, BG_TEX_SIZE, BG_TEX_SIZE);
+            return;
+        }
+
+        // Expanded mode: 3-slice
+
+        // Left cap — native size, UV(0,0) in the texture
+        gui.blit(tex, x, y, 0, 0, BG_LEFT_CAP, VANILLA_BOOK_HEIGHT, BG_TEX_SIZE, BG_TEX_SIZE);
+
+        // Middle — tiled across the expanded gap
+        int bodyStartX = x + BG_LEFT_CAP;
+        int bodyEndX = x + bookWidth - BG_RIGHT_CAP;
+        int bodyWidth = bodyEndX - bodyStartX;
+        int srcBodyX = BG_LEFT_CAP;  // UV start for the body section
+        for (int bx = 0; bx < bodyWidth; bx += BG_BODY) {
+            int segW = Math.min(BG_BODY, bodyWidth - bx);
+            gui.blit(tex, bodyStartX + bx, y,
+                    srcBodyX, 0, segW, VANILLA_BOOK_HEIGHT,
+                    BG_TEX_SIZE, BG_TEX_SIZE);
+        }
+
+        // Right cap — native size, UV(140,0) in the texture
+        int rightSrcX = VANILLA_BOOK_WIDTH - BG_RIGHT_CAP;
+        gui.blit(tex, bodyEndX, y,
+                rightSrcX, 0, BG_RIGHT_CAP, VANILLA_BOOK_HEIGHT,
+                BG_TEX_SIZE, BG_TEX_SIZE);
     }
 
     /** The current rendered width of the recipe book — 147 normally, larger when expanded. */
