@@ -419,14 +419,14 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
      * Vanilla recipe_book.png is 256×256 with the book background at
      * UV (1,1) size (147,166).  We slice it into:
      * <ul>
-     *   <li>Left cap:  7px — left border, shadow, tab notches</li>
-     *   <li>Body:     133px — fill area (tileable)</li>
-     *   <li>Right cap: 7px — right border, shadow</li>
+     *   <li>Left cap:  32px — left border, shadow, tab notches (tight fit)</li>
+     *   <li>Body:     103px — fill area (tileable)</li>
+     *   <li>Right cap: 12px — right border, shadow (tight fit)</li>
      * </ul>
      */
-    private static final int BG_LEFT_CAP = 7;
-    private static final int BG_RIGHT_CAP = 7;
-    private static final int BG_BODY = VANILLA_BOOK_WIDTH - BG_LEFT_CAP - BG_RIGHT_CAP; // 133
+    private static final int BG_LEFT_CAP = 32;
+    private static final int BG_RIGHT_CAP = 12;
+    private static final int BG_BODY = VANILLA_BOOK_WIDTH - BG_LEFT_CAP - BG_RIGHT_CAP; // 103
     private static final int BG_TEX_SIZE = 256;
 
     private void brbe$renderBookBackground(GuiGraphics gui, int x, int y, int bookWidth) {

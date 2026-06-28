@@ -2,11 +2,14 @@ package com.alonie.brbe.mixins;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
+import com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
+import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
+import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.resources.ResourceLocation;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -32,6 +35,7 @@ public abstract class ExpandedBookMixin {
     @Shadow private int height;
     @Shadow private EditBox searchBox;
     @Shadow private List<RecipeBookTabButton> tabButtons;
+    @Shadow private RecipeBookPage recipeBookPage;
     @Shadow private boolean visible;
 
     // ── Expanded-mode helpers ────────────────────────────────────
@@ -78,6 +82,14 @@ public abstract class ExpandedBookMixin {
             btn.setX(tabX);
             btn.setY(tabY + 27 * slot++);
         }
+
+        // Reposition recipe buttons to fill the expanded width (flex grid)
+        int cols = Math.max(5, (bookWidth - 22) / 25);
+        List<RecipeButton> buttons = ((RecipeBookPageAccessor) this.recipeBookPage).getButtons();
+        for (int k = 0; k < buttons.size(); k++) {
+            buttons.get(k).setX(bookX + 11 + 25 * (k % cols));
+            buttons.get(k).setY(bookY + 31 + 25 * (k / cols));
+        }
     }
 
     // ── render: stretched background via Redirect ─────────────────
@@ -87,11 +99,11 @@ public abstract class ExpandedBookMixin {
             ResourceLocation.withDefaultNamespace("textures/gui/recipe_book.png");
 
     @Unique
-    private static final int BG_LEFT_CAP = 7;
+    private static final int BG_LEFT_CAP = 32;
     @Unique
-    private static final int BG_RIGHT_CAP = 7;
+    private static final int BG_RIGHT_CAP = 12;
     @Unique
-    private static final int BG_BODY = 133; // 147 - 7 - 7
+    private static final int BG_BODY = 103; // 147 - 32 - 12
 
     @Redirect(method = "render",
             at = @At(value = "INVOKE",
@@ -124,9 +136,9 @@ public abstract class ExpandedBookMixin {
                     BG_LEFT_CAP, 0, segW, 166, 256, 256);
         }
 
-        // Right cap (7px)
+        // Right cap (12px) — src X = 147 - 12 = 135
         gui.blit(texture, bodyEndX, blitY,
-                140, 0, BG_RIGHT_CAP, 166, 256, 256);
+                135, 0, BG_RIGHT_CAP, 166, 256, 256);
     }
 
     // ── isOffsetNextToMainGUI: expanded mode is always "next to gui" ─
