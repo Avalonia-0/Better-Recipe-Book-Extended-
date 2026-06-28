@@ -71,6 +71,9 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     private int xOffset;
 
     @Shadow
+    private boolean widthTooNarrow;
+
+    @Shadow
     private ClientRecipeBook book;
 
     @Shadow
@@ -79,22 +82,53 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     @Shadow
     private boolean visible;
 
-    // ── Layout constants (matching 1.21.11) ────────────────────
+    // ── Layout constants ──────────────────────────────────────────
 
     @Unique private static final ResourceLocation TEX_PAGE_BTNS =
             ResourceLocation.fromNamespaceAndPath("recipe-book-is-pain-extended", "textures/rbip/recipe_book_buttons.png");
-    @Unique private static final int BOOK_W = 147;
-    @Unique private static final int BOOK_H = 166;
+    @Unique private static final int VANILLA_BOOK_W = 147;
+    @Unique private static final int VANILLA_BOOK_H = 166;
     @Unique private static final int TAB_W = 35;
     @Unique private static final int TAB_H = 27;
     @Unique private static final int ROT_TAB_W = 27;
     @Unique private static final int ROT_TAB_H = 35;
     @Unique private static final int LEFT_SLOTS = 6;
-    @Unique private static final int TOP_SLOTS = 5;
-    @Unique private static final int BOTTOM_SLOTS = 5;
     @Unique private static final int HORIZ_STEP = 27;
     @Unique private static final int PAGE_BTN_W = 14;
     @Unique private static final int PAGE_BTN_H = 13;
+
+    // ── Dynamic helpers (support expanded recipe book) ──────────
+
+    @Unique
+    private boolean rbip$isExpanded() {
+        return com.alonie.brbe.BetterRecipeBook.config.expandedRecipeBook
+                && !this.widthTooNarrow
+                && this.visible;
+    }
+
+    @Unique
+    private int rbip$getBookW() {
+        if (rbip$isExpanded()) {
+            int invImageWidth = 176;
+            int leftPos = ((com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor) this)
+                    .updateScreenPositionInvoker(this.width, invImageWidth);
+            int bookLeft = (this.width - VANILLA_BOOK_W) / 2 - this.xOffset;
+            return (leftPos + invImageWidth) - bookLeft;
+        }
+        return VANILLA_BOOK_W;
+    }
+
+    @Unique
+    private int rbip$getTopSlots() {
+        if (!rbip$isExpanded()) return 5;
+        int bookW = rbip$getBookW();
+        return Math.max(0, (bookW - 12) / HORIZ_STEP);
+    }
+
+    @Unique
+    private int rbip$getBottomSlots() {
+        return rbip$getTopSlots(); // symmetric
+    }
 
     // ── Vanilla sub-categories to exclude (all screen types) ──
 
@@ -441,10 +475,19 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     // ── Pagination ─────────────────────────────────────────────
 
     @Unique
+    private int rbip$getTotalSlots() {
+        if (!RecipeBookIsPainExtendedConfig.enabled()) return 6;
+        if (rbip$isExpanded()) {
+            // Dynamic: left column + full top/bottom rows
+            return LEFT_SLOTS + rbip$getTopSlots() + rbip$getBottomSlots();
+        }
+        return RecipeBookIsPainExtendedConfig.bottomNumber();
+    }
+
+    @Unique
     private void rbip$applyPagination(boolean followCurrentTab) {
         int pinnedCount = (rbip$pinnedTab == null) ? 0 : 1;
-        int groupsPerPage = Math.max(1,
-                RecipeBookIsPainExtendedConfig.bottomNumber() - pinnedCount);
+        int groupsPerPage = Math.max(1, rbip$getTotalSlots() - pinnedCount);
 
         // Place pinned tab
         int slot = 0;
@@ -508,21 +551,24 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Unique
     private void rbip$placeTab(RecipeBookTabButton btn, int slot) {
+        int topSlots = rbip$getTopSlots();
+        int bottomSlots = rbip$getBottomSlots();
+
         if (slot < LEFT_SLOTS) {
             ((RecipeGroupButtonPlacementAccess) btn).rbip$setPlacement(RecipeGroupButtonPlacement.NORMAL);
             btn.setX(rbip$getTabX());
             btn.setY(rbip$getTabY() + TAB_H * slot);
             btn.setWidth(TAB_W);
             btn.setHeight(TAB_H);
-        } else if (slot < LEFT_SLOTS + TOP_SLOTS) {
+        } else if (slot < LEFT_SLOTS + topSlots) {
             int s = slot - LEFT_SLOTS;
             ((RecipeGroupButtonPlacementAccess) btn).rbip$setPlacement(RecipeGroupButtonPlacement.TOP);
             btn.setX(rbip$getTopTabX(s));
             btn.setY(rbip$getTopTabY());
             btn.setWidth(ROT_TAB_W);
             btn.setHeight(ROT_TAB_H);
-        } else if (slot < LEFT_SLOTS + TOP_SLOTS + BOTTOM_SLOTS) {
-            int s = slot - LEFT_SLOTS - TOP_SLOTS;
+        } else if (slot < LEFT_SLOTS + topSlots + bottomSlots) {
+            int s = slot - LEFT_SLOTS - topSlots;
             ((RecipeGroupButtonPlacementAccess) btn).rbip$setPlacement(RecipeGroupButtonPlacement.BOTTOM);
             btn.setX(rbip$getBottomTabX(s));
             btn.setY(rbip$getBottomTabY());
@@ -539,19 +585,21 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     // ── Coordinate helpers ─────────────────────────────────────
 
-    @Unique private int rbip$getBookX() { return (width - BOOK_W) / 2 - xOffset; }
-    @Unique private int rbip$getBookY() { return (height - BOOK_H) / 2; }
+    @Unique private int rbip$getBookX() { return (width - rbip$getBookW()) / 2 - xOffset; }
+    @Unique private int rbip$getBookY() { return (height - VANILLA_BOOK_H) / 2; }
     @Unique private int rbip$getTabX() { return rbip$getBookX() - 30; }
     @Unique private int rbip$getTabY() { return rbip$getBookY() + 3; }
     @Unique private int rbip$getPageControlX() { return rbip$getBookX() - 28; }
     @Unique private int rbip$getPageControlY() { return rbip$getBookY() - 12; }
     @Unique private int rbip$getHorizontalTabStartX() {
-        return rbip$getBookX() + (BOOK_W - TOP_SLOTS * ROT_TAB_W) / 2;
+        int bookW = rbip$getBookW();
+        int topSlots = rbip$getTopSlots();
+        return rbip$getBookX() + (bookW - topSlots * ROT_TAB_W) / 2;
     }
     @Unique private int rbip$getTopTabX(int slot) { return rbip$getHorizontalTabStartX() + slot * HORIZ_STEP; }
     @Unique private int rbip$getTopTabY() { return rbip$getBookY() - ROT_TAB_H + 5; }
     @Unique private int rbip$getBottomTabX(int slot) { return rbip$getHorizontalTabStartX() + slot * HORIZ_STEP; }
-    @Unique private int rbip$getBottomTabY() { return rbip$getBookY() + BOOK_H - 5; }
+    @Unique private int rbip$getBottomTabY() { return rbip$getBookY() + VANILLA_BOOK_H - 5; }
 
     // ── Page control rendering ─────────────────────────────────
 

@@ -402,7 +402,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     /** The current rendered width of the recipe book — 147 normally, larger when expanded. */
     public int getCurrentBookWidth() {
         if (isExpanded()) {
-            return getExpandedWidth();
+            return Math.max(VANILLA_BOOK_WIDTH, getExpandedWidth());
         }
         return VANILLA_BOOK_WIDTH;
     }
