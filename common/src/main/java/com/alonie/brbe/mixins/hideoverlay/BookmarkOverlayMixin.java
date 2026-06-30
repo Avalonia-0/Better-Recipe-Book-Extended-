@@ -14,7 +14,7 @@ public abstract class BookmarkOverlayMixin {
 
     @Inject(method = "drawScreen", at = @At("HEAD"), cancellable = true, remap = false)
     private void brbe$cancelBookmarkOverlay(CallbackInfo ci) {
-        if (BetterRecipeBook.config != null && BetterRecipeBook.config.hideReiJeiOverlay) {
+        if (BetterRecipeBook.ctx().config() != null && BetterRecipeBook.ctx().config().hideReiJeiOverlay) {
             ci.cancel();
         }
     }

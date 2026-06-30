@@ -11,13 +11,13 @@ import net.minecraft.world.item.crafting.RecipeManager;
 public class RecipeUnlockUtil {
 
     public static void unlockRecipesIfRequired() {
-        if (BetterRecipeBook.config.newRecipes.unlockAll) {
+        if (BetterRecipeBook.ctx().config().newRecipes.unlockAll) {
             unlockRecipes();
         }
     }
 
     public static void syncToConfig() {
-        if (BetterRecipeBook.config.newRecipes.unlockAll) {
+        if (BetterRecipeBook.ctx().config().newRecipes.unlockAll) {
             unlockRecipes();
         }
     }

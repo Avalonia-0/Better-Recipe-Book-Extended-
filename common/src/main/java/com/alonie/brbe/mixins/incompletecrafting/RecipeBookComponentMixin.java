@@ -83,9 +83,9 @@ public abstract class RecipeBookComponentMixin {
 
         boolean onInventory = minecraft != null
                 && minecraft.screen instanceof InventoryScreen;
-        boolean retainPartial = BetterRecipeBook.config.partialMarkingEnabled;
+        boolean retainPartial = BetterRecipeBook.ctx().config().partialMarkingEnabled;
         boolean retainIncompatible = onInventory
-                && BetterRecipeBook.config.showAllRecipesInSurvival;
+                && BetterRecipeBook.ctx().config().showAllRecipesInSurvival;
 
         // ── Cleanup path ──────────────────────────────────────────
         // When partialMarkingEnabled is OFF, previously-injected

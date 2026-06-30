@@ -19,7 +19,7 @@ public class SuppressUnlockSound<T extends Toast> {
 
     @Redirect(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/toasts/Toast$Visibility;playSound(Lnet/minecraft/client/sounds/SoundManager;)V"))
     public void playSound(Toast.Visibility instance, SoundManager arg) {
-        if (BetterRecipeBook.config.newRecipes.unlockAll && this.toast instanceof RecipeToast) {
+        if (BetterRecipeBook.ctx().config().newRecipes.unlockAll && this.toast instanceof RecipeToast) {
             // pass
             return;
         }

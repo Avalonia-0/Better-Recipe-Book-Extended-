@@ -67,7 +67,7 @@ public final class CollectionPipeline {
      * {@code alternativeRecipes.noGrouped} is enabled.  Returns a new list.
      */
     public static List<RecipeCollection> applyUngroup(List<RecipeCollection> collections) {
-        if (!BetterRecipeBook.config.alternativeRecipes.noGrouped) {
+        if (!BetterRecipeBook.ctx().config().alternativeRecipes.noGrouped) {
             return collections;
         }
 
@@ -140,7 +140,7 @@ public final class CollectionPipeline {
      * list in-place — the caller's reference is updated.
      */
     public static void applyPins(List<RecipeCollection> collections) {
-        if (!BetterRecipeBook.config.enablePinning) return;
+        if (!BetterRecipeBook.ctx().config().enablePinning) return;
         if (collections.size() <= 1) return;
 
         List<RecipeCollection> snapshot = new ArrayList<>(collections);
@@ -183,7 +183,7 @@ public final class CollectionPipeline {
         List<RecipeCollection> unpinnedUncraftable = new ArrayList<>();
 
         for (RecipeCollection c : collections) {
-            boolean isPinned = BetterRecipeBook.config.enablePinning
+            boolean isPinned = BetterRecipeBook.ctx().config().enablePinning
                     && BetterRecipeBook.pinnedRecipeManager.has(
                         PinnableRecipeCollection.of(c));
 
@@ -238,7 +238,7 @@ public final class CollectionPipeline {
             boolean isFiltering) {
         if (!isFiltering) return collections;
 
-        boolean hasPartial = BetterRecipeBook.config.partialMarkingEnabled;
+        boolean hasPartial = BetterRecipeBook.ctx().config().partialMarkingEnabled;
         List<RecipeCollection> result = new ArrayList<>();
         for (RecipeCollection coll : collections) {
             boolean keep = hasPartial
@@ -260,7 +260,7 @@ public final class CollectionPipeline {
      * list in-place.  Works with any {@link PipelineCollection}.
      */
     public static <T extends PipelineCollection> void applyPinsGeneric(List<T> collections) {
-        if (!BetterRecipeBook.config.enablePinning) return;
+        if (!BetterRecipeBook.ctx().config().enablePinning) return;
         if (collections.size() <= 1) return;
 
         List<T> snapshot = new ArrayList<>(collections);
@@ -291,7 +291,7 @@ public final class CollectionPipeline {
         List<T> unpinnedUncraftable = new ArrayList<>();
 
         for (T c : collections) {
-            boolean isPinned = BetterRecipeBook.config.enablePinning
+            boolean isPinned = BetterRecipeBook.ctx().config().enablePinning
                     && BetterRecipeBook.pinnedRecipeManager.has(c);
 
             boolean craftable = c.hasAnyCraftable();
@@ -329,7 +329,7 @@ public final class CollectionPipeline {
             boolean isFiltering) {
         if (!isFiltering) return collections;
 
-        boolean hasPartial = BetterRecipeBook.config.partialMarkingEnabled;
+        boolean hasPartial = BetterRecipeBook.ctx().config().partialMarkingEnabled;
         List<T> result = new ArrayList<>();
         for (T coll : collections) {
             boolean keep = hasPartial

@@ -18,7 +18,7 @@ public abstract class RecipeButtonMixin {
 
     @Inject(method = "getTooltipText", locals = LocalCapture.CAPTURE_FAILHARD, at = @At("RETURN"))
     private void brbe$appendModName(CallbackInfoReturnable<List<Component>> cir, ItemStack itemStack, List<Component> list) {
-        if (!BetterRecipeBook.config.showModName) {
+        if (!BetterRecipeBook.ctx().config().showModName) {
             return;
         }
 

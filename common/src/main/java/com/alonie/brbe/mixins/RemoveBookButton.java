@@ -26,7 +26,7 @@ public class RemoveBookButton extends Button {
 
     @Inject(at = @At("HEAD"), method = "renderWidget", cancellable = true)
     public void renderWidget(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (!BetterRecipeBook.config.enableBook && sprites == RecipeBookComponent.RECIPE_BUTTON_SPRITES) {
+        if (!BetterRecipeBook.ctx().config().enableBook && sprites == RecipeBookComponent.RECIPE_BUTTON_SPRITES) {
             this.visible = false;
             ci.cancel();
         }

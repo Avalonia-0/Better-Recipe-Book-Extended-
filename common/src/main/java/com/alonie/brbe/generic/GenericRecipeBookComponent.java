@@ -3,6 +3,7 @@ package com.alonie.brbe.generic;
 import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
+import com.alonie.brbe.config.AppContext;
 import com.alonie.brbe.api.BRBBookSettings;
 import com.alonie.brbe.compat.ItemViewCompat;
 import com.alonie.brbe.interfaces.IPinningComponent;
@@ -107,7 +108,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     public void initVisuals() {
-        if (BetterRecipeBook.config.keepCentered) {
+        if (BetterRecipeBook.ctx().config().keepCentered) {
             this.xOffset = this.widthTooNarrow ? 0 : BookLayout.X_OFFSET_CENTERED;
         } else {
             this.xOffset = this.widthTooNarrow ? 0 : BookLayout.X_OFFSET_STANDARD;
@@ -167,9 +168,10 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         if (!this.isVisible()) return;
 
         // Log render state before any processing
+        boolean configChanged = AppContext.instance().events().consumeConfigChange();
         BrbeLogger.log(BrbeLogger.Category.RENDER,
                 "Generic render ENTER — configChanged=%s, visible=%s, doubleRefresh=%s",
-                BetterRecipeBook.configChanged, visible, doubleRefresh);
+                configChanged, visible, doubleRefresh);
 
         if (this.doubleRefresh) {
             // Minecraft doesn't populate the inventory on initialization so this is the only solution I have
@@ -180,7 +182,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         // When config changes (e.g. enablePinning, noGrouped toggled in the
         // Cloth Config screen), reset recipe visibility state and do a full
         // re-initialization so all UI elements and recipe ordering match.
-        if (BetterRecipeBook.configChanged) {
+        if (configChanged) {
             BrbeLogger.log(BrbeLogger.Category.RENDER,
                     "Generic render — configChanged CONSUMED, calling initVisuals");
             // Reset filter state: show all recipes after a config change,
@@ -188,7 +190,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             // the filter button to their preference afterward.
             BRBBookSettings.setFiltering(this.getRecipeBookType(), false);
             initVisuals();
-            BetterRecipeBook.configChanged = false;
         }
 
         int bookWidth = getCurrentBookWidth();
@@ -242,7 +243,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             return true;
         }
 
-        if (BetterRecipeBook.PIN_MAPPING.matches(i, j) && BetterRecipeBook.config.enablePinning) {
+        if (BetterRecipeBook.PIN_MAPPING.matches(i, j) && BetterRecipeBook.ctx().config().enablePinning) {
             for (GenericRecipeButton<C, R, M> resultButton : this.recipesPage.getButtons()) {
                 if (resultButton.isHoveredOrFocused()) {
                     BetterRecipeBook.pinnedRecipeManager.addOrRemoveFavourite(resultButton.getCollection());
@@ -321,9 +322,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
         BrbeLogger.log(BrbeLogger.Category.STATE,
                 "updateCollections ENTER (generic) — pCE=%s, pME=%s, eP=%s, isFiltering=%s, collections=%d",
-                BetterRecipeBook.config.partialCraftingEnabled,
-                BetterRecipeBook.config.partialMarkingEnabled,
-                BetterRecipeBook.config.enablePinning,
+                BetterRecipeBook.ctx().config().partialCraftingEnabled,
+                BetterRecipeBook.ctx().config().partialMarkingEnabled,
+                BetterRecipeBook.ctx().config().enablePinning,
                 BRBBookSettings.isFiltering(this.getRecipeBookType()),
                 this.getCollectionsForCategory().size());
 
@@ -349,7 +350,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         CollectionPipeline.applyPinsGeneric(results);
 
         boolean isFiltering = BRBBookSettings.isFiltering(this.getRecipeBookType());
-        boolean shouldSort = BetterRecipeBook.config.partialCraftingEnabled || isFiltering;
+        boolean shouldSort = BetterRecipeBook.ctx().config().partialCraftingEnabled || isFiltering;
         if (shouldSort) {
             results = CollectionPipeline.applyPartialSortGeneric(results);
         }
@@ -395,7 +396,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
     /** Whether the recipe book is currently in expanded (full-width) mode. */
     public boolean isExpanded() {
-        return BetterRecipeBook.config.expandedRecipeBook
+        return BetterRecipeBook.ctx().config().expandedRecipeBook
                 && !this.widthTooNarrow
                 && this.isVisible();
     }
@@ -476,7 +477,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     /** Compute the expanded width: from the book's normal left edge to the inventory's right edge. */
     protected int getExpandedWidth() {
         int leftPos;
-        if (BetterRecipeBook.config.keepCentered) {
+        if (BetterRecipeBook.ctx().config().keepCentered) {
             // When centered, the inventory is at screen center
             leftPos = (this.width - this.containerImageWidth) / 2;
         } else {
@@ -675,9 +676,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
                     tabX, buttonY, 20, 18,
                     BRBTextures.RECIPE_BOOK_BUTTON_SPRITES,
                     button -> {
-                        BetterRecipeBook.config.expandedRecipeBook =
-                                !BetterRecipeBook.config.expandedRecipeBook;
-                        BetterRecipeBook.configChanged = true;
+                        BetterRecipeBook.ctx().config().expandedRecipeBook =
+                                !BetterRecipeBook.ctx().config().expandedRecipeBook;
+                        AppContext.instance().events().requestConfigRefresh();
                         // Force visual rebuild
                         initVisuals();
                     });

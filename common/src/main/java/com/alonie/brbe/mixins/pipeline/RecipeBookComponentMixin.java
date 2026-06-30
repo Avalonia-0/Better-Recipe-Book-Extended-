@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins.pipeline;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.config.AppContext;
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
@@ -51,7 +52,7 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
 
     @Inject(method = "render", at = @At("HEAD"))
     private void brbe$refreshOnConfigChange(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (!BetterRecipeBook.configChanged) return;
+        if (!AppContext.instance().events().consumeConfigChange()) return;
         if (!this.getVisible()) return;
 
         BrbeLogger.log(BrbeLogger.Category.RENDER, "configChanged — full rebuild");
@@ -76,7 +77,6 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         brbe$configChangeRefresh = true;
         this.initVisualsInvoker();
         brbe$configChangeRefresh = false;
-        BetterRecipeBook.configChanged = false;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -126,7 +126,7 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         // fill fitsDimensions when showAllRecipesInSurvival is enabled,
         // because vanilla correctly leaves 3×3-only collections empty there.
         boolean onInventory = minecraft != null && minecraft.screen instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen;
-        boolean skipFallback = onInventory && !BetterRecipeBook.config.showAllRecipesInSurvival;
+        boolean skipFallback = onInventory && !BetterRecipeBook.ctx().config().showAllRecipesInSurvival;
         if (!skipFallback) {
             for (RecipeCollection c : collections) {
                 var ca = (RecipeCollectionAccessor) c;
@@ -140,7 +140,7 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         // purge 3×3 recipes from fitsDimensions first (they may have leaked
         // in from a crafting-table visit where the slot-hash cache skipped
         // canCraft), then remove collections that end up empty.
-        if (onInventory && !BetterRecipeBook.config.showAllRecipesInSurvival) {
+        if (onInventory && !BetterRecipeBook.ctx().config().showAllRecipesInSurvival) {
             for (RecipeCollection c : collections) {
                 var ca = (RecipeCollectionAccessor) c;
                 java.util.Set<RecipeHolder<?>> fits = ca.getFitsDimensions();
@@ -206,15 +206,15 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
     private void sort(List<RecipeCollection> collections) {
         if (collections == null || collections.isEmpty()) return;
         // Pin sort (in-place, moves pinned to front)
-        if (BetterRecipeBook.config.enablePinning) {
+        if (BetterRecipeBook.ctx().config().enablePinning) {
             CollectionPipeline.applyPins(collections);
         }
         // Partial sort (6-bucket craftable/partial/uncraftable × pinned/unpinned)
-        boolean hasPartial = BetterRecipeBook.config.partialCraftingEnabled
-                && BetterRecipeBook.config.partialMarkingEnabled;
+        boolean hasPartial = BetterRecipeBook.ctx().config().partialCraftingEnabled
+                && BetterRecipeBook.ctx().config().partialMarkingEnabled;
         boolean isFiltering = minecraft != null && minecraft.player != null
                 && minecraft.player.getRecipeBook().isFiltering(menu);
-        if (BetterRecipeBook.config.partialCraftingEnabled || isFiltering) {
+        if (BetterRecipeBook.ctx().config().partialCraftingEnabled || isFiltering) {
             List<RecipeCollection> sorted = CollectionPipeline.applyPartialSort(collections, hasPartial);
             collections.clear();
             collections.addAll(sorted);

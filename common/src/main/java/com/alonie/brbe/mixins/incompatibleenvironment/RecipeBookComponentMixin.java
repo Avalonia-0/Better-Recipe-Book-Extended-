@@ -26,7 +26,7 @@ public abstract class RecipeBookComponentMixin {
     @Inject(method = "setupGhostRecipe", at = @At("HEAD"), cancellable = true)
     private void brbe$preventIncompatibleRecipeClick(
             RecipeHolder<?> recipe, List list, CallbackInfo ci) {
-        if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
+        if (!BetterRecipeBook.ctx().config().showAllRecipesInSurvival) return;
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
 
         // Check via the recipe directly (works for RBIP creative tabs

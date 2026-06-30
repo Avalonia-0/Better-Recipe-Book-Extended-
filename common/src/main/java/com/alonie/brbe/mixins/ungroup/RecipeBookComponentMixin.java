@@ -68,14 +68,14 @@ public class RecipeBookComponentMixin {
                                       List<RecipeCollection> list,
                                       List<RecipeCollection> list2,
                                       String string) {
-        if (!BetterRecipeBook.config.alternativeRecipes.noGrouped) {
+        if (!BetterRecipeBook.ctx().config().alternativeRecipes.noGrouped) {
             return;
         }
 
         BrbeLogger.log(BrbeLogger.Category.PIPELINE,
                 "ungroup ENTER — n=%d pCE=%s isFiltering=%s",
                 list2.size(),
-                BetterRecipeBook.config.partialCraftingEnabled,
+                BetterRecipeBook.ctx().config().partialCraftingEnabled,
                 book.isFiltering(menu));
 
         // Stage 1: Remove collections whose first recipe name doesn't
@@ -100,7 +100,7 @@ public class RecipeBookComponentMixin {
         // Note: sorting (pin + craftable/partial order) is handled by
         // pipeline/RecipeBookComponentMixin @ModifyArg which intercepts
         // the page.updateCollections call below.
-        boolean brbeManagesFilter = BetterRecipeBook.config.partialCraftingEnabled;
+        boolean brbeManagesFilter = BetterRecipeBook.ctx().config().partialCraftingEnabled;
         if (brbeManagesFilter || book.isFiltering(menu)) {
             PartialCraftingUtil.beginFilteringUpdate(true);
             Set<Item> inventoryItems = PartialCraftingUtil.hashInventory(menu.slots);
@@ -122,7 +122,7 @@ public class RecipeBookComponentMixin {
         }
 
         // Stage 3: Pin sort — delegate to CollectionPipeline
-        if (BetterRecipeBook.config.enablePinning) {
+        if (BetterRecipeBook.ctx().config().enablePinning) {
             CollectionPipeline.applyPins(list2);
         }
 

@@ -100,7 +100,7 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Unique
     private boolean rbip$isExpanded() {
-        return com.alonie.brbe.BetterRecipeBook.config.expandedRecipeBook
+        return com.alonie.brbe.BetterRecipeBook.ctx().config().expandedRecipeBook
                 && !this.widthTooNarrow
                 && this.visible;
     }
@@ -426,8 +426,8 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     private Set<CreativeModeTab> rbip$getTabsWithRecipes() {
         RecipeBookCategories category = rbip$getSearchCategory();
         // Global invalidation: recipes changed OR unlockAll toggled
-        boolean currentUnlockAll = com.alonie.brbe.BetterRecipeBook.config != null
-                && com.alonie.brbe.BetterRecipeBook.config.newRecipes.unlockAll;
+        boolean currentUnlockAll = com.alonie.brbe.BetterRecipeBook.ctx().config() != null
+                && com.alonie.brbe.BetterRecipeBook.ctx().config().newRecipes.unlockAll;
         if (brbe$cachedGeneration != RecipeBookIsPain.recipeGeneration
                 || brbe$cachedUnlockAll != currentUnlockAll) {
             brbe$cachedRecipeTabs.clear();

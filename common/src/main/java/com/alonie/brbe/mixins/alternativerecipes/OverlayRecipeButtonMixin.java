@@ -67,7 +67,7 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         }
 
         gui.pose().pushPose();
-        if (BetterRecipeBook.config.alternativeRecipes.onHover && !this.isHoveredOrFocused()) { // if show alternatives recipe is enabled and recipe is not hovered, show the result item
+        if (BetterRecipeBook.ctx().config().alternativeRecipes.onHover && !this.isHoveredOrFocused()) { // if show alternatives recipe is enabled and recipe is not hovered, show the result item
             ItemStack recipeOutput = this.recipe.value().getResultItem(field_3113.getRecipeCollection().registryAccess());
             gui.renderItem(recipeOutput, getX() + 4, getY() + 4);
         } else { // otherwise display the crafting recipe
@@ -91,7 +91,7 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         gui.pose().popPose();
 
         // blit pin for pinned recipes
-        if (BetterRecipeBook.config.enablePinning && BetterRecipeBook.pinnedRecipeManager.pinned.contains(recipe.id())) {
+        if (BetterRecipeBook.ctx().config().enablePinning && BetterRecipeBook.pinnedRecipeManager.pinned.contains(recipe.id())) {
             gui.pose().pushPose();
             // make sure pin is drawn over the crafting items
             gui.pose().mulPose(gui.pose().last().pose());

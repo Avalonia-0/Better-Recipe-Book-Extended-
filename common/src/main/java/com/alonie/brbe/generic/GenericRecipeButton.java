@@ -82,7 +82,7 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         gui.renderFakeItem(result, getX() + offset, getY() + offset);
 
         // if pinned recipe, blit the pin texture over it
-        if (BetterRecipeBook.config.enablePinning && BetterRecipeBook.pinnedRecipeManager.has(collection)) {
+        if (BetterRecipeBook.ctx().config().enablePinning && BetterRecipeBook.pinnedRecipeManager.has(collection)) {
             gui.blitSprite(BRBTextures.RECIPE_BOOK_PIN_SPRITE,
                     getX() - BookLayout.PIN_SPRITE_OFFSET,
                     getY() - BookLayout.PIN_SPRITE_OFFSET,
@@ -146,7 +146,7 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
     public void addPinTooltip(List<Component> list) {
         list.add(Component.empty());
 
-        if (BetterRecipeBook.config.enablePinning) {
+        if (BetterRecipeBook.ctx().config().enablePinning) {
             if (BetterRecipeBook.pinnedRecipeManager.has(collection)) {
                 list.add(Component.translatable("brb.gui.pin.remove", ((KeyMappingAccessor) BetterRecipeBook.PIN_MAPPING).getKey().getDisplayName()));
             } else {

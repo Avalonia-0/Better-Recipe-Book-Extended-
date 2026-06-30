@@ -59,7 +59,7 @@ public abstract class GenericRecipeBookCollection<R extends GenericRecipe, M ext
      * no-arg variant rather than the slots variant directly.
      */
     public List<R> getPartiallyCraftableRecipes() {
-        if (!BetterRecipeBook.config.partialMarkingEnabled) {
+        if (!BetterRecipeBook.ctx().config().partialMarkingEnabled) {
             return List.of();
         }
         return this.getPartiallyCraftableRecipes(this.menu.slots);

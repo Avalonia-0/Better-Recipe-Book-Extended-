@@ -21,7 +21,7 @@ public class RecipeBookComponentMixin {
             at = @At(value = "FIELD", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookComponent;xOffset:I")
     )
     public void center(CallbackInfo ci) {
-        if (BetterRecipeBook.config.keepCentered) {
+        if (BetterRecipeBook.ctx().config().keepCentered) {
             this.xOffset = this.widthTooNarrow ? 0 : BookLayout.X_OFFSET_CENTERED;
         } else {
             this.xOffset = this.widthTooNarrow ? 0 : BookLayout.X_OFFSET_STANDARD;
@@ -30,7 +30,7 @@ public class RecipeBookComponentMixin {
 
     @Inject(method = "updateScreenPosition", locals = LocalCapture.CAPTURE_FAILHARD, at = @At(value = "RETURN"), cancellable = true)
     public void findLeftEdge(int width, int backgroundWidth, CallbackInfoReturnable<Integer> cir, int j) {
-        if (BetterRecipeBook.config.keepCentered) {
+        if (BetterRecipeBook.ctx().config().keepCentered) {
             j = (width - backgroundWidth) / 2;
         }
         cir.setReturnValue(j);

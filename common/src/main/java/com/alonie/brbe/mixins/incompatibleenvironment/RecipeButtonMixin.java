@@ -39,7 +39,7 @@ public abstract class RecipeButtonMixin {
             CallbackInfoReturnable<List<RecipeHolder<?>>> cir) {
         List<RecipeHolder<?>> recipes = cir.getReturnValue();
         if ((recipes != null && !recipes.isEmpty())
-                || !BetterRecipeBook.config.showAllRecipesInSurvival
+                || !BetterRecipeBook.ctx().config().showAllRecipesInSurvival
                 || !(Minecraft.getInstance().screen instanceof InventoryScreen)) {
             return;
         }
@@ -58,7 +58,7 @@ public abstract class RecipeButtonMixin {
     @Inject(method = "getTooltipText", at = @At("RETURN"))
     private void betterRecipeBook$appendIncompatibleWarning(
             CallbackInfoReturnable<List<Component>> cir) {
-        if (!BetterRecipeBook.config.showAllRecipesInSurvival) return;
+        if (!BetterRecipeBook.ctx().config().showAllRecipesInSurvival) return;
         if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
 
         List<Component> list = cir.getReturnValue();

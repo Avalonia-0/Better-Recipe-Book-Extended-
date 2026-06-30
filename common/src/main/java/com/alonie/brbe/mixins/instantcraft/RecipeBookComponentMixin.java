@@ -40,7 +40,7 @@ public abstract class RecipeBookComponentMixin {
 
     @Unique
     private int brbe$getExpandedBookWidth() {
-        if (!BetterRecipeBook.config.expandedRecipeBook || this.widthTooNarrow || !isVisible())
+        if (!BetterRecipeBook.ctx().config().expandedRecipeBook || this.widthTooNarrow || !isVisible())
             return BookLayout.TEXTURE_WIDTH;
         int leftPos = ((RecipeBookComponentAccessor) this)
                 .updateScreenPositionInvoker(this.width, 176);
@@ -50,7 +50,7 @@ public abstract class RecipeBookComponentMixin {
 
     @Unique
     private boolean brbe$shouldSkip() {
-        if (!BetterRecipeBook.config.instantCraft.showButton) {
+        if (!BetterRecipeBook.ctx().config().instantCraft.showButton) {
             return true;
         }
 

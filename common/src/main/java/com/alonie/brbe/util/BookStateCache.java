@@ -67,7 +67,7 @@ public final class BookStateCache {
     private static String cacheKey(long slotHash, Object variant, boolean isFiltering) {
         return slotHash + "/" + (variant != null ? variant.hashCode() : "none")
                 + "/filter=" + isFiltering
-                + "/pc=" + BetterRecipeBook.config.partialCraftingEnabled
-                + "/pm=" + BetterRecipeBook.config.partialMarkingEnabled;
+                + "/pc=" + BetterRecipeBook.ctx().config().partialCraftingEnabled
+                + "/pm=" + BetterRecipeBook.ctx().config().partialMarkingEnabled;
     }
 }

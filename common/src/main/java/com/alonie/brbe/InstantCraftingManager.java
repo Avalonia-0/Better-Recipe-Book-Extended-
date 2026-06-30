@@ -71,7 +71,7 @@ public class InstantCraftingManager {
     }
 
     public boolean toggleEnabled() {
-        BetterRecipeBook.config.instantCraft.enabled = !BetterRecipeBook.config.instantCraft.enabled;
+        BetterRecipeBook.ctx().config().instantCraft.enabled = !BetterRecipeBook.ctx().config().instantCraft.enabled;
         // Don't call configHolder.save() here — it triggers save listeners
         // which set configChanged=true, causing a full UI rebuild that
         // resets the recipe book page.  The in-memory config value is
@@ -80,7 +80,7 @@ public class InstantCraftingManager {
     }
 
     public boolean isEnabled() {
-        return BetterRecipeBook.config.instantCraft.enabled;
+        return BetterRecipeBook.ctx().config().instantCraft.enabled;
     }
 
 }

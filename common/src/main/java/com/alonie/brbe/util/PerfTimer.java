@@ -33,7 +33,7 @@ public final class PerfTimer {
 
     /** Call at the top of updateCollections to arm. */
     public static void begin() {
-        enabled = BetterRecipeBook.config != null;
+        enabled = BetterRecipeBook.ctx().config() != null;
         if (!enabled) return;
         active.get().clear();
     }

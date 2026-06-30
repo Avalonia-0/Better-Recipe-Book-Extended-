@@ -30,7 +30,7 @@ public class ExpandedRecipeBookPageMixin {
      */
     @Inject(method = "<init>", at = @At("RETURN"))
     private void brbe$addExtraButtons(CallbackInfo ci) {
-        if (!BetterRecipeBook.config.expandedRecipeBook) return;
+        if (!BetterRecipeBook.ctx().config().expandedRecipeBook) return;
         List<RecipeButton> buttons = ((RecipeBookPageAccessor) this).getButtons();
         while (buttons.size() < EXPANDED_BUTTONS) {
             buttons.add(new RecipeButton());
@@ -43,7 +43,7 @@ public class ExpandedRecipeBookPageMixin {
      */
     @ModifyConstant(method = "updateButtonsForPage", constant = @Constant(intValue = 20), require = 0)
     private int brbe$expandPagination(int original) {
-        if (BetterRecipeBook.config.expandedRecipeBook) {
+        if (BetterRecipeBook.ctx().config().expandedRecipeBook) {
             return EXPANDED_BUTTONS;
         }
         return original;

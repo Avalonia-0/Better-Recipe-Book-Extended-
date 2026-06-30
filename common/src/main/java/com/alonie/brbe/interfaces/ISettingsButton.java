@@ -17,7 +17,7 @@ public interface ISettingsButton {
 
 
     default ImageButton createSettingsButton(int i, int j) {
-        if (BetterRecipeBook.config.settingsButton) {
+        if (BetterRecipeBook.ctx().config().settingsButton) {
             return new ImageButton(i + BookLayout.SETTINGS_X_OFFSET, j + BookLayout.SETTINGS_Y_OFFSET,
                     BookLayout.SETTINGS_SIZE, BookLayout.SETTINGS_SIZE, BRBTextures.SETTINGS_BUTTON_SPRITES, button -> {
                 Minecraft.getInstance().setScreen(AutoConfig.getConfigScreen(Config.class, Minecraft.getInstance().screen).get());
@@ -27,20 +27,20 @@ public interface ISettingsButton {
     }
 
     default void renderSettingsButton(@Nullable ImageButton settingsButton, GuiGraphics gui, int mouseX, int mouseY, float delta) {
-        if (settingsButton != null && BetterRecipeBook.config.settingsButton) {
+        if (settingsButton != null && BetterRecipeBook.ctx().config().settingsButton) {
             settingsButton.render(gui, mouseX, mouseY, delta);
         }
     }
 
     default boolean settingsButtonMouseClicked(@Nullable ImageButton settingsButton, double mouseX, double mouseY, int button) {
-        if (settingsButton == null || !BetterRecipeBook.config.settingsButton) return false;
+        if (settingsButton == null || !BetterRecipeBook.ctx().config().settingsButton) return false;
 
         return settingsButton.mouseClicked(mouseX, mouseY, button);
     }
 
     // TODO: Remove this and use .setTooltip and render it automatically
     default void renderSettingsButtonTooltip(@Nullable ImageButton settingsButton, GuiGraphics gui, int mouseX, int mouseY) {
-        if (settingsButton != null && settingsButton.isHoveredOrFocused() && BetterRecipeBook.config.settingsButton
+        if (settingsButton != null && settingsButton.isHoveredOrFocused() && BetterRecipeBook.ctx().config().settingsButton
                 && Minecraft.getInstance().screen != null) {
             gui.renderTooltip(Minecraft.getInstance().font, OPEN_SETTINGS_TOOLTIP, mouseX, mouseY);
         }

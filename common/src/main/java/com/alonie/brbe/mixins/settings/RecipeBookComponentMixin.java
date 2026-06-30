@@ -43,7 +43,7 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "initVisuals", at = @At("RETURN"))
     public void reset(CallbackInfo ci) {
-        if (BetterRecipeBook.config.settingsButton) {
+        if (BetterRecipeBook.ctx().config().settingsButton) {
             int i = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset;
             int j = (this.height - BookLayout.TEXTURE_HEIGHT) / 2 + BookLayout.SETTINGS_Y_OFFSET;
             this._$settingsButton = new ImageButton(i + BookLayout.SETTINGS_X_OFFSET, j,
@@ -57,7 +57,7 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "mouseClicked", at = @At("RETURN"), cancellable = true)
     public void mouseClicked(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
-        if (this._$settingsButton != null && BetterRecipeBook.config.settingsButton
+        if (this._$settingsButton != null && BetterRecipeBook.ctx().config().settingsButton
                 && this._$settingsButton.mouseClicked(mouseX, mouseY, button)) {
             cir.setReturnValue(true);
         }
@@ -65,7 +65,7 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;render(Lnet/minecraft/client/gui/GuiGraphics;IIIIF)V"))
     public void render(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (this._$settingsButton != null && BetterRecipeBook.config.settingsButton) {
+        if (this._$settingsButton != null && BetterRecipeBook.ctx().config().settingsButton) {
             this._$settingsButton.render(gui, mouseX, mouseY, delta);
         }
     }
@@ -73,7 +73,7 @@ public abstract class RecipeBookComponentMixin {
     @Inject(method = "renderTooltip", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookComponent;renderGhostRecipeTooltip(Lnet/minecraft/client/gui/GuiGraphics;IIII)V"))
     public void drawTooltip(GuiGraphics gui, int x, int y, int mouseX, int mouseY, CallbackInfo ci) {
         if (this._$settingsButton != null && this._$settingsButton.isHoveredOrFocused()
-                && BetterRecipeBook.config.settingsButton && Minecraft.getInstance().screen != null) {
+                && BetterRecipeBook.ctx().config().settingsButton && Minecraft.getInstance().screen != null) {
             gui.renderTooltip(Minecraft.getInstance().font,
                     net.minecraft.network.chat.Component.translatable("brb.gui.settings.open"), mouseX, mouseY);
         }

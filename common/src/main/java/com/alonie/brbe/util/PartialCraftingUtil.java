@@ -37,7 +37,7 @@ public final class PartialCraftingUtil {
     private PartialCraftingUtil() {}
 
     private static boolean enabled() {
-        return BetterRecipeBook.config.partialMarkingEnabled;
+        return BetterRecipeBook.ctx().config().partialMarkingEnabled;
     }
 
     public static void beginFilteringUpdate(boolean active) {

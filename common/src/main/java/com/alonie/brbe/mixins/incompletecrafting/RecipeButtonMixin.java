@@ -151,7 +151,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         // 3×3-only collections are already removed at the collection level
         // (populatePage), so any collection reaching here has at least some
         // 2×2 recipes in fitsDimensions.
-        if (!BetterRecipeBook.config.showAllRecipesInSurvival) {
+        if (!BetterRecipeBook.ctx().config().showAllRecipesInSurvival) {
             Minecraft client = Minecraft.getInstance();
             if (client.screen instanceof InventoryScreen) {
                 List<RecipeHolder<?>> current = cir.getReturnValue();

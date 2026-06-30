@@ -52,14 +52,14 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
 
     /** Number of button columns — 5 normally, dynamic when expanded. */
     public int getColumns() {
-        if (!BetterRecipeBook.config.expandedRecipeBook) return 5;
+        if (!BetterRecipeBook.ctx().config().expandedRecipeBook) return 5;
         int availableWidth = bookWidth - BookLayout.GRID_LEFT_PADDING * 2;
         return Math.max(5, availableWidth / BookLayout.BUTTON_SIZE);
     }
 
     /** Buttons per page — 20 normally, dynamic when expanded. */
     public int getButtonsPerPage() {
-        if (!BetterRecipeBook.config.expandedRecipeBook) return GridSpec.standard().totalButtons();
+        if (!BetterRecipeBook.ctx().config().expandedRecipeBook) return GridSpec.standard().totalButtons();
         return getColumns() * 4;
     }
 
@@ -76,7 +76,7 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         int forwardX;
         int backX;
 
-        if (BetterRecipeBook.config.expandedRecipeBook) {
+        if (BetterRecipeBook.ctx().config().expandedRecipeBook) {
             cols = getColumns();
             int gridWidth = cols * BookLayout.BUTTON_SIZE;
             gridLeft = parentLeft + (bookWidth - gridWidth) / 2;
@@ -121,13 +121,13 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
 
         if (this.forwardButton.mouseClicked(mouseX, mouseY, button)) {
             if (++currentPage >= totalPages) {
-                currentPage = BetterRecipeBook.config.scrolling.scrollAround ? 0 : totalPages - 1;
+                currentPage = BetterRecipeBook.ctx().config().scrolling.scrollAround ? 0 : totalPages - 1;
             }
             this.updateButtonsForPage();
             return true;
         } else if (this.backButton.mouseClicked(mouseX, mouseY, button)) {
             if (--currentPage < 0) {
-                currentPage = BetterRecipeBook.config.scrolling.scrollAround ? totalPages - 1 : 0;
+                currentPage = BetterRecipeBook.ctx().config().scrolling.scrollAround ? totalPages - 1 : 0;
             }
             this.updateButtonsForPage();
             return true;
@@ -169,13 +169,13 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     }
 
     protected void render(GuiGraphics gui, int blitX, int blitY, int mouseX, int mouseY, float delta) {
-        if (BetterRecipeBook.getQueuedScroll() != 0 && BetterRecipeBook.config.scrolling.enableScrolling) {
+        if (BetterRecipeBook.getQueuedScroll() != 0 && BetterRecipeBook.ctx().config().scrolling.enableScrolling) {
             if (isMouseOverRecipeBookPage(mouseX, mouseY, blitX, blitY) && totalPages > 1) {
                 currentPage += BetterRecipeBook.getQueuedScroll();
                 if (currentPage >= totalPages) {
-                    currentPage = BetterRecipeBook.config.scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;
+                    currentPage = BetterRecipeBook.ctx().config().scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;
                 } else if (currentPage < 0) {
-                    currentPage = BetterRecipeBook.config.scrolling.scrollAround ? (currentPage % totalPages) + totalPages : 0;
+                    currentPage = BetterRecipeBook.ctx().config().scrolling.scrollAround ? (currentPage % totalPages) + totalPages : 0;
                 }
 
                 updateButtonsForPage();
@@ -230,7 +230,7 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     }
 
     protected void updateArrowButtons() {
-        if (BetterRecipeBook.config.scrolling.scrollAround && totalPages > 1) {
+        if (BetterRecipeBook.ctx().config().scrolling.scrollAround && totalPages > 1) {
             forwardButton.visible = true;
             backButton.visible = true;
         } else {

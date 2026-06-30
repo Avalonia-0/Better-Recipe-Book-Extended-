@@ -45,19 +45,19 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
 
     @Inject(method = "subInit", at = @At("RETURN"))
     void init(CallbackInfo ci) {
-        if (BetterRecipeBook.config.enableBook) {
+        if (BetterRecipeBook.ctx().config().enableBook) {
             this._$widthNarrow = this.width < 379;
             this._$recipeBookComponent.init(this.width, this.height, this.minecraft, _$widthNarrow, this.menu, this::updateArmorStandPreview, Minecraft.getInstance().getConnection().registryAccess(), Minecraft.getInstance().getConnection().getRecipeManager());
             this._$recipeBookComponent.setContainerImageWidth(this.imageWidth);
 
-            if (!BetterRecipeBook.config.keepCentered) {
+            if (!BetterRecipeBook.ctx().config().keepCentered) {
                 this.leftPos = this._$recipeBookComponent.findLeftEdge(this.width, this.imageWidth);
             }
 
             // NOTE : width and height are both 0
             this.addRenderableWidget(new ImageButton(this.leftPos + this._$recipeBookComponent.getCurrentBookWidth(), this.height / 2 - 75, 20, 18, BRBTextures.RECIPE_BOOK_BUTTON_SPRITES, (button) -> {
                 this._$recipeBookComponent.toggleVisibility();
-                if (!BetterRecipeBook.config.keepCentered) {
+                if (!BetterRecipeBook.ctx().config().keepCentered) {
                     this.leftPos = this._$recipeBookComponent.findLeftEdge(this.width, this.imageWidth);
                 }
                 button.setPosition(this.leftPos + this._$recipeBookComponent.getCurrentBookWidth(), this.height / 2 - 75);
@@ -103,7 +103,7 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     @Override
     protected void slotClicked(Slot slot, int x, int y, ClickType clickType) {
         // clear ghost recipe if an empty ingredient slot is clicked with no items
-        if (BetterRecipeBook.config.enableBook && slot != null && slot.index < 4 && menu.getCarried().isEmpty() && menu.slots.get(slot.index).getItem().isEmpty()) {
+        if (BetterRecipeBook.ctx().config().enableBook && slot != null && slot.index < 4 && menu.getCarried().isEmpty() && menu.slots.get(slot.index).getItem().isEmpty()) {
             _$recipeBookComponent.ghostRecipe.clear();
         }
 
@@ -127,7 +127,7 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
 
     @Redirect(method = "renderBg", require = 0, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/CyclingSlotBackground;render(Lnet/minecraft/world/inventory/AbstractContainerMenu;Lnet/minecraft/client/gui/GuiGraphics;FII)V"))
     public void renderBg(CyclingSlotBackground instance, AbstractContainerMenu slot, GuiGraphics bl, float g, int k, int arg) {
-        if (!BetterRecipeBook.config.enableBook || !_$recipeBookComponent.isShowingGhostRecipe()) {
+        if (!BetterRecipeBook.ctx().config().enableBook || !_$recipeBookComponent.isShowingGhostRecipe()) {
             instance.render(this.menu, bl, g, this.leftPos, this.topPos);
         }
 
@@ -136,7 +136,7 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
 
     @Inject(method = "renderOnboardingTooltips", at = @At(value = "HEAD"), cancellable = true)
     public void renderOnboardingTooltips(GuiGraphics guiGraphics, int i, int j, CallbackInfo ci) {
-        if (BetterRecipeBook.config.enableBook && _$recipeBookComponent.isShowingGhostRecipe()) {
+        if (BetterRecipeBook.ctx().config().enableBook && _$recipeBookComponent.isShowingGhostRecipe()) {
             ci.cancel();
         }
     }

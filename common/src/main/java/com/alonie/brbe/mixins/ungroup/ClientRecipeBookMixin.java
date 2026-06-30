@@ -25,7 +25,7 @@ public class ClientRecipeBookMixin extends RecipeBook {
 
     @Inject(method = "getCollection", locals = LocalCapture.CAPTURE_FAILHARD, at = @At("RETURN"), cancellable = true)
     private void split(RecipeBookCategories category, CallbackInfoReturnable<List<RecipeCollection>> cir) {
-        if (BetterRecipeBook.config.alternativeRecipes.noGrouped) {
+        if (BetterRecipeBook.ctx().config().alternativeRecipes.noGrouped) {
             List<RecipeCollection> list = Lists.newArrayList(this.collectionsByTab.getOrDefault(category, Collections.emptyList()));
             List<RecipeCollection> list2 = Lists.newArrayList(list);
 

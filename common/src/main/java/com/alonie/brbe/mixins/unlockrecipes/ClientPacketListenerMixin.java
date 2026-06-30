@@ -83,7 +83,7 @@ public abstract class ClientPacketListenerMixin {
     @Inject(method = "handleContainerSetSlot", at = @At(value = "HEAD"))
     public void onContainerSetSlot(ClientboundContainerSetSlotPacket packet, CallbackInfo ci) {
         // clear ghost recipes if crafting grid contents are changed by server
-        if (BetterRecipeBook.config.newRecipes.unlockAll && _$minecraft.player != null
+        if (BetterRecipeBook.ctx().config().newRecipes.unlockAll && _$minecraft.player != null
                 && _$minecraft.player.containerMenu instanceof RecipeBookMenu<?, ?> menu
                 && _$minecraft.player.containerMenu.containerId == packet.getContainerId()
                 && _$minecraft.screen instanceof RecipeUpdateListener rul) {

@@ -11,7 +11,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class DisableBook {
     @Inject(at = @At("HEAD"), method = "isVisible", cancellable = true)
     public void isOpen(CallbackInfoReturnable<Boolean> cir) {
-        if (!BetterRecipeBook.config.enableBook) {
+        if (!BetterRecipeBook.ctx().config().enableBook) {
             cir.setReturnValue(false);
         }
     }

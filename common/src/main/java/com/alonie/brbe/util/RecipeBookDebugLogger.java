@@ -133,7 +133,7 @@ public final class RecipeBookDebugLogger {
             else if (PartialCraftingUtil.hasPartialMaterials(c)) partial++;
             else uncraftable++;
 
-            if (BetterRecipeBook.config.enablePinning
+            if (BetterRecipeBook.ctx().config().enablePinning
                     && BetterRecipeBook.pinnedRecipeManager.has(
                         com.alonie.brbe.generic.pins.PinnableRecipeCollection.of(c))) {
                 pinned++;
@@ -261,16 +261,16 @@ public final class RecipeBookDebugLogger {
                 "partialCrafting={} partialMarking={} noGrouped={} onHover={} " +
                 "enablePinning={} instantCraft={} showAllSurvival={} keepCentered={} " +
                 "scrolling={} rbip={}",
-                BetterRecipeBook.config.partialCraftingEnabled,
-                BetterRecipeBook.config.partialMarkingEnabled,
-                BetterRecipeBook.config.alternativeRecipes.noGrouped,
-                BetterRecipeBook.config.alternativeRecipes.onHover,
-                BetterRecipeBook.config.enablePinning,
-                BetterRecipeBook.config.instantCraft.enabled,
-                BetterRecipeBook.config.showAllRecipesInSurvival,
-                BetterRecipeBook.config.keepCentered,
-                BetterRecipeBook.config.scrolling.enableScrolling,
-                (BetterRecipeBook.config.rbip != null
-                        ? BetterRecipeBook.config.rbip.enableRecipeBookIsPain : "null"));
+                BetterRecipeBook.ctx().config().partialCraftingEnabled,
+                BetterRecipeBook.ctx().config().partialMarkingEnabled,
+                BetterRecipeBook.ctx().config().alternativeRecipes.noGrouped,
+                BetterRecipeBook.ctx().config().alternativeRecipes.onHover,
+                BetterRecipeBook.ctx().config().enablePinning,
+                BetterRecipeBook.ctx().config().instantCraft.enabled,
+                BetterRecipeBook.ctx().config().showAllRecipesInSurvival,
+                BetterRecipeBook.ctx().config().keepCentered,
+                BetterRecipeBook.ctx().config().scrolling.enableScrolling,
+                (BetterRecipeBook.ctx().config().rbip != null
+                        ? BetterRecipeBook.ctx().config().rbip.enableRecipeBookIsPain : "null"));
     }
 }

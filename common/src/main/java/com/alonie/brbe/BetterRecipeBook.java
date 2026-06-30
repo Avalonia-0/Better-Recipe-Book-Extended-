@@ -36,14 +36,6 @@ public class BetterRecipeBook {
 
     private static int queuedScroll;
 
-    /**
-     * @deprecated Use {@code AppContext.instance().events()} and subscribe to
-     *             {@link ConfigEventBus.ConfigChanged} instead.  Kept for
-     *             backward compatibility with existing mixins.
-     */
-    @Deprecated
-    public static volatile boolean configChanged = false;
-
     public static Config config;
     public static ConfigHolder<Config> configHolder;
 
@@ -120,11 +112,10 @@ public class BetterRecipeBook {
         pinnedRecipeManager = appContext.pins();
         instantCraftingManager = appContext.instantCraft();
 
-        // -- Wire the old configChanged flag to the new event bus -------------
-        // When config changes through the event bus, also set the legacy flag
-        // so existing mixins that poll configChanged continue to work.
+        // -- Wire config changes through the event bus ------------------------
         appContext.events().subscribe(ConfigEventBus.ConfigChanged.class, event -> {
-            configChanged = true;
+            config = event.config();  // keep static field in sync with DI root
+            appContext.events().requestConfigRefresh();
             RecipeUnlockUtil.syncToConfig();
         });
 

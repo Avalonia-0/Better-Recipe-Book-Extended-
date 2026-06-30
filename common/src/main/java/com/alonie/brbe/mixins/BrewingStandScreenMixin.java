@@ -35,19 +35,19 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
 
     @Inject(method = "init", at = @At("RETURN"))
     protected void init(CallbackInfo ci) {
-        if (BetterRecipeBook.config.enableBook) {
+        if (BetterRecipeBook.ctx().config().enableBook) {
             this._$widthNarrow = this.width < 379;
             assert this.minecraft != null;
             this._$recipeBookComponent.init(this.width, this.height, this.minecraft, _$widthNarrow, this.menu, Minecraft.getInstance().getConnection().registryAccess());
             this._$recipeBookComponent.setContainerImageWidth(this.imageWidth);
 
-            if (!BetterRecipeBook.config.keepCentered) {
+            if (!BetterRecipeBook.ctx().config().keepCentered) {
                 this.leftPos = this._$recipeBookComponent.findLeftEdge(this.width, this.imageWidth);
             }
 
             this.addRenderableWidget(new ImageButton(this.leftPos - 12 + this._$recipeBookComponent.getCurrentBookWidth(), this.height / 2 - 50, 20, 18, BRBTextures.RECIPE_BOOK_BUTTON_SPRITES, (button) -> {
                 this._$recipeBookComponent.toggleVisibility();
-                if (!BetterRecipeBook.config.keepCentered) {
+                if (!BetterRecipeBook.ctx().config().keepCentered) {
                     this.leftPos = this._$recipeBookComponent.findLeftEdge(this.width, this.imageWidth);
                 }
                 button.setPosition(this.leftPos - 12 + this._$recipeBookComponent.getCurrentBookWidth(), this.height / 2 - 50);
@@ -119,7 +119,7 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
             at = @At("STORE")
     )
     public int renderBg_width(int i) {
-        if (this._$recipeBookComponent.isVisible() && !BetterRecipeBook.config.keepCentered) {
+        if (this._$recipeBookComponent.isVisible() && !BetterRecipeBook.ctx().config().keepCentered) {
             return i + 77;
         } else {
             return i;

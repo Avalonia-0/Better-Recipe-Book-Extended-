@@ -42,7 +42,7 @@ public abstract class ExpandedBookMixin {
 
     @Unique
     private boolean brbe$isExpanded() {
-        return BetterRecipeBook.config.expandedRecipeBook
+        return BetterRecipeBook.ctx().config().expandedRecipeBook
                 && !this.widthTooNarrow
                 && this.visible;
     }

@@ -34,14 +34,14 @@ public abstract class RecipeBookPageMixin {
             cir.setReturnValue(true);
             cir.cancel();
             if (++currentPage >= totalPages) {
-                currentPage = BetterRecipeBook.config.scrolling.scrollAround ? 0 : totalPages - 1;
+                currentPage = BetterRecipeBook.ctx().config().scrolling.scrollAround ? 0 : totalPages - 1;
             }
             updateButtonsForPage();
         } else if (backButton.mouseClicked(mouseX, mouseY, button)) {
             cir.setReturnValue(true);
             cir.cancel();
             if (--currentPage < 0) {
-                currentPage = BetterRecipeBook.config.scrolling.scrollAround ? totalPages - 1 : 0;
+                currentPage = BetterRecipeBook.ctx().config().scrolling.scrollAround ? totalPages - 1 : 0;
             }
             updateButtonsForPage();
         }
@@ -49,13 +49,13 @@ public abstract class RecipeBookPageMixin {
 
     @Inject(at = @At("HEAD"), method = "render")
     public void render(GuiGraphics gui, int i, int j, int k, int l, float f, CallbackInfo ci) {
-        if (BetterRecipeBook.getQueuedScroll() != 0 && BetterRecipeBook.config.scrolling.enableScrolling) {
+        if (BetterRecipeBook.getQueuedScroll() != 0 && BetterRecipeBook.ctx().config().scrolling.enableScrolling) {
             if (isMouseOverRecipeBookPage(k, l, i, j) && totalPages > 1) {
                 currentPage += BetterRecipeBook.getQueuedScroll();
                 if (currentPage >= totalPages) {
-                    currentPage = BetterRecipeBook.config.scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;
+                    currentPage = BetterRecipeBook.ctx().config().scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;
                 } else if (currentPage < 0) {
-                    currentPage = BetterRecipeBook.config.scrolling.scrollAround ? (currentPage % totalPages) + totalPages : 0;
+                    currentPage = BetterRecipeBook.ctx().config().scrolling.scrollAround ? (currentPage % totalPages) + totalPages : 0;
                 }
 
                 updateButtonsForPage();
@@ -76,7 +76,7 @@ public abstract class RecipeBookPageMixin {
 
     @Inject(method = "updateArrowButtons", at = @At("RETURN"))
     private void updateArrowButtons(CallbackInfo ci) {
-        if (BetterRecipeBook.config.scrolling.scrollAround && totalPages > 1) {
+        if (BetterRecipeBook.ctx().config().scrolling.scrollAround && totalPages > 1) {
             forwardButton.visible = true;
             backButton.visible = true;
         }

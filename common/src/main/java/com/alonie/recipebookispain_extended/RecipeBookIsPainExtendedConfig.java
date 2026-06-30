@@ -7,13 +7,13 @@ public final class RecipeBookIsPainExtendedConfig {
     private RecipeBookIsPainExtendedConfig() {}
 
     public static boolean enabled() {
-        if (BetterRecipeBook.config == null) return true;
-        return BetterRecipeBook.config.rbip.enableRecipeBookIsPain;
+        if (BetterRecipeBook.ctx().config() == null) return true;
+        return BetterRecipeBook.ctx().config().rbip.enableRecipeBookIsPain;
     }
 
     public static int bottomNumber() {
-        if (BetterRecipeBook.config == null) return 16;
-        return BetterRecipeBook.config.rbip.enableTabPage ? 16 : 6;
+        if (BetterRecipeBook.ctx().config() == null) return 16;
+        return BetterRecipeBook.ctx().config().rbip.enableTabPage ? 16 : 6;
     }
 
     /** @deprecated All features are now core; always returns true. */

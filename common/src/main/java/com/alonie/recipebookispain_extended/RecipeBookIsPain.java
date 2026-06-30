@@ -91,10 +91,10 @@ public class RecipeBookIsPain {
         sb.append("  isOwOLoaded      = ").append(isOwOLoaded).append("\n");
         sb.append("  initialized      = ").append(initialized).append("\n");
         sb.append("  initAttempted    = ").append(initAttempted).append("\n");
-        sb.append("  config           = ").append(BetterRecipeBook.config).append("\n");
-        if (BetterRecipeBook.config != null && BetterRecipeBook.config.rbip != null) {
+        sb.append("  config           = ").append(BetterRecipeBook.ctx().config()).append("\n");
+        if (BetterRecipeBook.ctx().config() != null && BetterRecipeBook.ctx().config().rbip != null) {
             sb.append("  config.rbip.enableRecipeBookIsPain = ")
-              .append(BetterRecipeBook.config.rbip.enableRecipeBookIsPain).append("\n");
+              .append(BetterRecipeBook.ctx().config().rbip.enableRecipeBookIsPain).append("\n");
         }
         sb.append("  enabled()        = ").append(RecipeBookIsPainExtendedConfig.enabled()).append("\n");
         sb.append("  CRAFTING_LIST    = ").append(CRAFTING_LIST.size()).append(" entries\n");

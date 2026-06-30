@@ -37,7 +37,7 @@ public class HideInventoryForExpandedBook {
 
     @Unique
     private boolean brbe$isExpandedBookOpen() {
-        if (!BetterRecipeBook.config.expandedRecipeBook) return false;
+        if (!BetterRecipeBook.ctx().config().expandedRecipeBook) return false;
 
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
 

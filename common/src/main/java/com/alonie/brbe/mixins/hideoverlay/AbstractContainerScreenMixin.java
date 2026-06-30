@@ -30,7 +30,7 @@ public abstract class AbstractContainerScreenMixin {
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void brbe$handleKeysOnHiddenOverlay(int keyCode, int scancode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
-        if (!BetterRecipeBook.config.hideReiJeiOverlay) {
+        if (!BetterRecipeBook.ctx().config().hideReiJeiOverlay) {
             return;
         }
 

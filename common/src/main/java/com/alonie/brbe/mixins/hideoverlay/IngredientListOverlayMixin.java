@@ -14,7 +14,7 @@ public abstract class IngredientListOverlayMixin {
 
     @Inject(method = "drawScreen", at = @At("HEAD"), cancellable = true, remap = false)
     private void brbe$cancelIngredientListOverlay(CallbackInfo ci) {
-        if (BetterRecipeBook.config != null && BetterRecipeBook.config.hideReiJeiOverlay) {
+        if (BetterRecipeBook.ctx().config() != null && BetterRecipeBook.ctx().config().hideReiJeiOverlay) {
             ci.cancel();
         }
     }

@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -23,6 +24,29 @@ import java.util.function.Consumer;
 public final class ConfigEventBus {
 
     private final Map<Class<?>, List<Consumer<?>>> listeners = new ConcurrentHashMap<>();
+
+    /**
+     * Set to {@code true} whenever a config change requires a UI rebuild.
+     * Consumed by the render loop via {@link #consumeConfigChange()}.
+     */
+    private final AtomicBoolean configChangePending = new AtomicBoolean(false);
+
+    /**
+     * Called from the render loop: returns whether a UI rebuild is pending
+     * and atomically resets the flag.  Use this instead of polling a
+     * volatile {@code configChanged} field.
+     */
+    public boolean consumeConfigChange() {
+        return configChangePending.getAndSet(false);
+    }
+
+    /**
+     * Request a UI rebuild on the next render frame.  Safe to call from
+     * any thread (config save listener, settings button click handler).
+     */
+    public void requestConfigRefresh() {
+        configChangePending.set(true);
+    }
 
     /**
      * Subscribe to events of the given type.  The listener is called
