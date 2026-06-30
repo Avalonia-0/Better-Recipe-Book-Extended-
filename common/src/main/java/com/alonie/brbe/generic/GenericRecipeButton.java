@@ -46,6 +46,8 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
     }
 
     public void renderWidget(GuiGraphics gui, int mouseX, int mouseY, float delta) {
+        if (this.collection == null) return;
+
         if (!Screen.hasControlDown()) {
             this.time += delta;
         }
@@ -101,7 +103,10 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
     }
 
     public List<R> getOrderedRecipes() {
-        List<R> list = this.getCollection().getDisplayRecipes(true);
+        C coll = this.getCollection();
+        if (coll == null) return List.of();
+
+        List<R> list = coll.getDisplayRecipes(true);
 
         if (!this.filteringSupplier.get()) {
             list.addAll(this.collection.getDisplayRecipes(false));
