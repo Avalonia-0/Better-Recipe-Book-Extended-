@@ -2,8 +2,11 @@ package com.alonie.brbe;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.alonie.brbe.api.BRBBookCategories;
+import com.alonie.brbe.config.AppContext;
 import com.alonie.brbe.config.Config;
+import com.alonie.brbe.config.ConfigEventBus;
 import com.alonie.brbe.loaders.PotionLoader;
+import com.alonie.brbe.pin.JsonPinStore;
 import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.cache.VanillaRecipeCache;
 import com.alonie.brbe.util.RecipeUnlockUtil;
@@ -11,6 +14,7 @@ import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.ConfigHolder;
 import me.shedaniel.autoconfig.serializer.Toml4jConfigSerializer;
 import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
@@ -69,6 +73,14 @@ public class BetterRecipeBook {
 
     private static boolean categoriesInitialized = false;
 
+    /** The new dependency-injection root.  Created once in {@link #init()}. */
+    private static AppContext appContext;
+
+    /** Access the new AppContext (available after init()). */
+    public static AppContext ctx() {
+        return appContext;
+    }
+
     public static synchronized void ensureCategories() {
         if (categoriesInitialized) return;
         categoriesInitialized = true;
@@ -88,35 +100,47 @@ public class BetterRecipeBook {
         queuedScroll = 0;
         isFilteringNone = true;
 
-        // Cloth Config not yet available for 26.2 — skip registration gracefully.
-        // Config no longer implements ConfigData to avoid runtime linkage, so
-        // raw-type casts are needed to bypass AutoConfig's generic bound.
+        // Register config (existing logic, unchanged)
         try {
             AutoConfig.register(Config.class, Toml4jConfigSerializer::new);
 
             configHolder = AutoConfig.getConfigHolder(Config.class);
+            config = configHolder.getConfig();
+        } catch (Exception e) {
+            BetterRecipeBook.LOGGER.warn("[BRBE] Config error: {}", e.getMessage());
+        }
+
+        // -- New architecture: create the DI root -------------------------------
+        if (config != null && configHolder != null) {
+            appContext = AppContext.create(config, configHolder);
+
+            // Populate backward-compatible static fields from AppContext
+            pinnedRecipeManager = appContext.pins();
+            instantCraftingManager = appContext.instantCraft();
+
+            // Wire legacy config save listener for unlock recipes
             configHolder.registerSaveListener((holder, cfg) -> {
-                boolean unlockChanged = config == null || config.newRecipes.unlockAll != cfg.newRecipes.unlockAll;
+                boolean unlockChanged = config.newRecipes.unlockAll != cfg.newRecipes.unlockAll;
                 BetterRecipeBook.config = cfg;
                 if (unlockChanged) {
                     RecipeUnlockUtil.syncToConfig();
                 }
                 return InteractionResult.SUCCESS;
             });
-            config = configHolder.getConfig();
-        } catch (Exception e) {
-            BetterRecipeBook.LOGGER.warn("[BRBE] Config error: {}", e.getMessage());
+
+            // Wire async Pin I/O
+            JsonPinStore pinStore = new JsonPinStore(Minecraft.getInstance().gameDirectory.toPath());
+            pinnedRecipeManager.setStore(pinStore);
+
+            // Load pins
+            pinnedRecipeManager.read();
+        } else {
+            // Fallback: config failed, create services directly
+            pinnedRecipeManager = new PinnedRecipeManager();
+            pinnedRecipeManager.read();
+            instantCraftingManager = new InstantCraftingManager();
         }
 
-        pinnedRecipeManager = new PinnedRecipeManager();
-        pinnedRecipeManager.read();
-        instantCraftingManager = new InstantCraftingManager();
-
         VanillaRecipeCache.init();
-
-        // KeyMapping registration moved to platform entry points
-        // KeyBindingHelper.registerKeyBinding(PIN_MAPPING);
-        // KeyBindingHelper.registerKeyBinding(RECIPE_VIEW_MAPPING);
-        // KeyBindingHelper.registerKeyBinding(USAGE_VIEW_MAPPING);
     }
 }
