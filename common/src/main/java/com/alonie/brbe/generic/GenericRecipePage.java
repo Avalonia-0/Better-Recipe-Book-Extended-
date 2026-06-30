@@ -198,8 +198,8 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
             }
         }
 
-        this.backButton.render(gui, mouseX, mouseY, delta);
-        this.forwardButton.render(gui, mouseX, mouseY, delta);
+        if (this.backButton != null) this.backButton.render(gui, mouseX, mouseY, delta);
+        if (this.forwardButton != null) this.forwardButton.render(gui, mouseX, mouseY, delta);
     }
 
     private boolean isMouseOverRecipeBookPage(int mouseX, int mouseY, int left, int top) {
