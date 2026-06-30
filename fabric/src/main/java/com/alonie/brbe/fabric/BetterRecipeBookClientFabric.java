@@ -31,6 +31,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.PIN_MAPPING);
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.RECIPE_VIEW_MAPPING);
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.USAGE_VIEW_MAPPING);
+        KeyBindingHelper.registerKeyBinding(BetterRecipeBook.DIAGNOSTIC_MAPPING);
 
         // Register platform-specific providers
         PlatformPotionUtilImpl.init();

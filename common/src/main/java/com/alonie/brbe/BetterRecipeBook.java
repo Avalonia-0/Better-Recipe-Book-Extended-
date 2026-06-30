@@ -8,6 +8,7 @@ import com.alonie.brbe.config.ConfigEventBus;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.util.BRBHelper;
+import com.alonie.brbe.util.BrbeDiagnostic;
 import com.alonie.brbe.util.BrbeLogger;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.RecipeUnlockUtil;
@@ -70,6 +71,14 @@ public class BetterRecipeBook {
             "category.brbe"
     );
 
+    /** Diagnostic dump key (F8).  Writes brbe-diagnostic.log to game dir. */
+    public static final KeyMapping DIAGNOSTIC_MAPPING = new KeyMapping(
+            "key.brbe.diagnostic",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_F8,
+            "category.brbe"
+    );
+
     public static BRBHelper.Book BREWING = BRBHelper.createBook(MOD_ID, "brewing_stand");
     public static BRBHelper.Book SMITHING = BRBHelper.createBook(MOD_ID, "smithing_table");
 
@@ -117,6 +126,8 @@ public class BetterRecipeBook {
             config = event.config();  // keep static field in sync with DI root
             appContext.events().requestConfigRefresh();
             RecipeUnlockUtil.syncToConfig();
+            // Dump diagnostic on config change to verify new architecture
+            BrbeDiagnostic.dump();
         });
 
         // -- External module subscriptions ------------------------------------
@@ -131,6 +142,9 @@ public class BetterRecipeBook {
 
         // -- Load pins (uses async store when wired, legacy fallback otherwise)
         pinnedRecipeManager.read();
+
+        // -- Startup diagnostic: verify all new architecture systems ----------
+        BrbeDiagnostic.dump();
 
         // KeyMapping registration moved to platform entry points
         // KeyBindingHelper.registerKeyBinding(PIN_MAPPING);

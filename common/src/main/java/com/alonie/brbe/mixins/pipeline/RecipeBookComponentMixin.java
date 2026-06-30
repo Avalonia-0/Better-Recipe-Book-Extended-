@@ -52,6 +52,11 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
 
     @Inject(method = "render", at = @At("HEAD"))
     private void brbe$refreshOnConfigChange(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        // F8 hotkey: dump diagnostic to game dir
+        if (com.alonie.brbe.BetterRecipeBook.DIAGNOSTIC_MAPPING.consumeClick()) {
+            com.alonie.brbe.util.BrbeDiagnostic.dump();
+        }
+
         if (!AppContext.instance().events().consumeConfigChange()) return;
         if (!this.getVisible()) return;
 
