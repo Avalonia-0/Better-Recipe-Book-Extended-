@@ -47,8 +47,6 @@ public class RecipeBookIsPain {
     /** Which furnace variant is active (set by RecipeBookWidgetMixin for furnace screens). */
     public static FurnaceVariant activeFurnaceType;
 
-    public enum FurnaceVariant { FURNACE, SMOKER, BLAST_FURNACE }
-
     /** Detect furnace variant from the container menu. */
     public static FurnaceVariant detectFurnaceType(AbstractFurnaceMenu menu) {
         if (menu instanceof SmokerMenu) return FurnaceVariant.SMOKER;

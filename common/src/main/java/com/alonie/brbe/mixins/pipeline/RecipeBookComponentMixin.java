@@ -15,9 +15,11 @@ import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.inventory.RecipeBookMenu;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
@@ -33,6 +35,14 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
     @Shadow @Final protected RecipeBookMenu<?, ?> menu;
     @Shadow private ClientRecipeBook book;
     @Shadow @Final private RecipeBookPage recipeBookPage;
+
+    /**
+     * Set to {@code true} before a config-change-triggered
+     * {@code initVisuals()} call so that the TAIL inject knows to
+     * preserve the current page instead of resetting it.
+     */
+    @Unique
+    private boolean brbe$configChangeRefresh = false;
 
     // ═══════════════════════════════════════════════════════════════
     // Config-change refresh (HEAD of render)
@@ -61,7 +71,10 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         // Rebuild UI.  The TAIL inject on initVisuals handles
         // populating the page (partial marking + craftable injection
         // + sort + page.updateCollections) — no other calls needed.
+        // Signal the TAIL inject to preserve the current page.
+        brbe$configChangeRefresh = true;
         this.initVisualsInvoker();
+        brbe$configChangeRefresh = false;
         BetterRecipeBook.configChanged = false;
     }
 
@@ -72,7 +85,7 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
     @Inject(method = "initVisuals", at = @At("TAIL"))
     private void brbe$populateAfterInitVisuals(CallbackInfo ci) {
         BrbeLogger.log(BrbeLogger.Category.STATE, "initVisuals TAIL");
-        populatePage(true);
+        populatePage(!brbe$configChangeRefresh);
     }
 
     /**
@@ -107,11 +120,37 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         sort(collections);
 
         // Ensure every collection has fitsDimensions populated.
-        for (RecipeCollection c : collections) {
-            var ca = (RecipeCollectionAccessor) c;
-            if (ca.getFitsDimensions().isEmpty()) {
-                ca.getFitsDimensions().addAll(c.getRecipes());
+        // On the crafting table (3×3 grid) this is always safe because all
+        // recipes fit the grid.  On the inventory screen (2×2 grid) we only
+        // fill fitsDimensions when showAllRecipesInSurvival is enabled,
+        // because vanilla correctly leaves 3×3-only collections empty there.
+        boolean onInventory = minecraft != null && minecraft.screen instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen;
+        boolean skipFallback = onInventory && !BetterRecipeBook.config.showAllRecipesInSurvival;
+        if (!skipFallback) {
+            for (RecipeCollection c : collections) {
+                var ca = (RecipeCollectionAccessor) c;
+                if (ca.getFitsDimensions().isEmpty()) {
+                    ca.getFitsDimensions().addAll(c.getRecipes());
+                }
             }
+        }
+
+        // When showAllRecipesInSurvival is OFF and on the inventory screen,
+        // purge 3×3 recipes from fitsDimensions first (they may have leaked
+        // in from a crafting-table visit where the slot-hash cache skipped
+        // canCraft), then remove collections that end up empty.
+        if (onInventory && !BetterRecipeBook.config.showAllRecipesInSurvival) {
+            for (RecipeCollection c : collections) {
+                var ca = (RecipeCollectionAccessor) c;
+                java.util.Set<RecipeHolder<?>> fits = ca.getFitsDimensions();
+                if (!fits.isEmpty()) {
+                    fits.removeIf(r -> !brbe$fitsInventoryGrid(r));
+                }
+            }
+            collections.removeIf(c -> {
+                var ca = (RecipeCollectionAccessor) c;
+                return ca.getFitsDimensions().isEmpty();
+            });
         }
 
         BrbeLogger.log(BrbeLogger.Category.STATE,
@@ -128,6 +167,21 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         }
         BrbeLogger.log(BrbeLogger.Category.STATE,
                 "populatePage — after push: %d visible buttons", visible);
+    }
+
+    /**
+     * Returns {@code true} if the recipe fits the 2×2 inventory crafting grid.
+     */
+    @Unique
+    private static boolean brbe$fitsInventoryGrid(RecipeHolder<?> holder) {
+        var recipe = holder.value();
+        if (recipe instanceof net.minecraft.world.item.crafting.ShapedRecipe shaped) {
+            return shaped.getWidth() <= 2 && shaped.getHeight() <= 2;
+        }
+        if (recipe instanceof net.minecraft.world.item.crafting.ShapelessRecipe shapeless) {
+            return shapeless.getIngredients().size() <= 4;
+        }
+        return true;
     }
 
     // ═══════════════════════════════════════════════════════════════

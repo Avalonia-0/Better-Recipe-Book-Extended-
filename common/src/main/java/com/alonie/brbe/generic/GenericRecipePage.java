@@ -40,19 +40,24 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     public GenericRecipePage(RegistryAccess registryAccess, Supplier<GenericRecipeButton<C, R, M>> recipeButtonSupplier) {
         this.registryAccess = registryAccess;
 
-        for (int i = 0; i < 80; ++i) {
+        // 20 buttons for vanilla-size book (5 columns × 4 rows).
+        // The expanded recipe book will add more buttons on demand via
+        // its own mixin, matching the vanilla-path pattern.
+        for (int i = 0; i < 20; ++i) {
             this.buttons.add(recipeButtonSupplier.get());
         }
     }
 
-    /** Number of button columns based on current book width. */
+    /** Number of button columns — 5 normally, dynamic when expanded. */
     public int getColumns() {
-        int availableWidth = bookWidth - 22; // 11px margin on each side
+        if (!BetterRecipeBook.config.expandedRecipeBook) return 5;
+        int availableWidth = bookWidth - 22;
         return Math.max(5, availableWidth / 25);
     }
 
-    /** Buttons per page = columns × 4 rows. */
+    /** Buttons per page — 20 normally, dynamic when expanded. */
     public int getButtonsPerPage() {
+        if (!BetterRecipeBook.config.expandedRecipeBook) return 20;
         return getColumns() * 4;
     }
 
@@ -64,20 +69,34 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         this.parentTop = parentTop;
         this.bookWidth = bookWidth;
 
-        int cols = getColumns();
-        int gridWidth = cols * 25;
-        int gridLeft = parentLeft + (bookWidth - gridWidth) / 2; // center the grid
+        int cols;
+        int gridLeft;
+        int forwardX;
+        int backX;
 
-        // Page buttons centered at the bottom
-        int pageCenterX = parentLeft + bookWidth / 2;
-        this.forwardButton = new StateSwitchingButton(pageCenterX + 3, parentTop + 137, 12, 17, false);
+        if (BetterRecipeBook.config.expandedRecipeBook) {
+            cols = getColumns();
+            int gridWidth = cols * 25;
+            gridLeft = parentLeft + (bookWidth - gridWidth) / 2;
+            int pageCenterX = parentLeft + bookWidth / 2;
+            forwardX = pageCenterX + 3;
+            backX = pageCenterX - 15;
+        } else {
+            // 2.1.3 hardcoded layout — must not change when ERB is off
+            cols = 5;
+            gridLeft = parentLeft + 11;
+            forwardX = parentLeft + 93;
+            backX = parentLeft + 38;
+        }
+
+        this.forwardButton = new StateSwitchingButton(forwardX, parentTop + 137, 12, 17, false);
         this.forwardButton.initTextureValues(BRBTextures.RECIPE_BOOK_PAGE_FORWARD_SPRITES);
-        this.backButton = new StateSwitchingButton(pageCenterX - 15, parentTop + 137, 12, 17, true);
+        this.backButton = new StateSwitchingButton(backX, parentTop + 137, 12, 17, true);
         this.backButton.initTextureValues(BRBTextures.RECIPE_BOOK_PAGE_BACKWARD_SPRITES);
 
         for (int k = 0; k < this.buttons.size(); ++k) {
             this.buttons.get(k).setPosition(gridLeft + 25 * (k % cols), parentTop + 31 + 25 * (k / cols));
-            this.buttons.get(k).visible = false; // hidden until setResults activates them
+            this.buttons.get(k).visible = false;
         }
     }
 

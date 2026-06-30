@@ -3,8 +3,10 @@ package com.alonie.brbe.mixins.incompletecrafting;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.util.BrbeLogger;
 import com.alonie.brbe.util.PartialCraftingUtil;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.network.chat.Component;
@@ -144,7 +146,34 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
             cir.setReturnValue(result);
         }
 
-        // Step 3: safety net — ensure result is never empty to avoid
+        // Step 3: when showAllRecipesInSurvival is OFF and on the inventory
+        // screen (2×2 grid), filter to only recipes in fitsDimensions.
+        // 3×3-only collections are already removed at the collection level
+        // (populatePage), so any collection reaching here has at least some
+        // 2×2 recipes in fitsDimensions.
+        if (!BetterRecipeBook.config.showAllRecipesInSurvival) {
+            Minecraft client = Minecraft.getInstance();
+            if (client.screen instanceof InventoryScreen) {
+                List<RecipeHolder<?>> current = cir.getReturnValue();
+                if (current != null && !current.isEmpty()) {
+                    var ca = (com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor) this.collection;
+                    java.util.Set<RecipeHolder<?>> fits = ca.getFitsDimensions();
+                    if (!fits.isEmpty()) {
+                        List<RecipeHolder<?>> filtered = new ArrayList<>();
+                        for (RecipeHolder<?> r : current) {
+                            if (fits.contains(r)) {
+                                filtered.add(r);
+                            }
+                        }
+                        if (!filtered.isEmpty()) {
+                            cir.setReturnValue(filtered);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Step 4: safety net — ensure result is never empty to avoid
         // / by zero in renderWidget's currentIndex % size().
         List<RecipeHolder<?>> finalResult = cir.getReturnValue();
         if (finalResult == null || finalResult.isEmpty()) {

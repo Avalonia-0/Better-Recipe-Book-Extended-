@@ -45,6 +45,9 @@ public interface RecipeBookComponentAccessor {
     @Accessor("xOffset")
     int getXOffset();
 
+    @Accessor("filterButton")
+    net.minecraft.client.gui.components.StateSwitchingButton getFilterButton();
+
     @Accessor("selectedTab")
     net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton getSelectedTab();
 

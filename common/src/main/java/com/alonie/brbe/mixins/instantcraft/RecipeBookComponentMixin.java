@@ -63,23 +63,30 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
-        int bookWidth = brbe$getExpandedBookWidth();
-        int i = (this.width - 147) / 2 - this.xOffset; // fixed left edge
-        int j = (this.height - 166) / 2;
-        // Bottom-right: same right-edge alignment as filter button
-        int btnX = i + bookWidth - 37 - 26; // 37 = right margin, 26 = button width
+        // Align with the right edge of the recipe grid area.
+        // The filter button's right edge (= filterX + 26) matches the
+        // recipe grid's right edge in both vanilla and expanded layouts.
+        StateSwitchingButton filterBtn =
+                ((RecipeBookComponentAccessor) this).getFilterButton();
+        int btnX = filterBtn != null
+                ? filterBtn.getX()
+                : (this.width - 147) / 2 - this.xOffset + 110;
+        int btnY = (this.height - 166) / 2 + 137;
 
-        this.brbe$instantCraftButton = new StateSwitchingButton(btnX, j + 137, 26, 16 + 2, BetterRecipeBook.instantCraftingManager.isEnabled());
+        this.brbe$instantCraftButton = new StateSwitchingButton(
+                btnX, btnY, 26, 18,
+                BetterRecipeBook.instantCraftingManager.isEnabled());
         BetterRecipeBook.instantCraftingManager.lastInstantCraftButton = this.brbe$instantCraftButton;
         this.brbe$instantCraftButton.initTextureValues(BRBTextures.RECIPE_BOOK_INSTANT_CRAFT_BUTTON_SPRITES);
     }
 
-    @Inject(method = "render", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;render(Lnet/minecraft/client/gui/GuiGraphics;IIIIF)V"))
+    @Inject(method = "render",
+            at = @At(value = "INVOKE",
+                    target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeBookPage;render(Lnet/minecraft/client/gui/GuiGraphics;IIIIF)V"))
     public void render(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        if (brbe$shouldSkip() || this.brbe$instantCraftButton == null) {
+        if (brbe$shouldSkip() || this.brbe$instantCraftButton == null || !this.isVisible()) {
             return;
         }
-
         this.brbe$instantCraftButton.render(gui, mouseX, mouseY, delta);
     }
 

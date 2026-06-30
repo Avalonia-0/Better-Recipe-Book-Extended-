@@ -72,7 +72,10 @@ public class InstantCraftingManager {
 
     public boolean toggleEnabled() {
         BetterRecipeBook.config.instantCraft.enabled = !BetterRecipeBook.config.instantCraft.enabled;
-        BetterRecipeBook.configHolder.save();
+        // Don't call configHolder.save() here — it triggers save listeners
+        // which set configChanged=true, causing a full UI rebuild that
+        // resets the recipe book page.  The in-memory config value is
+        // already updated; it will be persisted on game exit by AutoConfig.
         return isEnabled();
     }
 

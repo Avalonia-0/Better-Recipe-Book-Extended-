@@ -350,7 +350,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         if (shouldSort) {
             results = CollectionPipeline.applyPartialSortGeneric(results);
         }
-        results = CollectionPipeline.applyFilterToggleGeneric(results, shouldSort);
+        results = CollectionPipeline.applyFilterToggleGeneric(results, isFiltering);
 
         BrbeLogger.log(BrbeLogger.Category.STATE,
                 "updateCollections EXIT (generic) — shouldSort=%s, resultCount=%d",

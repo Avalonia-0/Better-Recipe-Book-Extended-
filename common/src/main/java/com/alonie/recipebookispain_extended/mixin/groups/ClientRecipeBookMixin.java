@@ -88,6 +88,15 @@ public abstract class ClientRecipeBookMixin {
         RecipeBookDebugLogger.onRbipFilterCollections(
                 searchCategory.name(), allBase.size(), matching.size(), true);
 
+        // When no recipes match the creative tab (e.g. furnace recipes vs.
+        // a building-blocks tab), fall back to all recipes for this search
+        // category instead of showing an empty book.
+        if (matching.isEmpty() && !allBase.isEmpty()) {
+            RecipeBookIsPain.LOGGER.warn("[RBIP] No recipes match tab '{}' in {}, showing all {}",
+                    activeTab.getDisplayName().getString(), searchCategory.name(), allBase.size());
+            return allBase;
+        }
+
         return matching;
     }
 
