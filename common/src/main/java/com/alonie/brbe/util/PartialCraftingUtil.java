@@ -37,13 +37,14 @@ public final class PartialCraftingUtil {
     private PartialCraftingUtil() {}
 
     /**
-     * Clear all internal caches and force a full rebuild on the next
-     * {@code updateCollections} pass.  Call when config options affecting
-     * partial-craftable display change (e.g. {@code partialMarkingEnabled}
-     * or {@code partialCraftingEnabled} toggled).
+     * Force a full rebuild on the next {@code updateCollections} pass.
+     * Call when config options affecting partial-craftable display change.
+     *
+     * <p>IMPORTANT: does NOT clear PARTIAL_RECIPES — the redirect cleanup
+     * path in {@code incompletecrafting/RecipeBookComponentMixin} needs it
+     * to identify which entries to purge from the vanilla craftable set.</p>
      */
-    public static void resetAllCaches() {
-        PARTIAL_RECIPES.clear();
+    public static void invalidateCaches() {
         CHECKED_COLLECTIONS.clear();
         filteringGeneration = 0;
         filteringActive = false;
@@ -214,10 +215,28 @@ public final class PartialCraftingUtil {
         return partialRecipes != null && partialRecipes.contains(recipeId);
     }
 
-    public static boolean hasPartialMaterials(RecipeCollection collection) {
-        if (!enabled()) return false;
+    /**
+     * Raw check — bypasses the {@link #enabled()} guard.  For cleanup code
+     * that needs to purge partial-craftable state even after the feature has
+     * been disabled in config.
+     */
+    public static boolean hasPartialMaterialsRaw(RecipeCollection collection) {
         Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(collection);
         return partialRecipes != null && !partialRecipes.isEmpty();
+    }
+
+    /**
+     * Raw check — bypasses the {@link #enabled()} guard.
+     * @see #hasPartialMaterialsRaw(RecipeCollection)
+     */
+    public static boolean isPartiallyCraftableRaw(RecipeCollection collection, ResourceLocation recipeId) {
+        Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(collection);
+        return partialRecipes != null && partialRecipes.contains(recipeId);
+    }
+
+    public static boolean hasPartialMaterials(RecipeCollection collection) {
+        if (!enabled()) return false;
+        return hasPartialMaterialsRaw(collection);
     }
 
     /**

@@ -15,7 +15,6 @@ import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.BrbeLogger;
 import com.alonie.brbe.util.CollectionPipeline;
-import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.layout.BookLayout;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -180,27 +179,17 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             this.doubleRefresh = false;
         }
 
-        // When config changes (e.g. partialMarkingEnabled or enablePinning
-        // toggled in the Cloth Config screen), invalidate all caches and
-        // do a full re-initialization with page reset.
+        // When config changes (e.g. enablePinning, noGrouped toggled in the
+        // Cloth Config screen), reset recipe visibility state and do a full
+        // re-initialization so all UI elements and recipe ordering match.
         if (configChanged) {
             BrbeLogger.log(BrbeLogger.Category.RENDER,
-                    "Generic render — configChanged CONSUMED, full rebuild");
-            // Reset filter state: show all recipes — the pipeline will
-            // re-sort by the new config rules.
+                    "Generic render — configChanged CONSUMED, calling initVisuals");
+            // Reset filter state: show all recipes after a config change,
+            // letting the pipeline handle sorting.  The user can re-toggle
+            // the filter button to their preference afterward.
             BRBBookSettings.setFiltering(this.getRecipeBookType(), false);
-
-            // Invalidate partial-craftable cache so markings are recomputed
-            // with the new config (e.g. partialMarkingEnabled toggled).
-            PartialCraftingUtil.beginFilteringUpdate(true);
-            PartialCraftingUtil.requestForceFullRefresh();
-
-            // Full rebuild with page reset so sort order, markings, and
-            // visibility all reflect the new config immediately.
             initVisuals();
-            updateCollections(true);
-
-            PartialCraftingUtil.beginFilteringUpdate(false);
         }
 
         int bookWidth = getCurrentBookWidth();

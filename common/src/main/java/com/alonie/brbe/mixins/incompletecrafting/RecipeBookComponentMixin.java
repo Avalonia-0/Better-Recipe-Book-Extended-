@@ -90,19 +90,22 @@ public abstract class RecipeBookComponentMixin {
         // ── Cleanup path ──────────────────────────────────────────
         // When partialMarkingEnabled is OFF, previously-injected
         // partial recipes must be removed from the craftable set.
-        // The vanilla forEach already rebuilt the craftable set (if
-        // inventoryChanged) or the old truly-craftable entries are
-        // still valid (if !inventoryChanged).  Removing the injected
-        // partials leaves the correct state in either case.
+        // Uses *Raw methods that bypass the enabled() guard — regular
+        // methods return false when the feature is disabled, which is
+        // exactly when we need them to work hardest.
         if (!retainPartial) {
             for (RecipeCollection coll : collections) {
+                if (!PartialCraftingUtil.hasPartialMaterialsRaw(coll)) continue;
                 RecipeCollectionAccessor ca = (RecipeCollectionAccessor) coll;
                 for (RecipeHolder<?> holder : coll.getRecipes()) {
-                    if (PartialCraftingUtil.isPartiallyCraftable(coll, holder.id())) {
+                    if (PartialCraftingUtil.isPartiallyCraftableRaw(coll, holder.id())) {
                         ca.brbe$getCraftable().remove(holder);
                     }
                 }
             }
+            // Now that cleanup is done, clear the raw partial data so the
+            // next frame doesn't re-inject stale entries.
+            PartialCraftingUtil.invalidateCaches();
             if (!retainIncompatible) {
                 PerfTimer.logAndReset("updateCollections (disabled+cleaned)");
                 return;

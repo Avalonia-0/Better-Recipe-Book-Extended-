@@ -121,10 +121,11 @@ public class BetterRecipeBook {
         pinnedRecipeManager = appContext.pins();
         instantCraftingManager = appContext.instantCraft();
 
-        // -- When partial crafting settings change, clear caches immediately --
-        // This fixes stale recipe state/sorting after toggling the feature off.
+        // -- When partial crafting settings change, invalidate caches --
+        // PARTIAL_RECIPES is preserved so the redirect cleanup path can
+        // identify and purge injected entries from the craftable set.
         appContext.events().subscribe(ConfigEventBus.PartialCraftingChanged.class, event -> {
-            PartialCraftingUtil.resetAllCaches();
+            PartialCraftingUtil.invalidateCaches();
         });
 
         // -- Wire config changes through the event bus ------------------------
