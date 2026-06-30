@@ -51,6 +51,11 @@ public final class ReiHudHider implements HudHider {
 
     // --- internal helpers ---
 
+    @Override
+    public boolean isAvailable() {
+        return isReiLoaded();
+    }
+
     public static boolean isReiLoaded() {
         return getReiConfigClass() != null;
     }

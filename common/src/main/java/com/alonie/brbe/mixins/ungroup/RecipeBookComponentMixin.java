@@ -2,6 +2,7 @@ package com.alonie.brbe.mixins.ungroup;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.util.BrbeLogger;
+import com.alonie.brbe.util.CollectionPipeline;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.VanillaPipelineCollection;
 import net.minecraft.client.ClientRecipeBook;
@@ -120,23 +121,9 @@ public class RecipeBookComponentMixin {
             }
         }
 
-        // Stage 3: Apply pin sort, then call page.updateCollections.
-        // The pipeline @ModifyArg does NOT fire here because ci.cancel()
-        // bypasses the original bytecode — so we apply pin sort manually.
+        // Stage 3: Pin sort — delegate to CollectionPipeline
         if (BetterRecipeBook.config.enablePinning) {
-            int pinned = 0;
-            List<RecipeCollection> snapshot = new ArrayList<>(list2);
-            for (RecipeCollection c : snapshot) {
-                if (BetterRecipeBook.pinnedRecipeManager.has(VanillaPipelineCollection.of(c))) {
-                    list2.remove(c);
-                    list2.add(0, c);
-                    pinned++;
-                }
-            }
-            if (pinned > 0) {
-                BrbeLogger.log(BrbeLogger.Category.SORT,
-                        "ungroup pin sort — %d pinned moved to front", pinned);
-            }
+            CollectionPipeline.applyPins(list2);
         }
 
         BrbeLogger.log(BrbeLogger.Category.PIPELINE,

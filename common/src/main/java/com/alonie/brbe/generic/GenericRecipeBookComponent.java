@@ -14,6 +14,7 @@ import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.BrbeLogger;
 import com.alonie.brbe.util.CollectionPipeline;
+import com.alonie.brbe.layout.BookLayout;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.*;
@@ -107,9 +108,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
     public void initVisuals() {
         if (BetterRecipeBook.config.keepCentered) {
-            this.xOffset = this.widthTooNarrow ? 0 : 162;
+            this.xOffset = this.widthTooNarrow ? 0 : BookLayout.X_OFFSET_CENTERED;
         } else {
-            this.xOffset = this.widthTooNarrow ? 0 : 86;
+            this.xOffset = this.widthTooNarrow ? 0 : BookLayout.X_OFFSET_STANDARD;
         }
 
         int bookWidth = getCurrentBookWidth();
@@ -121,8 +122,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         // TODO: menu.fillCraftSlotsStackedContents(this.stackedContents);
         String string = this.searchBox != null ? this.searchBox.getValue() : "";
         Objects.requireNonNull(this.minecraft.font);
-        int searchWidth = isExpanded() ? bookWidth - 140 : 81;
-        this.searchBox = new EditBox(this.minecraft.font, i + 25, j + 13, searchWidth,
+        int searchWidth = isExpanded() ? bookWidth - 140 : BookLayout.SEARCH_WIDTH;
+        this.searchBox = new EditBox(this.minecraft.font, i + BookLayout.SEARCH_X_OFFSET,
+                j + BookLayout.SEARCH_Y_OFFSET, searchWidth,
                 this.minecraft.font.lineHeight + 5, Component.translatable("itemGroup.search"));
         this.searchBox.setMaxLength(50);
         this.searchBox.setVisible(true);
@@ -133,7 +135,8 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.recipesPage.initialize(this.minecraft, i, j, menu, bookWidth);
         this.tabButtons.clear();
         // filter button: right-aligned from the book's right edge
-        this.filterButton = new StateSwitchingButton(i + bookWidth - 37, j + 12, 26, 16,
+        this.filterButton = new StateSwitchingButton(i + bookWidth - 37,
+                j + BookLayout.FILTER_Y_OFFSET, BookLayout.FILTER_WIDTH, BookLayout.FILTER_HEIGHT,
                 BRBBookSettings.isFiltering(this.getRecipeBookType()));
         this.updateFilterButtonTooltip();
         this.filterButton.initTextureValues(BRBTextures.RECIPE_BOOK_FILTER_BUTTON_SPRITES);
@@ -385,7 +388,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     private boolean isOffsetNextToMainGUI() {
-        return this.xOffset == 86;
+        return this.xOffset == BookLayout.X_OFFSET_STANDARD;
     }
 
     // ── Expanded recipe book ───────────────────────────────────────
@@ -648,8 +651,8 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     protected void refreshTabButtons() {
-        int i = getBookLeft() - 30;
-        int j = getBookTop() + 3;
+        int i = getBookLeft() - BookLayout.TAB_BUTTON_WIDTH;
+        int j = getBookTop() + BookLayout.TAB_TOP_OFFSET;
         int l = 0;
 
         for (BRBGroupButtonWidget button : this.tabButtons) {
@@ -657,15 +660,15 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             if (category.getType() == BRBBookCategories.Category.Type.SEARCH) {
                 button.visible = true;
             }
-            button.setPosition(i, j + 27 * l++);
+            button.setPosition(i, j + BookLayout.TAB_BUTTON_SPACING * l++);
         }
     }
 
     /** Create or reposition the expanded-mode toggle button below the left-side tabs. */
     protected void refreshExpandedToggleButton() {
-        int tabX = getBookLeft() - 30;
-        int tabY = getBookTop() + 3;
-        int buttonY = tabY + 27 * this.tabButtons.size() + 3; // below last tab + gap
+        int tabX = getBookLeft() - BookLayout.TAB_BUTTON_WIDTH;
+        int tabY = getBookTop() + BookLayout.TAB_TOP_OFFSET;
+        int buttonY = tabY + BookLayout.TAB_BUTTON_SPACING * this.tabButtons.size() + 3; // below last tab + gap
 
         if (this.expandedToggleButton == null) {
             this.expandedToggleButton = new ImageButton(

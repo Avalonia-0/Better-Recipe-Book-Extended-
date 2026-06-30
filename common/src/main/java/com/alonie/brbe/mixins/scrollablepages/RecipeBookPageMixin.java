@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins.scrollablepages;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.layout.BookLayout;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.StateSwitchingButton;
@@ -64,7 +65,8 @@ public abstract class RecipeBookPageMixin {
     }
 
     private static boolean isMouseOverRecipeBookPage(int mouseX, int mouseY, int left, int top) {
-        return mouseX >= left && mouseX < left + 147 && mouseY >= top && mouseY < top + 166;
+        return mouseX >= left && mouseX < left + BookLayout.TEXTURE_WIDTH
+                && mouseY >= top && mouseY < top + BookLayout.TEXTURE_HEIGHT;
     }
 
     @Inject(at = @At("RETURN"), method = "init")

@@ -5,6 +5,7 @@ import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
 import com.alonie.brbe.util.BrbeLogger;
+import com.alonie.brbe.util.CollectionPipeline;
 import com.alonie.brbe.util.CollectionCategory;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.VanillaPipelineCollection;
@@ -201,45 +202,22 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
     // Sort
     // ═══════════════════════════════════════════════════════════════
 
+    /** Delegate sorting to CollectionPipeline — thin adapter pattern. */
     private void sort(List<RecipeCollection> collections) {
         if (collections == null || collections.isEmpty()) return;
-
+        // Pin sort (in-place, moves pinned to front)
         if (BetterRecipeBook.config.enablePinning) {
-            List<RecipeCollection> snap = new ArrayList<>(collections);
-            for (RecipeCollection c : snap) {
-                if (BetterRecipeBook.pinnedRecipeManager.has(VanillaPipelineCollection.of(c))) {
-                    collections.remove(c);
-                    collections.add(0, c);
-                }
-            }
+            CollectionPipeline.applyPins(collections);
         }
-
-        boolean brbe = BetterRecipeBook.config.partialCraftingEnabled;
-        boolean vanilla = minecraft != null && minecraft.player != null
+        // Partial sort (6-bucket craftable/partial/uncraftable × pinned/unpinned)
+        boolean hasPartial = BetterRecipeBook.config.partialCraftingEnabled
+                && BetterRecipeBook.config.partialMarkingEnabled;
+        boolean isFiltering = minecraft != null && minecraft.player != null
                 && minecraft.player.getRecipeBook().isFiltering(menu);
-        if (!brbe && !vanilla) return;
-
-        boolean hasP = BetterRecipeBook.config.partialMarkingEnabled;
-        List<RecipeCollection> pC = new ArrayList<>(), pP = new ArrayList<>(), pU = new ArrayList<>();
-        List<RecipeCollection> uC = new ArrayList<>(), uP = new ArrayList<>(), uU = new ArrayList<>();
-
-        for (RecipeCollection c : collections) {
-            boolean pin = BetterRecipeBook.config.enablePinning
-                    && BetterRecipeBook.pinnedRecipeManager.has(VanillaPipelineCollection.of(c));
-            if (hasP) {
-                switch (PartialCraftingUtil.categorize(c)) {
-                    case TRULY_CRAFTABLE -> { if (pin) pC.add(c); else uC.add(c); }
-                    case PARTIAL         -> { if (pin) pP.add(c); else uP.add(c); }
-                    case UNASSIGNED      -> { if (pin) pU.add(c); else uU.add(c); }
-                }
-            } else {
-                if (c.hasCraftable()) { if (pin) pC.add(c); else uC.add(c); }
-                else                 { if (pin) pU.add(c); else uU.add(c); }
-            }
+        if (BetterRecipeBook.config.partialCraftingEnabled || isFiltering) {
+            List<RecipeCollection> sorted = CollectionPipeline.applyPartialSort(collections, hasPartial);
+            collections.clear();
+            collections.addAll(sorted);
         }
-
-        collections.clear();
-        collections.addAll(pC); collections.addAll(pP); collections.addAll(pU);
-        collections.addAll(uC); collections.addAll(uP); collections.addAll(uU);
     }
 }

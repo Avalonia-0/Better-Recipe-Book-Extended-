@@ -3,6 +3,7 @@ package com.alonie.brbe.generic;
 import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
+import com.alonie.brbe.layout.BookLayout;
 import com.alonie.brbe.mixins.accessors.KeyMappingAccessor;
 import com.alonie.brbe.util.BRBTextures;
 import net.minecraft.client.Minecraft;
@@ -33,7 +34,7 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
     protected BRBBookCategories.Category category;
 
     public GenericRecipeButton(RegistryAccess registryAccess, Supplier<Boolean> filteringSupplier) {
-        super(0, 0, 25, 25, CommonComponents.EMPTY);
+        super(0, 0, BookLayout.BUTTON_SIZE, BookLayout.BUTTON_SIZE, CommonComponents.EMPTY);
         this.registryAccess = registryAccess;
         this.filteringSupplier = filteringSupplier;
     }
@@ -77,12 +78,15 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         ItemStack result = getCurrentDisplayedRecipe().getResult(registryAccess, category);
 
         // render ingredient item (on top of red overlay)
-        int offset = 4;
+        int offset = BookLayout.PIN_SPRITE_OFFSET;
         gui.renderFakeItem(result, getX() + offset, getY() + offset);
 
         // if pinned recipe, blit the pin texture over it
         if (BetterRecipeBook.config.enablePinning && BetterRecipeBook.pinnedRecipeManager.has(collection)) {
-            gui.blitSprite(BRBTextures.RECIPE_BOOK_PIN_SPRITE, getX() - 4, getY() - 4, 32, 32);
+            gui.blitSprite(BRBTextures.RECIPE_BOOK_PIN_SPRITE,
+                    getX() - BookLayout.PIN_SPRITE_OFFSET,
+                    getY() - BookLayout.PIN_SPRITE_OFFSET,
+                    BookLayout.PIN_SPRITE_SIZE, BookLayout.PIN_SPRITE_SIZE);
         }
     }
 
@@ -121,7 +125,7 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
     }
 
     public int getWidth() {
-        return 25;
+        return BookLayout.BUTTON_SIZE;
     }
 
     protected boolean isValidClickButton(int i) {

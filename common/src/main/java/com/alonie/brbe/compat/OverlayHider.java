@@ -1,8 +1,6 @@
 package com.alonie.brbe.compat;
 
 import com.alonie.brbe.api.hud.HudHider;
-import com.alonie.brbe.impl.hud.JeiHudHider;
-import com.alonie.brbe.impl.hud.ReiHudHider;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,8 +24,12 @@ public final class OverlayHider {
         HIDERS.add(hider);
     }
 
+    /** Query registered hiders — no hardcoded knowledge of JEI/REI internals. */
     public static boolean isApplicable() {
-        return ReiHudHider.isReiLoaded() || JeiHudHider.getJeiToggleStateClass() != null;
+        for (HudHider hider : HIDERS) {
+            if (hider.isAvailable()) return true;
+        }
+        return false;
     }
 
     public static void setOverlaysHidden(boolean hide) {
@@ -42,8 +44,14 @@ public final class OverlayHider {
     }
 
     /** Per-tick enforcement — called when a screen is open and config says hide. */
-    public static void ensureJeiOverlayHidden() {
+    public static void enforceHidden() {
         HIDERS.forEach(HudHider::ensureHidden);
+    }
+
+    /** @deprecated Use {@link #enforceHidden()} instead. */
+    @Deprecated
+    public static void ensureJeiOverlayHidden() {
+        enforceHidden();
     }
 
     /** Reset all tracked state (e.g. world unload). */

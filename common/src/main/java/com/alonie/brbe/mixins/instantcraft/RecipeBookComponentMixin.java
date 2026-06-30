@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins.instantcraft;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.layout.BookLayout;
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.util.BRBTextures;
 import net.minecraft.client.Minecraft;
@@ -40,10 +41,10 @@ public abstract class RecipeBookComponentMixin {
     @Unique
     private int brbe$getExpandedBookWidth() {
         if (!BetterRecipeBook.config.expandedRecipeBook || this.widthTooNarrow || !isVisible())
-            return 147;
+            return BookLayout.TEXTURE_WIDTH;
         int leftPos = ((RecipeBookComponentAccessor) this)
                 .updateScreenPositionInvoker(this.width, 176);
-        int bookLeft = (this.width - 147) / 2 - this.xOffset;
+        int bookLeft = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset;
         return (leftPos + 176) - bookLeft;
     }
 

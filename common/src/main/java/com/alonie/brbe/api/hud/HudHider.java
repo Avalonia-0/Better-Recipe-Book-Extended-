@@ -21,4 +21,13 @@ public interface HudHider {
 
     /** Reset all tracked state (e.g. on world unload). */
     default void reset() {}
+
+    /**
+     * Whether the target mod is loaded and this hider can operate.
+     * Implementations typically check via {@code Class.forName(...)}.
+     *
+     * <p>Added so {@code OverlayHider.isApplicable()} can query registered
+     * hiders instead of hardcoding knowledge of JEI/REI internals.</p>
+     */
+    default boolean isAvailable() { return true; }
 }

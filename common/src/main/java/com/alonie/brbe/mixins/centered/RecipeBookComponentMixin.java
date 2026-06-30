@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins.centered;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.layout.BookLayout;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -21,9 +22,9 @@ public class RecipeBookComponentMixin {
     )
     public void center(CallbackInfo ci) {
         if (BetterRecipeBook.config.keepCentered) {
-            this.xOffset = this.widthTooNarrow ? 0 : 162;
+            this.xOffset = this.widthTooNarrow ? 0 : BookLayout.X_OFFSET_CENTERED;
         } else {
-            this.xOffset = this.widthTooNarrow ? 0 : 86;
+            this.xOffset = this.widthTooNarrow ? 0 : BookLayout.X_OFFSET_STANDARD;
         }
     }
 
@@ -37,7 +38,7 @@ public class RecipeBookComponentMixin {
 
     @Inject(method = "isOffsetNextToMainGUI", at = @At("RETURN"), cancellable = true)
     public void isWide(CallbackInfoReturnable<Boolean> cir) {
-        if (this.xOffset == 162 || this.xOffset == 86) {
+        if (this.xOffset == BookLayout.X_OFFSET_CENTERED || this.xOffset == BookLayout.X_OFFSET_STANDARD) {
             cir.setReturnValue(true);
         }
     }

@@ -2,7 +2,9 @@ package com.alonie.brbe;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.alonie.brbe.api.BRBBookCategories;
+import com.alonie.brbe.config.AppContext;
 import com.alonie.brbe.config.Config;
+import com.alonie.brbe.config.ConfigEventBus;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.util.BRBHelper;
@@ -20,6 +22,14 @@ import net.minecraft.world.item.Items;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+/**
+ * Main mod class for Better Recipe Book Extended.
+ *
+ * <p>Backward-compatible static fields are maintained — they now delegate to
+ * {@link AppContext} where applicable.  New code should inject dependencies
+ * through {@code AppContext.instance()} rather than reaching for these
+ * statics.</p>
+ */
 public class BetterRecipeBook {
 
     public static final String MOD_ID = "brbe";
@@ -27,11 +37,11 @@ public class BetterRecipeBook {
     private static int queuedScroll;
 
     /**
-     * Set to {@code true} by the config save listener when any config value
-     * changes.  Recipe book components check this flag on each render frame
-     * and call {@code updateCollections()} to refresh the display.  Reset to
-     * {@code false} after the refresh is triggered.
+     * @deprecated Use {@code AppContext.instance().events()} and subscribe to
+     *             {@link ConfigEventBus.ConfigChanged} instead.  Kept for
+     *             backward compatibility with existing mixins.
      */
+    @Deprecated
     public static volatile boolean configChanged = false;
 
     public static Config config;
@@ -78,6 +88,14 @@ public class BetterRecipeBook {
     public static BRBBookCategories.Category SMITHING_TRANSFORM = SMITHING.createCategory(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE));
     public static BRBBookCategories.Category SMITHING_TRIM = SMITHING.createCategory(new ItemStack(Items.NETHERITE_CHESTPLATE));
 
+    /** The new dependency-injection root.  Created once in {@link #init()}. */
+    private static AppContext appContext;
+
+    /** Access the new AppContext (available after init()). */
+    public static AppContext ctx() {
+        return appContext;
+    }
+
     public static void init() {
         // Force early class-loading of CollectionCategory to avoid
         // NoClassDefFoundError on NeoForge when partialCraftingEnabled
@@ -93,34 +111,27 @@ public class BetterRecipeBook {
 
         queuedScroll = 0;
 
-        AutoConfig.register(Config.class, Toml4jConfigSerializer::new);
+        // -- New architecture: create the DI root first -----------------------
+        appContext = AppContext.create();
 
-        configHolder = AutoConfig.getConfigHolder(Config.class);
-        configHolder.registerSaveListener((holder, config) -> {
-            // Log config transition
-            Config old = BetterRecipeBook.config;
-            BrbeLogger.log(BrbeLogger.Category.CONFIG,
-                    "Save listener — configChanged SET, partialCraftingEnabled: %s→%s, partialMarkingEnabled: %s→%s, enablePinning: %s→%s, noGrouped: %s→%s",
-                    old != null ? old.partialCraftingEnabled : "null",
-                    config.partialCraftingEnabled,
-                    old != null ? old.partialMarkingEnabled : "null",
-                    config.partialMarkingEnabled,
-                    old != null ? old.enablePinning : "null",
-                    config.enablePinning,
-                    old != null ? old.alternativeRecipes.noGrouped : "null",
-                    config.alternativeRecipes.noGrouped);
+        // -- Populate backward-compatible static fields from AppContext -------
+        config = appContext.config();
+        configHolder = appContext.configHolder();
+        pinnedRecipeManager = appContext.pins();
+        instantCraftingManager = appContext.instantCraft();
 
-            BetterRecipeBook.config = config;
-            BetterRecipeBook.configChanged = true;
+        // -- Wire the old configChanged flag to the new event bus -------------
+        // When config changes through the event bus, also set the legacy flag
+        // so existing mixins that poll configChanged continue to work.
+        appContext.events().subscribe(ConfigEventBus.ConfigChanged.class, event -> {
+            configChanged = true;
             RecipeUnlockUtil.syncToConfig();
+            // RBIP callback — will be migrated to event bus subscription
             com.alonie.recipebookispain_extended.RecipeBookIsPain.onConfigChanged();
-            return InteractionResult.SUCCESS;
         });
-        config = configHolder.getConfig();
 
-        pinnedRecipeManager = new PinnedRecipeManager();
+        // -- Load pins --------------------------------------------------------
         pinnedRecipeManager.read();
-        instantCraftingManager = new InstantCraftingManager();
 
         // KeyMapping registration moved to platform entry points
         // KeyBindingHelper.registerKeyBinding(PIN_MAPPING);

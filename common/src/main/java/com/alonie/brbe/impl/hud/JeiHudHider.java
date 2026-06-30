@@ -118,4 +118,9 @@ public final class JeiHudHider implements HudHider {
             jeiToggleStateClass = null;
         }
     }
+
+    @Override
+    public boolean isAvailable() {
+        return getJeiToggleStateClass() != null;
+    }
 }
