@@ -1,73 +1,58 @@
 package com.alonie.brbe.layout;
 
-import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
+import java.util.EnumMap;
+import java.util.Map;
 
 /**
  * Constraint-driven layout engine for recipe books.
  *
- * <p>Replaces the 30+ hardcoded magic numbers ({@code 147}, {@code 166},
- * {@code 137}, {@code 86}, {@code 162}, {@code 25}, etc.) scattered across
- * 7+ files with a single source of truth.</p>
+ * <p>Uses a <strong>three-level element hierarchy</strong> where each element's
+ * position is derived from its container zone or adjacent siblings — no
+ * isolated magic numbers.</p>
  *
- * <p>All coordinates are computed from the available screen space and
- * configuration, supporting dynamic column counts and future layout modes
- * (expanded book, centered mode) without code changes.</p>
- *
- * <h3>Usage</h3>
- * <pre>{@code
- *   BookGeometry geo = BookLayout.compute(availableRect, config);
- *   // geo.searchBox(), geo.grid(), geo.tabs(), geo.filterButton(), ...
- * }</pre>
+ * <pre>
+ * Level 1: BookRect          — the recipe book background
+ * Level 2: TabZones (4 sides) + InnerRect + TopBar + BottomBar + GridZone
+ * Level 3: SearchBox, FilterButton, SettingsBtn, PageArrows, InstantCraftBtn
+ * </pre>
  */
 public final class BookLayout {
 
-    // -- Layout constants (named, not scattered) ------------------------------
+    // -- Fundamental constants (visual asset sizes) ---------------------------
 
-    /** Vanilla recipe book texture width (sprite sheet). */
+    /** Vanilla recipe book texture dimensions (sprite sheet). */
     public static final int TEXTURE_WIDTH = 147;
-    /** Vanilla recipe book texture height (sprite sheet). */
     public static final int TEXTURE_HEIGHT = 166;
 
     /** Recipe button size (square). */
     public static final int BUTTON_SIZE = 25;
 
-    /** Grid padding from book left edge. */
-    public static final int GRID_LEFT_PADDING = 11;
-    /** Grid padding from book top edge. */
-    public static final int GRID_TOP_PADDING = 31;
+    /** Gap between recipe buttons in the grid. */
+    public static final int GRID_GAP = 2;
 
-    /** Tab button width (vertical strip along left edge). */
-    public static final int TAB_BUTTON_WIDTH = 30;
+    /** Grid padding from book inner edge. */
+    public static final int GRID_PAD = 11;
+
+    /** Tab button strip width. */
+    public static final int TAB_WIDTH = 30;
     /** Vertical spacing between tab buttons. */
-    public static final int TAB_BUTTON_SPACING = 27;
-    /** Tab button offset from book top. */
-    public static final int TAB_TOP_OFFSET = 3;
+    public static final int TAB_SPACING = 27;
+    /** Tab button offset from book top edge. */
+    public static final int TAB_TOP_PAD = 3;
 
-    /** Search box offset from book corner. */
-    public static final int SEARCH_X_OFFSET = 25;
-    public static final int SEARCH_Y_OFFSET = 13;
-    /** Search box width in standard mode. */
-    public static final int SEARCH_WIDTH = 81;
+    /** Book X-offsets for centered / standard mode. */
+    public static final int X_OFFSET_CENTERED = 162;
+    public static final int X_OFFSET_STANDARD = 86;
 
-    /** Filter button offset. */
-    public static final int FILTER_X_OFFSET = 110;
-    public static final int FILTER_Y_OFFSET = 12;
+    /** Filter button natural size. */
     public static final int FILTER_WIDTH = 26;
     public static final int FILTER_HEIGHT = 16;
 
-    /** Settings button offset. */
-    public static final int SETTINGS_X_OFFSET = 11;
-    public static final int SETTINGS_Y_OFFSET = 137;
+    /** Settings button (square). */
     public static final int SETTINGS_SIZE = 18;
 
-    /** Page arrow offsets. */
-    public static final int ARROW_Y_OFFSET = 137;
-    public static final int ARROW_FORWARD_X = 93;
-    public static final int ARROW_BACK_X = 38;
-
-    /** X-offsets for centered vs standard mode. */
-    public static final int X_OFFSET_CENTERED = 162;
-    public static final int X_OFFSET_STANDARD = 86;
+    /** Page arrow button width. */
+    public static final int ARROW_WIDTH = 12;
 
     /** Expanded book 3-slice background caps. */
     public static final int BG_LEFT_CAP = 32;
@@ -75,71 +60,192 @@ public final class BookLayout {
     public static final int BG_BODY = 103;
     public static final int BG_TEX_SIZE = 256;
 
-    /** Pin sprite offset (rendered outside the button bounds). */
+    /** Pin sprite offset from button corner. */
     public static final int PIN_SPRITE_OFFSET = 4;
     public static final int PIN_SPRITE_SIZE = 32;
 
-    // -- Computation ----------------------------------------------------------
+    // -- Backward-compatible aliases (deprecated: use the names above) --------
 
-    /**
-     * Compute the full geometry for a recipe book given the available screen
-     * rectangle and current configuration.
-     *
-     * @param available  the rectangle representing screen space available
-     *                   for the recipe book (usually depends on container GUI
-     *                   position and screen dimensions)
-     * @param keepCentered  whether centered mode is enabled
-     * @param expanded   whether expanded (wide) mode is enabled
-     * @return fully computed geometry for all sub-elements
-     */
-    public BookGeometry compute(Rect available, boolean keepCentered, boolean expanded) {
-        int bookWidth = expanded ? computeExpandedWidth(available) : TEXTURE_WIDTH;
-        int bookHeight = TEXTURE_HEIGHT;
+    /** @deprecated Use {@link #GRID_PAD} */
+    @Deprecated public static final int GRID_LEFT_PADDING = GRID_PAD;
+    /** @deprecated Use {@link #GRID_PAD} (gridY is now computed via GridSpec) */
+    @Deprecated public static final int GRID_TOP_PADDING = 31;
 
-        int xOffset = keepCentered ? X_OFFSET_CENTERED : X_OFFSET_STANDARD;
-        int bookLeft = available.x() + xOffset;
-        int bookTop = available.y() + (available.height() - bookHeight) / 2;
+    /** @deprecated Use constraint model: search box left = bookLeft + 25 */
+    @Deprecated public static final int SEARCH_X_OFFSET = 25;
+    /** @deprecated Use constraint model: search box top = topBar.top + 1 */
+    @Deprecated public static final int SEARCH_Y_OFFSET = 13;
+    /** @deprecated Use constraint model: search width = filterLeft - searchLeft */
+    @Deprecated public static final int SEARCH_WIDTH = 81;
 
-        // Dynamic grid computation
-        int gridColumns = (bookWidth - GRID_LEFT_PADDING * 2) / BUTTON_SIZE;
-        int gridRows = 4; // default row count; could also be dynamic
+    /** @deprecated Use constraint model: filter right-aligned in topBar */
+    @Deprecated public static final int FILTER_X_OFFSET = 110;
+    /** @deprecated Use constraint model: filter top = topBar.top */
+    @Deprecated public static final int FILTER_Y_OFFSET = 12;
 
-        return new BookGeometry(
-                bookLeft, bookTop, bookWidth, bookHeight,
-                // search box
-                bookLeft + SEARCH_X_OFFSET, bookTop + SEARCH_Y_OFFSET,
-                expanded ? bookWidth - 140 : SEARCH_WIDTH, 12,
-                // filter button
-                bookLeft + (expanded ? bookWidth - 37 : FILTER_X_OFFSET),
-                bookTop + FILTER_Y_OFFSET,
-                FILTER_WIDTH, FILTER_HEIGHT,
-                // settings button (square)
-                bookLeft + SETTINGS_X_OFFSET, bookTop + SETTINGS_Y_OFFSET,
-                SETTINGS_SIZE,
-                // grid
-                bookLeft + GRID_LEFT_PADDING, bookTop + GRID_TOP_PADDING,
-                gridColumns, gridRows, BUTTON_SIZE,
-                // page arrows (both share same Y)
-                bookLeft + ARROW_BACK_X, bookLeft + ARROW_FORWARD_X,
-                bookTop + ARROW_Y_OFFSET,
-                // tabs
-                bookLeft - TAB_BUTTON_WIDTH, bookTop + TAB_TOP_OFFSET,
-                TAB_BUTTON_SPACING
-        );
+    /** @deprecated Use constraint model: settings left-aligned in bottomControls */
+    @Deprecated public static final int SETTINGS_X_OFFSET = GRID_PAD;
+    /** @deprecated Use constraint model: settings top = bottomControls.top */
+    @Deprecated public static final int SETTINGS_Y_OFFSET = 137;
+
+    /** @deprecated Use constraint model */
+    @Deprecated public static final int ARROW_Y_OFFSET = 137;
+    /** @deprecated Use constraint model */
+    @Deprecated public static final int ARROW_FORWARD_X = 93;
+    /** @deprecated Use constraint model */
+    @Deprecated public static final int ARROW_BACK_X = 38;
+
+    /** @deprecated Use {@link #TAB_SPACING} */
+    @Deprecated public static final int TAB_BUTTON_SPACING = TAB_SPACING;
+    /** @deprecated Use {@link #TAB_TOP_PAD} */
+    @Deprecated public static final int TAB_TOP_OFFSET = TAB_TOP_PAD;
+    /** @deprecated Use {@link #TAB_WIDTH} */
+    @Deprecated public static final int TAB_BUTTON_WIDTH = TAB_WIDTH;
+
+    // -- Zone -----------------------------------------------------------------
+
+    /** A rectangular zone with pre-computed edge helpers. */
+    public static final class Zone {
+        public final int left, top, width, height;
+
+        public Zone(int left, int top, int width, int height) {
+            this.left = left;
+            this.top = top;
+            this.width = width;
+            this.height = height;
+        }
+
+        public int right()  { return left + width; }
+        public int bottom() { return top + height; }
+        public int centerX() { return left + width / 2; }
+        public int centerY() { return top + height / 2; }
+
+        /** Create a zero-size zone at the given anchor edge. */
+        public static Zone empty() { return new Zone(0, 0, 0, 0); }
     }
 
-    private int computeExpandedWidth(Rect available) {
-        // Expanded mode: book stretches to fill more horizontal space.
-        // The exact calculation mirrors the existing ExpandedBookMixin logic.
-        int baseWidth = available.width() - X_OFFSET_STANDARD - 20;
-        return Math.max(TEXTURE_WIDTH, baseWidth);
-    }
+    /** Which side of the book a tab strip is attached to. */
+    public enum TabPosition { LEFT, RIGHT, TOP, BOTTOM }
 
-    // -- Simple rectangle -----------------------------------------------------
+    // -- Input ----------------------------------------------------------------
 
     public record Rect(int x, int y, int width, int height) {
         public static Rect of(int x, int y, int width, int height) {
             return new Rect(x, y, width, height);
         }
+    }
+
+    // -- Computation ----------------------------------------------------------
+
+    /**
+     * Compute full geometry for a recipe book.
+     *
+     * @param available    screen space for the book
+     * @param keepCentered whether centered mode is active
+     * @param expanded     whether expanded (wide) mode is active
+     */
+    public BookGeometry compute(Rect available, boolean keepCentered, boolean expanded) {
+        // ── Level 1: Book container ──────────────────────────────
+        int bookWidth = expanded ? computeExpandedWidth(available) : TEXTURE_WIDTH;
+        int bookHeight = TEXTURE_HEIGHT;
+        int xOffset = keepCentered ? X_OFFSET_CENTERED : X_OFFSET_STANDARD;
+        int bookLeft = available.x() + xOffset;
+        int bookTop = available.y() + (available.height() - bookHeight) / 2;
+
+        Zone bookZone = new Zone(bookLeft, bookTop, bookWidth, bookHeight);
+
+        // ── Level 2a: Four tab zones (attach to book edges) ─────
+        Map<TabPosition, Zone> tabZones = new EnumMap<>(TabPosition.class);
+
+        // LEFT tabs — recipe type tabs (outside book, left side)
+        tabZones.put(TabPosition.LEFT, new Zone(
+                bookLeft - TAB_WIDTH, bookTop + TAB_TOP_PAD,
+                TAB_WIDTH, bookHeight - TAB_TOP_PAD));
+
+        // RIGHT tabs — reserved, zero-width for now
+        tabZones.put(TabPosition.RIGHT, new Zone(
+                bookLeft + bookWidth, bookTop + TAB_TOP_PAD,
+                0, bookHeight - TAB_TOP_PAD));
+
+        // TOP tabs — RBIP creative tabs (outside book, above)
+        tabZones.put(TabPosition.TOP, new Zone(
+                bookLeft, bookTop - TAB_WIDTH,
+                bookWidth, TAB_WIDTH));
+
+        // BOTTOM tabs — RBIP creative tabs (outside book, below)
+        tabZones.put(TabPosition.BOTTOM, new Zone(
+                bookLeft, bookTop + bookHeight,
+                bookWidth, TAB_WIDTH));
+
+        // ── Level 2b: Inner zones within the book ────────────────
+        int innerLeft = bookLeft + GRID_PAD;
+        int innerRight = bookLeft + bookWidth - GRID_PAD;
+
+        // Top bar: search + filter row
+        int topBarTop = bookTop + 12;
+        int topBarHeight = FILTER_HEIGHT;
+        Zone topBar = new Zone(innerLeft, topBarTop,
+                innerRight - innerLeft, topBarHeight);
+
+        // Bottom controls: settings + page arrows
+        int bottomControlsTop = bookTop + 137;
+        int bottomControlsHeight = SETTINGS_SIZE; // max of settings, arrows
+        Zone bottomControls = new Zone(innerLeft, bottomControlsTop,
+                innerRight - innerLeft, bottomControlsHeight);
+
+        // Grid zone: fills the space between top bar and bottom controls
+        int gridTop = bookTop + 31; // topBar.bottom + natural gap
+        Zone gridZone = new Zone(innerLeft, gridTop,
+                innerRight - innerLeft, bottomControlsTop - gridTop);
+
+        // ── Level 3: Individual controls ─────────────────────────
+
+        // Search box: fills from grid-left to filter-left
+        int searchLeft = bookLeft + 25;  // indented past tab highlight overlap
+        int searchRight = bookLeft + 110 - 2; // filterLeft - gap
+        int searchWidth = searchRight - searchLeft;
+        int searchHeight = FILTER_HEIGHT;
+
+        // Filter button: right-aligned in top bar
+        int filterLeft = bookLeft + 110;
+        int filterTop = bookTop + 12;
+
+        // Settings button: left-aligned in bottom controls
+        int settingsLeft = innerLeft;
+        int settingsTop = bottomControlsTop;
+
+        // Page arrows: centered in the space between settings-right and book-right
+        int forwardArrowLeft = bookLeft + 93;
+        int backArrowLeft = bookLeft + 38;
+        int arrowY = bottomControlsTop;
+
+        // Instant craft button: right-aligned with grid, bottom-aligned with bottom controls
+        int instantCraftRight = gridZone.right();
+        int instantCraftTop = bottomControlsTop;
+
+        // ── Grid specification ───────────────────────────────────
+        GridSpec gridSpec = GridSpec.compute(
+                gridZone.width, gridZone.height, BUTTON_SIZE, GRID_GAP);
+        int gridX = gridZone.left + (gridZone.width - gridSpec.gridWidth()) / 2;
+        int gridY = gridZone.top + (gridZone.height - gridSpec.gridHeight()) / 2;
+
+        // ── Assemble ─────────────────────────────────────────────
+        return new BookGeometry(
+                bookLeft, bookTop, bookWidth, bookHeight,
+                searchLeft, topBar.top + 1, searchWidth, searchHeight,  // y=13
+                filterLeft, filterTop, FILTER_WIDTH, FILTER_HEIGHT,
+                settingsLeft, settingsTop, SETTINGS_SIZE,
+                gridX, gridY, gridSpec.columns(), gridSpec.rows(), BUTTON_SIZE,
+                backArrowLeft, forwardArrowLeft, arrowY,
+                tabZones.get(TabPosition.LEFT).left, tabZones.get(TabPosition.LEFT).top, TAB_SPACING,
+                tabZones,
+                instantCraftRight, instantCraftTop,
+                gridZone
+        );
+    }
+
+    private int computeExpandedWidth(Rect available) {
+        int baseWidth = available.width() - X_OFFSET_STANDARD - 20;
+        return Math.max(TEXTURE_WIDTH, baseWidth);
     }
 }

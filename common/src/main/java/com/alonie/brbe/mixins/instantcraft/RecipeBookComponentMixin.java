@@ -67,12 +67,12 @@ public abstract class RecipeBookComponentMixin {
         // Align with the right edge of the recipe grid area.
         // The filter button's right edge (= filterX + 26) matches the
         // recipe grid's right edge in both vanilla and expanded layouts.
-        StateSwitchingButton filterBtn =
-                ((RecipeBookComponentAccessor) this).getFilterButton();
-        int btnX = filterBtn != null
-                ? filterBtn.getX()
-                : (this.width - 147) / 2 - this.xOffset + 110;
-        int btnY = (this.height - 166) / 2 + 137;
+        // Instant craft button: right edge = grid right edge (bookLeft+136),
+        // top edge = bottom controls row (bookTop+137).  Width 26, height 18.
+        int bookLeft = (this.width - 147) / 2 - this.xOffset;
+        int bookTop = (this.height - 166) / 2;
+        int btnX = bookLeft + 136 - 26;  // gridRight - buttonWidth
+        int btnY = bookTop + 137;        // bottomControls top
 
         this.brbe$instantCraftButton = new StateSwitchingButton(
                 btnX, btnY, 26, 18,

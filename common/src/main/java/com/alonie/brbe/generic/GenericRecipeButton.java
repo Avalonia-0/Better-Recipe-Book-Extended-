@@ -81,10 +81,10 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         int offset = BookLayout.PIN_SPRITE_OFFSET;
         gui.renderFakeItem(result, getX() + offset, getY() + offset);
 
-        // if pinned recipe, blit the pin texture over it
+        // if pinned recipe, blit the pin texture at top-right outer corner
         if (BetterRecipeBook.ctx().config().enablePinning && BetterRecipeBook.pinnedRecipeManager.has(collection)) {
             gui.blitSprite(BRBTextures.RECIPE_BOOK_PIN_SPRITE,
-                    getX() - BookLayout.PIN_SPRITE_OFFSET,
+                    getX() + getWidth() - BookLayout.PIN_SPRITE_OFFSET,
                     getY() - BookLayout.PIN_SPRITE_OFFSET,
                     BookLayout.PIN_SPRITE_SIZE, BookLayout.PIN_SPRITE_SIZE);
         }
