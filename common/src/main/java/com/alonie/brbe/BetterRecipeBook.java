@@ -121,6 +121,12 @@ public class BetterRecipeBook {
         pinnedRecipeManager = appContext.pins();
         instantCraftingManager = appContext.instantCraft();
 
+        // -- When partial crafting settings change, clear caches immediately --
+        // This fixes stale recipe state/sorting after toggling the feature off.
+        appContext.events().subscribe(ConfigEventBus.PartialCraftingChanged.class, event -> {
+            PartialCraftingUtil.resetAllCaches();
+        });
+
         // -- Wire config changes through the event bus ------------------------
         appContext.events().subscribe(ConfigEventBus.ConfigChanged.class, event -> {
             config = event.config();  // keep static field in sync with DI root

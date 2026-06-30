@@ -36,6 +36,20 @@ public final class PartialCraftingUtil {
 
     private PartialCraftingUtil() {}
 
+    /**
+     * Clear all internal caches and force a full rebuild on the next
+     * {@code updateCollections} pass.  Call when config options affecting
+     * partial-craftable display change (e.g. {@code partialMarkingEnabled}
+     * or {@code partialCraftingEnabled} toggled).
+     */
+    public static void resetAllCaches() {
+        PARTIAL_RECIPES.clear();
+        CHECKED_COLLECTIONS.clear();
+        filteringGeneration = 0;
+        filteringActive = false;
+        forceFullRefresh = true;
+    }
+
     private static boolean enabled() {
         return BetterRecipeBook.ctx().config().partialMarkingEnabled;
     }
