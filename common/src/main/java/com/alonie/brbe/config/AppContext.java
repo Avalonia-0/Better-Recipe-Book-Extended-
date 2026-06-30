@@ -6,6 +6,8 @@ import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.api.BRBBookSettings;
 import com.alonie.brbe.compat.recipeviewer.RecipeViewerRegistry;
 import com.alonie.brbe.layout.BookLayout;
+import com.alonie.brbe.pin.JsonPinStore;
+import com.alonie.brbe.pin.PinStore;
 import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.config.Config;
 import me.shedaniel.autoconfig.AutoConfig;
@@ -77,11 +79,10 @@ public final class AppContext {
         this.smithingTransform = smithing.createCategory(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE));
         this.smithingTrim = smithing.createCategory(new ItemStack(Items.NETHERITE_CHESTPLATE));
 
-        // Services
+        // Services (Pin I/O deferred — needs gameDir from BetterRecipeBook.init())
         this.bookLayout = new BookLayout();
         this.recipeViewers = new RecipeViewerRegistry();
         this.pinnedRecipeManager = new PinnedRecipeManager();
-        this.pinnedRecipeManager.read();
         this.instantCraftingManager = new InstantCraftingManager();
 
         // Wire config save listener through the event bus

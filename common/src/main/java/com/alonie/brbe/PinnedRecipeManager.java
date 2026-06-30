@@ -7,6 +7,7 @@ import com.alonie.brbe.generic.GenericRecipe;
 import com.alonie.brbe.generic.GenericRecipeBookCollection;
 import com.alonie.brbe.generic.pins.Pinnable;
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
+import com.alonie.brbe.pin.PinStore;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
@@ -25,11 +26,28 @@ import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class PinnedRecipeManager {
     public HashSet<ResourceLocation> pinned;
 
+    /** Async pin store — when non-null, reads and writes delegate here. */
+    private PinStore store;
+
+    /** Wire an async PinStore.  Called from AppContext after construction. */
+    public void setStore(PinStore store) {
+        this.store = store;
+    }
+
     public void read() {
+        // Prefer async store for loading
+        if (store != null) {
+            Set<ResourceLocation> loaded = store.load();
+            pinned = (loaded instanceof HashSet) ? (HashSet<ResourceLocation>) loaded : new HashSet<>(loaded);
+            return;
+        }
+
+        // Fallback: legacy synchronous read
         Gson gson = new Gson();
         JsonReader reader = null;
 
@@ -53,6 +71,13 @@ public class PinnedRecipeManager {
     }
 
     private void store() {
+        // Prefer async store — never block the render thread on disk I/O
+        if (store != null) {
+            store.save(new HashSet<>(pinned));
+            return;
+        }
+
+        // Fallback: legacy synchronous write
         Gson gson = new Gson();
         OutputStreamWriter writer = null;
 

@@ -1,6 +1,8 @@
 package com.alonie.recipebookispain_extended;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.config.AppContext;
+import com.alonie.brbe.config.ConfigEventBus;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
@@ -211,6 +213,19 @@ public class RecipeBookIsPain {
         CreativeModeTab.Type type = tab.getType();
         return type != CreativeModeTab.Type.INVENTORY
                 && type != CreativeModeTab.Type.SEARCH;
+    }
+
+    /**
+     * Register RBIP as a config-change subscriber on the BRBE event bus.
+     * Called once from {@code BetterRecipeBook.init()} — replaces the old
+     * hardcoded {@code RecipeBookIsPain.onConfigChanged()} call.
+     */
+    public static void init(ConfigEventBus events) {
+        events.subscribe(ConfigEventBus.ConfigChanged.class, event -> {
+            LOGGER.info("[RBIP] ConfigChanged event received");
+            onConfigChanged();
+        });
+        LOGGER.info("[RBIP] Subscribed to ConfigEventBus");
     }
 
     public static void onConfigChanged() {

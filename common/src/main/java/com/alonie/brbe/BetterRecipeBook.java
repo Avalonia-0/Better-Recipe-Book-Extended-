@@ -126,11 +126,19 @@ public class BetterRecipeBook {
         appContext.events().subscribe(ConfigEventBus.ConfigChanged.class, event -> {
             configChanged = true;
             RecipeUnlockUtil.syncToConfig();
-            // RBIP callback — will be migrated to event bus subscription
-            com.alonie.recipebookispain_extended.RecipeBookIsPain.onConfigChanged();
         });
 
-        // -- Load pins --------------------------------------------------------
+        // -- External module subscriptions ------------------------------------
+        // RBIP subscribes to ConfigEventBus on its own (no more hardcoded call).
+        com.alonie.recipebookispain_extended.RecipeBookIsPain.init(appContext.events());
+
+        // -- Wire async Pin I/O -----------------------------------------------
+        // JsonPinStore writes asynchronously — render thread is never blocked.
+        com.alonie.brbe.pin.JsonPinStore pinStore =
+                new com.alonie.brbe.pin.JsonPinStore(Minecraft.getInstance().gameDirectory.toPath());
+        pinnedRecipeManager.setStore(pinStore);
+
+        // -- Load pins (uses async store when wired, legacy fallback otherwise)
         pinnedRecipeManager.read();
 
         // KeyMapping registration moved to platform entry points
