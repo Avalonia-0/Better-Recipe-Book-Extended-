@@ -64,15 +64,39 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
-        // Align with the right edge of the recipe grid area.
-        // The filter button's right edge (= filterX + 26) matches the
-        // recipe grid's right edge in both vanilla and expanded layouts.
-        // Instant craft button: right edge = grid right edge (bookLeft+136),
-        // top edge = bottom controls row (bookTop+137).  Width 26, height 18.
-        int bookLeft = (this.width - 147) / 2 - this.xOffset;
-        int bookTop = (this.height - 166) / 2;
-        int btnX = bookLeft + 136 - 26;  // gridRight - buttonWidth
-        int btnY = bookTop + 137;        // bottomControls top
+        // Read actual positions from the page at runtime — do NOT compute
+        // bookLeft/bookTop manually.  The page already has correctly-placed
+        // buttons (positioned by GenericRecipePage).
+        // Constraints: right edge = recipe grid right edge,
+        //              bottom = page forward arrow bottom.
+        com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor pageAcc =
+                (com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor)(Object) recipeBookPage;
+        var fwd = pageAcc.getForwardButton();
+
+        // Find grid right edge from the rightmost visible recipe button
+        int gridRight = 0;
+        for (var btn : pageAcc.getButtons()) {
+            if (btn.visible) {
+                int r = btn.getX() + btn.getWidth();
+                if (r > gridRight) gridRight = r;
+            }
+        }
+        if (gridRight == 0) {
+            // Fallback: no buttons yet — derive from book dimensions
+            int bw = brbe$getExpandedBookWidth();
+            int bl = (this.width - bw) / 2 - this.xOffset;
+            gridRight = bl + bw - BookLayout.GRID_PAD;
+        }
+        int btnX = gridRight - 26; // button width 26
+
+        // Y: bottom-aligned with forward arrow
+        int btnY;
+        if (fwd != null) {
+            btnY = fwd.getY() + fwd.getHeight() - 18;
+        } else {
+            int bt = (this.height - 166) / 2;
+            btnY = bt + 137 + 17 - 18;
+        }
 
         this.brbe$instantCraftButton = new StateSwitchingButton(
                 btnX, btnY, 26, 18,

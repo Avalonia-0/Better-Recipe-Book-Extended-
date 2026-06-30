@@ -1,5 +1,6 @@
 package com.alonie.brbe.mixins.accessors;
 
+import net.minecraft.client.gui.components.StateSwitchingButton;
 import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
@@ -20,5 +21,11 @@ public interface RecipeBookPageAccessor {
 
     @Accessor("recipeCollections")
     List<RecipeCollection> getCollections();
+
+    @Accessor("forwardButton")
+    StateSwitchingButton getForwardButton();
+
+    @Accessor("backButton")
+    StateSwitchingButton getBackButton();
 
 }
