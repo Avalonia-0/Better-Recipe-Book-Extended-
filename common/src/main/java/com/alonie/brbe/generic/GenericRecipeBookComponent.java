@@ -15,6 +15,7 @@ import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.BrbeLogger;
 import com.alonie.brbe.util.CollectionPipeline;
+import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.layout.BookLayout;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
