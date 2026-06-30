@@ -1,5 +1,6 @@
 package com.alonie.brbe.config;
 
+import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.InstantCraftingManager;
 import com.alonie.brbe.PinnedRecipeManager;
 import com.alonie.brbe.api.BRBBookCategories;
@@ -66,6 +67,11 @@ public final class AppContext {
         AutoConfig.register(Config.class, Toml4jConfigSerializer::new);
         this.configHolder = AutoConfig.getConfigHolder(Config.class);
         this.config = configHolder.getConfig();
+
+        // Populate backward-compatible static fields IMMEDIATELY — services
+        // created below (InstantCraftingManager etc.) may access them.
+        BetterRecipeBook.configHolder = this.configHolder;
+        BetterRecipeBook.config = this.config;
 
         this.events = new ConfigEventBus();
 
