@@ -128,6 +128,9 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     }
 
     protected void render(GuiGraphicsExtractor gui, int blitX, int blitY, int mouseX, int mouseY, float delta) {
+        // Guard: if initialize() was never called, all fields are null
+        if (this.backButton == null || this.forwardButton == null || this.buttons == null) return;
+
         if (BetterRecipeBook.queuedScroll != 0 && BetterRecipeBook.config.scrolling.enableScrolling) {
             if (isMouseOverRecipeBookPage(mouseX, mouseY, blitX, blitY) && totalPages > 1) {
                 currentPage += BetterRecipeBook.queuedScroll;
@@ -189,6 +192,7 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     }
 
     protected void updateArrowButtons() {
+        if (forwardButton == null || backButton == null) return;
         if (BetterRecipeBook.config.scrolling.scrollAround && totalPages > 1) {
             forwardButton.visible = true;
             backButton.visible = true;
@@ -199,7 +203,7 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     }
 
     public void drawTooltip(GuiGraphicsExtractor gui, int x, int y) {
-        if (this.minecraft.gui.screen() != null && hoveredButton != null) {
+        if (this.minecraft != null && this.minecraft.gui.screen() != null && hoveredButton != null) {
             ClientCompat.setComponentTooltipForNextFrame(gui, this.hoveredButton.getTooltipText(), x, y);
         }
     }

@@ -30,6 +30,16 @@ public final class PartialCraftingUtil {
     }
 
     /**
+     * Force a full rebuild on the next {@code updateCollections} pass.
+     * Call when config options affecting partial-craftable display change
+     * (e.g. {@code partialMarkingEnabled} toggled).
+     */
+    public static void invalidateCaches() {
+        tagger.clearAll();
+        tagger.beginFiltering(false);
+    }
+
+    /**
      * Single point-of-control for the partial material marking feature.
      * All public methods check this before doing any work, so callers
      * never need to repeat the config gate.

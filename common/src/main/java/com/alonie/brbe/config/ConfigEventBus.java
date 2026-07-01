@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 
 /**
@@ -23,6 +24,18 @@ import java.util.function.Consumer;
 public final class ConfigEventBus {
 
     private final Map<Class<?>, List<Consumer<?>>> listeners = new ConcurrentHashMap<>();
+
+    private final AtomicBoolean configChangePending = new AtomicBoolean(false);
+
+    /** Called from render loop: atomically check-and-clear the config-change flag. */
+    public boolean consumeConfigChange() {
+        return configChangePending.getAndSet(false);
+    }
+
+    /** Request a UI rebuild on the next render frame. Thread-safe. */
+    public void requestConfigRefresh() {
+        configChangePending.set(true);
+    }
 
     /**
      * Subscribe to events of the given type.  The listener is called

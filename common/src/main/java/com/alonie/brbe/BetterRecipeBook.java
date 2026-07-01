@@ -7,6 +7,7 @@ import com.alonie.brbe.config.Config;
 import com.alonie.brbe.config.ConfigEventBus;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.pin.JsonPinStore;
+import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.cache.VanillaRecipeCache;
 import com.alonie.brbe.util.RecipeUnlockUtil;
@@ -117,6 +118,11 @@ public class BetterRecipeBook {
             // Populate backward-compatible static fields from AppContext
             pinnedRecipeManager = appContext.pins();
             instantCraftingManager = appContext.instantCraft();
+
+            // When partial marking config changes, invalidate caches immediately
+            appContext.events().subscribe(ConfigEventBus.PartialCraftingChanged.class, event -> {
+                PartialCraftingUtil.invalidateCaches();
+            });
 
             // Wire legacy config save listener for unlock recipes
             configHolder.registerSaveListener((holder, cfg) -> {

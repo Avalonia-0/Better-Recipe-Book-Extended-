@@ -47,6 +47,8 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
     }
 
     public void extractWidgetRenderState(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta) {
+        if (this.collection == null) return;
+
         if (!ClientCompat.isControlDown()) {
             this.time += delta;
         }
