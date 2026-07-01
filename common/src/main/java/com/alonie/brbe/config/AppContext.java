@@ -39,27 +39,25 @@ public final class AppContext {
 
     private final BRBHelper.Book brewing;
     private final BRBHelper.Book smithing;
-    private final BRBBookCategories.Category brewingPotion;
-    private final BRBBookCategories.Category brewingSplashPotion;
-    private final BRBBookCategories.Category brewingLingeringPotion;
-    private final BRBBookCategories.Category smithingSearch;
-    private final BRBBookCategories.Category smithingTransform;
-    private final BRBBookCategories.Category smithingTrim;
+    private volatile BRBBookCategories.Category brewingPotion;
+    private volatile BRBBookCategories.Category brewingSplashPotion;
+    private volatile BRBBookCategories.Category brewingLingeringPotion;
+    private volatile BRBBookCategories.Category smithingSearch;
+    private volatile BRBBookCategories.Category smithingTransform;
+    private volatile BRBBookCategories.Category smithingTrim;
+    private volatile boolean categoriesInitialized = false;
 
     private AppContext(Config config, ConfigHolder<Config> configHolder) {
         this.config = config;
         this.configHolder = configHolder;
         this.events = new ConfigEventBus();
 
-        // Book and category registries (backward-compatible with existing static API)
+        // Book and category registries — deferred because ItemStack
+        // construction fails before the game registry is fully bound in 26.2.
+        // Initialized lazily via ensureCategories().
         this.brewing = BRBHelper.createBook("brbe", "brewing_stand");
         this.smithing = BRBHelper.createBook("brbe", "smithing_table");
-        this.brewingPotion = brewing.createCategory(new ItemStack(Items.POTION));
-        this.brewingSplashPotion = brewing.createCategory(new ItemStack(Items.SPLASH_POTION));
-        this.brewingLingeringPotion = brewing.createCategory(new ItemStack(Items.LINGERING_POTION));
-        this.smithingSearch = smithing.createSearch();
-        this.smithingTransform = smithing.createCategory(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE));
-        this.smithingTrim = smithing.createCategory(new ItemStack(Items.NETHERITE_CHESTPLATE));
+        // categories populated by ensureCategories()
 
         // Services (Pin I/O deferred — needs gameDir from BetterRecipeBook.init())
         this.bookLayout = new BookLayout();
@@ -99,6 +97,21 @@ public final class AppContext {
         return INSTANCE;
     }
 
+    // -- Lazy category init ---------------------------------------------------
+
+    /** Lazy-init book categories.  ItemStack construction fails in 26.2
+     * before the game registry is fully bound, so we defer until first access. */
+    public synchronized void ensureCategories() {
+        if (categoriesInitialized) return;
+        categoriesInitialized = true;
+        this.brewingPotion = brewing.createCategory(new ItemStack(Items.POTION));
+        this.brewingSplashPotion = brewing.createCategory(new ItemStack(Items.SPLASH_POTION));
+        this.brewingLingeringPotion = brewing.createCategory(new ItemStack(Items.LINGERING_POTION));
+        this.smithingSearch = smithing.createSearch();
+        this.smithingTransform = smithing.createCategory(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE));
+        this.smithingTrim = smithing.createCategory(new ItemStack(Items.NETHERITE_CHESTPLATE));
+    }
+
     // -- Getters --------------------------------------------------------------
 
     public Config config() { return config; }
@@ -109,12 +122,12 @@ public final class AppContext {
     public BookLayout bookLayout() { return bookLayout; }
     public RecipeViewerRegistry recipeViewers() { return recipeViewers; }
 
-    public BRBHelper.Book brewingBook() { return brewing; }
-    public BRBHelper.Book smithingBook() { return smithing; }
-    public BRBBookCategories.Category brewingPotion() { return brewingPotion; }
-    public BRBBookCategories.Category brewingSplashPotion() { return brewingSplashPotion; }
-    public BRBBookCategories.Category brewingLingeringPotion() { return brewingLingeringPotion; }
-    public BRBBookCategories.Category smithingSearch() { return smithingSearch; }
-    public BRBBookCategories.Category smithingTransform() { return smithingTransform; }
-    public BRBBookCategories.Category smithingTrim() { return smithingTrim; }
+    public BRBHelper.Book brewingBook() { ensureCategories(); return brewing; }
+    public BRBHelper.Book smithingBook() { ensureCategories(); return smithing; }
+    public BRBBookCategories.Category brewingPotion() { ensureCategories(); return brewingPotion; }
+    public BRBBookCategories.Category brewingSplashPotion() { ensureCategories(); return brewingSplashPotion; }
+    public BRBBookCategories.Category brewingLingeringPotion() { ensureCategories(); return brewingLingeringPotion; }
+    public BRBBookCategories.Category smithingSearch() { ensureCategories(); return smithingSearch; }
+    public BRBBookCategories.Category smithingTransform() { ensureCategories(); return smithingTransform; }
+    public BRBBookCategories.Category smithingTrim() { ensureCategories(); return smithingTrim; }
 }
