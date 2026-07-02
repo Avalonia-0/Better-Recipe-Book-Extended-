@@ -149,4 +149,17 @@ public final class RecipeCollectionTagger<T> {
         tags.clear();
         checkedGenerations.clear();
     }
+
+    /** Clear only checked-generation marks.  Preserves tag data so that
+
+     * stale-data queries (Raw / EvenIfStale) can still find previously-
+
+     * injected entries for cleanup.  Call this instead of {@link #clearAll()}
+
+     * when you want to force re-evaluation without losing cleanup targets. */
+    public void clearCheckedGenerations() {
+
+        checkedGenerations.clear();
+
+    }
 }

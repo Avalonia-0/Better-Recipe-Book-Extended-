@@ -3,6 +3,8 @@
   "text.autoconfig.brbe.category.default": "常规设置",
   "text.autoconfig.brbe.option.enableBook": "启用配方书",
   "text.autoconfig.brbe.option.keepCentered": "保持制作屏幕居中",
+  "text.autoconfig.brbe.option.expandedRecipeBook": "新的配方书界面（尚未完工）",
+  "text.autoconfig.brbe.option.expandedRecipeBook.@Tooltip": "更大的配方书，新的UI布局。暂时还没法正常使用，不过可以看看。",
   "text.autoconfig.brbe.option.enablePinning": "启用配方固定",
   "text.autoconfig.brbe.option.showModName": "显示物品来源模组",
   "text.autoconfig.brbe.option.showModName.@Tooltip": "显示物品的来源模组，与 Jade 类似。",

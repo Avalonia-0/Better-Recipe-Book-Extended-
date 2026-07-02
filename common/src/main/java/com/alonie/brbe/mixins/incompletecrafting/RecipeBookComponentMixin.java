@@ -39,6 +39,12 @@ public abstract class RecipeBookComponentMixin {
     @Shadow
     private net.minecraft.client.gui.components.EditBox searchBox;
 
+    @Shadow
+    private net.minecraft.client.ClientRecipeBook book;
+
+    @Shadow
+    private List<net.minecraft.client.gui.screens.recipebook.RecipeBookComponent.TabInfo> tabInfos;
+
     @Unique
     private long brbe$lastSlotHash;
 
@@ -58,6 +64,38 @@ public abstract class RecipeBookComponentMixin {
                 && this.minecraft != null
                 && this.minecraft.gui.screen() instanceof InventoryScreen;
         IncompatibleCraftingUtil.beginFiltering(retainIncompatible);
+    }
+
+    /**
+     * After vanilla clears and repopulates craftable sets for all
+     * collections (via the abstract selectMatchingRecipes per-collection
+     * method), re-inject partially-craftable recipes that were previously
+     * marked.  Without this, tick() → updateStackedContents() →
+     * selectMatchingRecipes() wipes the injection that was done during
+     * the previous updateCollections() call, causing partial recipes to
+     * appear for one frame then disappear.
+     */
+    @Inject(method = "selectMatchingRecipes", at = @At("RETURN"))
+    private void brbe$reinjectAfterSelectMatching(CallbackInfo ci) {
+        if (!BetterRecipeBook.config.partialMarkingEnabled) return;
+
+        boolean filter3x3 = !BetterRecipeBook.config.showAllRecipesInSurvival;
+
+        for (net.minecraft.client.gui.screens.recipebook.RecipeBookComponent.TabInfo tabInfo : this.tabInfos) {
+            for (RecipeCollection collection : this.book.getCollection(tabInfo.category())) {
+                if (PartialCraftingUtil.hasPartialMaterialsEvenIfStale(collection)) {
+                    RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+                    for (RecipeDisplayEntry entry : collection.getRecipes()) {
+                        if (PartialCraftingUtil.isPartiallyCraftableEvenIfStale(collection, entry.id())) {
+                            if (filter3x3 && brbe$needsLargerGrid(entry.display())) {
+                                continue;
+                            }
+                            accessor.brbe$getCraftable().add(entry.id());
+                        }
+                    }
+                }
+            }
+        }
     }
 
     // ordinal = 0: 26.1.2 has three removeIf(Predicate) calls inside

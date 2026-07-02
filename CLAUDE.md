@@ -109,9 +109,9 @@ Potion brewing is platform-dependent (`PotionBrewing.Mix` is package-private). E
 
 # Deploy (build JAR → copy to test instance)
 # Fabric:
-cp fabric/build/libs/BetterRecipeBookExtended-fabric-26.2-2.1.3.jar /media/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/
+cp fabric/build/libs/BetterRecipeBookExtended-fabric-26.2-2.1.5.jar /media/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/
 # NeoForge:
-cp neoforge/build/libs/BetterRecipeBookExtended-neoforge-26.2-2.1.3.jar /media/avalonia/data/MinecraftLib/versions/26.2-NeoForge/mods/
+cp neoforge/build/libs/BetterRecipeBookExtended-neoforge-26.2-2.1.5.jar /media/avalonia/data/MinecraftLib/versions/26.2-NeoForge/mods/
 ```
 
 Test instance paths follow the pattern `/media/avalonia/data/MinecraftLib/versions/<version>-<loader>/mods/`.

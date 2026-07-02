@@ -87,13 +87,21 @@ public final class VanillaRecipeCache {
     }
 
     private static Set<String> collectServerResultItems(Map<RecipeDisplayId, RecipeDisplayEntry> known) {
-        Set<String> items = new HashSet<>();
+        Set<String> keys = new HashSet<>();
         for (RecipeDisplayEntry entry : known.values()) {
             String rid = extractResultItemId(entry.display().result());
-            if (rid != null) items.add(rid);
+            if (rid != null) {
+                String catStr = entry.category() != null
+                        ? BuiltInRegistries.RECIPE_BOOK_CATEGORY.getKey(entry.category()).toString()
+                        : "unknown";
+                if (catStr.startsWith("minecraft:"))
+                    catStr = catStr.substring("minecraft:".length());
+                keys.add(catStr + ":" + rid);
+            }
         }
-        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] server covers {} unique result items", items.size());
-        return items;
+        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] server covers {} unique category:item entries",
+                keys.size());
+        return keys;
     }
 
     private static void injectEntries(Map<RecipeDisplayId, RecipeDisplayEntry> known,
@@ -108,10 +116,13 @@ public final class VanillaRecipeCache {
         boolean complementMode = !serverResultItems.isEmpty();
         for (CacheableRecipeDisplayEntry cEntry : cache.values()) {
             try {
-                if (complementMode && cEntry.resultItem() != null
-                        && serverResultItems.contains(cEntry.resultItem())) {
-                    skippedCount++;
-                    continue;
+                if (complementMode && cEntry.resultItem() != null) {
+                    String matchKey = (cEntry.categoryName() != null ? cEntry.categoryName() : "unknown")
+                            + ":" + cEntry.resultItem();
+                    if (serverResultItems.contains(matchKey)) {
+                        skippedCount++;
+                        continue;
+                    }
                 }
                 String cat = cEntry.categoryName() != null ? cEntry.categoryName() : "unknown";
                 RecipeDisplayId newId = new RecipeDisplayId(nextId--);
@@ -169,4 +180,55 @@ public final class VanillaRecipeCache {
     public static boolean isLocalRecipe(RecipeDisplayId id) { return id.index() < 0; }
     public static boolean hasEntries() { return !cache.isEmpty(); }
     public static int cacheSize() { return cache.size(); }
+
+    // ---- Full dump for diff debugging ----
+
+    /**
+     * Dump every entry in known to the log in a compact, diffable format:
+     * {@code [BRBE-DUMP] category source[id] resultItem}
+     *
+     * <p>Always-on.  Entries are sorted by category then result item so two
+     * logs can be compared with standard diff tools to identify missing recipes.
+     */
+    public static void dumpAllKnown(Map<RecipeDisplayId, RecipeDisplayEntry> known) {
+        // Always-on: lightweight structured log for diff debugging
+
+        List<Map.Entry<RecipeDisplayId, RecipeDisplayEntry>> sorted =
+                new ArrayList<>(known.entrySet());
+        sorted.sort((a, b) -> {
+            String catA = categoryKey(a.getValue().category());
+            String catB = categoryKey(b.getValue().category());
+            int cmp = catA.compareTo(catB);
+            if (cmp != 0) return cmp;
+            String itemA = java.util.Objects.toString(
+                    extractResultItemId(a.getValue().display().result()), "");
+            String itemB = java.util.Objects.toString(
+                    extractResultItemId(b.getValue().display().result()), "");
+            return itemA.compareTo(itemB);
+        });
+
+        BetterRecipeBook.LOGGER.info("[BRBE-DUMP] === BEGIN {} entries ===", known.size());
+        for (var entry : sorted) {
+            RecipeDisplayId id = entry.getKey();
+            RecipeDisplayEntry val = entry.getValue();
+            String source = id.index() < 0 ? "cache" : "server";
+            String cat = categoryKey(val.category());
+            String result = extractResultItemId(val.display().result());
+            if (result == null) result = "<no-item>";
+            BetterRecipeBook.LOGGER.info("[BRBE-DUMP] {} {}[{}] {}",
+                    cat, source, id.index(), result);
+        }
+        BetterRecipeBook.LOGGER.info("[BRBE-DUMP] === END {} entries ===", known.size());
+    }
+
+    /**
+     * Convert a RecipeBookCategory to a short, namespace-stripped key for
+     * log output and comparison.
+     */
+    private static String categoryKey(net.minecraft.world.item.crafting.RecipeBookCategory category) {
+        if (category == null) return "unknown";
+        String key = BuiltInRegistries.RECIPE_BOOK_CATEGORY.getKey(category).toString();
+        if (key.startsWith("minecraft:")) return key.substring("minecraft:".length());
+        return key;
+    }
 }

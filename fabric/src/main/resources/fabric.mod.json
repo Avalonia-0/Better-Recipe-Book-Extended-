@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "brbe",
-  "version": "2.1.4c",
+  "version": "2.1.5",
   "name": "Better Recipe Book (Extended)",
   "description": "Adds some quality of life changes to the recipe book",
   "authors": [
@@ -9,6 +9,7 @@
   ],
   "contributors": [
     "Avalonia_0",
+    "melontini",
     "ruvaldak",
     "Felix14-v2",
     "buiawpkgew1",

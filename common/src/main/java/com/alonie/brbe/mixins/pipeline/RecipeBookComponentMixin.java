@@ -111,10 +111,11 @@ public abstract class RecipeBookComponentMixin {
         // Stage 3: Pins sort (in-place — moves pinned to front)
         CollectionPipeline.applyPins(list);
 
-        // Stage 4: Craftable-before-partial sort
+        // Stage 4: Craftable-before-partial sort (pin-aware).
+        // Only when partialCraftingEnabled is true — partialMarkingEnabled
+        // only affects recipe STATUS (red overlay), not sorting order.
         {
-            boolean shouldSort = BetterRecipeBook.config.partialCraftingEnabled
-                    || (BetterRecipeBook.config.partialMarkingEnabled && isFiltering);
+            boolean shouldSort = BetterRecipeBook.config.partialCraftingEnabled;
             if (shouldSort) {
                 boolean useFullSort = BetterRecipeBook.config.partialCraftingEnabled || isFiltering;
                 boolean hasPartialData = BetterRecipeBook.config.partialMarkingEnabled;
@@ -122,9 +123,10 @@ public abstract class RecipeBookComponentMixin {
             }
         }
 
-        // Stage 5: Filter toggle — remove non-craftable collections when filtering
-        list = CollectionPipeline.applyFilterToggle(list, isFiltering);
-
+        // Note: Filter toggle is handled by the incompletecrafting mixin's
+        // removeIf redirect, which injects partially-craftable recipes into
+        // the craftable set so they survive the vanilla filter.  The pipeline
+        // is responsible only for sorting, not filtering.
         page.updateCollections(list, resetPageNumber, isFiltering);
     }
 }
