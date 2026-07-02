@@ -162,8 +162,8 @@ Both must be kept in sync when adding new mixin targets that need private/protec
 ./gradlew cleanLoomCache && rm -rf .gradle && ./gradlew build
 
 # Deploy (build JAR → copy to test instance)
-cp fabric/build/libs/BetterRecipeBookExtended-fabric-26.1.2-2.1.4b.jar /media/…/26.1.2-Fabric/mods/
-cp neoforge/build/libs/BetterRecipeBookExtended-neoforge-26.1.2-2.1.4b.jar /media/…/26.1.2-NeoForge/mods/
+cp fabric/build/libs/BetterRecipeBookExtended-fabric-26.1.2-2.1.5.jar /media/…/26.1.2-Fabric/mods/
+cp neoforge/build/libs/BetterRecipeBookExtended-neoforge-26.1.2-2.1.5.jar /media/…/26.1.2-NeoForge/mods/
 ```
 
 Test instance paths follow the pattern `/media/avalonia/data/MinecraftLib/versions/<version>-<loader>/mods/`.

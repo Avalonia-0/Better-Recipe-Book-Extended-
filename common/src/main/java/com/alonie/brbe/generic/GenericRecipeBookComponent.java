@@ -14,6 +14,7 @@ import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.widget.StateSwitchingButton;
+import com.alonie.brbe.layout.BookLayout;
 import net.minecraft.client.Minecraft;
 import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -119,14 +120,14 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     public void initVisuals() {
-        if (BetterRecipeBook.config.keepCentered) {
-            this.xOffset = this.widthTooNarrow ? 0 : 162;
+        if (BetterRecipeBook.ctx().config().keepCentered) {
+            this.xOffset = this.widthTooNarrow ? 0 : BookLayout.X_OFFSET_CENTERED;
         } else {
-            this.xOffset = this.widthTooNarrow ? 0 : 86;
+            this.xOffset = this.widthTooNarrow ? 0 : BookLayout.X_OFFSET_STANDARD;
         }
 
-        int i = (this.width - 147) / 2 - this.xOffset;
-        int j = (this.height - 166) / 2;
+        int i = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset;
+        int j = (this.height - BookLayout.TEXTURE_HEIGHT) / 2;
         this.stackedContents.clear();
         if (this.minecraft.player == null) return;
         this.minecraft.player.getInventory().fillStackedContents(this.stackedContents);
@@ -134,7 +135,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 //        this.menu.fillCraftSlotsStackedContents(this.stackedContents);
         String string = this.searchBox != null ? this.searchBox.getValue() : "";
         Objects.requireNonNull(this.minecraft.font);
-        this.searchBox = new EditBox(this.minecraft.font, i + 25, j + 13, 81, this.minecraft.font.lineHeight + 5, Component.translatable("itemGroup.search"));
+        this.searchBox = new EditBox(this.minecraft.font, i + BookLayout.SEARCH_X_OFFSET, j + BookLayout.SEARCH_Y_OFFSET, BookLayout.SEARCH_WIDTH, this.minecraft.font.lineHeight + 5, Component.translatable("itemGroup.search"));
         this.searchBox.setMaxLength(50);
         this.searchBox.setVisible(true);
         this.searchBox.setTextColor(0xFFFFFF);
@@ -143,7 +144,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.settingsButton = createSettingsButton(i, j);
         this.recipesPage.initialize(this.minecraft, i, j, menu, xOffset);
         this.tabButtons.clear();
-        this.filterButton = new StateSwitchingButton(i + 110, j + 12, 26, 16, false);
+        this.filterButton = new StateSwitchingButton(i + BookLayout.TEXTURE_WIDTH - 37, j + BookLayout.FILTER_Y_OFFSET, BookLayout.FILTER_WIDTH, BookLayout.FILTER_HEIGHT, false);
         this.filterButton.useStateTriggeredForTexture(true);
         this.filterButton.setStateTriggered(BRBBookSettings.isFiltering(this.getRecipeBookType()));
         this.filterButton.initTextureValues(BRBTextures.RECIPE_BOOK_FILTER_BUTTON_SPRITES);
@@ -182,9 +183,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         gui.pose().pushMatrix();
 
         // blit recipe book background texture
-        int blitX = (this.width - 147) / 2 - this.xOffset;
-        int blitY = (this.height - 166) / 2;
-        gui.blit(ClientCompat.GUI_TEXTURED, BRBTextures.RECIPE_BOOK_BACKGROUND_TEXTURE, blitX, blitY, 1.0F, 1.0F, 147, 166, 256, 256);
+        int blitX = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset;
+        int blitY = (this.height - BookLayout.TEXTURE_HEIGHT) / 2;
+        gui.blit(ClientCompat.GUI_TEXTURED, BRBTextures.RECIPE_BOOK_BACKGROUND_TEXTURE, blitX, blitY, 1.0F, 1.0F, BookLayout.TEXTURE_WIDTH, BookLayout.TEXTURE_HEIGHT, 256, 256);
 
         // render search box
         this.searchBox.extractRenderState(gui, mouseX, mouseY, delta);
@@ -233,7 +234,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             return true;
         }
 
-        if (ClientCompat.matches(BetterRecipeBook.PIN_MAPPING, i, j, k) && BetterRecipeBook.config.enablePinning) {
+        if (ClientCompat.matches(BetterRecipeBook.PIN_MAPPING, i, j, k) && BetterRecipeBook.ctx().config().enablePinning) {
             for (GenericRecipeButton<C, R, M> resultButton : this.recipesPage.buttons) {
                 if (resultButton.isHoveredOrFocused()) {
                     BetterRecipeBook.pinnedRecipeManager.addOrRemoveFavourite(resultButton.getCollection());
@@ -411,7 +412,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             return true;
         }
         boolean bl = d < (double) i || e < (double) j || d >= (double) (i + k) || e >= (double) (j + l);
-        boolean bl2 = (double) (i - 147) < d && d < (double) i && (double) j < e && e < (double) (j + l);
+        boolean bl2 = (double) (i - BookLayout.TEXTURE_WIDTH) < d && d < (double) i && (double) j < e && e < (double) (j + l);
 //        return bl && !bl2 && !this.selectedTab.isHoveredOrFocused();
         return bl && !bl2;
     }
@@ -424,7 +425,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (!this.isVisible()) return false;
 
-        if (this.recipesPage.mouseClicked(mouseX, mouseY, button, (this.width - 147) / 2 - this.xOffset, (this.height - 166) / 2, 147, 166)) {
+        if (this.recipesPage.mouseClicked(mouseX, mouseY, button, (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset, (this.height - BookLayout.TEXTURE_HEIGHT) / 2, BookLayout.TEXTURE_WIDTH, BookLayout.TEXTURE_HEIGHT)) {
             this.handlePlaceRecipe();
             return true;
         }
@@ -519,9 +520,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             return false;
         }
 
-        int left = (this.width - 147) / 2 - this.xOffset;
-        int top = (this.height - 166) / 2;
-        if (mouseX >= left && mouseX < left + 147 && mouseY >= top && mouseY < top + 166) {
+        int left = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset;
+        int top = (this.height - BookLayout.TEXTURE_HEIGHT) / 2;
+        if (mouseX >= left && mouseX < left + BookLayout.TEXTURE_WIDTH && mouseY >= top && mouseY < top + BookLayout.TEXTURE_HEIGHT) {
             return true;
         }
 
@@ -565,8 +566,8 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     protected void refreshTabButtons() {
-        int i = (this.width - 147) / 2 - this.xOffset - 30;
-        int j = (this.height - 166) / 2 + 3;
+        int i = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset - BookLayout.TAB_BUTTON_WIDTH;
+        int j = (this.height - BookLayout.TEXTURE_HEIGHT) / 2 + BookLayout.TAB_TOP_OFFSET;
         int l = 0;
         BRBGroupButtonWidget firstVisibleButton = null;
         BRBGroupButtonWidget lastVisibleButton = null;
@@ -576,7 +577,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             if (category.getType() == BRBBookCategories.Category.Type.SEARCH) {
                 button.visible = true;
             }
-            button.setPosition(i, j + 27 * l++);
+            button.setPosition(i, j + BookLayout.TAB_BUTTON_SPACING * l++);
             button.setIconYOffset(0);
             if (button.visible) {
                 if (firstVisibleButton == null) {

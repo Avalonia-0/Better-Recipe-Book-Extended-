@@ -51,13 +51,6 @@ subprojects {
 
         // fabric-loader provides Mixin and @Environment at compile time
         compileOnly "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
-
-        // Common module: compile-only deps (platform modules provide at runtime)
-        if (project.name == "common") {
-            compileOnly("dev.architectury:architectury-fabric:${rootProject.architectury_version}") {
-                exclude group: "net.fabricmc.fabric-api"
-            }
-        }
     }
 
     jar {
@@ -117,6 +110,6 @@ allprojects {
     }
 
     java {
-        withSourcesJar()
+        // withSourcesJar()  -- disabled: do not package source JARs
     }
 }

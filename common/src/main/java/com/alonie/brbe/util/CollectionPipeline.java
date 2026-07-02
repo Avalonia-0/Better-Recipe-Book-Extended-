@@ -93,7 +93,7 @@ public final class CollectionPipeline {
             }
 
             RecipeCollectionAccessor source = (RecipeCollectionAccessor) collection;
-            boolean restrictToCraftableOrPartial = PartialCraftingUtil.hasPartialMaterials(collection)
+            boolean restrictToCraftableOrPartial = PartialCraftingUtil.hasPartialMaterialsEvenIfStale(collection)
                     || collection.hasCraftable();
             boolean addedAny = false;
 
@@ -103,7 +103,7 @@ public final class CollectionPipeline {
                 }
 
                 boolean isCraftable = source.brbe$getCraftable().contains(recipe.id());
-                boolean isPartial = PartialCraftingUtil.isPartiallyCraftable(collection, recipe.id());
+                boolean isPartial = PartialCraftingUtil.isPartiallyCraftableEvenIfStale(collection, recipe.id());
                 if (restrictToCraftableOrPartial && !isCraftable && !isPartial) {
                     continue;
                 }
@@ -154,43 +154,90 @@ public final class CollectionPipeline {
     // ---- Stage 4: Partial sort ----
 
     /**
-     * Sorts collections: truly-craftable first, then partial, then uncraftable.
-     * When {@code useFullSort} is false, uses a simpler 2-group sort
-     * (any-craftable-or-partial before rest).
+     * Sorts collections with pinned recipes always at highest priority,
+     * then fully-craftable, then partially-craftable, then uncraftable.
+     *
+     * <p>Pin priority is absolute: a pinned uncraftable recipe comes
+     * before an unpinned craftable one.  Within each pin group, the
+     * standard category ordering applies.
      */
     public static List<RecipeCollection> applyPartialSort(
             List<RecipeCollection> collections,
             boolean useFullSort,
             boolean hasPartialData) {
 
-        List<RecipeCollection> front = new ArrayList<>();
-        List<RecipeCollection> middle = new ArrayList<>();
-        List<RecipeCollection> back = new ArrayList<>();
+        // Phase 1: split by pin status × category
+        List<RecipeCollection> pinnedCraftable = new ArrayList<>();
+        List<RecipeCollection> pinnedPartial = new ArrayList<>();
+        List<RecipeCollection> pinnedUncraftable = new ArrayList<>();
+        List<RecipeCollection> unpinnedCraftable = new ArrayList<>();
+        List<RecipeCollection> unpinnedPartial = new ArrayList<>();
+        List<RecipeCollection> unpinnedUncraftable = new ArrayList<>();
 
         for (RecipeCollection c : collections) {
+            boolean isPinned = BetterRecipeBook.config.enablePinning
+                    && BetterRecipeBook.pinnedRecipeManager.has(
+                        PinnableRecipeCollection.of(c));
+
             if (hasPartialData) {
-                CollectionCategory cat = PartialCraftingUtil.categorize(c);
-                if (useFullSort) {
+                // Use EvenIfStale: generation-aware queries can return false
+                // when the generation was incremented without re-marking (e.g.
+                // inventory unchanged between tab switches). EvenIfStale
+                // guarantees consistent sorting regardless of generation state.
+                CollectionCategory cat = categorizeEvenIfStale(c);
+                if (isPinned) {
                     switch (cat) {
-                        case TRULY_CRAFTABLE -> front.add(c);
-                        case PARTIAL -> middle.add(c);
-                        case UNASSIGNED -> back.add(c);
+                        case TRULY_CRAFTABLE -> pinnedCraftable.add(c);
+                        case PARTIAL -> pinnedPartial.add(c);
+                        case UNASSIGNED -> pinnedUncraftable.add(c);
                     }
                 } else {
-                    if (cat != CollectionCategory.UNASSIGNED) front.add(c);
-                    else back.add(c);
+                    switch (cat) {
+                        case TRULY_CRAFTABLE -> unpinnedCraftable.add(c);
+                        case PARTIAL -> unpinnedPartial.add(c);
+                        case UNASSIGNED -> unpinnedUncraftable.add(c);
+                    }
                 }
             } else {
-                if (c.hasCraftable()) front.add(c);
-                else back.add(c);
+                if (c.hasCraftable()) {
+                    if (isPinned) pinnedCraftable.add(c);
+                    else unpinnedCraftable.add(c);
+                } else {
+                    if (isPinned) pinnedUncraftable.add(c);
+                    else unpinnedUncraftable.add(c);
+                }
             }
         }
 
+        // Phase 2: pinned before unpinned in each category
         List<RecipeCollection> result = new ArrayList<>(collections.size());
-        result.addAll(front);
-        result.addAll(middle);
-        result.addAll(back);
+        result.addAll(pinnedCraftable);
+        result.addAll(pinnedPartial);
+        result.addAll(pinnedUncraftable);
+        result.addAll(unpinnedCraftable);
+        result.addAll(unpinnedPartial);
+        result.addAll(unpinnedUncraftable);
         return result;
+    }
+
+    /**
+     * Like {@link PartialCraftingUtil#categorize} but uses EvenIfStale
+     * queries.  Safe to call regardless of generation state — guarantees
+     * consistent sorting even when the tagger generation was incremented
+     * without re-marking collections.
+     */
+    private static CollectionCategory categorizeEvenIfStale(RecipeCollection c) {
+        boolean truly = false, partial = false;
+        for (RecipeDisplayEntry entry : c.getRecipes()) {
+            if (PartialCraftingUtil.isPartiallyCraftableEvenIfStale(c, entry.id())) {
+                partial = true;
+            } else if (c.isCraftable(entry.id())) {
+                truly = true;
+            }
+        }
+        if (truly) return CollectionCategory.TRULY_CRAFTABLE;
+        if (partial) return CollectionCategory.PARTIAL;
+        return CollectionCategory.UNASSIGNED;
     }
 
     // ---- Stage 5: Filter toggle ----
@@ -208,8 +255,11 @@ public final class CollectionPipeline {
         boolean hasPartial = BetterRecipeBook.config.partialMarkingEnabled;
         List<RecipeCollection> result = new ArrayList<>();
         for (RecipeCollection coll : collections) {
+            // Use EvenIfStale: generation-aware hasPartialMaterials can
+            // return false after a generation bump without re-marking,
+            // causing partial collections to be incorrectly filtered out.
             boolean keep = hasPartial
-                    ? coll.hasCraftable() || PartialCraftingUtil.hasPartialMaterials(coll)
+                    ? coll.hasCraftable() || PartialCraftingUtil.hasPartialMaterialsEvenIfStale(coll)
                     : coll.hasCraftable();
             if (keep) result.add(coll);
         }

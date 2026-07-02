@@ -27,6 +27,9 @@ public final class VanillaRecipeLoader {
     private static final String JSON_EXT = ".json";
 
     // Special recipe types that have no GUI representation (isSpecial() == true)
+    // crafting_transmute is NOT special — it is a first-class recipe type used for
+    // dyeing shulker boxes and bundles.  It has full JSON representation and a
+    // standard SlotDisplay; we handle it like shapeless crafting.
     private static final Set<String> SKIP_TYPES = Set.of(
             "minecraft:crafting_decorated_pot",
             "minecraft:crafting_special_bookcloning",
@@ -38,8 +41,7 @@ public final class VanillaRecipeLoader {
             "minecraft:crafting_special_shielddecoration",
             "minecraft:crafting_special_repairitem",
             "minecraft:crafting_dye",
-            "minecraft:crafting_imbue",
-            "minecraft:crafting_transmute"
+            "minecraft:crafting_imbue"
     );
 
     // JSON "category" → RecipeBookCategory registry name (prefix is applied per type)
@@ -151,6 +153,7 @@ public final class VanillaRecipeLoader {
         if (t.equals("minecraft:stonecutting")) return "stonecutter";
         if (t.equals("minecraft:smithing_transform")) return "smithing_transform";
         if (t.equals("minecraft:smithing_trim")) return "smithing_trim";
+        if (t.equals("minecraft:crafting_transmute")) return "transmute";
         return null; // skip
     }
 
@@ -319,6 +322,27 @@ public final class VanillaRecipeLoader {
     static int extractShapedHeight(JsonObject json) {
         JsonArray pattern = json.getAsJsonArray("pattern");
         return pattern != null ? pattern.size() : 0;
+    }
+
+    /**
+     * Extract ingredients from a transmute recipe's "input" + "material" fields.
+     * Transmute recipes (shulker box dyeing, bundle dyeing) have an input item
+     * (the thing being transformed) and a material (the dye/catalyst consumed).
+     * Both are rendered as ingredient slots in the recipe display.
+     */
+    static List<List<String>> extractTransmuteIngredients(JsonObject json) {
+        List<List<String>> ingredients = new ArrayList<>();
+        JsonElement input = json.get("input");
+        if (input != null) {
+            List<String> parsed = parseIngredientEntry(input);
+            if (parsed != null) ingredients.add(parsed);
+        }
+        JsonElement material = json.get("material");
+        if (material != null) {
+            List<String> parsed = parseIngredientEntry(material);
+            if (parsed != null) ingredients.add(parsed);
+        }
+        return ingredients.isEmpty() ? null : ingredients;
     }
 
     /** Extract a single ingredient from cooking/stonecutting recipes ("ingredient" field). */
