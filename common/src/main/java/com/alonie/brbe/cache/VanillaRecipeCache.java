@@ -113,17 +113,31 @@ public final class VanillaRecipeCache {
     }
 
     /**
-     * Collects result item IDs from server-provided entries (positive IDs).
+     * Collects category:itemId pairs from server-provided entries (positive IDs).
+     *
+     * <p>Each pair is {@code "categoryName:itemId"} (e.g.
+     * {@code "furnace_food:minecraft:charcoal"}).  The category is normalised
+     * to the short form used by cache entries (without the {@code minecraft:}
+     * namespace prefix).  Matching on category+item prevents cross-station
+     * shadowing — a furnace recipe for charcoal will not hide the campfire
+     * recipe for the same item.
      */
     private static Set<String> collectServerResultItems(Map<RecipeDisplayId, RecipeDisplayEntry> known) {
-        Set<String> items = new HashSet<>();
+        Set<String> keys = new HashSet<>();
         for (RecipeDisplayEntry entry : known.values()) {
             String rid = extractResultItemId(entry.display().result());
-            if (rid != null) items.add(rid);
+            if (rid != null) {
+                String catStr = entry.category() != null
+                        ? BuiltInRegistries.RECIPE_BOOK_CATEGORY.getKey(entry.category()).toString()
+                        : "unknown";
+                if (catStr.startsWith("minecraft:"))
+                    catStr = catStr.substring("minecraft:".length());
+                keys.add(catStr + ":" + rid);
+            }
         }
-        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] server covers {} unique result items",
-                items.size());
-        return items;
+        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] server covers {} unique category:item entries",
+                keys.size());
+        return keys;
     }
 
     // ---- Injection ----
@@ -131,8 +145,9 @@ public final class VanillaRecipeCache {
     /**
      * Injects cached entries into the known map.
      *
-     * @param serverResultItems result item IDs already covered by the server.
-     *        Entries with result items in this set are skipped.
+     * @param serverResultItems category:itemId pairs already covered by the server
+     *        (e.g. "furnace_food:minecraft:charcoal").  Cache entries whose
+     *        category+resultItem matches a pair in this set are skipped.
      *        Pass an empty set to inject all valid entries.
      */
     private static void injectEntries(Map<RecipeDisplayId, RecipeDisplayEntry> known,
@@ -150,12 +165,16 @@ public final class VanillaRecipeCache {
 
         for (CacheableRecipeDisplayEntry cEntry : cache.values()) {
             try {
-                // In complement mode, skip entries already covered by the server
-                if (complementMode
-                        && cEntry.resultItem() != null
-                        && serverResultItems.contains(cEntry.resultItem())) {
-                    skippedCount++;
-                    continue;
+                // In complement mode, skip entries already covered by the server.
+                // Match on category:itemId to prevent cross-station shadowing
+                // (e.g. a furnace recipe for charcoal must not hide the campfire recipe).
+                if (complementMode && cEntry.resultItem() != null) {
+                    String matchKey = (cEntry.categoryName() != null ? cEntry.categoryName() : "unknown")
+                            + ":" + cEntry.resultItem();
+                    if (serverResultItems.contains(matchKey)) {
+                        skippedCount++;
+                        continue;
+                    }
                 }
 
                 String cat = cEntry.categoryName() != null ? cEntry.categoryName() : "unknown";
@@ -263,4 +282,55 @@ public final class VanillaRecipeCache {
     }
 
     public static int cacheSize() { return cache.size(); }
+
+    // ---- Full dump for diff debugging ----
+
+    /**
+     * Dump every entry in known to the log in a compact, diffable format:
+     * {@code [BRBE-DUMP] category source[id] resultItem}
+     *
+     * <p>Always-on.  Entries are sorted by category then result item so two
+     * logs can be compared with standard diff tools to identify missing recipes.
+     */
+    public static void dumpAllKnown(Map<RecipeDisplayId, RecipeDisplayEntry> known) {
+        // Always-on: lightweight structured log for diff debugging
+
+        List<java.util.Map.Entry<RecipeDisplayId, RecipeDisplayEntry>> sorted =
+                new ArrayList<>(known.entrySet());
+        sorted.sort((a, b) -> {
+            String catA = categoryKey(a.getValue().category());
+            String catB = categoryKey(b.getValue().category());
+            int cmp = catA.compareTo(catB);
+            if (cmp != 0) return cmp;
+            String itemA = java.util.Objects.toString(
+                    extractResultItemId(a.getValue().display().result()), "");
+            String itemB = java.util.Objects.toString(
+                    extractResultItemId(b.getValue().display().result()), "");
+            return itemA.compareTo(itemB);
+        });
+
+        BetterRecipeBook.LOGGER.info("[BRBE-DUMP] === BEGIN {} entries ===", known.size());
+        for (var entry : sorted) {
+            RecipeDisplayId id = entry.getKey();
+            RecipeDisplayEntry val = entry.getValue();
+            String source = id.index() < 0 ? "cache" : "server";
+            String cat = categoryKey(val.category());
+            String result = extractResultItemId(val.display().result());
+            if (result == null) result = "<no-item>";
+            BetterRecipeBook.LOGGER.info("[BRBE-DUMP] {} {}[{}] {}",
+                    cat, source, id.index(), result);
+        }
+        BetterRecipeBook.LOGGER.info("[BRBE-DUMP] === END {} entries ===", known.size());
+    }
+
+    /**
+     * Convert a RecipeBookCategory to a short, namespace-stripped key for
+     * log output and comparison.
+     */
+    private static String categoryKey(net.minecraft.world.item.crafting.RecipeBookCategory category) {
+        if (category == null) return "unknown";
+        String key = BuiltInRegistries.RECIPE_BOOK_CATEGORY.getKey(category).toString();
+        if (key.startsWith("minecraft:")) return key.substring("minecraft:".length());
+        return key;
+    }
 }

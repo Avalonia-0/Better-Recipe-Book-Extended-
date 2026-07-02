@@ -27,6 +27,9 @@ public interface RecipeBookComponentAccessor {
     @Invoker("updateCollections")
     void updateCollectionsInvoker(boolean resetPage, boolean filteringChanged);
 
+    @Invoker("initVisuals")
+    void initVisualsInvoker();
+
     @Accessor("xOffset")
     int getXOffset();
 

@@ -59,7 +59,7 @@ allprojects {
     }
 
     java {
-        withSourcesJar()
+        // withSourcesJar()  -- disabled: do not package source JARs
     }
 }
 

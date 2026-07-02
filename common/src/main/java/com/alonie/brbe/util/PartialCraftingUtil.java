@@ -30,6 +30,16 @@ public final class PartialCraftingUtil {
     }
 
     /**
+     * Force a full rebuild on the next {@code updateCollections} pass.
+     * Call when config options affecting partial-craftable display change
+     * (e.g. {@code partialMarkingEnabled} toggled).
+     */
+    public static void invalidateCaches() {
+        tagger.clearAll();
+        tagger.beginFiltering(false);
+    }
+
+    /**
      * Single point-of-control for the partial material marking feature.
      * All public methods check this before doing any work, so callers
      * never need to repeat the config gate.
@@ -146,6 +156,15 @@ public final class PartialCraftingUtil {
     }
 
     /**
+     * Raw query — bypasses the {@link #enabled()} guard.
+     * Only Step 0 (undo-injection) should use this when the feature has
+     * been toggled OFF and the standard queries would return false.
+     */
+    public static boolean isPartiallyCraftableRaw(RecipeCollection collection, RecipeDisplayId id) {
+        return tagger.hasTagEvenIfStale(collection, id);
+    }
+
+    /**
      * Generation-aware query: true only if the collection has partial
      * materials marked in the <em>current</em> generation.
      */
@@ -161,6 +180,15 @@ public final class PartialCraftingUtil {
      */
     public static boolean hasPartialMaterialsEvenIfStale(RecipeCollection collection) {
         if (!enabled()) return false;
+        return tagger.hasAnyTagEvenIfStale(collection);
+    }
+
+    /**
+     * Raw query — bypasses the {@link #enabled()} guard.
+     * Only Step 0 (undo-injection) should use this when the feature has
+     * been toggled OFF and the standard queries would return false.
+     */
+    public static boolean hasPartialMaterialsRaw(RecipeCollection collection) {
         return tagger.hasAnyTagEvenIfStale(collection);
     }
 

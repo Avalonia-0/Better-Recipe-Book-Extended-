@@ -12,6 +12,8 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import org.apache.commons.io.IOUtils;
 
+import com.alonie.brbe.pin.PinStore;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
@@ -22,8 +24,20 @@ import java.util.HashSet;
 
 public class PinnedRecipeManager {
     public HashSet<Identifier> pinned;
+    private PinStore store;
+
+    public void setStore(PinStore store) {
+        this.store = store;
+    }
 
     public void read() {
+        // Prefer async PinStore when available
+        if (store != null) {
+            pinned = new HashSet<>(store.load());
+            return;
+        }
+
+        // Fallback legacy synchronous read
         Gson gson = new Gson();
         JsonReader reader = null;
 
@@ -47,6 +61,13 @@ public class PinnedRecipeManager {
     }
 
     private void store() {
+        // Prefer async PinStore (non-blocking) when available
+        if (store != null) {
+            store.save(new HashSet<>(pinned));
+            return;
+        }
+
+        // Fallback legacy synchronous write
         Gson gson = new Gson();
         OutputStreamWriter writer = null;
 

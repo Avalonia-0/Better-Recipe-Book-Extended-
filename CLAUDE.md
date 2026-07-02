@@ -100,6 +100,6 @@ Cloth Config provides the configuration GUI. It's `implementation`+`include` (bu
 
 Test instances at `/media/avalonia/data/MinecraftLib/versions/{version}-{loader}/mods/`. Deploy pattern:
 ```bash
-cp fabric/build/libs/BetterRecipeBookExtended-fabric-*-2.1.3.jar /path/to/instance/mods/
+cp fabric/build/libs/BetterRecipeBookExtended-fabric-*-2.1.5.jar /path/to/instance/mods/
 rm -f /path/to/instance/mods/BetterRecipeBook*-2.1.2* # clean old version
 ```

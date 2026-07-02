@@ -13,18 +13,11 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
+import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
 
-/**
- * Enhances the alternative-recipe overlay with partially-craftable recipes.
- *
- * <p>Uses {@link ModifyVariable} on the list and columns local variables
- * rather than {@code @Redirect} on JDK methods such as
- * {@code Collections.emptyList()}, which can behave inconsistently across
- * Mixin implementations (Fabric vs. NeoForge).
- */
 @Mixin(OverlayRecipeComponent.class)
 public class OverlayRecipeComponentMixin {
     @Shadow
@@ -42,37 +35,13 @@ public class OverlayRecipeComponentMixin {
         OverlayRecipeCollectionHolder.set(collection);
     }
 
-    /**
-     * Intercepts the list variable right after it is stored (local-var index 10,
-     * first store).  When filtering is active the vanilla code puts
-     * {@code Collections.emptyList()} there — replace it with the partially-
-     * craftable recipes so the overlay actually shows something.
-     *
-     * <p>Previous approach used {@code @Redirect(Collections.emptyList())}
-     * which failed to match on Fabric's Mixin implementation.
-     */
-    @ModifyVariable(method = "init", index = 10, at = @At(value = "STORE", ordinal = 0))
-    private List<RecipeDisplayEntry> brbe$injectPartialRecipes(
-            List<RecipeDisplayEntry> original,
-            RecipeCollection collection,
-            ContextMap contextMap,
-            boolean isFiltering,
-            int x, int y, int overlayX, int overlayY, float width) {
-
-        if (isFiltering) {
-            List<RecipeDisplayEntry> partials = PartialCraftingUtil.getPartiallyCraftableRecipes(collection);
-            if (!partials.isEmpty()) {
-                return partials;
-            }
-        }
-        return original;
+    @Redirect(method = "init", at = @At(value = "INVOKE", target = "Ljava/util/Collections;emptyList()Ljava/util/List;"))
+    private List<RecipeDisplayEntry> brbe$showPartiallyCraftableAlternatives(RecipeCollection collection, ContextMap contextMap, boolean isFiltering, int x, int y, int overlayX, int overlayY, float width) {
+        return PartialCraftingUtil.getPartiallyCraftableRecipes(collection);
     }
 
     @ModifyVariable(method = "init", index = 13, at = @At("STORE"))
-    private int brbe$expandColumnsAfterFiveRows(int columns, RecipeCollection collection,
-                                                 ContextMap contextMap, boolean isFiltering,
-                                                 int x, int y, int overlayX, int overlayY,
-                                                 float width) {
+    private int brbe$expandColumnsAfterFiveRows(int columns, RecipeCollection collection, ContextMap contextMap, boolean isFiltering, int x, int y, int overlayX, int overlayY, float width) {
         int recipeCount = collection.getSelectedRecipes(RecipeCollection.CraftableStatus.CRAFTABLE).size();
         if (!isFiltering) {
             recipeCount += collection.getSelectedRecipes(RecipeCollection.CraftableStatus.NOT_CRAFTABLE).size();

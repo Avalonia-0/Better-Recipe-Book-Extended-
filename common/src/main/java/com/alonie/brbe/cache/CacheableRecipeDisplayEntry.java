@@ -91,6 +91,9 @@ public final class CacheableRecipeDisplayEntry {
             case "shapeless":
                 c.ingredients = VanillaRecipeLoader.extractShapelessIngredients(json);
                 break;
+            case "transmute":
+                c.ingredients = VanillaRecipeLoader.extractTransmuteIngredients(json);
+                break;
             case "furnace":
             case "stonecutter":
                 c.ingredients = VanillaRecipeLoader.extractSingleIngredient(json);
@@ -151,6 +154,18 @@ public final class CacheableRecipeDisplayEntry {
                 display = new FurnaceRecipeDisplay(furnaceIngredient,
                         SlotDisplay.Empty.INSTANCE, result,
                         SlotDisplay.Empty.INSTANCE, 100, 0f);
+                break;
+
+            case "transmute":
+                // Transmute recipes (shulker box dyeing, bundle dyeing) have two
+                // ingredients: input (the thing being transformed) and material
+                // (the dye/catalyst).  Rendered as shapeless slots.
+                if (ingredients == null || ingredients.isEmpty()) return null;
+                List<SlotDisplay> transmuteSlots = new ArrayList<>();
+                for (List<String> alts : ingredients) {
+                    transmuteSlots.add(makeSlotFromAlternatives(alts));
+                }
+                display = new ShapelessCraftingRecipeDisplay(transmuteSlots, result, station);
                 break;
 
             default:

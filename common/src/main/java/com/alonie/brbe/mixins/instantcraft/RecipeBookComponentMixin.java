@@ -1,22 +1,15 @@
 package com.alonie.brbe.mixins.instantcraft;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.layout.BookLayout;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.Minecraft;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.gui.GuiGraphics;
-
-import com.alonie.brbe.widget.StateSwitchingButton;
-import net.minecraft.client.input.MouseButtonEvent;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.gui.screens.recipebook.FurnaceRecipeBookComponent;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.network.chat.Component;
-import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -41,7 +34,7 @@ public abstract class RecipeBookComponentMixin {
 
     @Unique
     private boolean brbe$shouldSkip() {
-        if (!BetterRecipeBook.config.instantCraft.showButton) {
+        if (!BetterRecipeBook.ctx().config().instantCraft.showButton) {
             return true;
         }
 
@@ -54,12 +47,18 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
-        int i = (this.width - 147) / 2 - this.xOffset;
-        int j = (this.height - 166) / 2;
+        // Compute position relative to book geometry (uses BookLayout constants)
+        int i = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset;
+        int j = (this.height - BookLayout.TEXTURE_HEIGHT) / 2;
 
-        this.brbe$instantCraftButton = new StateSwitchingButton(i + 110, j + 137, 26, 18, false);
+        // Right-aligned with grid zone right edge, bottom-aligned with forward arrow
+        int btnX = i + BookLayout.TEXTURE_WIDTH - BookLayout.GRID_PAD - 26;
+        int btnY = j + BookLayout.SETTINGS_Y_OFFSET + 17 - 18;
+
+        this.brbe$instantCraftButton = new StateSwitchingButton(
+                btnX, btnY, 26, 18,
+                BetterRecipeBook.instantCraftingManager.isEnabled());
         this.brbe$instantCraftButton.useStateTriggeredForTexture(true);
-        this.brbe$instantCraftButton.setStateTriggered(BetterRecipeBook.instantCraftingManager.isEnabled());
         this.brbe$instantCraftButton.initTextureValues(BRBTextures.RECIPE_BOOK_INSTANT_CRAFT_BUTTON_SPRITES);
         BetterRecipeBook.instantCraftingManager.lastInstantCraftButton = this.brbe$instantCraftButton;
     }
@@ -80,12 +79,12 @@ public abstract class RecipeBookComponentMixin {
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
-    public void mouseClicked(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+    public void mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
         if (!this.isVisible() || brbe$shouldSkip() || this.brbe$instantCraftButton == null) {
             return;
         }
 
-        if (this.brbe$instantCraftButton.mouseClicked(event.x(), event.y(), event.button())) {
+        if (ClientCompat.mouseClicked(this.brbe$instantCraftButton, event.x(), event.y(), event.button())) {
             boolean enabled = BetterRecipeBook.instantCraftingManager.toggleEnabled();
             this.brbe$instantCraftButton.setStateTriggered(enabled);
             cir.setReturnValue(true);
