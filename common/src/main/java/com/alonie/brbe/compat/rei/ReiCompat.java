@@ -68,13 +68,29 @@ public class ReiCompat {
     }
 
     private static boolean isModLoaded(String modId) {
+        // Try Fabric Loader first (Fabric)
         try {
             Class<?> fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader");
             Object instance = fabricLoader.getMethod("getInstance").invoke(null);
             return (boolean) instance.getClass().getMethod("isModLoaded", String.class)
                     .invoke(instance, modId);
-        } catch (Throwable e) {
-            return false;
-        }
+        } catch (Throwable ignored) { }
+
+        // Try NeoForge ModList (NeoForge)
+        try {
+            Class<?> modList = Class.forName("net.neoforged.fml.ModList");
+            Object instance = modList.getMethod("get").invoke(null);
+            return (boolean) instance.getClass().getMethod("isLoaded", String.class)
+                    .invoke(instance, modId);
+        } catch (Throwable ignored) { }
+
+        // Try legacy FMLLoader (older NeoForge / Forge)
+        try {
+            Class<?> fmlLoader = Class.forName("net.neoforged.fml.loading.FMLLoader");
+            return (boolean) fmlLoader.getMethod("isModLoaded", String.class)
+                    .invoke(null, modId);
+        } catch (Throwable ignored) { }
+
+        return false;
     }
 }
