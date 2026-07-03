@@ -1,0 +1,12 @@
+{
+  "required": false,
+  "minVersion": "0.8",
+  "package": "com.alonie.brbe.mixins.jei",
+  "compatibilityLevel": "JAVA_16",
+  "client": [
+    "RecipeBookComponentMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 0
+  }
+}
