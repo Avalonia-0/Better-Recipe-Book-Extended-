@@ -60,11 +60,12 @@ public abstract class RecipeBookComponentMixin {
         try {
             com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor accessor =
                 (com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor) (Object) this;
-            // Full restart: rebuild UI + refresh data when config changes.
-            // initVisuals → rebuild tabs/buttons/layout (handles keepCentered, RBIP, etc.)
-            // updateStackedContents → rebuild recipe matching
-            // updateCollections → re-run pipeline with new config values
-            accessor.initVisualsInvoker();
+            // Refresh recipe data when config changes.
+            // NOTE: initVisuals is NOT called — it resets selected tab and
+            // destroys UI state (scrolling, layout).  Layout-only config
+            // changes (keepCentered) take effect on next screen open.
+            // updateStackedContents → rebuild recipe matching (selectMatchingRecipes)
+            // updateCollections → re-run marking + injection + filtering pipeline
             accessor.updateStackedContentsInvoker();
             accessor.updateCollectionsInvoker(true, true);
         } catch (Exception ignored) { }
