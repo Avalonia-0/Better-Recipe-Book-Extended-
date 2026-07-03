@@ -50,6 +50,28 @@ public abstract class RecipeBookComponentMixin {
     @Unique
     private SearchQuery brbe$parsedQuery;
 
+    // ---- Config-change refresh ----
+
+    /**
+     * When the config is saved (e.g. toggling {@code partialCraftingEnabled}),
+     * the AppContext save listener calls {@code requestConfigRefresh()}.
+     * This render hook consumes that signal and triggers a full rebuild so
+     * the recipe book immediately reflects the new setting.
+     */
+    @Inject(method = "extractRenderState", at = @At("HEAD"))
+    private void brbe$refreshOnConfigChange(net.minecraft.client.gui.GuiGraphicsExtractor gui, int mouseX,
+                                            int mouseY, float delta, CallbackInfo ci) {
+        if (BetterRecipeBook.ctx() == null) return;
+        if (!BetterRecipeBook.ctx().events().consumeConfigChange()) return;
+        try {
+            // updateCollections(true, true) triggers the full cycle:
+            //  resetPageNumber=true → slot-hash reset → keepPartiallyCraftable redirect
+            //  runs the full marking + injection + filtering pipeline with the new config.
+            ((com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor) (Object) this)
+                    .updateCollectionsInvoker(true, true);
+        } catch (Exception ignored) { }
+    }
+
     // ---- Search text save / restore ----
 
     /**
@@ -112,14 +134,18 @@ public abstract class RecipeBookComponentMixin {
         CollectionPipeline.applyPins(list);
 
         // Stage 4: Craftable-before-partial sort (pin-aware).
-        // Only when partialCraftingEnabled is true — partialMarkingEnabled
-        // only affects recipe STATUS (red overlay), not sorting order.
+        //
+        // Two modes (spec §2.10):
+        //   Default mode  (partialCraftingEnabled=false): filter button
+        //     visible — sort only when isFiltering=true.
+        //   Alternative   (partialCraftingEnabled=true):  filter button
+        //     hidden  — always sort (craftable → partial → uncraftable).
         {
-            boolean shouldSort = BetterRecipeBook.config.partialCraftingEnabled;
+            boolean filterButtonHidden = BetterRecipeBook.config.partialCraftingEnabled;
+            boolean shouldSort = filterButtonHidden || isFiltering;
             if (shouldSort) {
-                boolean useFullSort = BetterRecipeBook.config.partialCraftingEnabled || isFiltering;
                 boolean hasPartialData = BetterRecipeBook.config.partialMarkingEnabled;
-                list = CollectionPipeline.applyPartialSort(list, useFullSort, hasPartialData);
+                list = CollectionPipeline.applyPartialSort(list, true, hasPartialData);
             }
         }
 

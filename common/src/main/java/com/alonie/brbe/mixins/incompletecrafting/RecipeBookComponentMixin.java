@@ -123,6 +123,26 @@ public abstract class RecipeBookComponentMixin {
             return collections.removeIf(predicate);
         }
 
+        // ── Cleanup when partialMarkingEnabled is toggled OFF ──
+        // Step 0 uses EvenIfStale queries which are gated by enabled().
+        // When the feature is disabled, enabled() returns false and EvenIfStale
+        // queries skip cleanup, leaving stale partial recipes permanently
+        // injected into the craftable set.  Use Raw queries (no enabled()
+        // guard) to purge them unconditionally when the feature is off.
+        if (!retainPartial) {
+            for (RecipeCollection collection : collections) {
+                if (PartialCraftingUtil.hasPartialMaterialsRaw(collection)) {
+                    RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+                    for (RecipeDisplayEntry entry : collection.getRecipes()) {
+                        if (PartialCraftingUtil.isPartiallyCraftableRaw(collection, entry.id())) {
+                            accessor.brbe$getCraftable().remove(entry.id());
+                        }
+                    }
+                }
+            }
+            PartialCraftingUtil.invalidateCaches();
+        }
+
         // Only skip everything when BOTH features are off.
         if (!retainPartial && !retainIncompatible) {
             return collections.removeIf(predicate);

@@ -84,15 +84,19 @@ public class BetterRecipeBook {
 
     public static synchronized void ensureCategories() {
         if (categoriesInitialized) return;
-        categoriesInitialized = true;
-        BREWING = BRBHelper.createBook(MOD_ID, "brewing_stand");
-        SMITHING = BRBHelper.createBook(MOD_ID, "smithing_table");
-        BREWING_POTION = BREWING.createCategory(new ItemStack(Items.POTION));
-        BREWING_SPLASH_POTION = BREWING.createCategory(new ItemStack(Items.SPLASH_POTION));
-        BREWING_LINGERING_POTION = BREWING.createCategory(new ItemStack(Items.LINGERING_POTION));
-        SMITHING_SEARCH = SMITHING.createSearch();
-        SMITHING_TRANSFORM = SMITHING.createCategory(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE));
-        SMITHING_TRIM = SMITHING.createCategory(new ItemStack(Items.NETHERITE_CHESTPLATE));
+        try {
+            BREWING = BRBHelper.createBook(MOD_ID, "brewing_stand");
+            SMITHING = BRBHelper.createBook(MOD_ID, "smithing_table");
+            BREWING_POTION = BREWING.createCategory(new ItemStack(Items.POTION));
+            BREWING_SPLASH_POTION = BREWING.createCategory(new ItemStack(Items.SPLASH_POTION));
+            BREWING_LINGERING_POTION = BREWING.createCategory(new ItemStack(Items.LINGERING_POTION));
+            SMITHING_SEARCH = SMITHING.createSearch();
+            SMITHING_TRANSFORM = SMITHING.createCategory(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE));
+            SMITHING_TRIM = SMITHING.createCategory(new ItemStack(Items.NETHERITE_CHESTPLATE));
+            categoriesInitialized = true;
+        } catch (Exception e) {
+            // init failed — leave flag false so the next call retries
+        }
     }
 
     public static void init() {
@@ -135,8 +139,12 @@ public class BetterRecipeBook {
             });
 
             // Wire async Pin I/O
-            JsonPinStore pinStore = new JsonPinStore(Minecraft.getInstance().gameDirectory.toPath());
-            pinnedRecipeManager.setStore(pinStore);
+            // Guard: Minecraft.getInstance() is null during NeoForge bootstrap.
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null) {
+                JsonPinStore pinStore = new JsonPinStore(mc.gameDirectory.toPath());
+                pinnedRecipeManager.setStore(pinStore);
+            }
 
             // Load pins
             pinnedRecipeManager.read();

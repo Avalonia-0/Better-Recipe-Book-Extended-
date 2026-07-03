@@ -73,6 +73,7 @@ public final class AppContext {
                     cfg.partialCraftingEnabled, cfg.partialMarkingEnabled));
             events.publish(new ConfigEventBus.PinningChanged(cfg.enablePinning));
             events.publish(new ConfigEventBus.BookVisibilityChanged(cfg.enableBook));
+            events.requestConfigRefresh();
             return InteractionResult.SUCCESS;
         });
 

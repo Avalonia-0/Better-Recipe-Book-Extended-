@@ -30,6 +30,9 @@ public interface RecipeBookComponentAccessor {
     @Invoker("initVisuals")
     void initVisualsInvoker();
 
+    @Invoker("updateStackedContents")
+    void updateStackedContentsInvoker();
+
     @Accessor("xOffset")
     int getXOffset();
 
