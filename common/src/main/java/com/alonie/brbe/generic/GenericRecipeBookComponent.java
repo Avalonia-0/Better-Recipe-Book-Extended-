@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.api.BRBBookSettings;
-import com.alonie.brbe.compat.ItemViewCompat;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.interfaces.IPinningComponent;
 import com.alonie.brbe.interfaces.ISettingsButton;
@@ -248,33 +247,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             }
         }
 
-        // JEI/REI integration: open recipe/usage views for hovered item
-        if (ItemViewCompat.isLoaded()) {
-            // ── 1. Recipe buttons ──────────────────────────────────────
-            if (this.recipesPage.hoveredButton != null) {
-                R hoveredRecipe = this.recipesPage.hoveredButton.getCurrentDisplayedRecipe();
-                if (hoveredRecipe != null) {
-                    ItemStack hoveredStack = hoveredRecipe.getResult(registryAccess, this.recipesPage.hoveredButton.category);
-                    if (ClientCompat.matches(BetterRecipeBook.RECIPE_VIEW_MAPPING, i, j, k)) {
-                        return ItemViewCompat.openRecipeView(hoveredStack);
-                    }
-                    if (ClientCompat.matches(BetterRecipeBook.USAGE_VIEW_MAPPING, i, j, k)) {
-                        return ItemViewCompat.openUsageView(hoveredStack);
-                    }
-                }
-            }
-
-            // ── 2. Ghost items ─────────────────────────────────────────
-            ItemStack ghostStack = this.brbe$lastHoveredGhostItem;
-            if (ghostStack != null && !ghostStack.isEmpty()) {
-                if (ClientCompat.matches(BetterRecipeBook.RECIPE_VIEW_MAPPING, i, j, k)) {
-                    return ItemViewCompat.openRecipeView(ghostStack);
-                }
-                if (ClientCompat.matches(BetterRecipeBook.USAGE_VIEW_MAPPING, i, j, k)) {
-                    return ItemViewCompat.openUsageView(ghostStack);
-                }
-            }
-        }
 
         return false;
     }

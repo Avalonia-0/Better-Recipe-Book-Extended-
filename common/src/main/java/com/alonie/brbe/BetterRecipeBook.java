@@ -54,19 +54,7 @@ public class BetterRecipeBook {
             KEY_CATEGORY
     );
 
-    public static final KeyMapping RECIPE_VIEW_MAPPING = new KeyMapping(
-            "key.brbe.recipeView",
-            InputConstants.Type.KEYSYM,
-            InputConstants.KEY_R,
-            KEY_CATEGORY
-    );
 
-    public static final KeyMapping USAGE_VIEW_MAPPING = new KeyMapping(
-            "key.brbe.usageView",
-            InputConstants.Type.KEYSYM,
-            InputConstants.KEY_U,
-            KEY_CATEGORY
-    );
 
     /** Diagnostic dump key (F8).  Writes brbe-diagnostic.log to game dir. */
     public static final KeyMapping DIAGNOSTIC_MAPPING = new KeyMapping(
