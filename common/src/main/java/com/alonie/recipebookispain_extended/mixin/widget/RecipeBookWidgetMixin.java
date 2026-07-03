@@ -7,9 +7,11 @@ import com.alonie.recipebookispain_extended.compat.polymer.PolymerCompat;
 import com.alonie.recipebookispain_extended.access.RecipeGroupButtonPlacement;
 import com.alonie.recipebookispain_extended.access.RecipeGroupButtonPlacementAccess;
 import com.alonie.recipebookispain_extended.access.RecipeBookScrollAccess;
+import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.gui.screens.recipebook.CraftingRecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.FurnaceRecipeBookComponent;
@@ -54,6 +56,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     @Shadow @Final @Mutable private List<RecipeBookComponent.TabInfo> tabInfos;
     @Shadow @Final private List<RecipeBookTabButton> tabButtons;
     @Shadow protected Minecraft minecraft;
+    @Shadow private ClientRecipeBook book;
     @Shadow private int width;
     @Shadow private int height;
     @Shadow private int xOffset;
@@ -109,6 +112,14 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
         for (RecipeBookTabButton widget : this.tabButtons) {
             if (!widget.visible) continue;
+
+            // Highest priority: hide tabs whose category has no recipe collections.
+            // This always applies regardless of any feature toggle state.
+            List<RecipeCollection> collections = this.book.getCollection(widget.getCategory());
+            if (collections == null || collections.isEmpty()) {
+                widget.visible = false;
+                continue;
+            }
 
             if (pinnedTab == null && widget.getCategory() instanceof SearchRecipeBookCategory) {
                 pinnedTab = widget;

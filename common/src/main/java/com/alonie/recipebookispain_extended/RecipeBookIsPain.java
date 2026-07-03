@@ -287,11 +287,10 @@ public class RecipeBookIsPain {
             expandedTabs.add(new RecipeBookComponent.TabInfo(SearchRecipeBookCategory.FURNACE));
         }
 
-        // Only filter by active tabs if we have data (post-rebuildCollections)
-        boolean hasActiveData = !activeTabs.isEmpty();
-
+        // Always filter by active tabs — only show tabs that have recipes.
+        // The paginateTabButtons hook also enforces this as a safety net.
         for (CreativeModeTab tab : MIRRORED_ITEM_GROUPS) {
-            if (hasActiveData && !activeTabs.contains(tab)) continue;
+            if (!activeTabs.contains(tab)) continue;
             ExtendedRecipeBookCategory group = groupMap.inverse().get(tab);
             if (group != null) {
                 expandedTabs.add(new RecipeBookComponent.TabInfo(tab.getIconItem(), Optional.empty(), group));
