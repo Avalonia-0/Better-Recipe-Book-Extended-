@@ -128,6 +128,16 @@ public class BetterRecipeBook {
                 PartialCraftingUtil.invalidateCaches();
             });
 
+            // When any config field changes, request a recipe book UI refresh.
+            // (The AppContext.saveListener already calls requestConfigRefresh
+            // for recipe-relevant changes; this subscriber provides an additional
+            // safety net — matching 1.21.11's pattern.)
+            appContext.events().subscribe(ConfigEventBus.ConfigChanged.class, event -> {
+                config = event.config();
+                appContext.events().requestConfigRefresh();
+                RecipeUnlockUtil.syncToConfig();
+            });
+
             // Wire legacy config save listener for unlock recipes
             configHolder.registerSaveListener((holder, cfg) -> {
                 boolean unlockChanged = config.newRecipes.unlockAll != cfg.newRecipes.unlockAll;
