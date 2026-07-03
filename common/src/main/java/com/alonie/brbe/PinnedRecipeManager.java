@@ -42,7 +42,9 @@ public class PinnedRecipeManager {
         JsonReader reader = null;
 
         try {
-            File pinsFile = new File(Minecraft.getInstance().gameDirectory, BetterRecipeBook.MOD_ID + ".pins");
+            Minecraft mc = Minecraft.getInstance();
+            if (mc == null || mc.gameDirectory == null) return;
+            File pinsFile = new File(mc.gameDirectory, BetterRecipeBook.MOD_ID + ".pins");
 
             if (pinsFile.exists()) {
                 reader = new JsonReader(new FileReader(pinsFile.getAbsolutePath()));
@@ -72,7 +74,9 @@ public class PinnedRecipeManager {
         OutputStreamWriter writer = null;
 
         try {
-            File pinsFile = new File(Minecraft.getInstance().gameDirectory, BetterRecipeBook.MOD_ID + ".pins");
+            Minecraft mc = Minecraft.getInstance();
+            if (mc == null || mc.gameDirectory == null) return;
+            File pinsFile = new File(mc.gameDirectory, BetterRecipeBook.MOD_ID + ".pins");
             writer = new OutputStreamWriter(new FileOutputStream(pinsFile), StandardCharsets.UTF_8);
             writer.write(gson.toJson(this.pinned));
         } catch (Throwable var8) {

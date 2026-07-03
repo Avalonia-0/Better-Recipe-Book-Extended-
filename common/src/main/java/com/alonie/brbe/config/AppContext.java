@@ -70,6 +70,7 @@ public final class AppContext {
                     cfg.partialCraftingEnabled, cfg.partialMarkingEnabled));
             events.publish(new ConfigEventBus.PinningChanged(cfg.enablePinning));
             events.publish(new ConfigEventBus.BookVisibilityChanged(cfg.enableBook));
+            events.requestConfigRefresh();
             return InteractionResult.SUCCESS;
         });
 
@@ -101,13 +102,17 @@ public final class AppContext {
      * first access. */
     public synchronized void ensureCategories() {
         if (categoriesInitialized) return;
-        categoriesInitialized = true;
-        this.brewingPotion = brewing.createCategory(new ItemStack(Items.POTION));
-        this.brewingSplashPotion = brewing.createCategory(new ItemStack(Items.SPLASH_POTION));
-        this.brewingLingeringPotion = brewing.createCategory(new ItemStack(Items.LINGERING_POTION));
-        this.smithingSearch = smithing.createSearch();
-        this.smithingTransform = smithing.createCategory(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE));
-        this.smithingTrim = smithing.createCategory(new ItemStack(Items.NETHERITE_CHESTPLATE));
+        try {
+            this.brewingPotion = brewing.createCategory(new ItemStack(Items.POTION));
+            this.brewingSplashPotion = brewing.createCategory(new ItemStack(Items.SPLASH_POTION));
+            this.brewingLingeringPotion = brewing.createCategory(new ItemStack(Items.LINGERING_POTION));
+            this.smithingSearch = smithing.createSearch();
+            this.smithingTransform = smithing.createCategory(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE));
+            this.smithingTrim = smithing.createCategory(new ItemStack(Items.NETHERITE_CHESTPLATE));
+            categoriesInitialized = true;
+        } catch (Exception e) {
+            // init failed — leave flag false so the next call retries
+        }
     }
 
     // -- Getters --------------------------------------------------------------

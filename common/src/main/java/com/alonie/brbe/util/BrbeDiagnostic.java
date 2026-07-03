@@ -60,7 +60,9 @@ public final class BrbeDiagnostic {
         sb.append("══════════════════════════════════════════════════════\n");
 
         try {
-            Path logFile = Minecraft.getInstance().gameDirectory.toPath()
+            Minecraft mc = Minecraft.getInstance();
+            if (mc == null || mc.gameDirectory == null) return;
+            Path logFile = mc.gameDirectory.toPath()
                     .resolve("brbe-diagnostic.log");
             Files.writeString(logFile, sb.toString(),
                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);

@@ -91,17 +91,22 @@ public class BetterRecipeBook {
 
     public static synchronized void ensureCategories() {
         if (categoriesInitialized) return;
-        categoriesInitialized = true;
         AppContext ctx = appContext;
-        if (ctx == null) return;
-        BREWING = ctx.brewingBook();
-        SMITHING = ctx.smithingBook();
-        BREWING_POTION = ctx.brewingPotion();
-        BREWING_SPLASH_POTION = ctx.brewingSplashPotion();
-        BREWING_LINGERING_POTION = ctx.brewingLingeringPotion();
-        SMITHING_SEARCH = ctx.smithingSearch();
-        SMITHING_TRANSFORM = ctx.smithingTransform();
-        SMITHING_TRIM = ctx.smithingTrim();
+        if (ctx == null) return;                 // not ready — retry next call
+        try {
+            BREWING = ctx.brewingBook();
+            SMITHING = ctx.smithingBook();
+            BREWING_POTION = ctx.brewingPotion();
+            BREWING_SPLASH_POTION = ctx.brewingSplashPotion();
+            BREWING_LINGERING_POTION = ctx.brewingLingeringPotion();
+            SMITHING_SEARCH = ctx.smithingSearch();
+            SMITHING_TRANSFORM = ctx.smithingTransform();
+            SMITHING_TRIM = ctx.smithingTrim();
+            categoriesInitialized = true;        // success — never retry
+        } catch (Exception e) {
+            // init failed (e.g. registry not bound) — leave flag false so
+            // the next call retries instead of permanently skipping.
+        }
     }
 
     public static void init() {
@@ -130,8 +135,12 @@ public class BetterRecipeBook {
                 });
 
                 // -- Wire async Pin I/O -------------------------------------------
-                JsonPinStore pinStore = new JsonPinStore(Minecraft.getInstance().gameDirectory.toPath());
-                pinnedRecipeManager.setStore(pinStore);
+                // Guard: Minecraft.getInstance() is null during NeoForge bootstrap.
+                Minecraft mc = Minecraft.getInstance();
+                if (mc != null) {
+                    JsonPinStore pinStore = new JsonPinStore(mc.gameDirectory.toPath());
+                    pinnedRecipeManager.setStore(pinStore);
+                }
 
                 // Wire legacy config save listener for unlock recipes
                 configHolder.registerSaveListener((holder, cfg) -> {
