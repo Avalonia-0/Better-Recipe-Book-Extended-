@@ -50,33 +50,6 @@ public abstract class RecipeBookComponentMixin {
     @Unique
     private SearchQuery brbe$parsedQuery;
 
-    // ---- Config-change refresh ----
-
-    /**
-     * When the config is saved (e.g. toggling {@code partialCraftingEnabled}),
-     * the AppContext save listener calls {@code requestConfigRefresh()}.
-     * This render hook consumes that signal and triggers a full rebuild so
-     * the recipe book immediately reflects the new setting.
-     */
-    @Inject(method = "extractRenderState", at = @At("HEAD"))
-    private void brbe$refreshOnConfigChange(net.minecraft.client.gui.GuiGraphicsExtractor gui, int mouseX,
-                                            int mouseY, float delta, CallbackInfo ci) {
-        if (BetterRecipeBook.ctx() == null) return;
-        if (!BetterRecipeBook.ctx().events().consumeConfigChange()) return;
-        try {
-            com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor accessor =
-                (com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor) (Object) this;
-            // Refresh recipe data when config changes.
-            // NOTE: initVisuals is NOT called — it resets selected tab and
-            // destroys UI state (scrolling, layout).  Layout-only config
-            // changes (keepCentered) take effect on next screen open.
-            // updateStackedContents → rebuild recipe matching (selectMatchingRecipes)
-            // updateCollections → re-run marking + injection + filtering pipeline
-            accessor.updateStackedContentsInvoker();
-            accessor.updateCollectionsInvoker(true, true);
-        } catch (Exception ignored) { }
-    }
-
     // ---- Search text save / restore ----
 
     /**

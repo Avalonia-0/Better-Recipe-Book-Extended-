@@ -119,7 +119,13 @@ public abstract class RecipeBookComponentMixin {
         // ── Slot cache: skip when inventory unchanged ──
         long slotHash = PartialCraftingUtil.slotHash(this.menu.slots);
         boolean inventoryChanged = (slotHash != this.brbe$lastSlotHash);
-        if (!inventoryChanged && !retainIncompatible) {
+        // Config changes also force a full re-marking pass.
+        // Consumed here (inside the normal tick→updateCollections path)
+        // so the page number is NOT reset — unlike calling
+        // updateCollections(true,true) from a render hook.
+        boolean configChanged = BetterRecipeBook.ctx() != null
+                && BetterRecipeBook.ctx().events().consumeConfigChange();
+        if (!inventoryChanged && !retainIncompatible && !configChanged) {
             return collections.removeIf(predicate);
         }
 
