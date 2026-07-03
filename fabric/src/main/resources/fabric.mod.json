@@ -39,6 +39,7 @@
     "mixins.brbe.json",
     "mixins.brbe-common.json",
     "mixins.brbe-common-compat.json",
+    "mixins.brbe-rei-common.json",
     "recipe-book-is-pain-extended.mixins.json"
   ],
   "depends": {
