@@ -56,7 +56,7 @@ config = "mixins.brbe-jei-common.json"
 
 
 [[mixins]]
-[[mixins]]
 config = "mixins.brbe-rei-common.json"
 
+[[mixins]]
 config = "rbip-neoforge.mixins.json"
