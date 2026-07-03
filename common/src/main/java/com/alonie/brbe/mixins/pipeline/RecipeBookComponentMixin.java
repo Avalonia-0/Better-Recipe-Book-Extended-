@@ -58,8 +58,15 @@ public abstract class RecipeBookComponentMixin {
         if (BetterRecipeBook.ctx() == null) return;
         if (!BetterRecipeBook.ctx().events().consumeConfigChange()) return;
         try {
-            ((com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor) (Object) this)
-                    .updateCollectionsInvoker(true, true);
+            com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor accessor =
+                (com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor) (Object) this;
+            // Full restart: rebuild UI + refresh data when config changes.
+            // initVisuals → rebuild tabs/buttons/layout (handles keepCentered, RBIP, etc.)
+            // updateStackedContents → rebuild recipe matching
+            // updateCollections → re-run pipeline with new config values
+            accessor.initVisualsInvoker();
+            accessor.updateStackedContentsInvoker();
+            accessor.updateCollectionsInvoker(true, true);
         } catch (Exception ignored) { }
     }
 
