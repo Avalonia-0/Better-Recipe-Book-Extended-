@@ -64,11 +64,15 @@ public abstract class RecipeBookComponentMixin {
         if (BetterRecipeBook.ctx() == null) return;
         if (!BetterRecipeBook.ctx().events().consumeConfigChange()) return;
         try {
-            // updateCollections(true, true) triggers the full cycle:
-            //  resetPageNumber=true → slot-hash reset → keepPartiallyCraftable redirect
-            //  runs the full marking + injection + filtering pipeline with the new config.
-            ((com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor) (Object) this)
-                    .updateCollectionsInvoker(true, true);
+            com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor accessor =
+                (com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor) (Object) this;
+            // Full restart: rebuild UI + refresh data when config changes.
+            // initVisuals → rebuild tabs/buttons/layout (handles keepCentered, RBIP, etc.)
+            // updateStackedContents → rebuild recipe matching (selectMatchingRecipes)
+            // updateCollections → re-run marking + injection + filtering pipeline
+            accessor.initVisualsInvoker();
+            accessor.updateStackedContentsInvoker();
+            accessor.updateCollectionsInvoker(true, true);
         } catch (Exception ignored) { }
     }
 
