@@ -3,6 +3,7 @@ package com.alonie.brbe.neoforge;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.neoforge.PlatformPotionUtilImpl;
 import com.alonie.brbe.compat.OverlayHider;
+import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.impl.hud.JeiHudHider;
 import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.loaders.PotionLoader;
@@ -51,6 +52,9 @@ public class BetterRecipeBookClientNeoForge {
                 PotionLoader.clear();
             }
         });
+
+        // Register REI compat (recipe/usage view lookup via reflection)
+        ReiCompat.register();
 
         // Register HUD hiders (JEI + REI overlay control)
         OverlayHider.register(new JeiHudHider());
