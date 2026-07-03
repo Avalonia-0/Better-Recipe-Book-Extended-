@@ -152,7 +152,11 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
         List<BRBBookCategories.Category> categories = BRBBookCategories.getCategories(this.getRecipeBookType());
 
-        if (categories == null) throw new NullPointerException("Book category not registered");
+        if (categories == null || categories.isEmpty()) {
+            // Categories not yet registered — silently degrade.  The next
+            // screen open / initVisuals call will retry ensureCategories().
+            return;
+        }
 
         for (BRBBookCategories.Category category : categories) {
             this.tabButtons.add(new BRBGroupButtonWidget(category));
