@@ -89,27 +89,31 @@ public abstract class RecipeBookComponentMixin {
     // ---- Config-change reload ----
 
     /**
-     * Config-change-driven recipe book reload.
+     * Config-change-driven recipe book reload — equivalent to reopening
+     * the recipe book.
      *
      * <p>Vanilla {@code tick()} only calls {@code updateStackedContents} →
      * {@code updateCollections} when the inventory changes.  If a config
      * toggle flips while the player is looking at the recipe book, the
      * change would go unnoticed until the next inventory change.  This hook
      * detects pending config changes and proactively calls
-     * {@code updateCollections(false, false)} so the
-     * {@code keepPartiallyCraftable} redirect can consume the flag and
-     * perform a full re-marking pass — without resetting the page number.
+     * {@code updateStackedContents()}, which runs the full three-step
+     * refresh: clear+refill stackedContents → selectMatchingRecipes (clears
+     * and repopulates craftable sets) → updateCollections (filter+sort+pipeline).
+     * The {@code keepPartiallyCraftable} redirect consumes the config-change
+     * flag during this call and performs a full re-marking pass.
      */
     @Inject(method = "tick", at = @At("RETURN"))
     private void brbe$reloadOnConfigChange(CallbackInfo ci) {
         if (BetterRecipeBook.ctx() == null) return;
         if (!BetterRecipeBook.ctx().events().hasPendingConfigChange()) return;
         // Only trigger when the recipe book is actually visible.
-        // Otherwise the next open will trigger initVisuals()->updateCollections(true, false)
+        // Otherwise the next open will trigger initVisuals()->updateCollections()
         // which naturally rebuilds everything.
         if (!((RecipeBookComponent)(Object)this).isVisible()) return;
-        // updateCollections(false, false): rebuild without page reset
-        ((RecipeBookComponentAccessor)this).updateCollectionsInvoker(false, false);
+        // Full refresh path: updateStackedContents triggers
+        // selectMatchingRecipes → updateCollections pipeline.
+        ((RecipeBookComponentAccessor)this).updateStackedContentsInvoker();
     }
 
     // ---- Pipeline ----
