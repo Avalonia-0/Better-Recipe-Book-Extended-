@@ -32,6 +32,15 @@ public final class ConfigEventBus {
         return configChangePending.getAndSet(false);
     }
 
+    /**
+     * Non-consuming check: returns whether a config-change-driven UI rebuild
+     * is pending without resetting the flag.  The flag is consumed later by
+     * {@link #consumeConfigChange()} inside the updateCollections pipeline.
+     */
+    public boolean hasPendingConfigChange() {
+        return configChangePending.get();
+    }
+
     /** Request a UI rebuild on the next render frame. Thread-safe. */
     public void requestConfigRefresh() {
         configChangePending.set(true);
