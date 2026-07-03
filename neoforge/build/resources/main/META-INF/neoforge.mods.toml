@@ -48,9 +48,7 @@ config = "mixins.brbe-common-compat.json"
 config = "mixins.brbe-jei-common.json"
 
 [[mixins]]
-
-[[mixins]]
-[[mixins]]
 config = "mixins.brbe-rei-common.json"
 
+[[mixins]]
 config = "rbip-neoforge.mixins.json"
