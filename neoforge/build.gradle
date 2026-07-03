@@ -43,12 +43,11 @@ dependencies {
         // Cloth Config now available for 26.2
     implementation("me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}")
 
-    // JEI jar (not yet available for 26.2)
-    // def jeiJarPath = rootProject.findProperty("jei_neoforge_jar")
-    //         ?: "/media/avalonia/data/MinecraftLib/versions/26.1.2-NeoForge/mods/jei-26.1.2-neoforge-29.6.2.31.jar"
-    // if (file(jeiJarPath).exists()) {
-    //     compileOnly files(jeiJarPath)
-    // }
+    // JEI — compileOnly (available for 26.2 since 30.4.0.25)
+    def jeiJarPath = "/media/avalonia/data/MinecraftLib/versions/26.2-NeoForge/mods/jei-26.2-neoforge-30.4.0.25.jar"
+    if (file(jeiJarPath).exists()) {
+        compileOnly files(jeiJarPath)
+    }
 
     // Common module (loom-no-remap does not provide namedElements/transformProduction*)
     common(project(path: ":common")) { transitive false }

@@ -39,7 +39,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         });
 
         // Register optional compat handlers
-        // ReiCompatHandler.register();  // JEI/REI not yet available for 26.2
+        com.alonie.brbe.fabric.compat.rei.ReiCompatHandler.register();
         ModMenuReflectiveBridge.register();
 
         // Register HUD hiders (JEI + REI overlay control)

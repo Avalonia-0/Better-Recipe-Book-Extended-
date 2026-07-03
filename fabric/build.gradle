@@ -32,17 +32,11 @@ dependencies {
     // ModMenu is distributed with intermediary mappings, which conflicts with
     // loom-no-remap (Mojmap). ModMenuFabric integration is currently disabled.
     // implementation "com.terraformersmc:modmenu:${rootProject.modmenu_version}"
-    // JEI — not yet available for 26.2
-    // def jeiJarPath = rootProject.findProperty("jei_fabric_jar")?.toString()
-    // if (jeiJarPath == null || !file(jeiJarPath).exists()) {
-    //     jeiJarPath = "/media/avalonia/data/MinecraftLib/versions/26.1.2-Fabric/mods/jei-26.1.2-fabric-29.6.2.31.jar"
-    // }
-    // if (!file(jeiJarPath).exists()) {
-    //     jeiJarPath = "/media/avalonia/data/MinecraftLib/versions/26.1.2-Fabric/mods/jei-26.1.2-fabric-29.6.2.31.jar.disabled"
-    // }
-    // if (file(jeiJarPath).exists()) {
-    //     implementation files(jeiJarPath)
-    // }
+    // JEI — compileOnly (available for 26.2 since 30.4.0.25)
+    def jeiJarPath = "/media/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/jei-26.2-fabric-30.4.0.25.jar"
+    if (file(jeiJarPath).exists()) {
+        compileOnly files(jeiJarPath)
+    }
     implementation(project(path: ":common"))
 }
 
