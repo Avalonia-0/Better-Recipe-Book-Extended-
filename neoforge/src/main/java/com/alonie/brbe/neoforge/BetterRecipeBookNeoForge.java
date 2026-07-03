@@ -5,13 +5,14 @@ import com.alonie.brbe.config.Config;
 import me.shedaniel.autoconfig.AutoConfigClient;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
 @Mod(BetterRecipeBook.MOD_ID)
 public final class BetterRecipeBookNeoForge {
-    public BetterRecipeBookNeoForge(ModContainer container) {
+    public BetterRecipeBookNeoForge(ModContainer container, IEventBus modEventBus) {
         BetterRecipeBook.init();
-        BetterRecipeBookClientNeoForge.init();
+        BetterRecipeBookClientNeoForge.init(modEventBus);
 
         container.registerExtensionPoint(IConfigScreenFactory.class,
                 (modContainer, parent) ->
