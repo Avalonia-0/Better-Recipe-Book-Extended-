@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins.pipeline;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.search.SearchQuery;
 import com.alonie.brbe.util.CollectionPipeline;
 import net.minecraft.client.Minecraft;
@@ -83,6 +84,32 @@ public abstract class RecipeBookComponentMixin {
             brbe$savedSearchText = null;
             brbe$parsedQuery = null;
         }
+    }
+
+    // ---- Config-change reload ----
+
+    /**
+     * Config-change-driven recipe book reload.
+     *
+     * <p>Vanilla {@code tick()} only calls {@code updateStackedContents} →
+     * {@code updateCollections} when the inventory changes.  If a config
+     * toggle flips while the player is looking at the recipe book, the
+     * change would go unnoticed until the next inventory change.  This hook
+     * detects pending config changes and proactively calls
+     * {@code updateCollections(false, false)} so the
+     * {@code keepPartiallyCraftable} redirect can consume the flag and
+     * perform a full re-marking pass — without resetting the page number.
+     */
+    @Inject(method = "tick", at = @At("RETURN"))
+    private void brbe$reloadOnConfigChange(CallbackInfo ci) {
+        if (BetterRecipeBook.ctx() == null) return;
+        if (!BetterRecipeBook.ctx().events().hasPendingConfigChange()) return;
+        // Only trigger when the recipe book is actually visible.
+        // Otherwise the next open will trigger initVisuals()->updateCollections(true, false)
+        // which naturally rebuilds everything.
+        if (!((RecipeBookComponent)(Object)this).isVisible()) return;
+        // updateCollections(false, false): rebuild without page reset
+        ((RecipeBookComponentAccessor)this).updateCollectionsInvoker(false, false);
     }
 
     // ---- Pipeline ----
