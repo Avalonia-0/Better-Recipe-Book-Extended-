@@ -13,8 +13,10 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.world.level.LevelAccessor;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
+import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.event.level.LevelEvent;
 import java.util.Collections;
 import java.util.Set;
@@ -28,7 +30,12 @@ public class BetterRecipeBookClientNeoForge {
 
     private static final Set<Screen> registeredScreens = Collections.newSetFromMap(new WeakHashMap<>());
 
-    public static void init() {
+    public static void init(IEventBus modEventBus) {
+
+        // Register key mappings (F = pin recipe)
+        modEventBus.addListener(RegisterKeyMappingsEvent.class, event -> {
+            event.register(BetterRecipeBook.PIN_MAPPING);
+        });
         // Register platform provider
         PlatformPotionUtilImpl.init();
 

@@ -4,13 +4,14 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.config.Config;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
+import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.client.gui.IConfigScreenFactory;
 
 @Mod(BetterRecipeBook.MOD_ID)
 public final class BetterRecipeBookNeoForge {
-    public BetterRecipeBookNeoForge(ModContainer container) {
+    public BetterRecipeBookNeoForge(ModContainer container, IEventBus modEventBus) {
         BetterRecipeBook.init();
-        BetterRecipeBookClientNeoForge.init();
+        BetterRecipeBookClientNeoForge.init(modEventBus);
 
         // Cloth Config not yet available for 26.2
         try {
