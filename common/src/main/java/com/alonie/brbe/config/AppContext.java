@@ -39,6 +39,34 @@ public final class AppContext {
 
     private final BRBHelper.Book brewing;
     private final BRBHelper.Book smithing;
+
+    // -- Config change detection -----------------------------------------------
+    // Cached values of recipe-relevant config fields.  Used to skip
+    // unnecessary recipe-book refreshes when unrelated configs change
+    // (e.g. instantCraft, scrolling, hideReiJeiOverlay).
+
+    private boolean cachedPartialCraftingEnabled;
+    private boolean cachedPartialMarkingEnabled;
+    private boolean cachedShowAllRecipesInSurvival;
+    private boolean cachedEnablePinning;
+    private boolean cachedNoGrouped;
+
+    private void snapshotRecipeConfig(Config cfg) {
+        this.cachedPartialCraftingEnabled = cfg.partialCraftingEnabled;
+        this.cachedPartialMarkingEnabled = cfg.partialMarkingEnabled;
+        this.cachedShowAllRecipesInSurvival = cfg.showAllRecipesInSurvival;
+        this.cachedEnablePinning = cfg.enablePinning;
+        this.cachedNoGrouped = cfg.alternativeRecipes.noGrouped;
+    }
+
+    private boolean recipeRelevantChanged(Config cfg) {
+        return cfg.partialCraftingEnabled != this.cachedPartialCraftingEnabled
+            || cfg.partialMarkingEnabled != this.cachedPartialMarkingEnabled
+            || cfg.showAllRecipesInSurvival != this.cachedShowAllRecipesInSurvival
+            || cfg.enablePinning != this.cachedEnablePinning
+            || cfg.alternativeRecipes.noGrouped != this.cachedNoGrouped;
+    }
+
     private volatile BRBBookCategories.Category brewingPotion;
     private volatile BRBBookCategories.Category brewingSplashPotion;
     private volatile BRBBookCategories.Category brewingLingeringPotion;
@@ -65,6 +93,9 @@ public final class AppContext {
         this.pinnedRecipeManager = new PinnedRecipeManager();
         this.instantCraftingManager = new InstantCraftingManager();
 
+        // Cache initial recipe-relevant config values for change detection
+        snapshotRecipeConfig(this.config);
+
         // Wire config save listener through the event bus
         configHolder.registerSaveListener((holder, cfg) -> {
             this.config = cfg;
@@ -73,7 +104,13 @@ public final class AppContext {
                     cfg.partialCraftingEnabled, cfg.partialMarkingEnabled));
             events.publish(new ConfigEventBus.PinningChanged(cfg.enablePinning));
             events.publish(new ConfigEventBus.BookVisibilityChanged(cfg.enableBook));
-            events.requestConfigRefresh();
+            // Only refresh recipe book if recipe-relevant fields changed.
+            // instantCraft, scrolling, hideReiJeiOverlay etc. do NOT
+            // need a recipe-book refresh.
+            if (recipeRelevantChanged(cfg)) {
+                events.requestConfigRefresh();
+                snapshotRecipeConfig(cfg);
+            }
             return InteractionResult.SUCCESS;
         });
 
