@@ -75,6 +75,9 @@ processResources {
 
 shadowJar {
     exclude "fabric.mod.json"
+    exclude "recipe-book-is-pain-extended.mixins.json"
+    exclude "brbe.common.accesswidener"
+    exclude "mixins.brbe-jei-common.json"
 
     configurations = [project.configurations.shadowBundle]
     archiveClassifier = "dev-shadow"

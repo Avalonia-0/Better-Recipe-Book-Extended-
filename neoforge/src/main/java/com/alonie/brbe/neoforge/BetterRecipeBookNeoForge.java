@@ -19,6 +19,7 @@ public final class BetterRecipeBookNeoForge {
         BetterRecipeBook.init();
 
         if (FMLEnvironment.dist == Dist.CLIENT) {
+            BetterRecipeBookClientNeoForge.init(modEventBus);
 
             ModContainer container = ModList.get().getModContainerById(BetterRecipeBook.MOD_ID).get();
             IConfigScreenFactory factory = (modContainer, parent) ->

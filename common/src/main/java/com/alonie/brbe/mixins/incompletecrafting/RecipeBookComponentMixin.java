@@ -165,12 +165,41 @@ public abstract class RecipeBookComponentMixin {
         PerfTimer.end("partial.markAndInject");
         PartialCraftingUtil.beginFilteringUpdate(false);
 
+        // Step 5: Root-cause cleanup — purge 3×3 recipes from the partial set
+        // when showAllRecipesInSurvival is off.  markAndInject can be
+        // over-aggressive, marking recipes that need a 3×3 grid.  Leaving them
+        // in the craftable set causes "air placeholder" ghost slots on the
+        // 2×2 inventory screen.
+        if (!BetterRecipeBook.ctx().config().showAllRecipesInSurvival) {
+            for (RecipeCollection coll : collections) {
+                if (!PartialCraftingUtil.hasPartialMaterials(coll)) continue;
+                RecipeCollectionAccessor ca = (RecipeCollectionAccessor) coll;
+                for (RecipeHolder<?> holder : coll.getRecipes()) {
+                    if (PartialCraftingUtil.isPartiallyCraftable(coll, holder.id())
+                            && brbe$needsLargerGrid(holder)) {
+                        ca.brbe$getCraftable().remove(holder);
+                    }
+                }
+            }
+        }
+
         PerfTimer.logAndReset("updateCollections (" + collCount + " coll)");
     }
 
+    @Unique
+    private static boolean brbe$needsLargerGrid(RecipeHolder<?> holder) {
+        var recipe = holder.value();
+        if (recipe instanceof net.minecraft.world.item.crafting.ShapedRecipe shaped) {
+            return shaped.getWidth() > 2 || shaped.getHeight() > 2;
+        }
+        if (recipe instanceof net.minecraft.world.item.crafting.ShapelessRecipe shapeless) {
+            return shapeless.getIngredients().size() > 4;
+        }
+        return false;
+    }
+
     // ══════════════════════════════════════════════════════════
-    // NOTE: Sorting is now handled by pipeline/RecipeBookComponentMixin
-    // which uses @ModifyArg on page.updateCollections.  This mixin
-    // only handles partial-material marking via the List.forEach redirect.
+    // Sorting is handled by pipeline/RecipeBookComponentMixin
+    // via @Redirect on page.updateCollections.
     // ══════════════════════════════════════════════════════════
 }

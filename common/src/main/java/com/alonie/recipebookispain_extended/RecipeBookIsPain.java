@@ -12,6 +12,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractFurnaceMenu;
 import net.minecraft.world.inventory.BlastFurnaceMenu;
 import net.minecraft.world.inventory.SmokerMenu;
+import net.minecraft.world.flag.FeatureFlags;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
@@ -135,13 +136,25 @@ public class RecipeBookIsPain {
         if (client.level == null) { LOGGER.info("[RBIP] no level yet — defer"); return; }
 
         LOGGER.info("[RBIP] Initializing...");
-        initAttempted = true;
 
         try {
             CRAFTING_LIST.clear();
             CRAFTING_SEARCH_LIST.clear();
             TAB_ITEMS.clear();
             ITEM_TO_TAB.clear();
+
+            // Force creative tabs to rebuild their display contents.
+            // On Fabric, getDisplayItems() can return empty until the
+            // creative inventory has been opened at least once.  Calling
+            // tryRebuildTabContents() forces population regardless of
+            // whether the creative screen has ever been opened, which is
+            // necessary when a recipe viewer (JEI/REI/EMI) is also
+            // hooking into creative tab population.
+            CreativeModeTabs.tryRebuildTabContents(
+                    FeatureFlags.DEFAULT_FLAGS,
+                    false,
+                    client.level.registryAccess()
+            );
 
             // ── Strategy A: use getDisplayItems() (vanilla + NeoForge) ──
             int tabCount = 0;
@@ -199,7 +212,24 @@ public class RecipeBookIsPain {
             }
 
             recipeGeneration++;
-            initialized = true;
+
+            // If we mapped zero items, this is likely a race with JEI/REI
+            // creative-tab population.  Allow exactly one retry by deferring
+            // the "initialized" flag until the next ensureInitialized() call.
+            if (CRAFTING_LIST.isEmpty()) {
+                if (!initAttempted) {
+                    // First attempt — keep initialized=false, mark attempted for one retry
+                    LOGGER.warn("[RBIP] 0 tabs mapped (likely recipe-viewer init race) — will retry");
+                    initAttempted = true;
+                } else {
+                    // Already retried — give up to prevent infinite retries
+                    LOGGER.warn("[RBIP] 0 tabs mapped on retry — giving up");
+                    initialized = true;
+                }
+            } else {
+                initialized = true;
+                initAttempted = true;
+            }
             LOGGER.info("[RBIP] OK — {} tabs, {} items mapped (strategy: {})",
                     CRAFTING_LIST.size(), ITEM_TO_TAB.size(),
                     tabCount > 0 ? "getDisplayItems" : "registry scan");

@@ -49,4 +49,14 @@ public final class JeiViewer implements RecipeViewer {
             // Silently ignore
         }
     }
+
+    @Override
+    public boolean matchesShowRecipe(int keyCode, int scanCode) {
+        return available && com.alonie.brbe.compat.ItemViewCompat.matchesShowRecipe(keyCode, scanCode);
+    }
+
+    @Override
+    public boolean matchesShowUses(int keyCode, int scanCode) {
+        return available && com.alonie.brbe.compat.ItemViewCompat.matchesShowUses(keyCode, scanCode);
+    }
 }

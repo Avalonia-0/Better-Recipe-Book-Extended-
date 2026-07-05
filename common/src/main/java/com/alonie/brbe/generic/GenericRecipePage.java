@@ -121,13 +121,13 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
 
         if (this.forwardButton.mouseClicked(mouseX, mouseY, button)) {
             if (++currentPage >= totalPages) {
-                currentPage = BetterRecipeBook.ctx().config().scrolling.scrollAround ? 0 : totalPages - 1;
+                currentPage = BetterRecipeBook.config.scrollAround ? 0 : totalPages - 1;
             }
             this.updateButtonsForPage();
             return true;
         } else if (this.backButton.mouseClicked(mouseX, mouseY, button)) {
             if (--currentPage < 0) {
-                currentPage = BetterRecipeBook.ctx().config().scrolling.scrollAround ? totalPages - 1 : 0;
+                currentPage = BetterRecipeBook.config.scrollAround ? totalPages - 1 : 0;
             }
             this.updateButtonsForPage();
             return true;
@@ -173,13 +173,13 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         // init), every field is null — bail out cleanly.
         if (this.backButton == null || this.forwardButton == null || this.buttons == null) return;
 
-        if (BetterRecipeBook.getQueuedScroll() != 0 && BetterRecipeBook.ctx().config().scrolling.enableScrolling) {
+        if (BetterRecipeBook.getQueuedScroll() != 0 && true) {
             if (isMouseOverRecipeBookPage(mouseX, mouseY, blitX, blitY) && totalPages > 1) {
                 currentPage += BetterRecipeBook.getQueuedScroll();
                 if (currentPage >= totalPages) {
-                    currentPage = BetterRecipeBook.ctx().config().scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;
+                    currentPage = BetterRecipeBook.config.scrollAround ? currentPage % totalPages : totalPages - 1;
                 } else if (currentPage < 0) {
-                    currentPage = BetterRecipeBook.ctx().config().scrolling.scrollAround ? (currentPage % totalPages) + totalPages : 0;
+                    currentPage = BetterRecipeBook.config.scrollAround ? (currentPage % totalPages) + totalPages : 0;
                 }
 
                 updateButtonsForPage();
@@ -235,7 +235,7 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
 
     protected void updateArrowButtons() {
         if (forwardButton == null || backButton == null) return;
-        if (BetterRecipeBook.ctx().config().scrolling.scrollAround && totalPages > 1) {
+        if (BetterRecipeBook.config.scrollAround && totalPages > 1) {
             forwardButton.visible = true;
             backButton.visible = true;
         } else {

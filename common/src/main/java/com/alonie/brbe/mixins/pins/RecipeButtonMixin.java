@@ -32,7 +32,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Inject(method = "getTooltipText", locals = LocalCapture.CAPTURE_FAILHARD, at = @At("RETURN"))
     public void getTooltip(CallbackInfoReturnable<List<Component>> cir, ItemStack itemStack, List<Component> list) {
-        if (!BetterRecipeBook.ctx().config().enablePinning) return;
+        if (!true) return;
 
         list.add(Component.empty());
 
@@ -46,7 +46,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     @Inject(method = "renderWidget", at = @At(value = "RETURN", target = "Lnet/minecraft/client/gui/GuiGraphics;renderFakeItem(Lnet/minecraft/world/item/ItemStack;II)V"))
     public void renderWidget_renderFakeItem(GuiGraphics gui, int x, int y, float delta, CallbackInfo ci) {
         // if pins are enabled, and the recipe is pinned, blit the pin texture after the recipe collection is rendered
-        if (BetterRecipeBook.ctx().config().enablePinning && BetterRecipeBook.pinnedRecipeManager.has(PinnableRecipeCollection.of(getCollection()))) {
+        if (BetterRecipeBook.pinnedRecipeManager.has(PinnableRecipeCollection.of(getCollection()))) {
             gui.blitSprite(BRBTextures.RECIPE_BOOK_PIN_SPRITE, getX() - 4, getY() - 4, 32, 32);
         }
     }

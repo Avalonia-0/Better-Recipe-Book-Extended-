@@ -22,6 +22,8 @@ public interface RecipeViewer {
         @Override public boolean isAvailable() { return false; }
         @Override public void showRecipe(ItemStack stack) {}
         @Override public void showUses(ItemStack stack) {}
+        @Override public boolean matchesShowRecipe(int keyCode, int scanCode) { return false; }
+        @Override public boolean matchesShowUses(int keyCode, int scanCode) { return false; }
     };
 
     /**
@@ -35,4 +37,17 @@ public interface RecipeViewer {
 
     /** Open the usage view for the given item. */
     void showUses(ItemStack stack);
+
+    /**
+     * Check whether the given key press matches this viewer's
+     * "show recipe" binding, as configured in the target mod's own
+     * key-bind settings (not a hardcoded BRBE key).
+     */
+    boolean matchesShowRecipe(int keyCode, int scanCode);
+
+    /**
+     * Check whether the given key press matches this viewer's
+     * "show uses" binding.
+     */
+    boolean matchesShowUses(int keyCode, int scanCode);
 }

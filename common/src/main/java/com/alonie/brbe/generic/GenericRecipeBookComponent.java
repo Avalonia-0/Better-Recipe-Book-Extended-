@@ -5,6 +5,7 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.config.AppContext;
 import com.alonie.brbe.api.BRBBookSettings;
+import com.alonie.brbe.compat.ItemViewCompat;
 import com.alonie.brbe.interfaces.IPinningComponent;
 import com.alonie.brbe.interfaces.ISettingsButton;
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
@@ -242,7 +243,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             return true;
         }
 
-        if (BetterRecipeBook.PIN_MAPPING.matches(i, j) && BetterRecipeBook.ctx().config().enablePinning) {
+        if (BetterRecipeBook.PIN_MAPPING.matches(i, j) && true) {
             for (GenericRecipeButton<C, R, M> resultButton : this.recipesPage.getButtons()) {
                 if (resultButton.isHoveredOrFocused()) {
                     BetterRecipeBook.pinnedRecipeManager.addOrRemoveFavourite(resultButton.getCollection());
@@ -252,6 +253,35 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             }
         }
 
+        // JEI/REI/EMI integration: open recipe/usage views for hovered item.
+        // Key matching delegates to each viewer's own configured key bindings
+        // (JEI → vanilla KeyMapping, REI → ConfigObject, EMI → EmiConfig).
+        if (ItemViewCompat.isLoaded()) {
+            // ── 1. Recipe buttons ──────────────────────────────────────
+            if (this.recipesPage.hoveredButton != null) {
+                R hoveredRecipe = this.recipesPage.hoveredButton.getCurrentDisplayedRecipe();
+                if (hoveredRecipe != null) {
+                    ItemStack hoveredStack = hoveredRecipe.getResult(registryAccess, this.recipesPage.hoveredButton.category);
+                    if (ItemViewCompat.matchesShowRecipe(i, j)) {
+                        return ItemViewCompat.openRecipeView(hoveredStack);
+                    }
+                    if (ItemViewCompat.matchesShowUses(i, j)) {
+                        return ItemViewCompat.openUsageView(hoveredStack);
+                    }
+                }
+            }
+
+            // ── 2. Ghost items ─────────────────────────────────────────
+            ItemStack ghostStack = this.brbe$lastHoveredGhostItem;
+            if (ghostStack != null && !ghostStack.isEmpty()) {
+                if (ItemViewCompat.matchesShowRecipe(i, j)) {
+                    return ItemViewCompat.openRecipeView(ghostStack);
+                }
+                if (ItemViewCompat.matchesShowUses(i, j)) {
+                    return ItemViewCompat.openUsageView(ghostStack);
+                }
+            }
+        }
 
         return false;
     }
@@ -296,7 +326,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
                 "updateCollections ENTER (generic) — pCE=%s, pME=%s, eP=%s, isFiltering=%s, collections=%d",
                 BetterRecipeBook.ctx().config().partialCraftingEnabled,
                 BetterRecipeBook.ctx().config().partialMarkingEnabled,
-                BetterRecipeBook.ctx().config().enablePinning,
+                true,
                 BRBBookSettings.isFiltering(this.getRecipeBookType()),
                 this.getCollectionsForCategory().size());
 

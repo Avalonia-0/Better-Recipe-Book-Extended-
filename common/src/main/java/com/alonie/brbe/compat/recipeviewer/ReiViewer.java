@@ -41,6 +41,34 @@ public final class ReiViewer implements RecipeViewer {
         openView("addUsagesFor", stack);
     }
 
+    @Override
+    public boolean matchesShowRecipe(int keyCode, int scanCode) {
+        if (!available) return false;
+        try {
+            Class<?> configObj = Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
+            Object config = configObj.getMethod("getInstance").invoke(null);
+            Object keybind = configObj.getMethod("getRecipeKeybind").invoke(config);
+            return (boolean) keybind.getClass().getMethod("matchesKey", int.class, int.class)
+                    .invoke(keybind, keyCode, scanCode);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    @Override
+    public boolean matchesShowUses(int keyCode, int scanCode) {
+        if (!available) return false;
+        try {
+            Class<?> configObj = Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
+            Object config = configObj.getMethod("getInstance").invoke(null);
+            Object keybind = configObj.getMethod("getUsageKeybind").invoke(config);
+            return (boolean) keybind.getClass().getMethod("matchesKey", int.class, int.class)
+                    .invoke(keybind, keyCode, scanCode);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     private static void openView(String methodName, ItemStack stack) {
         if (stack.isEmpty()) return;
         try {

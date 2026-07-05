@@ -5,6 +5,7 @@ import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.config.AppContext;
 import com.alonie.brbe.config.Config;
 import com.alonie.brbe.config.ConfigEventBus;
+import com.alonie.brbe.compat.emi.EmiCompat;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.util.BRBHelper;
@@ -95,6 +96,7 @@ public class BetterRecipeBook {
 
         PotionLoader.init();
         ReiCompat.register();
+        EmiCompat.register();
 
         queuedScroll = 0;
 

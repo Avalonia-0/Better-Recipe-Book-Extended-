@@ -133,8 +133,7 @@ public final class RecipeBookDebugLogger {
             else if (PartialCraftingUtil.hasPartialMaterials(c)) partial++;
             else uncraftable++;
 
-            if (BetterRecipeBook.ctx().config().enablePinning
-                    && BetterRecipeBook.pinnedRecipeManager.has(
+            if (BetterRecipeBook.pinnedRecipeManager.has(
                         com.alonie.brbe.generic.pins.PinnableRecipeCollection.of(c))) {
                 pinned++;
             }
@@ -265,11 +264,11 @@ public final class RecipeBookDebugLogger {
                 BetterRecipeBook.ctx().config().partialMarkingEnabled,
                 BetterRecipeBook.ctx().config().alternativeRecipes.noGrouped,
                 BetterRecipeBook.ctx().config().alternativeRecipes.onHover,
-                BetterRecipeBook.ctx().config().enablePinning,
+                true,
                 BetterRecipeBook.ctx().config().instantCraft.enabled,
                 BetterRecipeBook.ctx().config().showAllRecipesInSurvival,
                 BetterRecipeBook.ctx().config().keepCentered,
-                BetterRecipeBook.ctx().config().scrolling.enableScrolling,
+                true,
                 (BetterRecipeBook.ctx().config().rbip != null
                         ? BetterRecipeBook.ctx().config().rbip.enableRecipeBookIsPain : "null"));
     }

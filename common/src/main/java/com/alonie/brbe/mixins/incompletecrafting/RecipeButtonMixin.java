@@ -196,4 +196,5 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
             cir.setReturnValue(false);
         }
     }
+
 }

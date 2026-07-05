@@ -3,9 +3,11 @@ package com.alonie.brbe.fabric;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.fabric.PlatformPotionUtilImpl;
 import com.alonie.brbe.compat.OverlayHider;
+import com.alonie.brbe.impl.hud.EmiHudHider;
 import com.alonie.brbe.impl.hud.JeiHudHider;
 import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.loaders.PotionLoader;
+import com.alonie.brbe.compat.emi.EmiCompat;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
@@ -45,6 +47,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         // Register HUD hiders (JEI + REI overlay control)
         OverlayHider.register(new JeiHudHider());
         OverlayHider.register(new ReiHudHider());
+        OverlayHider.register(new EmiHudHider());
 
         // Initialize RBIP platform (Fabric)
         RecipeBookIsPain.PLATFORM = new FabricPlatform();
@@ -56,6 +59,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
         // Register optional compat handlers
         ReiCompat.register();
+        EmiCompat.register();
 
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             this.registeredScreens.remove(screen);

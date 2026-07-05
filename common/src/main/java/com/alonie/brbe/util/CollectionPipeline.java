@@ -140,7 +140,6 @@ public final class CollectionPipeline {
      * list in-place — the caller's reference is updated.
      */
     public static void applyPins(List<RecipeCollection> collections) {
-        if (!BetterRecipeBook.ctx().config().enablePinning) return;
         if (collections.size() <= 1) return;
 
         List<RecipeCollection> snapshot = new ArrayList<>(collections);
@@ -183,8 +182,7 @@ public final class CollectionPipeline {
         List<RecipeCollection> unpinnedUncraftable = new ArrayList<>();
 
         for (RecipeCollection c : collections) {
-            boolean isPinned = BetterRecipeBook.ctx().config().enablePinning
-                    && BetterRecipeBook.pinnedRecipeManager.has(
+            boolean isPinned = BetterRecipeBook.pinnedRecipeManager.has(
                         PinnableRecipeCollection.of(c));
 
             if (hasPartialData) {
@@ -260,7 +258,6 @@ public final class CollectionPipeline {
      * list in-place.  Works with any {@link PipelineCollection}.
      */
     public static <T extends PipelineCollection> void applyPinsGeneric(List<T> collections) {
-        if (!BetterRecipeBook.ctx().config().enablePinning) return;
         if (collections.size() <= 1) return;
 
         List<T> snapshot = new ArrayList<>(collections);
@@ -291,8 +288,7 @@ public final class CollectionPipeline {
         List<T> unpinnedUncraftable = new ArrayList<>();
 
         for (T c : collections) {
-            boolean isPinned = BetterRecipeBook.ctx().config().enablePinning
-                    && BetterRecipeBook.pinnedRecipeManager.has(c);
+            boolean isPinned = BetterRecipeBook.pinnedRecipeManager.has(c);
 
             boolean craftable = c.hasAnyCraftable();
             boolean partial = c.hasAnyPartiallyCraftable();

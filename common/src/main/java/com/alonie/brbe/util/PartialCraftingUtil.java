@@ -246,11 +246,14 @@ public final class PartialCraftingUtil {
      * sort methods and button mixins should use this instead of inline loops.
      */
     public static CollectionCategory categorize(RecipeCollection c) {
+        // categorize is only called when partialMarkingEnabled is true
+        // (the caller checks this via hasPartialData), so enabled() and
+        // the normal isPartiallyCraftable query are safe.
         if (!enabled()) return CollectionCategory.UNASSIGNED;
 
         boolean truly = false, partial = false;
         for (RecipeHolder<?> holder : c.getRecipes()) {
-            if (isPartiallyCraftable(c, holder)) {
+            if (isPartiallyCraftable(c, holder.id())) {
                 partial = true;
             } else if (c.isCraftable(holder)) {
                 truly = true;

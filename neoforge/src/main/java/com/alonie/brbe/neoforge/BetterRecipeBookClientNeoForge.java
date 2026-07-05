@@ -3,9 +3,11 @@ package com.alonie.brbe.neoforge;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.neoforge.PlatformPotionUtilImpl;
 import com.alonie.brbe.compat.OverlayHider;
+import com.alonie.brbe.impl.hud.EmiHudHider;
 import com.alonie.brbe.impl.hud.JeiHudHider;
 import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.loaders.PotionLoader;
+import com.alonie.brbe.compat.emi.EmiCompat;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
@@ -56,6 +58,7 @@ public class BetterRecipeBookClientNeoForge {
         // Register HUD hiders (JEI + REI overlay control)
         OverlayHider.register(new JeiHudHider());
         OverlayHider.register(new ReiHudHider());
+        OverlayHider.register(new EmiHudHider());
 
         // Initialize RBIP platform (NeoForge)
         RecipeBookIsPain.PLATFORM = new NeoForgePlatform();
@@ -64,6 +67,7 @@ public class BetterRecipeBookClientNeoForge {
 
         // Defer REI compat + RBIP init until first screen load
         ReiCompat.register();
+        EmiCompat.register();
         RecipeBookIsPain.ensureInitialized();
         RecipeBookIsPain.LOGGER.info(RecipeBookIsPain.diagnostic());
 

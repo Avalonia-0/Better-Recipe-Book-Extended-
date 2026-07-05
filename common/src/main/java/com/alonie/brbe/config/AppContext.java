@@ -97,7 +97,7 @@ public final class AppContext {
             events.publish(new ConfigEventBus.ConfigChanged(cfg));
             events.publish(new ConfigEventBus.PartialCraftingChanged(
                     cfg.partialCraftingEnabled, cfg.partialMarkingEnabled));
-            events.publish(new ConfigEventBus.PinningChanged(cfg.enablePinning));
+            events.publish(new ConfigEventBus.PinningChanged(true));
             events.publish(new ConfigEventBus.BookVisibilityChanged(cfg.enableBook));
             return InteractionResult.SUCCESS;
         });

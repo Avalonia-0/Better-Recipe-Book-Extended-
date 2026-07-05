@@ -11,26 +11,37 @@ public class BRBBookSettings {
     private static final Map<ResourceLocation, TypeSettings> states = new HashMap<>();
 
     public static void registerBook(BRBHelper.Book book) {
+        if (book == null) return;
         BetterRecipeBook.LOGGER.info("Registering book {}", book.resourceLocation);
         states.put(book.resourceLocation, new TypeSettings(false, false));
     }
 
     public static boolean isOpen(BRBHelper.Book book) {
+        if (book == null) return false;
         TypeSettings settings = states.get(book.resourceLocation);
-
+        if (settings == null) return false;
         return settings.open;
     }
 
     public static void setOpen(BRBHelper.Book book, boolean bl) {
-        states.get(book.resourceLocation).open = bl;
+        if (book == null) return;
+        TypeSettings settings = states.get(book.resourceLocation);
+        if (settings == null) return;
+        settings.open = bl;
     }
 
     public static boolean isFiltering(BRBHelper.Book book) {
-        return states.get(book.resourceLocation).filtering;
+        if (book == null) return false;
+        TypeSettings settings = states.get(book.resourceLocation);
+        if (settings == null) return false;
+        return settings.filtering;
     }
 
     public static void setFiltering(BRBHelper.Book book, boolean bl) {
-        states.get(book.resourceLocation).filtering = bl;
+        if (book == null) return;
+        TypeSettings settings = states.get(book.resourceLocation);
+        if (settings == null) return;
+        settings.filtering = bl;
     }
 
     static class TypeSettings {

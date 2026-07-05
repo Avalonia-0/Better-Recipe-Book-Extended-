@@ -73,20 +73,12 @@ public abstract class RecipeBookComponentMixin {
                 (com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor)(Object) recipeBookPage;
         var fwd = pageAcc.getForwardButton();
 
-        // Find grid right edge from the rightmost visible recipe button
-        int gridRight = 0;
-        for (var btn : pageAcc.getButtons()) {
-            if (btn.visible) {
-                int r = btn.getX() + btn.getWidth();
-                if (r > gridRight) gridRight = r;
-            }
-        }
-        if (gridRight == 0) {
-            // Fallback: no buttons yet — derive from book dimensions
-            int bw = brbe$getExpandedBookWidth();
-            int bl = (this.width - bw) / 2 - this.xOffset;
-            gridRight = bl + bw - BookLayout.GRID_PAD;
-        }
+        // Use book-dimension-based fixed position rather than scanning
+        // visible buttons, so the button stays anchored to the full-grid
+        // right edge even when the first row is incomplete.
+        int bw = brbe$getExpandedBookWidth();
+        int bl = (this.width - bw) / 2 - this.xOffset;
+        int gridRight = bl + bw - BookLayout.GRID_PAD;
         int btnX = gridRight - 26; // button width 26
 
         // Y: bottom-aligned with forward arrow

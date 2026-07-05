@@ -34,7 +34,7 @@ public abstract class AbstractContainerScreenMixin {
         EditBox searchBox = ((RecipeBookComponentAccessor) book).getSearchBox();
 
         // when F is pressed, handle pinning/unpinning of recipes except when searchBox is consuming input
-        if (BetterRecipeBook.ctx().config().enablePinning && BetterRecipeBook.PIN_MAPPING.matches(keyCode, scanCode) && !searchBox.canConsumeInput()) {
+        if (BetterRecipeBook.PIN_MAPPING.matches(keyCode, scanCode) && !searchBox.canConsumeInput()) {
             // handle alternatives widget first
             if (alternatesWidget.isVisible()) {
                 for (AbstractWidget alternativeButton : ((OverlayRecipeComponentAccessor) alternatesWidget).getRecipeButtons()) {

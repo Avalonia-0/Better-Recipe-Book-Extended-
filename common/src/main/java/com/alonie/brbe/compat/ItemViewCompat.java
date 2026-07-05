@@ -37,9 +37,43 @@ public final class ItemViewCompat {
         return handler != null && handler.openUsageView(stack);
     }
 
+    /**
+     * Check whether the given key press matches the active viewer's
+     * "show recipe" binding.  Returns {@code false} when no viewer is
+     * loaded or the viewer hasn't implemented key matching.
+     */
+    public static boolean matchesShowRecipe(int keyCode, int scanCode) {
+        return handler != null && handler.matchesShowRecipe(keyCode, scanCode);
+    }
+
+    /**
+     * Check whether the given key press matches the active viewer's
+     * "show uses" binding.
+     */
+    public static boolean matchesShowUses(int keyCode, int scanCode) {
+        return handler != null && handler.matchesShowUses(keyCode, scanCode);
+    }
+
     /** Common interface implemented by both JEI and REI handlers. */
     public interface Handler {
         boolean openRecipeView(ItemStack stack);
         boolean openUsageView(ItemStack stack);
+
+        /**
+         * Check whether the given key press matches this viewer's
+         * "show recipe" binding.  Default returns {@code false} so
+         * existing handlers don't break.
+         */
+        default boolean matchesShowRecipe(int keyCode, int scanCode) {
+            return false;
+        }
+
+        /**
+         * Check whether the given key press matches this viewer's
+         * "show uses" binding.
+         */
+        default boolean matchesShowUses(int keyCode, int scanCode) {
+            return false;
+        }
     }
 }

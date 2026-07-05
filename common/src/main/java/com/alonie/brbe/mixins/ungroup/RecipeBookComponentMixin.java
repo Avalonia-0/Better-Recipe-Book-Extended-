@@ -122,7 +122,7 @@ public class RecipeBookComponentMixin {
         }
 
         // Stage 3: Pin sort — delegate to CollectionPipeline
-        if (BetterRecipeBook.ctx().config().enablePinning) {
+        if (true) {
             CollectionPipeline.applyPins(list2);
         }
 

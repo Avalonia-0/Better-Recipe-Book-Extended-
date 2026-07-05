@@ -142,7 +142,7 @@ public final class BrbeDiagnostic {
             sb.append(String.format("  INFO  config.keepCentered           = %s\n",
                     ctx.config().keepCentered));
             sb.append(String.format("  INFO  config.enablePinning          = %s\n",
-                    ctx.config().enablePinning));
+                    true /* was enablePinning */));
             sb.append(String.format("  INFO  config.partialCraftingEnabled = %s\n",
                     ctx.config().partialCraftingEnabled));
             sb.append(String.format("  INFO  config.enableBook             = %s\n",
@@ -162,9 +162,9 @@ public final class BrbeDiagnostic {
             sb.append(String.format("  %s  BetterRecipeBook.config == ctx().config()\n",
                     same ? "PASS" : "FAIL"));
             // Check that config fields are accessible through both paths
-            boolean pinMatch = BetterRecipeBook.ctx().config().enablePinning
-                    == BetterRecipeBook.config.enablePinning;
-            sb.append(String.format("  %s  enablePinning matches both paths\n",
+            boolean pinMatch = true
+                    == true /* was enablePinning */;
+            sb.append(String.format("  %s  enablePinning (always true) matches both paths\n",
                     pinMatch ? "PASS" : "FAIL"));
             return same && pinMatch;
         } catch (Exception e) {
