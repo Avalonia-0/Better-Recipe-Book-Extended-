@@ -1,2 +1,19 @@
 # Library jars for compile-time dependencies
 /libs/
+
+# build output everywhere
+**/build/
+**/.gradle/
+
+# IDE
+.idea/
+*.iml
+.vscode/
+
+# logs
+*.log
+
+# root build artifacts
+/*.jar
+/HeadlessMC/
+/logs/
