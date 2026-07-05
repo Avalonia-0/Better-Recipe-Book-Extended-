@@ -13,7 +13,6 @@ import net.minecraft.world.level.Level;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 
 /**
  * Lightweight, deterministic pipeline for transforming the recipe collection
@@ -139,24 +138,18 @@ public final class CollectionPipeline {
     /**
      * Moves pinned collections to the front of the list.  Mutates the
      * list in-place — the caller's reference is updated.
-     *
-     * @return the set of pinned collection identifiers for reuse by
-     *         {@link #applyPartialSort} — avoids duplicate pin lookups
      */
-    public static Set<PinnableRecipeCollection> applyPins(List<RecipeCollection> collections) {
-        if (collections.size() <= 1) return Collections.emptySet();
+    public static void applyPins(List<RecipeCollection> collections) {
+        if (collections.size() <= 1) return;
 
-        Set<PinnableRecipeCollection> pinned = new java.util.HashSet<>();
         List<RecipeCollection> snapshot = new ArrayList<>(collections);
         for (RecipeCollection coll : snapshot) {
             if (BetterRecipeBook.pinnedRecipeManager.has(
                     PinnableRecipeCollection.of(coll))) {
-                pinned.add(PinnableRecipeCollection.of(coll));
                 collections.remove(coll);
                 collections.add(0, coll);
             }
         }
-        return pinned;
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -164,28 +157,21 @@ public final class CollectionPipeline {
     // ═══════════════════════════════════════════════════════════════
 
     /**
-     * Sorts collections with pinned recipes always at highest priority.
-     * Delegates to {@link #applyPartialSort(List, boolean, Set)} with
-     * a null pin set — each collection's pin status is looked up
-     * individually.  Prefer the 3-arg overload when pin state is already
-     * known from a prior {@link #applyPins} call.
+     * Sorts collections with pinned recipes always at highest priority,
+     * then fully-craftable, then partially-craftable, then uncraftable.
+     *
+     * <p>Pin priority is absolute: a pinned uncraftable recipe comes
+     * before an unpinned craftable one.  Within each pin group, the
+     * standard category ordering applies.
+     *
+     * @param hasPartialData whether partial-material data is available
+     *                       (controls whether partial recipes get a
+     *                       dedicated middle bucket vs grouped with
+     *                       uncraftable)
      */
     public static List<RecipeCollection> applyPartialSort(
             List<RecipeCollection> collections,
             boolean hasPartialData) {
-        return applyPartialSort(collections, hasPartialData, null);
-    }
-    /**
-     * Overload that reuses a pre-computed pin set from {@link #applyPins}
-     * to avoid redundant pin lookups.  Falls back to the original path
-     * when {@code pinnedItems} is null or empty.
-     */
-    public static List<RecipeCollection> applyPartialSort(
-            List<RecipeCollection> collections,
-            boolean hasPartialData,
-            Set<PinnableRecipeCollection> pinnedItems) {
-
-        boolean hasPins = pinnedItems != null && !pinnedItems.isEmpty();
 
         // Phase 1: split by pin status
         List<RecipeCollection> pinnedCraftable = new ArrayList<>();
@@ -196,8 +182,8 @@ public final class CollectionPipeline {
         List<RecipeCollection> unpinnedUncraftable = new ArrayList<>();
 
         for (RecipeCollection c : collections) {
-            boolean isPinned = hasPins && pinnedItems.contains(
-                    PinnableRecipeCollection.of(c));
+            boolean isPinned = BetterRecipeBook.pinnedRecipeManager.has(
+                        PinnableRecipeCollection.of(c));
 
             if (hasPartialData) {
                 CollectionCategory cat = PartialCraftingUtil.categorize(c);

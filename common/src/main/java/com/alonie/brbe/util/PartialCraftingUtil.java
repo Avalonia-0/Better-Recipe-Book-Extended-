@@ -23,12 +23,6 @@ public final class PartialCraftingUtil {
     private static final WeakHashMap<RecipeCollection, Set<ResourceLocation>> PARTIAL_RECIPES = new WeakHashMap<>();
     private static final WeakHashMap<RecipeCollection, Integer> CHECKED_COLLECTIONS = new WeakHashMap<>();
 
-    // ── Ingredient → items cache ──────────────────────────────────────
-    // ingredient.getItems() resolves tags → item lists each call.
-    // For tag ingredients with hundreds of items, caching avoids
-    // O(tag_size) resolution in the hot markPartialMaterials loop.
-    private static final WeakHashMap<Ingredient, ItemStack[]> INGREDIENT_CACHE = new WeakHashMap<>();
-
     private static int filteringGeneration;
     private static boolean filteringActive;
 
@@ -298,18 +292,11 @@ public final class PartialCraftingUtil {
 
     /**
      * Fast matching using pre-hashed inventory set — O(1) per ingredient.
-     * Caches {@code ingredient.getItems()} results to avoid repeated
-     * tag-to-item-list resolution in the hot loop.
      */
     private static boolean hasMatchingIngredientFast(List<Ingredient> ingredients, Set<Item> inventoryItems) {
         for (Ingredient ingredient : ingredients) {
             if (ingredient.isEmpty()) continue;
-            ItemStack[] items = INGREDIENT_CACHE.get(ingredient);
-            if (items == null) {
-                items = ingredient.getItems();
-                INGREDIENT_CACHE.put(ingredient, items);
-            }
-            for (ItemStack stack : items) {
+            for (ItemStack stack : ingredient.getItems()) {
                 if (!stack.isEmpty() && inventoryItems.contains(stack.getItem())) {
                     return true;
                 }
