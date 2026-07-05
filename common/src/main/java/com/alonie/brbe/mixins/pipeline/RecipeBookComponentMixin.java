@@ -48,6 +48,19 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
     @Shadow private ClientRecipeBook book;
     @Shadow @Final private RecipeBookPage recipeBookPage;
 
+    // ── Pipeline result cache ────────────────────────────────────────
+    // Avoids re-sorting 25k+ collections every frame when nothing changed.
+    @Unique
+    private static long brbe$cachedSlotHash = -1;
+    @Unique
+    private static int brbe$cachedListSize = -1;
+    @Unique
+    private static boolean brbe$cachedIsFiltering = false;
+    @Unique
+    private static Object brbe$cachedTab = null;
+    @Unique
+    private static List<RecipeCollection> brbe$cachedResult = null;
+
     // ═══════════════════════════════════════════════════════════════
     // Config-change refresh — tick() RETURN
     // ═══════════════════════════════════════════════════════════════
@@ -132,8 +145,28 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         boolean isFiltering = minecraft != null && minecraft.player != null
                 && minecraft.player.getRecipeBook().isFiltering(menu);
 
+        // ── Pipeline result cache ─────────────────────────────────
+        // Fingerprint: (slotHash, listSize, isFiltering, selectedTab).
+        // When fingerprint matches, the sort order is identical —
+        // skip the expensive applyPins + applyPartialSort stages.
+        // resetPageNumber=true always bypasses cache (page resets).
+        long slotHash = PartialCraftingUtil.slotHash(menu.slots);
+        Object currentTab = this.getSelectedTab();
+        if (!resetPageNumber
+                && brbe$cachedResult != null
+                && slotHash == brbe$cachedSlotHash
+                && list.size() == brbe$cachedListSize
+                && isFiltering == brbe$cachedIsFiltering
+                && java.util.Objects.equals(currentTab, brbe$cachedTab)) {
+            page.updateCollections(new ArrayList<>(brbe$cachedResult), false);
+            return;
+        }
+
         // -- Stage 1: Pins ----------------------------------------------
-        CollectionPipeline.applyPins(list);
+        // applyPins now returns the pinned set for reuse by applyPartialSort,
+        // eliminating ~25k redundant pin lookups in stage 2.
+        java.util.Set<com.alonie.brbe.generic.pins.PinnableRecipeCollection> pinnedSet =
+                CollectionPipeline.applyPins(list);
 
         // -- Stage 2: Partial sort -----------------------------------
         // shouldSort: always sort when the filter button is hidden
@@ -148,7 +181,7 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         boolean hasPartialData = BetterRecipeBook.ctx().config().partialMarkingEnabled;
         if (shouldSort) {
             List<RecipeCollection> sorted = CollectionPipeline.applyPartialSort(
-                    list, hasPartialData);
+                    list, hasPartialData, pinnedSet);
             list.clear();
             list.addAll(sorted);
         }
@@ -186,6 +219,13 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         // the TAIL path works from raw book.getCollection() data that
         // has not been through updateCollections at all.
         list = CollectionPipeline.applyFilterToggle(list, isFiltering);
+
+        // ── Store pipeline result in cache ────────────────────────
+        brbe$cachedSlotHash = slotHash;
+        brbe$cachedListSize = list.size();
+        brbe$cachedIsFiltering = isFiltering;
+        brbe$cachedTab = currentTab;
+        brbe$cachedResult = new ArrayList<>(list);
 
         page.updateCollections(list, resetPageNumber);
     }
