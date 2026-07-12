@@ -113,29 +113,24 @@ public final class VanillaRecipeCache {
     }
 
     /**
-     * Collects category:itemId pairs from server-provided entries (positive IDs).
+     * Collects result item IDs from server-provided entries (positive IDs).
      *
-     * <p>Each pair is {@code "categoryName:itemId"} (e.g.
-     * {@code "furnace_food:minecraft:charcoal"}).  The category is normalised
-     * to the short form used by cache entries (without the {@code minecraft:}
-     * namespace prefix).  Matching on category+item prevents cross-station
-     * shadowing — a furnace recipe for charcoal will not hide the campfire
-     * recipe for the same item.
+     * <p>Each entry is just the item registry ID (e.g. {@code "minecraft:charcoal"}).
+     * Datapacks can change a recipe's category without changing its result item,
+     * so matching on resultItem alone is correct — the server's category is
+     * authoritative.  Cross-station shadowing (furnace charcoal vs campfire
+     * charcoal) is not a concern because the recipe book UI partitions entries
+     * by RecipeBookCategory set per station type.
      */
     private static Set<String> collectServerResultItems(Map<RecipeDisplayId, RecipeDisplayEntry> known) {
         Set<String> keys = new HashSet<>();
         for (RecipeDisplayEntry entry : known.values()) {
             String rid = extractResultItemId(entry.display().result());
             if (rid != null) {
-                String catStr = entry.category() != null
-                        ? BuiltInRegistries.RECIPE_BOOK_CATEGORY.getKey(entry.category()).toString()
-                        : "unknown";
-                if (catStr.startsWith("minecraft:"))
-                    catStr = catStr.substring("minecraft:".length());
-                keys.add(catStr + ":" + rid);
+                keys.add(rid);
             }
         }
-        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] server covers {} unique category:item entries",
+        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] server covers {} unique result items",
                 keys.size());
         return keys;
     }
@@ -145,9 +140,9 @@ public final class VanillaRecipeCache {
     /**
      * Injects cached entries into the known map.
      *
-     * @param serverResultItems category:itemId pairs already covered by the server
-     *        (e.g. "furnace_food:minecraft:charcoal").  Cache entries whose
-     *        category+resultItem matches a pair in this set are skipped.
+     * @param serverResultItems result item IDs (e.g. "minecraft:charcoal")
+     *        already covered by the server.  Cache entries whose result item
+     *        appears in this set are skipped (complement mode).
      *        Pass an empty set to inject all valid entries.
      */
     private static void injectEntries(Map<RecipeDisplayId, RecipeDisplayEntry> known,
@@ -166,12 +161,11 @@ public final class VanillaRecipeCache {
         for (CacheableRecipeDisplayEntry cEntry : cache.values()) {
             try {
                 // In complement mode, skip entries already covered by the server.
-                // Match on category:itemId to prevent cross-station shadowing
-                // (e.g. a furnace recipe for charcoal must not hide the campfire recipe).
+                // Match on resultItem alone — not category:resultItem — because
+                // a datapack can change a recipe's category, and the server's
+                // category is authoritative for the client recipe book UI.
                 if (complementMode && cEntry.resultItem() != null) {
-                    String matchKey = (cEntry.categoryName() != null ? cEntry.categoryName() : "unknown")
-                            + ":" + cEntry.resultItem();
-                    if (serverResultItems.contains(matchKey)) {
+                    if (serverResultItems.contains(cEntry.resultItem())) {
                         skippedCount++;
                         continue;
                     }
