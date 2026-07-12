@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "brbe",
-  "version": "2.1.5",
+  "version": "2.2.1",
   "name": "Better Recipe Book (Extended)",
   "description": "Adds some quality of life changes to the recipe book",
   "authors": [
@@ -39,6 +39,7 @@
     "mixins.brbe.json",
     "mixins.brbe-common.json",
     "mixins.brbe-common-compat.json",
+    "mixins.brbe-jei-common.json",
     "mixins.brbe-rei-common.json",
     "recipe-book-is-pain-extended.mixins.json"
   ],
