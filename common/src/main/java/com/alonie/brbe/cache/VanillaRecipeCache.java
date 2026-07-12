@@ -91,15 +91,10 @@ public final class VanillaRecipeCache {
         for (RecipeDisplayEntry entry : known.values()) {
             String rid = extractResultItemId(entry.display().result());
             if (rid != null) {
-                String catStr = entry.category() != null
-                        ? BuiltInRegistries.RECIPE_BOOK_CATEGORY.getKey(entry.category()).toString()
-                        : "unknown";
-                if (catStr.startsWith("minecraft:"))
-                    catStr = catStr.substring("minecraft:".length());
-                keys.add(catStr + ":" + rid);
+                keys.add(rid);
             }
         }
-        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] server covers {} unique category:item entries",
+        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] server covers {} unique result items",
                 keys.size());
         return keys;
     }
@@ -116,10 +111,11 @@ public final class VanillaRecipeCache {
         boolean complementMode = !serverResultItems.isEmpty();
         for (CacheableRecipeDisplayEntry cEntry : cache.values()) {
             try {
+                // Match on resultItem alone — not category:resultItem — because
+                // a datapack can change a recipe's category, and the server's
+                // category is authoritative for the client recipe book UI.
                 if (complementMode && cEntry.resultItem() != null) {
-                    String matchKey = (cEntry.categoryName() != null ? cEntry.categoryName() : "unknown")
-                            + ":" + cEntry.resultItem();
-                    if (serverResultItems.contains(matchKey)) {
+                    if (serverResultItems.contains(cEntry.resultItem())) {
                         skippedCount++;
                         continue;
                     }
