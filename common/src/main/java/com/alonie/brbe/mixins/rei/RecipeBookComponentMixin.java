@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.alonie.brbe.BetterRecipeBook;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.alonie.brbe.compat.ItemViewCompat;
+import com.alonie.brbe.compat.rei.ReiCompat;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.alonie.brbe.mixins.accessors.GhostSlotsAccessor;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -56,6 +57,10 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "keyPressed", at = @At("RETURN"), cancellable = true)
     private void brbe$handleReiKeys(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
+        // Trigger retry if handler not set yet (e.g. REI loaded after mod init)
+        if (!ItemViewCompat.isLoaded()) {
+            ReiCompat.isLoaded();  // calls ensureRegistered() → retries register()
+        }
         if (!ItemViewCompat.isLoaded()) {
             return;
         }
@@ -63,6 +68,9 @@ public abstract class RecipeBookComponentMixin {
         if (cir.getReturnValueZ()) {
             return;
         }
+
+        int keyCode = event.key();
+        int scanCode = event.scancode();
 
         RecipeBookComponentAccessor accessor = (RecipeBookComponentAccessor) this;
         RecipeBookPage page = accessor.getRecipeBookPage();
@@ -73,9 +81,9 @@ public abstract class RecipeBookComponentMixin {
             if (button.isHoveredOrFocused()) {
                 ItemStack hoveredStack = button.getDisplayStack();
                 if (hoveredStack != null && !hoveredStack.isEmpty()) {
-                    if (event.key() == InputConstants.KEY_R) {
+                    if (ItemViewCompat.matchesShowRecipe(keyCode, scanCode)) {
                         cir.setReturnValue(ItemViewCompat.openRecipeView(hoveredStack));
-                    } else if (event.key() == InputConstants.KEY_U) {
+                    } else if (ItemViewCompat.matchesShowUses(keyCode, scanCode)) {
                         cir.setReturnValue(ItemViewCompat.openUsageView(hoveredStack));
                     }
                 }
@@ -94,14 +102,23 @@ public abstract class RecipeBookComponentMixin {
         if (ingredients == null) return;
 
         Object ghostSlot = ingredients.get(slot);
-        if (ghostSlot == null) return;
+        if (ghostSlot == null) {
+            BetterRecipeBook.LOGGER.info("[BRBE] Ghost path: no ghost in ingredients for slot#{} (map size={})",
+                    slot.index, ingredients.size());
+            return;
+        }
 
         ItemStack ghostStack = getGhostItemStack(ghostSlot);
-        if (ghostStack == null || ghostStack.isEmpty()) return;
+        if (ghostStack == null || ghostStack.isEmpty()) {
+            BetterRecipeBook.LOGGER.info("[BRBE] Ghost path: getGhostItemStack returned empty for slot#{}", slot.index);
+            return;
+        }
 
-        if (event.key() == InputConstants.KEY_R) {
+        BetterRecipeBook.LOGGER.info("[BRBE] Ghost path: querying {} for slot#{}",
+                ghostStack.getHoverName().getString(), slot.index);
+        if (ItemViewCompat.matchesShowRecipe(keyCode, scanCode)) {
             cir.setReturnValue(ItemViewCompat.openRecipeView(ghostStack));
-        } else if (event.key() == InputConstants.KEY_U) {
+        } else if (ItemViewCompat.matchesShowUses(keyCode, scanCode)) {
             cir.setReturnValue(ItemViewCompat.openUsageView(ghostStack));
         }
     }
@@ -109,9 +126,23 @@ public abstract class RecipeBookComponentMixin {
     @Unique
     private static ItemStack getGhostItemStack(Object ghostSlot) {
         try {
-            java.lang.reflect.Method getItem = ghostSlot.getClass().getMethod("getItem", int.class);
-            return (ItemStack) getItem.invoke(ghostSlot, 0);
+            // GhostSlot is a Record(List<ItemStack> items, boolean isResultSlot).
+            // At runtime the method name is mapping-dependent ("items" in Mojang,
+            // an intermediary name in Yarn).  Iterate over public no-arg methods
+            // to find the one that returns List<ItemStack>.
+            for (java.lang.reflect.Method m : ghostSlot.getClass().getMethods()) {
+                if (m.getReturnType() == java.util.List.class && m.getParameterCount() == 0) {
+                    @SuppressWarnings("unchecked")
+                    java.util.List<ItemStack> items = (java.util.List<ItemStack>) m.invoke(ghostSlot);
+                    if (items != null && !items.isEmpty()) {
+                        ItemStack first = items.get(0);
+                        if (first != null && !first.isEmpty()) return first;
+                    }
+                }
+            }
+            return ItemStack.EMPTY;
         } catch (Exception e) {
+            BetterRecipeBook.LOGGER.warn("[BRBE] getGhostItemStack failed for {}", ghostSlot.getClass().getName(), e);
             return ItemStack.EMPTY;
         }
     }

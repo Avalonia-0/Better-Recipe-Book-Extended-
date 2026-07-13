@@ -40,7 +40,6 @@ dependencies {
     // modImplementation "dev.architectury:architectury-neoforge:${rootProject.architectury_version}"
 
     modApi "me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}"
-    include "me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}"
 
     def jeiJarPath = rootProject.findProperty("jei_neoforge_jar")?.toString()
     if (jeiJarPath == null || !file(jeiJarPath).exists()) {
@@ -75,6 +74,8 @@ processResources {
 
 shadowJar {
     exclude "fabric.mod.json"
+    exclude "recipe-book-is-pain-extended.mixins.json"
+    exclude "brbe.common.accesswidener"
 
     configurations = [project.configurations.shadowBundle]
     archiveClassifier = "dev-shadow"

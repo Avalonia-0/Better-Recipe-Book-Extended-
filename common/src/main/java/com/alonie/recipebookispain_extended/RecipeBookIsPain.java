@@ -64,6 +64,25 @@ public class RecipeBookIsPain {
     private static final Map<String, CreativeModeTab> namespaceCache = new HashMap<>();
     private static boolean namespaceCacheBuilt;
 
+    /**
+     * 配方书标签页覆盖映射。
+     * 某些物品在原版创造标签页中的归属与配方书用户期望不符。
+     * 例如红石火把归在"功能方块"标签，但作为红石元件应同时在"红石方块"标签可见。
+     * <p>
+     * 此映射将物品重定向到正确的标签页，使 RBIP 标签页模式下该物品出现在期望的标签页中。
+     * Key: 物品注册ID, Value: 目标创造标签页的注册路径 (如 "redstone_blocks")
+     */
+    private static final Map<Identifier, String> TAB_OVERRIDES = new HashMap<>();
+
+    static {
+        // 红石火把：原版归在 functional_blocks，重定向到 redstone_blocks 使其在红石方块标签页可见
+        // Redstone torch: vanilla places it in functional_blocks; override to
+        // redstone_blocks so it appears in the redstone blocks tab under RBIP.
+        TAB_OVERRIDES.put(Identifier.fromNamespaceAndPath("minecraft", "redstone_torch"), "redstone_blocks");
+        TAB_OVERRIDES.put(Identifier.fromNamespaceAndPath("minecraft", "redstone_wall_torch"), "redstone_blocks");
+        // 在此添加更多覆盖 —— Add more overrides here as needed.
+    }
+
     // ------------------------------------------------
     //  Initialisation
     // ------------------------------------------------
@@ -225,6 +244,18 @@ public class RecipeBookIsPain {
 
         Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
         if (id != null) {
+            // ── 标签页覆盖检查 ─────────────────────────────────
+            // 如果该物品在 TAB_OVERRIDES 中有定义，优先返回覆盖目标标签页的分类。
+            // 这会替换物品的默认创造标签页归属（如 functional_blocks → redstone_blocks）。
+            String overrideTabPath = TAB_OVERRIDES.get(id);
+            if (overrideTabPath != null) {
+                CreativeModeTab overrideTab = namespaceCache.get(overrideTabPath);
+                if (overrideTab != null) {
+                    ExtendedRecipeBookCategory group = toRecipeBookGroup(overrideTab);
+                    if (group != null) return group;
+                }
+            }
+
             CreativeModeTab nsGroup = namespaceCache.get(id.getNamespace());
             if (nsGroup != null) {
                 return toRecipeBookGroup(nsGroup);
@@ -327,6 +358,16 @@ public class RecipeBookIsPain {
 
         Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
         if (id != null) {
+            // ── 标签页覆盖检查（与 toRecipeBookGroup 一致） ──────
+            String overrideTabPath = TAB_OVERRIDES.get(id);
+            if (overrideTabPath != null) {
+                CreativeModeTab overrideTab = namespaceCache.get(overrideTabPath);
+                if (overrideTab != null) {
+                    ExtendedRecipeBookCategory group = groupMap.inverse().get(overrideTab);
+                    if (group != null) return group;
+                }
+            }
+
             CreativeModeTab nsGroup = namespaceCache.get(id.getNamespace());
             if (nsGroup != null) {
                 return groupMap.inverse().get(nsGroup);

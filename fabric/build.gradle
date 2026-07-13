@@ -56,4 +56,6 @@ tasks.named("compileJava") {
 jar {
     from project(":common").sourceSets.main.output
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude "rbip-neoforge.mixins.json"
+    exclude "mixins.brbe-jei-common.json"
 }

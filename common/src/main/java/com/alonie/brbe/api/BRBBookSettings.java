@@ -12,26 +12,37 @@ public class BRBBookSettings {
 
 
     public static void registerBook(BRBHelper.Book book) {
+        if (book == null) return;
         BetterRecipeBook.LOGGER.info("Registering book {}", book.Identifier);
         states.put(book.Identifier, new TypeSettings(false, false));
     }
 
     public static boolean isOpen(BRBHelper.Book book) {
+        if (book == null) return false;
         TypeSettings settings = states.get(book.Identifier);
-
+        if (settings == null) return false;
         return settings.open;
     }
 
     public static void setOpen(BRBHelper.Book book, boolean bl) {
-        states.get(book.Identifier).open = bl;
+        if (book == null) return;
+        TypeSettings settings = states.get(book.Identifier);
+        if (settings == null) return;
+        settings.open = bl;
     }
 
     public static boolean isFiltering(BRBHelper.Book book) {
-        return states.get(book.Identifier).filtering;
+        if (book == null) return false;
+        TypeSettings settings = states.get(book.Identifier);
+        if (settings == null) return false;
+        return settings.filtering;
     }
 
     public static void setFiltering(BRBHelper.Book book, boolean bl) {
-        states.get(book.Identifier).filtering = bl;
+        if (book == null) return;
+        TypeSettings settings = states.get(book.Identifier);
+        if (settings == null) return;
+        settings.filtering = bl;
     }
 
 

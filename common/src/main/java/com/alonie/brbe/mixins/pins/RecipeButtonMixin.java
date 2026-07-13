@@ -31,7 +31,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Inject(method = "getTooltipText", at = @At("RETURN"))
     public void getTooltip(CallbackInfoReturnable<List<Component>> cir) {
-        if (!BetterRecipeBook.config.enablePinning) return;
+        // enablePinning removed — always enabled
 
         List<Component> list = cir.getReturnValue();
         if (list == null) {
@@ -51,7 +51,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     @Inject(method = "renderWidget", at = @At("RETURN"))
     public void renderWidget_renderFakeItem(GuiGraphics gui, int x, int y, float delta, CallbackInfo ci) {
         // if pins are enabled, and the recipe is pinned, blit the pin texture after the recipe collection is rendered
-        if (BetterRecipeBook.config.enablePinning && BetterRecipeBook.pinnedRecipeManager.has(PinnableRecipeCollection.of(getCollection()))) {
+        if (BetterRecipeBook.pinnedRecipeManager.has(PinnableRecipeCollection.of(getCollection()))) {
             ClientCompat.blitSprite(gui, BRBTextures.RECIPE_BOOK_PIN_SPRITE, getX() - 4, getY() - 4, 32, 32);
         }
     }

@@ -18,7 +18,7 @@ public abstract class RecipeBookComponentMixin implements IPinningComponent<Pinn
     public void brbe$sortByPinsInPlaceCollection(List<RecipeCollection> results) {
         List<RecipeCollection> tempResults = Lists.newArrayList(results);
 
-        if (BetterRecipeBook.config.enablePinning) {
+        if (true) {
             for (RecipeCollection result : tempResults) {
                 if (BetterRecipeBook.pinnedRecipeManager.has(PinnableRecipeCollection.of(result))) {
                     results.remove(result);

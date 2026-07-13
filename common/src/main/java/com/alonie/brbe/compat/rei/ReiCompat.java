@@ -19,6 +19,14 @@ public class ReiCompat {
             public boolean openUsageView(ItemStack stack) {
                 return openView("addUsagesFor", stack);
             }
+            @Override
+            public boolean matchesShowRecipe(int keyCode, int scanCode) {
+                return ReiCompat.matchesKeyBind("getRecipeKeybind", keyCode, scanCode);
+            }
+            @Override
+            public boolean matchesShowUses(int keyCode, int scanCode) {
+                return ReiCompat.matchesKeyBind("getUsageKeybind", keyCode, scanCode);
+            }
         });
         registered = true;
     }
@@ -63,18 +71,43 @@ public class ReiCompat {
         return ItemViewCompat.openUsageView(stack);
     }
 
+    static boolean matchesKeyBind(String getterName, int keyCode, int scanCode) {
+        try {
+            Class<?> configObj = Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
+            Object config = configObj.getMethod("getInstance").invoke(null);
+            Object keybind = configObj.getMethod(getterName).invoke(config);
+            return (boolean) keybind.getClass().getMethod("matchesKey", int.class, int.class)
+                    .invoke(keybind, keyCode, scanCode);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
     public interface ReiHandler extends ItemViewCompat.Handler {
         // inherits openRecipeView(ItemStack) and openUsageView(ItemStack)
     }
 
+    /**
+     * Cross-loader mod-detection using reflection.
+     * Tries NeoForge first (ModList), then Fabric (FabricLoader).
+     */
     private static boolean isModLoaded(String modId) {
+        // NeoForge / Forge
         try {
-            Class<?> fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader");
-            Object instance = fabricLoader.getMethod("getInstance").invoke(null);
-            return (boolean) instance.getClass().getMethod("isModLoaded", String.class)
+            Class<?> modList = Class.forName("net.neoforged.fml.ModList");
+            Object instance = modList.getMethod("get").invoke(null);
+            return (boolean) instance.getClass().getMethod("isLoaded", String.class)
                     .invoke(instance, modId);
-        } catch (Throwable e) {
-            return false;
+        } catch (Throwable e1) {
+            // Fabric
+            try {
+                Class<?> fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader");
+                Object instance = fabricLoader.getMethod("getInstance").invoke(null);
+                return (boolean) instance.getClass().getMethod("isModLoaded", String.class)
+                        .invoke(instance, modId);
+            } catch (Throwable e2) {
+                return false;
+            }
         }
     }
 }
