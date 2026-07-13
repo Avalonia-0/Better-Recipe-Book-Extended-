@@ -114,18 +114,16 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             this.xOffset = this.widthTooNarrow ? 0 : BookLayout.X_OFFSET_STANDARD;
         }
 
-        int bookWidth = getCurrentBookWidth();
-        int i = getBookLeft();
-        int j = getBookTop();
+        int i = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset;
+        int j = (this.height - BookLayout.TEXTURE_HEIGHT) / 2;
         this.stackedContents.clear();
         if (this.minecraft.player == null) return;
         this.minecraft.player.getInventory().fillStackedContents(this.stackedContents);
-        // TODO: menu.fillCraftSlotsStackedContents(this.stackedContents);
+        // TODO: menu.fillCraftSlotsStackedContents
         String string = this.searchBox != null ? this.searchBox.getValue() : "";
         Objects.requireNonNull(this.minecraft.font);
-        int searchWidth = isExpanded() ? bookWidth - 140 : BookLayout.SEARCH_WIDTH;
         this.searchBox = new EditBox(this.minecraft.font, i + BookLayout.SEARCH_X_OFFSET,
-                j + BookLayout.SEARCH_Y_OFFSET, searchWidth,
+                j + BookLayout.SEARCH_Y_OFFSET, BookLayout.SEARCH_WIDTH,
                 this.minecraft.font.lineHeight + 5, Component.translatable("itemGroup.search"));
         this.searchBox.setMaxLength(50);
         this.searchBox.setVisible(true);
@@ -133,10 +131,10 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.searchBox.setValue(string);
         this.searchBox.setHint(SEARCH_HINT);
         this.settingsButton = createSettingsButton(i, j);
-        this.recipesPage.initialize(this.minecraft, i, j, menu, bookWidth);
+        this.recipesPage.initialize(this.minecraft, i, j, menu, BookLayout.TEXTURE_WIDTH);
         this.tabButtons.clear();
         // filter button: right-aligned from the book's right edge
-        this.filterButton = new StateSwitchingButton(i + bookWidth - 37,
+        this.filterButton = new StateSwitchingButton(i + BookLayout.TEXTURE_WIDTH - 37,
                 j + BookLayout.FILTER_Y_OFFSET, BookLayout.FILTER_WIDTH, BookLayout.FILTER_HEIGHT,
                 BRBBookSettings.isFiltering(this.getRecipeBookType()));
         this.updateFilterButtonTooltip();
@@ -144,7 +142,10 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
         List<BRBBookCategories.Category> categories = BRBBookCategories.getCategories(this.getRecipeBookType());
 
-        if (categories == null) throw new NullPointerException("Book category not registered");
+        if (categories == null || categories.isEmpty()) {
+            // Categories not yet registered — silently degrade.
+            return;
+        }
 
         for (BRBBookCategories.Category category : categories) {
             this.tabButtons.add(new BRBGroupButtonWidget(category));
@@ -161,17 +162,10 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.selectedTab.setStateTriggered(true);
         this.updateCollections(false);
         this.refreshTabButtons();
-        // this.refreshExpandedToggleButton(); // TEMPORARILY DISABLED
     }
 
     public void render(GuiGraphics gui, int mouseX, int mouseY, float delta) {
         if (!this.isVisible()) return;
-
-        // Log render state before any processing
-        boolean configChanged = AppContext.instance().events().consumeConfigChange();
-        BrbeLogger.log(BrbeLogger.Category.RENDER,
-                "Generic render ENTER — configChanged=%s, visible=%s, doubleRefresh=%s",
-                configChanged, visible, doubleRefresh);
 
         if (this.doubleRefresh) {
             // Minecraft doesn't populate the inventory on initialization so this is the only solution I have
@@ -179,49 +173,26 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             this.doubleRefresh = false;
         }
 
-        // When config changes (e.g. enablePinning, noGrouped toggled in the
-        // Cloth Config screen), reset recipe visibility state and do a full
-        // re-initialization so all UI elements and recipe ordering match.
-        if (configChanged) {
-            BrbeLogger.log(BrbeLogger.Category.RENDER,
-                    "Generic render — configChanged CONSUMED, calling initVisuals");
-            // Reset filter state: show all recipes after a config change,
-            // letting the pipeline handle sorting.  The user can re-toggle
-            // the filter button to their preference afterward.
-            BRBBookSettings.setFiltering(this.getRecipeBookType(), false);
-            initVisuals();
-        }
+        int blitX = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset;
+        int blitY = (this.height - BookLayout.TEXTURE_HEIGHT) / 2;
 
-        int bookWidth = getCurrentBookWidth();
-        int blitX = getBookLeft();
-        int blitY = getBookTop();
-
-        gui.pose().pushPose();
-        gui.pose().translate(0.0f, 0.0f, 100.0f);
-
-        // Render recipe book background using 3-slice
-        brbe$renderBookBackground(gui, blitX, blitY, bookWidth);
+        // Render recipe book background
+        brbe$renderBookBackground(gui, blitX, blitY, BookLayout.TEXTURE_WIDTH);
 
         // render search box
         this.searchBox.render(gui, mouseX, mouseY, delta);
 
-        this.filterButton.render(gui, mouseX, mouseY, delta);
+        // render tab buttons (on top of book background, behind page content)
+        for (BRBGroupButtonWidget widget : this.tabButtons) {
+            widget.render(gui, mouseX, mouseY, delta);
+        }
 
-        // if (this.expandedToggleButton != null) { // TEMPORARILY DISABLED
-        //     this.expandedToggleButton.render(gui, mouseX, mouseY, delta);
-        // }
+        this.filterButton.render(gui, mouseX, mouseY, delta);
 
         ISettingsButton.super.renderSettingsButton(this.settingsButton, gui, mouseX, mouseY, delta);
 
         // render the recipe book page contents
         this.recipesPage.render(gui, blitX, blitY, mouseX, mouseY, delta);
-
-        // Tab buttons render LAST, on top of everything (selected tab overlaps into book area)
-        for (BRBGroupButtonWidget widget : this.tabButtons) {
-            widget.render(gui, mouseX, mouseY, delta);
-        }
-
-        gui.pose().popPose();
     }
 
     @Override
