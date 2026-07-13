@@ -6,7 +6,7 @@ import com.alonie.brbe.util.BRBTextures;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ImageButton;
-import com.alonie.brbe.interfaces.ExpandedBookScreen;
+// import com.alonie.brbe.interfaces.ExpandedBookScreen; // TEMPORARILY DISABLED
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.BrewingStandScreen;
 import net.minecraft.network.chat.Component;
@@ -22,7 +22,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(BrewingStandScreen.class)
-public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<BrewingStandMenu> implements ExpandedBookScreen {
+public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<BrewingStandMenu> {
 
     @Unique
     public final BrewingRecipeBookComponent _$recipeBookComponent = new BrewingRecipeBookComponent();
@@ -39,18 +39,17 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
             this._$widthNarrow = this.width < 379;
             assert this.minecraft != null;
             this._$recipeBookComponent.init(this.width, this.height, this.minecraft, _$widthNarrow, this.menu, Minecraft.getInstance().getConnection().registryAccess());
-            this._$recipeBookComponent.setContainerImageWidth(this.imageWidth);
 
             if (!BetterRecipeBook.ctx().config().keepCentered) {
                 this.leftPos = this._$recipeBookComponent.findLeftEdge(this.width, this.imageWidth);
             }
 
-            this.addRenderableWidget(new ImageButton(this.leftPos - 12 + this._$recipeBookComponent.getCurrentBookWidth(), this.height / 2 - 50, 20, 18, BRBTextures.RECIPE_BOOK_BUTTON_SPRITES, (button) -> {
+            this.addRenderableWidget(new ImageButton(this.leftPos + 135, this.height / 2 - 50, 20, 18, BRBTextures.RECIPE_BOOK_BUTTON_SPRITES, (button) -> {
                 this._$recipeBookComponent.toggleVisibility();
                 if (!BetterRecipeBook.ctx().config().keepCentered) {
                     this.leftPos = this._$recipeBookComponent.findLeftEdge(this.width, this.imageWidth);
                 }
-                button.setPosition(this.leftPos - 12 + this._$recipeBookComponent.getCurrentBookWidth(), this.height / 2 - 50);
+                button.setPosition(this.leftPos + 135, this.height / 2 - 50);
             }));
 
             this.addWidget(this._$recipeBookComponent);
@@ -106,11 +105,11 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
         }
     }
 
-    @Override
-    public boolean brbe$isExpandedBookOpen() {
-        return this._$recipeBookComponent.isVisible()
-                && this._$recipeBookComponent.isExpanded();
-    }
+    // @Override
+    // public boolean brbe$isExpandedBookOpen() { // TEMPORARILY DISABLED
+    //     return this._$recipeBookComponent.isVisible()
+    //             && this._$recipeBookComponent.isExpanded();
+    // }
 
     // fix brewing progress indicator offset when recipe book is open by modifying the width offset
     @ModifyVariable(
