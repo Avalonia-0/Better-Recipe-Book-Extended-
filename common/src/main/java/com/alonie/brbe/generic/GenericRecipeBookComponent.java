@@ -202,11 +202,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         // Render recipe book background using 3-slice
         brbe$renderBookBackground(gui, blitX, blitY, bookWidth);
 
-        // Tab buttons render ON TOP of the book (selected tab overlaps into book area)
-        for (BRBGroupButtonWidget widget : this.tabButtons) {
-            widget.render(gui, mouseX, mouseY, delta);
-        }
-
         // render search box
         this.searchBox.render(gui, mouseX, mouseY, delta);
 
@@ -220,6 +215,11 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
         // render the recipe book page contents
         this.recipesPage.render(gui, blitX, blitY, mouseX, mouseY, delta);
+
+        // Tab buttons render LAST, on top of everything (selected tab overlaps into book area)
+        for (BRBGroupButtonWidget widget : this.tabButtons) {
+            widget.render(gui, mouseX, mouseY, delta);
+        }
 
         gui.pose().popPose();
     }

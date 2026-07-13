@@ -57,12 +57,16 @@ public interface BRBSmithingRecipe extends SmithingRecipe, GenericRecipe {
     }
 
     default String getTemplateType() {
+        ItemStack[] items = getTemplate().getItems();
+        if (items.length == 0) return "";
         var tipCtx = Item.TooltipContext.of(Minecraft.getInstance().player.level());
-        return getTemplate().getItems()[0].getTooltipLines(tipCtx, Minecraft.getInstance().player, TooltipFlag.NORMAL).get(1).getString();
+        return items[0].getTooltipLines(tipCtx, Minecraft.getInstance().player, TooltipFlag.NORMAL).get(1).getString();
     }
 
     default ResourceLocation id() {
-        return BuiltInRegistries.ITEM.getKey(getTemplate().getItems()[0].getItem());
+        ItemStack[] items = getTemplate().getItems();
+        if (items.length == 0) return BuiltInRegistries.ITEM.getKey(net.minecraft.world.item.Items.AIR);
+        return BuiltInRegistries.ITEM.getKey(items[0].getItem());
     }
 
     @Override

@@ -43,7 +43,9 @@ public class BRBSmithingTrimRecipe extends SmithingTrimRecipe implements BRBSmit
     @Override
     public ItemStack getResult(ResourceKey<TrimMaterial> trimMaterialResourceKey, RegistryAccess registryAccess, BRBBookCategories.Category category) {
         Optional<Holder.Reference<TrimMaterial>> material = registryAccess.registryOrThrow(Registries.TRIM_MATERIAL).getHolder(trimMaterialResourceKey);
-        Optional<Holder.Reference<TrimPattern>> trim = TrimPatterns.getFromTemplate(registryAccess, this.getTemplate().getItems()[0]);
+        ItemStack[] templateItems = this.getTemplate().getItems();
+        ItemStack templateStack = templateItems.length > 0 ? templateItems[0] : ItemStack.EMPTY;
+        Optional<Holder.Reference<TrimPattern>> trim = TrimPatterns.getFromTemplate(registryAccess, templateStack);
 
         ItemStack itemStack = this.itemStackBase.copy();
 

@@ -44,7 +44,9 @@ public class SmithingGhostRecipe extends GenericGhostRecipe<BRBSmithingRecipe> {
 
         Holder.Reference<TrimMaterial> material = holders.filter(holder -> ((HolderReferenceAccessor<TrimMaterial>) holder).getKey().equals(((HolderReferenceAccessor<TrimMaterial>) currentMaterialReference.get()).getKey())).findFirst().get();
 
-        Optional<Holder.Reference<TrimPattern>> trim = TrimPatterns.getFromTemplate(registryAccess, recipe.getTemplate().getItems()[0]);
+        ItemStack[] templateItems = recipe.getTemplate().getItems();
+        ItemStack templateStack = templateItems.length > 0 ? templateItems[0] : ItemStack.EMPTY;
+        Optional<Holder.Reference<TrimPattern>> trim = TrimPatterns.getFromTemplate(registryAccess, templateStack);
 
         if (trim.isPresent()) {
             ArmorTrim armorTri = new ArmorTrim(material, trim.get());

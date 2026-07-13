@@ -32,7 +32,9 @@ public class BRBSmithingTransformRecipe extends SmithingTransformRecipe implemen
 
     @Override
     public ItemStack getBase() {
-        return ((SmithingTransformRecipeAccessor) this).getUnderlyingBase().getItems()[0];
+        ItemStack[] items = ((SmithingTransformRecipeAccessor) this).getUnderlyingBase().getItems();
+        if (items.length == 0) return ItemStack.EMPTY;
+        return items[0];
     }
 
     @Override
