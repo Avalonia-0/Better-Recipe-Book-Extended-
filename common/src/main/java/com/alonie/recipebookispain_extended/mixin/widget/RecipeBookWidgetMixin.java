@@ -349,6 +349,9 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
             }
             RecipeBookDebugLogger.onRbipTabSelected(
                     tab.getDisplayName().getString(), furnaceType);
+            this.minecraft.getSoundManager().play(
+                    net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                            net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK, 1.0F));
             ((RecipeBookComponentAccessor) this).updateCollectionsInvoker(false);
             cir.setReturnValue(true);
             return;
