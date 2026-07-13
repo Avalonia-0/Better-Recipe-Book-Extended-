@@ -42,19 +42,17 @@ public final class AppContext {
     // -- Config change detection -----------------------------------------------
     // Cached values of recipe-relevant config fields.  Used to skip
     // unnecessary recipe-book refreshes when unrelated configs change
-    // (e.g. instantCraft, scrolling, hideReiJeiOverlay).
+    // (e.g. instantCraft, hideReiJeiOverlay).
 
     private boolean cachedPartialCraftingEnabled;
     private boolean cachedPartialMarkingEnabled;
     private boolean cachedShowAllRecipesInSurvival;
-    private boolean cachedEnablePinning;
     private boolean cachedNoGrouped;
 
     private void snapshotRecipeConfig(Config cfg) {
         this.cachedPartialCraftingEnabled = cfg.partialCraftingEnabled;
         this.cachedPartialMarkingEnabled = cfg.partialMarkingEnabled;
         this.cachedShowAllRecipesInSurvival = cfg.showAllRecipesInSurvival;
-        this.cachedEnablePinning = cfg.enablePinning;
         this.cachedNoGrouped = cfg.alternativeRecipes.noGrouped;
     }
 
@@ -62,7 +60,6 @@ public final class AppContext {
         return cfg.partialCraftingEnabled != this.cachedPartialCraftingEnabled
             || cfg.partialMarkingEnabled != this.cachedPartialMarkingEnabled
             || cfg.showAllRecipesInSurvival != this.cachedShowAllRecipesInSurvival
-            || cfg.enablePinning != this.cachedEnablePinning
             || cfg.alternativeRecipes.noGrouped != this.cachedNoGrouped;
     }
 
@@ -99,7 +96,7 @@ public final class AppContext {
             events.publish(new ConfigEventBus.ConfigChanged(cfg));
             events.publish(new ConfigEventBus.PartialCraftingChanged(
                     cfg.partialCraftingEnabled, cfg.partialMarkingEnabled));
-            events.publish(new ConfigEventBus.PinningChanged(cfg.enablePinning));
+            events.publish(new ConfigEventBus.PinningChanged(true));
             events.publish(new ConfigEventBus.BookVisibilityChanged(cfg.enableBook));
             // Only refresh recipe book if recipe-relevant fields changed.
             // instantCraft, scrolling, hideReiJeiOverlay etc. do NOT

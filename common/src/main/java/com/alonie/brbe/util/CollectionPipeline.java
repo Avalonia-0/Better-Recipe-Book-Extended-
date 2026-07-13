@@ -137,10 +137,6 @@ public final class CollectionPipeline {
      * in place (removes and re-inserts at index 0).
      */
     public static void applyPins(List<RecipeCollection> collections) {
-        if (!BetterRecipeBook.config.enablePinning) {
-            return;
-        }
-
         // Iterate a snapshot to avoid ConcurrentModificationException
         List<RecipeCollection> snapshot = new ArrayList<>(collections);
         for (RecipeCollection collection : snapshot) {
@@ -175,8 +171,7 @@ public final class CollectionPipeline {
         List<RecipeCollection> unpinnedUncraftable = new ArrayList<>();
 
         for (RecipeCollection c : collections) {
-            boolean isPinned = BetterRecipeBook.config.enablePinning
-                    && BetterRecipeBook.pinnedRecipeManager.has(
+            boolean isPinned = BetterRecipeBook.pinnedRecipeManager.has(
                         PinnableRecipeCollection.of(c));
 
             if (hasPartialData) {

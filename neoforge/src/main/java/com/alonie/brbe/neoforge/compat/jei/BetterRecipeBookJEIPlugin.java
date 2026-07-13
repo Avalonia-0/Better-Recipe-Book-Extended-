@@ -1,4 +1,4 @@
-package com.alonie.brbe.fabric.compat.jei;
+package com.alonie.brbe.neoforge.compat.jei;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.compat.jei.JeiCompat;
@@ -19,9 +19,17 @@ import net.minecraft.world.item.ItemStack;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * NeoForge-side JEI plugin that bridges recipe/usage view requests
+ * from BRBE's recipe book key handlers to JEI's runtime.
+ * <p>
+ * On NeoForge, JEI discovers plugins by scanning for
+ * {@code @JeiPlugin}-annotated classes in the mod JAR.
+ * No additional manifest entry is needed.
+ */
 @JeiPlugin
 public final class BetterRecipeBookJEIPlugin implements IModPlugin {
-    private static final Identifier PLUGIN_UID = Identifier.fromNamespaceAndPath(BetterRecipeBook.MOD_ID, "jei");
+    private static final Identifier PLUGIN_UID = Identifier.fromNamespaceAndPath(BetterRecipeBook.MOD_ID, "jei_neoforge");
 
     @Override
     public Identifier getPluginUid() {
@@ -30,6 +38,7 @@ public final class BetterRecipeBookJEIPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
+        BetterRecipeBook.LOGGER.info("[BRBE] JEI Plugin (NeoForge): onRuntimeAvailable, registering recipe/usage handler");
         IJeiKeyMappings km = jeiRuntime.getKeyMappings();
 
         JeiCompat.setHandler(new JeiCompat.JeiHandler() {
@@ -59,6 +68,7 @@ public final class BetterRecipeBookJEIPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeUnavailable() {
+        BetterRecipeBook.LOGGER.info("[BRBE] JEI Plugin (NeoForge): onRuntimeUnavailable, clearing handler");
         JeiCompat.setHandler(null);
     }
 

@@ -44,9 +44,16 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "keyPressed", at = @At("RETURN"), cancellable = true)
     private void brbe$handleJeiKeys(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
-        if (!ItemViewCompat.isLoaded() || cir.getReturnValueZ()) {
+        if (cir.getReturnValueZ()) {
             return;
         }
+
+        if (!ItemViewCompat.isLoaded()) {
+            return;
+        }
+
+        int keyCode = event.key();
+        int scanCode = event.scancode();
 
         RecipeBookPage page = ((RecipeBookComponentAccessor) this).getRecipeBookPage();
         if (page == null) {
@@ -61,9 +68,9 @@ public abstract class RecipeBookComponentMixin {
 
             ItemStack hoveredStack = button.getDisplayStack();
             if (hoveredStack != null && !hoveredStack.isEmpty()) {
-                if (event.key() == InputConstants.KEY_R) {
+                if (ItemViewCompat.matchesShowRecipe(keyCode, scanCode)) {
                     cir.setReturnValue(ItemViewCompat.openRecipeView(hoveredStack));
-                } else if (event.key() == InputConstants.KEY_U) {
+                } else if (ItemViewCompat.matchesShowUses(keyCode, scanCode)) {
                     cir.setReturnValue(ItemViewCompat.openUsageView(hoveredStack));
                 }
             }
@@ -76,7 +83,6 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
-        // Get the GhostSlots instance and check for a ghost at the hovered slot
         GhostSlots ghostSlots = ((RecipeBookComponentAccessor) this).getGhostSlots();
         if (ghostSlots == null) {
             return;
@@ -93,9 +99,9 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
-        if (event.key() == InputConstants.KEY_R) {
+        if (ItemViewCompat.matchesShowRecipe(keyCode, scanCode)) {
             cir.setReturnValue(ItemViewCompat.openRecipeView(ghostStack));
-        } else if (event.key() == InputConstants.KEY_U) {
+        } else if (ItemViewCompat.matchesShowUses(keyCode, scanCode)) {
             cir.setReturnValue(ItemViewCompat.openUsageView(ghostStack));
         }
     }

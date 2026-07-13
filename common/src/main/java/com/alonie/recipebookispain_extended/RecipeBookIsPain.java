@@ -51,6 +51,19 @@ public class RecipeBookIsPain {
     private static final Map<String, CreativeModeTab> namespaceCache = new HashMap<>();
     private static boolean namespaceCacheBuilt;
 
+    /**
+     * 配方书标签页覆盖映射。
+     * 某些物品在原版创造标签页中的归属与配方书用户期望不符。
+     * Key: 物品注册ID, Value: 目标创造标签页的注册路径 (如 "redstone_blocks")
+     */
+    private static final Map<Identifier, String> TAB_OVERRIDES = new HashMap<>();
+
+    static {
+        // 红石火把 → 重定向到红石方块标签页（原版归在功能方块标签）
+        TAB_OVERRIDES.put(Identifier.fromNamespaceAndPath("minecraft", "redstone_torch"), "redstone_blocks");
+        TAB_OVERRIDES.put(Identifier.fromNamespaceAndPath("minecraft", "redstone_wall_torch"), "redstone_blocks");
+    }
+
     // ------------------------------------------------
     //  Initialisation
     // ------------------------------------------------
@@ -212,6 +225,16 @@ public class RecipeBookIsPain {
 
         Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
         if (id != null) {
+            // ── 标签页覆盖检查 ─────────────────────────────────
+            String overrideTabPath = TAB_OVERRIDES.get(id);
+            if (overrideTabPath != null) {
+                CreativeModeTab overrideTab = namespaceCache.get(overrideTabPath);
+                if (overrideTab != null) {
+                    ExtendedRecipeBookCategory group = toRecipeBookGroup(overrideTab);
+                    if (group != null) return group;
+                }
+            }
+
             CreativeModeTab nsGroup = namespaceCache.get(id.getNamespace());
             if (nsGroup != null) {
                 return toRecipeBookGroup(nsGroup);
@@ -314,6 +337,16 @@ public class RecipeBookIsPain {
 
         Identifier id = BuiltInRegistries.ITEM.getKey(stack.getItem());
         if (id != null) {
+            // ── 标签页覆盖检查（与 toRecipeBookGroup 一致） ──────
+            String overrideTabPath = TAB_OVERRIDES.get(id);
+            if (overrideTabPath != null) {
+                CreativeModeTab overrideTab = namespaceCache.get(overrideTabPath);
+                if (overrideTab != null) {
+                    ExtendedRecipeBookCategory group = groupMap.inverse().get(overrideTab);
+                    if (group != null) return group;
+                }
+            }
+
             CreativeModeTab nsGroup = namespaceCache.get(id.getNamespace());
             if (nsGroup != null) {
                 return groupMap.inverse().get(nsGroup);

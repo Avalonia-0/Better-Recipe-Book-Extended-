@@ -157,10 +157,10 @@ public abstract class RecipeGroupButtonMixin extends ImageButton implements Reci
     private int rbip$getRotatedIconY() {
         int y = this.getY() + (RBIP_ROTATED_TAB_HEIGHT - 16) / 2;
         if (this.rbip$placement == RecipeGroupButtonPlacement.TOP) {
-            return y - 1;
+            return y - 1 + (this.selected ? -2 : 0);
         }
         if (this.rbip$placement == RecipeGroupButtonPlacement.BOTTOM) {
-            return y + 1;
+            return y + 1 + (this.selected ? 2 : 0);
         }
         return y;
     }

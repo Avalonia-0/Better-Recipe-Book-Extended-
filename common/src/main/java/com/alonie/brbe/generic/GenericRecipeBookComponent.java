@@ -238,7 +238,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             return true;
         }
 
-        if (ClientCompat.matches(BetterRecipeBook.PIN_MAPPING, i, j, k) && BetterRecipeBook.ctx().config().enablePinning) {
+        if (ClientCompat.matches(BetterRecipeBook.PIN_MAPPING, i, j, k) && true) {
             for (GenericRecipeButton<C, R, M> resultButton : this.recipesPage.buttons) {
                 if (resultButton.isHoveredOrFocused()) {
                     BetterRecipeBook.pinnedRecipeManager.addOrRemoveFavourite(resultButton.getCollection());
@@ -248,17 +248,18 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             }
         }
 
-        // JEI/REI integration: open recipe/usage views for hovered item
+        // JEI/REI integration: open recipe/usage views for hovered item.
+        // Key matching delegates to each viewer's own configured key bindings.
         if (ItemViewCompat.isLoaded()) {
             // ── 1. Recipe buttons ──────────────────────────────────────
             if (this.recipesPage.hoveredButton != null) {
                 R hoveredRecipe = this.recipesPage.hoveredButton.getCurrentDisplayedRecipe();
                 if (hoveredRecipe != null) {
                     ItemStack hoveredStack = hoveredRecipe.getResult(registryAccess, this.recipesPage.hoveredButton.category);
-                    if (i == 82) {
+                    if (ItemViewCompat.matchesShowRecipe(i, j)) {
                         return ItemViewCompat.openRecipeView(hoveredStack);
                     }
-                    if (i == 85) {
+                    if (ItemViewCompat.matchesShowUses(i, j)) {
                         return ItemViewCompat.openUsageView(hoveredStack);
                     }
                 }
@@ -267,10 +268,10 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             // ── 2. Ghost items ─────────────────────────────────────────
             ItemStack ghostStack = this.brbe$lastHoveredGhostItem;
             if (ghostStack != null && !ghostStack.isEmpty()) {
-                if (i == 82) {
+                if (ItemViewCompat.matchesShowRecipe(i, j)) {
                     return ItemViewCompat.openRecipeView(ghostStack);
                 }
-                if (i == 85) {
+                if (ItemViewCompat.matchesShowUses(i, j)) {
                     return ItemViewCompat.openUsageView(ghostStack);
                 }
             }

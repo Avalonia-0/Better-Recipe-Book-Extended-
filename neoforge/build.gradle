@@ -43,11 +43,9 @@ dependencies {
     // Cloth Config (NeoForge version — includes neoforge.mods.toml to suppress warning)
     implementation("me.shedaniel.cloth:cloth-config-neoforge:${rootProject.cloth_config_version}")
 
-    def jeiJarPath = rootProject.findProperty("jei_neoforge_jar")
-            ?: "/media/avalonia/data/MinecraftLib/versions/26.1.2-NeoForge/mods/jei-26.1.2-neoforge-29.6.2.31.jar"
-    if (file(jeiJarPath).exists()) {
-        compileOnly files(jeiJarPath)
-    }
+    // JEI — compileOnly from libs/
+    def jeiJar = rootProject.file("libs/jei-26.1.2-neoforge-29.6.2.31.jar")
+    if (jeiJar.exists()) { compileOnly files(jeiJar) }
 
     // Common module (loom-no-remap does not provide namedElements/transformProduction*)
     common(project(path: ":common")) { transitive false }
@@ -64,6 +62,8 @@ processResources {
 
 shadowJar {
     exclude "fabric.mod.json"
+    exclude "recipe-book-is-pain-extended.mixins.json"
+    exclude "brbe.common.accesswidener"
 
     configurations = [project.configurations.shadowBundle]
     archiveClassifier = "dev-shadow"
