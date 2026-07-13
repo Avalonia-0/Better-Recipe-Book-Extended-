@@ -196,16 +196,16 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         int blitX = getBookLeft();
         int blitY = getBookTop();
 
-        // Tab buttons render BEHIND the book (selected tab overlaps into book area)
-        for (BRBGroupButtonWidget widget : this.tabButtons) {
-            widget.render(gui, mouseX, mouseY, delta);
-        }
-
         gui.pose().pushPose();
         gui.pose().translate(0.0f, 0.0f, 100.0f);
 
         // Render recipe book background using 3-slice
         brbe$renderBookBackground(gui, blitX, blitY, bookWidth);
+
+        // Tab buttons render ON TOP of the book (selected tab overlaps into book area)
+        for (BRBGroupButtonWidget widget : this.tabButtons) {
+            widget.render(gui, mouseX, mouseY, delta);
+        }
 
         // render search box
         this.searchBox.render(gui, mouseX, mouseY, delta);
@@ -535,6 +535,14 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         boolean bl = d < (double) i || e < (double) j || d >= (double) (i + k) || e >= (double) (j + l);
         boolean bl2 = (double) (i - bookWidth) < d && d < (double) i && (double) j < e && e < (double) (j + l);
         return bl && !bl2;
+    }
+
+    @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (!this.isVisible()) return false;
+        return this.recipesPage.mouseScrolled(mouseX, mouseY, scrollX, scrollY,
+                getBookLeft(), getBookTop(),
+                getCurrentBookWidth(), VANILLA_BOOK_HEIGHT);
     }
 
     @Override

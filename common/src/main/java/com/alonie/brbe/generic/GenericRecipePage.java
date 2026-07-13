@@ -164,6 +164,22 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         this.updateArrowButtons();
     }
 
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY, int left, int top, int width, int height) {
+        if (this.backButton == null || this.forwardButton == null) return false;
+        if (!isMouseOverRecipeBookPage((int) mouseX, (int) mouseY, left, top) || scrollY == 0) return false;
+
+        if (scrollY < 0 && currentPage < totalPages - 1) {
+            currentPage++;
+            this.updateButtonsForPage();
+            return true;
+        } else if (scrollY > 0 && currentPage > 0) {
+            currentPage--;
+            this.updateButtonsForPage();
+            return true;
+        }
+        return false;
+    }
+
     protected boolean overlayIsVisible() {
         return false;
     }
@@ -173,19 +189,9 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         // init), every field is null — bail out cleanly.
         if (this.backButton == null || this.forwardButton == null || this.buttons == null) return;
 
-        if (BetterRecipeBook.getQueuedScroll() != 0 && true) {
-            if (isMouseOverRecipeBookPage(mouseX, mouseY, blitX, blitY) && totalPages > 1) {
-                currentPage += BetterRecipeBook.getQueuedScroll();
-                if (currentPage >= totalPages) {
-                    currentPage = BetterRecipeBook.config.scrollAround ? currentPage % totalPages : totalPages - 1;
-                } else if (currentPage < 0) {
-                    currentPage = BetterRecipeBook.config.scrollAround ? (currentPage % totalPages) + totalPages : 0;
-                }
-
-                updateButtonsForPage();
-            }
-            BetterRecipeBook.setQueuedScroll(0);
-        }
+        // Scroll is now handled via mouseScrolled() — the render-based queued scroll
+        // is intentionally removed to avoid double-processing.
+        BetterRecipeBook.setQueuedScroll(0);
 
         if (this.totalPages > 1) {
             String string = this.currentPage + 1 + "/" + this.totalPages;
