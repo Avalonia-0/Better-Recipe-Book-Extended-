@@ -26,6 +26,7 @@ public class Config implements ConfigData {
     public boolean keepCentered = false;
 
     @ConfigEntry.Category("ui")
+    @ConfigEntry.Gui.Excluded
     @ConfigEntry.Gui.Tooltip()
     public boolean expandedRecipeBook = false;
 
@@ -69,5 +70,10 @@ public class Config implements ConfigData {
         public boolean enableRecipeBookIsPain = true;
 
         public boolean enableTabPage = true;
+    }
+
+    @Override
+    public void validatePostLoad() {
+        this.expandedRecipeBook = false;
     }
 }
