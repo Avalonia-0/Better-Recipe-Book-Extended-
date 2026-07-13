@@ -141,8 +141,9 @@ public abstract class RecipeBookTabButtonCreativeMixin
     private int rbip$getRotatedIconY() {
         RecipeBookTabButton self = (RecipeBookTabButton) (Object) this;
         int y = self.getY() + (ROT_TAB_H - 16) / 2;
-        if (this.rbip$placement == RecipeGroupButtonPlacement.TOP) return y - 1;
-        if (this.rbip$placement == RecipeGroupButtonPlacement.BOTTOM) return y + 1;
+        boolean sel = self.isStateTriggered();
+        if (this.rbip$placement == RecipeGroupButtonPlacement.TOP) return y - 1 + (sel ? -2 : 0);
+        if (this.rbip$placement == RecipeGroupButtonPlacement.BOTTOM) return y + 1 + (sel ? 2 : 0);
         return y;
     }
 

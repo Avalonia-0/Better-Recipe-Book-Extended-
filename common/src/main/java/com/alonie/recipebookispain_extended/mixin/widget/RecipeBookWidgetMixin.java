@@ -19,6 +19,7 @@ import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.AbstractFurnaceMenu;
 import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.item.CreativeModeTab;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Final;
@@ -446,6 +447,9 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         List<RecipeCollection> collections = this.book.getCollection(rbip$getSearchCategory());
         if (collections == null) return result;
 
+        // 收集所有配方产出物品
+        // Collect all recipe result items for cross-referencing against TAB_ITEMS.
+        Set<Item> allRecipeResults = new HashSet<>();
         for (RecipeCollection col : collections) {
             for (RecipeHolder<?> holder : col.getRecipes()) {
                 ItemStack resultStack = holder.value().getResultItem(
@@ -453,8 +457,22 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
                                 ? net.minecraft.client.Minecraft.getInstance().level.registryAccess()
                                 : minecraft.level.registryAccess());
                 if (!resultStack.isEmpty()) {
-                    CreativeModeTab tab = RecipeBookIsPain.getCreativeTabForItem(resultStack);
-                    if (tab != null) result.add(tab);
+                    allRecipeResults.add(resultStack.getItem());
+                }
+            }
+        }
+
+        // 遍历所有已映射的创造标签页，检查是否有任何一个配方产出物品属于该标签页
+        // Iterate all mirrored creative tabs — check if ANY recipe result is in that tab.
+        // This correctly handles items that belong to multiple tabs (e.g. piston
+        // in both building_blocks and redstone_blocks), ensuring all relevant
+        // tabs are visible regardless of ITEM_TO_TAB's single-tab limitation.
+        for (CreativeModeTab tab : RecipeBookIsPain.CRAFTING_LIST) {
+            Set<Item> tabItems = RecipeBookIsPain.getItemsForTab(tab);
+            for (Item item : allRecipeResults) {
+                if (tabItems.contains(item)) {
+                    result.add(tab);
+                    break;
                 }
             }
         }

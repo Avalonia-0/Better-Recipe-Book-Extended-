@@ -17,6 +17,7 @@ import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -79,6 +80,26 @@ public class RecipeBookIsPain {
     private static final Map<CreativeModeTab, Set<Item>> TAB_ITEMS = new HashMap<>();
     // Reverse: Item → CreativeModeTab (first match wins)
     private static final Map<Item, CreativeModeTab> ITEM_TO_TAB = new HashMap<>();
+
+    /**
+     * 物品→额外标签页的覆盖映射（手动安全网）。
+     * 某些物品在原版创造标签页中的归属与配方书分类预期不符。
+     * 此映射将这些物品额外关联到正确的标签页，使其在对应的 RBIP 标签页下可见。
+     * 这些是独立确定的修正，不受其他机制影响。
+     *
+     * Key: 物品ID (Registry key), Value: 目标创造标签页的注册路径 (如 "redstone_blocks")
+     */
+    private static final Map<ResourceLocation, ResourceLocation> TAB_OVERRIDES = new HashMap<>();
+
+    static {
+        // 红石火把：原版归在 functional_blocks，但作为红石元件应同时在 redstone_blocks 可见
+        TAB_OVERRIDES.put(
+                ResourceLocation.parse("minecraft:redstone_torch"),
+                ResourceLocation.parse("redstone_blocks"));
+        TAB_OVERRIDES.put(
+                ResourceLocation.parse("minecraft:redstone_wall_torch"),
+                ResourceLocation.parse("redstone_blocks"));
+    }
 
     private static final Map<String, CreativeModeTab> namespaceCache = new HashMap<>();
     private static boolean namespaceCacheBuilt;
@@ -230,6 +251,12 @@ public class RecipeBookIsPain {
                 initialized = true;
                 initAttempted = true;
             }
+
+            // ── 应用物品→标签页覆盖 ─────────────────────────────────
+            // 对已知分类有误的物品，补充其到正确的标签页关联。
+            // 这确保红石火把等物品也能在红石方块标签页中显示。
+            applyTabOverrides();
+
             LOGGER.info("[RBIP] OK — {} tabs, {} items mapped (strategy: {})",
                     CRAFTING_LIST.size(), ITEM_TO_TAB.size(),
                     tabCount > 0 ? "getDisplayItems" : "registry scan");
@@ -289,6 +316,71 @@ public class RecipeBookIsPain {
     public static boolean isItemInTab(ItemStack stack, CreativeModeTab tab) {
         Set<Item> items = TAB_ITEMS.get(tab);
         return items != null && items.contains(stack.getItem());
+    }
+
+    /**
+     * 应用物品→创造标签页覆盖。
+     * 一些物品在原版 Minecraft 中被分配到与其功能不匹配的创造标签页。
+     * 例如红石火把被放在"功能方块"标签页，但配方书用户期望在"红石方块"标签页中看到它。
+     * 此方法将 {@link #TAB_OVERRIDES} 中定义的覆盖应用到 {@link #TAB_ITEMS} 和 {@link #ITEM_TO_TAB}。
+     *
+     * 设计原则：
+     * - 只在 TAB_ITEMS 中添加（不替换）条目，使物品在多个标签页中都可显示
+     * - {@link #ITEM_TO_TAB.putIfAbsent} 保留首个标签页作为主映射
+     * - 覆盖仅影响 RBIP 配方标签页筛选，不影响原版创造物品栏
+     */
+    /**
+     * 应用物品→创造标签页覆盖（移动模式）。
+     * <p>
+     * 与 {@link #applyCategoryCrossReference} 的追加模式不同，此方法对特定物品执行"移动"：
+     * 将物品从所有其他标签页中移除，只保留在目标标签页中。
+     * 这用于处理原版分类明显错误的个别物品（如红石火把在功能方块而非红石方块）。
+     * <p>
+     * 设计原则：
+     * - 从所有标签页的 TAB_ITEMS 中移除该物品（防止重复出现）
+     * - 然后单独添加到目标标签页
+     * - 更新 ITEM_TO_TAB 主映射
+     */
+    private static void applyTabOverrides() {
+        for (Map.Entry<ResourceLocation, ResourceLocation> entry : TAB_OVERRIDES.entrySet()) {
+            // 查找目标创造标签页（由注册路径定位，跨版本兼容）
+            ResourceLocation tabId = entry.getValue();
+            CreativeModeTab targetTab = null;
+            for (CreativeModeTab candidate : CreativeModeTabs.allTabs()) {
+                ResourceLocation candidateId = BuiltInRegistries.CREATIVE_MODE_TAB.getKey(candidate);
+                if (candidateId != null && candidateId.getPath().equals(tabId.getPath())) {
+                    targetTab = candidate;
+                    break;
+                }
+            }
+            if (targetTab == null) {
+                LOGGER.warn("[RBIP] Tab override target '{}' not found", tabId);
+                continue;
+            }
+
+            // 查找物品
+            Item item = BuiltInRegistries.ITEM.get(entry.getKey());
+            if (item == net.minecraft.world.level.block.Blocks.AIR.asItem()) {
+                LOGGER.warn("[RBIP] Tab override item '{}' not found in registry", entry.getKey());
+                continue;
+            }
+
+            // 从所有其他标签页中移除该物品，防止重复出现
+            // Remove from ALL other tabs first — this is a "move", not an "add".
+            // The item should only appear in the target tab, not in its original
+            // vanilla assignment (e.g. redstone_torch removed from functional_blocks).
+            for (Set<Item> items : TAB_ITEMS.values()) {
+                items.remove(item);
+            }
+
+            // 添加到目标标签页
+            TAB_ITEMS.computeIfAbsent(targetTab, k -> new HashSet<>()).add(item);
+            // 覆盖主映射
+            ITEM_TO_TAB.put(item, targetTab);
+
+            LOGGER.info("[RBIP] Tab override: moved '{}' exclusively to '{}'",
+                    entry.getKey(), tabId.getPath());
+        }
     }
 
     // ── Namespace cache ────────────────────────────────────────────
