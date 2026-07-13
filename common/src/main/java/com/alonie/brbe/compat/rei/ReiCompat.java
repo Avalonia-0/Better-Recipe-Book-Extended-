@@ -20,6 +20,14 @@ public class ReiCompat {
             public boolean openUsageView(ItemStack stack) {
                 return openView("addUsagesFor", stack);
             }
+            @Override
+            public boolean matchesShowRecipe(int keyCode, int scanCode) {
+                return ReiCompat.matchesKeyBind("getRecipeKeybind", keyCode, scanCode);
+            }
+            @Override
+            public boolean matchesShowUses(int keyCode, int scanCode) {
+                return ReiCompat.matchesKeyBind("getUsageKeybind", keyCode, scanCode);
+            }
         });
         registered = true;
     }
@@ -62,6 +70,18 @@ public class ReiCompat {
 
     public static boolean openUsageView(ItemStack stack) {
         return ItemViewCompat.openUsageView(stack);
+    }
+
+    static boolean matchesKeyBind(String getterName, int keyCode, int scanCode) {
+        try {
+            Class<?> configObj = Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
+            Object config = configObj.getMethod("getInstance").invoke(null);
+            Object keybind = configObj.getMethod(getterName).invoke(config);
+            return (boolean) keybind.getClass().getMethod("matchesKey", int.class, int.class)
+                    .invoke(keybind, keyCode, scanCode);
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     public interface ReiHandler extends ItemViewCompat.Handler {

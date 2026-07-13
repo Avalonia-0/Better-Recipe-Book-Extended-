@@ -32,11 +32,9 @@ dependencies {
     // ModMenu is distributed with intermediary mappings, which conflicts with
     // loom-no-remap (Mojmap). ModMenuFabric integration is currently disabled.
     // implementation "com.terraformersmc:modmenu:${rootProject.modmenu_version}"
-    // JEI — compileOnly (available for 26.2 since 30.4.0.25)
-    def jeiJarPath = "/media/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/jei-26.2-fabric-30.4.0.25.jar"
-    if (file(jeiJarPath).exists()) {
-        compileOnly files(jeiJarPath)
-    }
+    // JEI — compileOnly from libs/
+    def jeiJar = rootProject.file("libs/jei-26.2-fabric-30.4.0.25.jar")
+    if (jeiJar.exists()) { compileOnly files(jeiJar) }
     implementation(project(path: ":common"))
 }
 
@@ -44,6 +42,7 @@ dependencies {
 jar {
     from project(":common").sourceSets.main.output
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude "rbip-neoforge.mixins.json"
 }
 
 // JEI overlay mixins are compiled now — JEI jar is available via implementation files(jeiJarPath)

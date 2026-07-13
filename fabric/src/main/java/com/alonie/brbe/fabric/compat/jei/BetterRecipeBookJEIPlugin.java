@@ -2,6 +2,7 @@ package com.alonie.brbe.fabric.compat.jei;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.compat.jei.JeiCompat;
+import com.mojang.blaze3d.platform.InputConstants;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.VanillaTypes;
@@ -9,7 +10,9 @@ import mezz.jei.api.ingredients.ITypedIngredient;
 import mezz.jei.api.recipe.IFocus;
 import mezz.jei.api.recipe.IFocusFactory;
 import mezz.jei.api.recipe.RecipeIngredientRole;
+import mezz.jei.api.runtime.IJeiKeyMappings;
 import mezz.jei.api.runtime.IJeiRuntime;
+import net.minecraft.client.input.KeyEvent;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 
@@ -27,6 +30,8 @@ public final class BetterRecipeBookJEIPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
+        IJeiKeyMappings km = jeiRuntime.getKeyMappings();
+
         JeiCompat.setHandler(new JeiCompat.JeiHandler() {
             @Override
             public boolean openRecipeView(ItemStack stack) {
@@ -36,6 +41,18 @@ public final class BetterRecipeBookJEIPlugin implements IModPlugin {
             @Override
             public boolean openUsageView(ItemStack stack) {
                 return open(jeiRuntime, RecipeIngredientRole.INPUT, stack);
+            }
+
+            @Override
+            public boolean matchesShowRecipe(int keyCode, int scanCode) {
+                InputConstants.Key key = InputConstants.getKey(new KeyEvent(keyCode, scanCode, 0));
+                return km.getShowRecipe().isActiveAndMatches(key);
+            }
+
+            @Override
+            public boolean matchesShowUses(int keyCode, int scanCode) {
+                InputConstants.Key key = InputConstants.getKey(new KeyEvent(keyCode, scanCode, 0));
+                return km.getShowUses().isActiveAndMatches(key);
             }
         });
     }

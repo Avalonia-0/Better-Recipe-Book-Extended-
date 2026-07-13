@@ -46,17 +46,18 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.Tooltip
     public boolean expandedRecipeBook = false;
 
-    // -- Recipe filter --------------------------------------------------------
+    // -- Recipe settings ------------------------------------------------------
 
-    @ConfigEntry.Category("recipeFilter")
+    @ConfigEntry.Category("recipeSettings")
+    @ConfigEntry.Gui.PrefixText
     @ConfigEntry.Gui.Tooltip
     public boolean showAllRecipesInSurvival = true;
 
-    @ConfigEntry.Category("recipeFilter")
+    @ConfigEntry.Category("recipeSettings")
     @ConfigEntry.Gui.Tooltip
     public boolean partialCraftingEnabled = true;
 
-    @ConfigEntry.Category("recipeFilter")
+    @ConfigEntry.Category("recipeSettings")
     @ConfigEntry.Gui.Tooltip
     public boolean partialMarkingEnabled = true;
 
@@ -68,7 +69,8 @@ public class BrbeConfig implements ConfigData {
 
     // -- Sub-configs ----------------------------------------------------------
 
-    @ConfigEntry.Category("newRecipes")
+    @ConfigEntry.Category("recipeSettings")
+    @ConfigEntry.Gui.PrefixText
     @ConfigEntry.Gui.TransitiveObject
     public NewRecipes newRecipes = new NewRecipes();
 
@@ -76,7 +78,8 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.TransitiveObject
     public InstantCraft instantCraft = new InstantCraft();
 
-    @ConfigEntry.Category("alternativeRecipes")
+    @ConfigEntry.Category("recipeSettings")
+    @ConfigEntry.Gui.PrefixText
     @ConfigEntry.Gui.TransitiveObject
     public AlternativeRecipes alternativeRecipes = new AlternativeRecipes();
 

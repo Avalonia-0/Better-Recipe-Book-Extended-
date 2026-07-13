@@ -41,5 +41,16 @@ public final class ItemViewCompat {
     public interface Handler {
         boolean openRecipeView(ItemStack stack);
         boolean openUsageView(ItemStack stack);
+
+        default boolean matchesShowRecipe(int keyCode, int scanCode) { return false; }
+        default boolean matchesShowUses(int keyCode, int scanCode)   { return false; }
+    }
+
+    public static boolean matchesShowRecipe(int keyCode, int scanCode) {
+        return handler != null && handler.matchesShowRecipe(keyCode, scanCode);
+    }
+
+    public static boolean matchesShowUses(int keyCode, int scanCode) {
+        return handler != null && handler.matchesShowUses(keyCode, scanCode);
     }
 }

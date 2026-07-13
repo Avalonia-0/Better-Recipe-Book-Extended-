@@ -41,8 +41,8 @@ public class ModNameUtil {
         String modName = resolveViaFabricLoader(namespace);
         if (modName != null) return modName;
 
-        // Priority 3: Raw namespace as last resort
-        return namespace;
+        // Priority 3: Raw namespace as last resort (capitalize first letter)
+        return namespace.substring(0, 1).toUpperCase() + namespace.substring(1);
     }
 
     private static String resolveViaFabricLoader(String namespace) {

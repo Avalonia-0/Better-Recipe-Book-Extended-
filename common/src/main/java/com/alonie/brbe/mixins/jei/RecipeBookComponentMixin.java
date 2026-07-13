@@ -4,6 +4,7 @@ import com.mojang.blaze3d.platform.InputConstants;
 import com.alonie.brbe.BetterRecipeBook;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.alonie.brbe.compat.ItemViewCompat;
+import com.alonie.brbe.compat.rei.ReiCompat;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.alonie.brbe.mixins.accessors.GhostSlotsAccessor;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -44,9 +45,20 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "keyPressed", at = @At("RETURN"), cancellable = true)
     private void brbe$handleJeiKeys(KeyEvent event, CallbackInfoReturnable<Boolean> cir) {
-        if (!ItemViewCompat.isLoaded() || cir.getReturnValueZ()) {
+        if (cir.getReturnValueZ()) {
             return;
         }
+
+        // Trigger retry if handler not set yet (e.g. REI loaded after mod init)
+        if (!ItemViewCompat.isLoaded()) {
+            ReiCompat.isLoaded();  // calls ensureRegistered() → retries register()
+        }
+        if (!ItemViewCompat.isLoaded()) {
+            return;
+        }
+
+        int keyCode = event.key();
+        int scanCode = event.scancode();
 
         RecipeBookPage page = ((RecipeBookComponentAccessor) this).getRecipeBookPage();
         if (page == null) {
@@ -61,9 +73,9 @@ public abstract class RecipeBookComponentMixin {
 
             ItemStack hoveredStack = button.getDisplayStack();
             if (hoveredStack != null && !hoveredStack.isEmpty()) {
-                if (event.key() == InputConstants.KEY_R) {
+                if (ItemViewCompat.matchesShowRecipe(keyCode, scanCode)) {
                     cir.setReturnValue(ItemViewCompat.openRecipeView(hoveredStack));
-                } else if (event.key() == InputConstants.KEY_U) {
+                } else if (ItemViewCompat.matchesShowUses(keyCode, scanCode)) {
                     cir.setReturnValue(ItemViewCompat.openUsageView(hoveredStack));
                 }
             }
@@ -76,7 +88,6 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
-        // Get the GhostSlots instance and check for a ghost at the hovered slot
         GhostSlots ghostSlots = ((RecipeBookComponentAccessor) this).getGhostSlots();
         if (ghostSlots == null) {
             return;
@@ -93,9 +104,9 @@ public abstract class RecipeBookComponentMixin {
             return;
         }
 
-        if (event.key() == InputConstants.KEY_R) {
+        if (ItemViewCompat.matchesShowRecipe(keyCode, scanCode)) {
             cir.setReturnValue(ItemViewCompat.openRecipeView(ghostStack));
-        } else if (event.key() == InputConstants.KEY_U) {
+        } else if (ItemViewCompat.matchesShowUses(keyCode, scanCode)) {
             cir.setReturnValue(ItemViewCompat.openUsageView(ghostStack));
         }
     }
@@ -107,8 +118,20 @@ public abstract class RecipeBookComponentMixin {
     @Unique
     private static ItemStack getGhostItemStack(Object ghostSlot) {
         try {
-            java.lang.reflect.Method getItem = ghostSlot.getClass().getMethod("getItem", int.class);
-            return (ItemStack) getItem.invoke(ghostSlot, 0);
+            // GhostSlot is a Record(List<ItemStack> items, boolean isResultSlot).
+            // At runtime the method name is mapping-dependent.  Iterate over
+            // public no-arg methods to find the one that returns List<ItemStack>.
+            for (java.lang.reflect.Method m : ghostSlot.getClass().getMethods()) {
+                if (m.getReturnType() == java.util.List.class && m.getParameterCount() == 0) {
+                    @SuppressWarnings("unchecked")
+                    java.util.List<ItemStack> items = (java.util.List<ItemStack>) m.invoke(ghostSlot);
+                    if (items != null && !items.isEmpty()) {
+                        ItemStack first = items.get(0);
+                        if (first != null && !first.isEmpty()) return first;
+                    }
+                }
+            }
+            return ItemStack.EMPTY;
         } catch (Exception e) {
             return ItemStack.EMPTY;
         }

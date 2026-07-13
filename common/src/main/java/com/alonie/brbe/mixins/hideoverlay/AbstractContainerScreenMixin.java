@@ -19,15 +19,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * <p>
  * When REI/JEI overlays are hidden:
  * - A key: consumed to prevent REI/JEI favorites (skipped if a text field is focused)
- * - R/U keys: routed to {@link ItemViewCompat} for recipe/usage lookup
+ * - R/U keys: routed to {@link ItemViewCompat} — delegates to each viewer's own key config
  */
 @Mixin(AbstractContainerScreen.class)
 public abstract class AbstractContainerScreenMixin {
 
-    // GLFW key constants
+    // GLFW key constant for A (REI/JEI favorites)
     private static final int KEY_A = 65;
-    private static final int KEY_R = 82;
-    private static final int KEY_U = 85;
 
     @Shadow
     protected Slot hoveredSlot;
@@ -39,6 +37,7 @@ public abstract class AbstractContainerScreenMixin {
         }
 
         int keyCode = event.key();
+        int scanCode = event.scancode();
 
         // A key: prevent REI/JEI favorites from processing.
         // If a text field (search box) is focused, let the key through for typing.
@@ -50,7 +49,9 @@ public abstract class AbstractContainerScreenMixin {
             return;
         }
 
-        if (keyCode != KEY_R && keyCode != KEY_U) {
+        // R / U: route to the active recipe viewer (delegates to viewer's own key config)
+        if (!ItemViewCompat.matchesShowRecipe(keyCode, scanCode)
+                && !ItemViewCompat.matchesShowUses(keyCode, scanCode)) {
             return;
         }
 
@@ -64,7 +65,7 @@ public abstract class AbstractContainerScreenMixin {
         }
 
         ItemStack stack = slot.getItem();
-        boolean handled = keyCode == KEY_R
+        boolean handled = ItemViewCompat.matchesShowRecipe(keyCode, scanCode)
                 ? ItemViewCompat.openRecipeView(stack)
                 : ItemViewCompat.openUsageView(stack);
 
