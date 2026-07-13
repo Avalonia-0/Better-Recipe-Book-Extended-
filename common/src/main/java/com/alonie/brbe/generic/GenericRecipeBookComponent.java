@@ -3,7 +3,6 @@ package com.alonie.brbe.generic;
 import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
-import com.alonie.brbe.config.AppContext;
 import com.alonie.brbe.api.BRBBookSettings;
 import com.alonie.brbe.compat.ItemViewCompat;
 import com.alonie.brbe.interfaces.IPinningComponent;
@@ -13,7 +12,6 @@ import com.alonie.brbe.search.SearchCache;
 import com.alonie.brbe.search.SearchQuery;
 import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.util.BRBTextures;
-import com.alonie.brbe.util.BrbeLogger;
 import com.alonie.brbe.util.CollectionPipeline;
 import com.alonie.brbe.layout.BookLayout;
 import net.minecraft.client.Minecraft;
@@ -55,14 +53,10 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     protected boolean widthTooNarrow;
     protected int width;
     protected int height;
-    /** Container screen's imageWidth (typically 176). Used for expanded book width calculation. */
-    protected int containerImageWidth = 176;
     protected M menu;
     protected final StackedContents stackedContents = new StackedContents();
     protected StateSwitchingButton filterButton;
     protected ImageButton settingsButton;
-    @Nullable
-    // protected ImageButton expandedToggleButton; // TEMPORARILY DISABLED
     public GenericRecipePage<M, C, R> recipesPage;
     protected final List<BRBGroupButtonWidget> tabButtons = Lists.newArrayList();
     @Nullable
@@ -177,12 +171,13 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         int blitY = (this.height - BookLayout.TEXTURE_HEIGHT) / 2;
 
         // Render recipe book background
-        brbe$renderBookBackground(gui, blitX, blitY, BookLayout.TEXTURE_WIDTH);
+        gui.blit(BRBTextures.RECIPE_BOOK_BACKGROUND_TEXTURE, blitX, blitY, 0, 0,
+                BookLayout.TEXTURE_WIDTH, BookLayout.TEXTURE_HEIGHT, 256, 256);
 
         // render search box
         this.searchBox.render(gui, mouseX, mouseY, delta);
 
-        // render tab buttons (on top of book background, behind page content)
+        // render tab buttons
         for (BRBGroupButtonWidget widget : this.tabButtons) {
             widget.render(gui, mouseX, mouseY, delta);
         }
@@ -224,11 +219,8 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             }
         }
 
-        // JEI/REI/EMI integration: open recipe/usage views for hovered item.
-        // Key matching delegates to each viewer's own configured key bindings
-        // (JEI → vanilla KeyMapping, REI → ConfigObject, EMI → EmiConfig).
+        // JEI/REI integration: open recipe/usage views for hovered item.
         if (ItemViewCompat.isLoaded()) {
-            // ── 1. Recipe buttons ──────────────────────────────────────
             if (this.recipesPage.hoveredButton != null) {
                 R hoveredRecipe = this.recipesPage.hoveredButton.getCurrentDisplayedRecipe();
                 if (hoveredRecipe != null) {
@@ -242,7 +234,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
                 }
             }
 
-            // ── 2. Ghost items ─────────────────────────────────────────
             ItemStack ghostStack = this.brbe$lastHoveredGhostItem;
             if (ghostStack != null && !ghostStack.isEmpty()) {
                 if (ItemViewCompat.matchesShowRecipe(i, j)) {
@@ -293,18 +284,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         if (this.selectedTab == null) return;
         if (this.searchBox == null) return;
 
-        BrbeLogger.log(BrbeLogger.Category.STATE,
-                "updateCollections ENTER (generic) — pCE=%s, pME=%s, eP=%s, isFiltering=%s, collections=%d",
-                BetterRecipeBook.ctx().config().partialCraftingEnabled,
-                BetterRecipeBook.ctx().config().partialMarkingEnabled,
-                true,
-                BRBBookSettings.isFiltering(this.getRecipeBookType()),
-                this.getCollectionsForCategory().size());
-
         List<C> results = new ArrayList<>(this.getCollectionsForCategory());
 
-        // Search filter — kept inline because result-item extraction
-        // differs fundamentally between vanilla and generic recipe types.
+        // Search filter
         String string = this.searchBox.getValue();
         if (!string.isEmpty()) {
             SearchQuery query = SearchQuery.parse(string);
@@ -312,14 +294,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             results.removeIf(collection -> !matchesSearch(collection, query, cache));
         }
 
-        // Delegate pin sort, partial sort, and filter toggle to the
-        // unified CollectionPipeline.  C extends GenericRecipeBookCollection
-        // which implements PipelineCollection, so the generic overloads
-        // work directly.
-        //
-        // Pin sort always applies (pinning is filter-independent).
-        // Partial sort applies when partialCraftingEnabled is ON (BRBE
-        // manages filtering) OR when the user has toggled the filter ON.
+        // Pipeline: pins → partial sort → filter toggle
         CollectionPipeline.applyPinsGeneric(results);
 
         boolean isFiltering = BRBBookSettings.isFiltering(this.getRecipeBookType());
@@ -328,10 +303,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             results = CollectionPipeline.applyPartialSortGeneric(results);
         }
         results = CollectionPipeline.applyFilterToggleGeneric(results, isFiltering);
-
-        BrbeLogger.log(BrbeLogger.Category.STATE,
-                "updateCollections EXIT (generic) — shouldSort=%s, resultCount=%d",
-                shouldSort, results.size());
 
         this.recipesPage.setResults(results, resetPageNumber, selectedTab.getCategory());
     }
@@ -365,107 +336,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         return this.xOffset == BookLayout.X_OFFSET_STANDARD;
     }
 
-    // ── Expanded recipe book ───────────────────────────────────────
-
-    /** Whether the recipe book is currently in expanded (full-width) mode. */
-    public boolean isExpanded() {
-        return BetterRecipeBook.ctx().config().expandedRecipeBook
-                && !this.widthTooNarrow
-                && this.isVisible();
-    }
-
-    /**
-     * The left-edge X coordinate of the recipe book.  Always computed from
-     * the vanilla 147px width so the left side stays fixed regardless of
-     * expanded mode.  Expansion only extends the right edge.
-     */
-    public int getBookLeft() {
-        return (this.width - VANILLA_BOOK_WIDTH) / 2 - this.xOffset;
-    }
-
-    /** The top-edge Y coordinate of the recipe book. */
-    public int getBookTop() {
-        return (this.height - VANILLA_BOOK_HEIGHT) / 2;
-    }
-
-    /**
-     * 3-slice background renderer: left/right caps at native size,
-     * middle section tiled horizontally.  Borders and shadows stay
-     * sharp regardless of book width.
-     * <p>
-     * Vanilla recipe_book.png is 256×256 with the book background at
-     * UV (1,1) size (147,166).  We slice it into:
-     * <ul>
-     *   <li>Left cap:  32px — left border, shadow, tab notches (tight fit)</li>
-     *   <li>Body:     103px — fill area (tileable)</li>
-     *   <li>Right cap: 12px — right border, shadow (tight fit)</li>
-     * </ul>
-     */
-    private static final int BG_LEFT_CAP = 32;
-    private static final int BG_RIGHT_CAP = 12;
-    private static final int BG_BODY = VANILLA_BOOK_WIDTH - BG_LEFT_CAP - BG_RIGHT_CAP; // 103
-    private static final int BG_TEX_SIZE = 256;
-
-    private void brbe$renderBookBackground(GuiGraphics gui, int x, int y, int bookWidth) {
-        var tex = BRBTextures.RECIPE_BOOK_BACKGROUND_TEXTURE;
-
-        if (!isExpanded() || bookWidth <= VANILLA_BOOK_WIDTH) {
-            // Normal mode: single blit at native size
-            gui.blit(tex, x, y, 0, 0, VANILLA_BOOK_WIDTH, VANILLA_BOOK_HEIGHT, BG_TEX_SIZE, BG_TEX_SIZE);
-            return;
-        }
-
-        // Expanded mode: 3-slice
-
-        // Left cap — native size, UV(0,0) in the texture
-        gui.blit(tex, x, y, 0, 0, BG_LEFT_CAP, VANILLA_BOOK_HEIGHT, BG_TEX_SIZE, BG_TEX_SIZE);
-
-        // Middle — tiled across the expanded gap
-        int bodyStartX = x + BG_LEFT_CAP;
-        int bodyEndX = x + bookWidth - BG_RIGHT_CAP;
-        int bodyWidth = bodyEndX - bodyStartX;
-        int srcBodyX = BG_LEFT_CAP;  // UV start for the body section
-        for (int bx = 0; bx < bodyWidth; bx += BG_BODY) {
-            int segW = Math.min(BG_BODY, bodyWidth - bx);
-            gui.blit(tex, bodyStartX + bx, y,
-                    srcBodyX, 0, segW, VANILLA_BOOK_HEIGHT,
-                    BG_TEX_SIZE, BG_TEX_SIZE);
-        }
-
-        // Right cap — native size, UV(140,0) in the texture
-        int rightSrcX = VANILLA_BOOK_WIDTH - BG_RIGHT_CAP;
-        gui.blit(tex, bodyEndX, y,
-                rightSrcX, 0, BG_RIGHT_CAP, VANILLA_BOOK_HEIGHT,
-                BG_TEX_SIZE, BG_TEX_SIZE);
-    }
-
-    /** The current rendered width of the recipe book — 147 normally, larger when expanded. */
-    public int getCurrentBookWidth() {
-        if (isExpanded()) {
-            return Math.max(VANILLA_BOOK_WIDTH, getExpandedWidth());
-        }
-        return VANILLA_BOOK_WIDTH;
-    }
-
-    /** Compute the expanded width: from the book's normal left edge to the inventory's right edge. */
-    protected int getExpandedWidth() {
-        int leftPos;
-        if (BetterRecipeBook.ctx().config().keepCentered) {
-            // When centered, the inventory is at screen center
-            leftPos = (this.width - this.containerImageWidth) / 2;
-        } else {
-            leftPos = findLeftEdge(this.width, this.containerImageWidth);
-        }
-        int inventoryRight = leftPos + this.containerImageWidth;
-        int bookLeft = (this.width - VANILLA_BOOK_WIDTH) / 2 - this.xOffset;
-        return inventoryRight - bookLeft;
-    }
-
-    /** Let the screen set the real container imageWidth for accurate width calculation. */
-    public void setContainerImageWidth(int imageWidth) {
-        this.containerImageWidth = imageWidth;
-    }
-
     @Override
     @NotNull
     public NarratableEntry.NarrationPriority narrationPriority() {
@@ -473,19 +343,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     protected void setVisible(boolean visible) {
-        BrbeLogger.log(BrbeLogger.Category.VISIBILITY,
-                "setVisible(%s) generic — current=%s, will call initVisuals=%s",
-                visible, this.visible, visible && !this.visible);
-
-        // Match vanilla behaviour: re-initialise when becoming visible.
-        // The vanilla RecipeBookComponent.setVisible(true) calls initVisuals(),
-        // which triggers updateCollections() and rebuilds all UI elements.
-        // Without this, the recipe book can show stale state after a config
-        // change if configChanged was consumed while the book was invisible.
-        if (visible && !this.visible) {
-            initVisuals();
-        }
-
         BRBBookSettings.setOpen(getRecipeBookType(), visible);
         this.visible = visible;
     }
@@ -502,27 +359,32 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         if (!this.isVisible()) {
             return true;
         }
-        int bookWidth = getCurrentBookWidth();
+        int bookLeft = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset;
         boolean bl = d < (double) i || e < (double) j || d >= (double) (i + k) || e >= (double) (j + l);
-        boolean bl2 = (double) (i - bookWidth) < d && d < (double) i && (double) j < e && e < (double) (j + l);
+        boolean bl2 = (double) (bookLeft) < d && d < (double) i && (double) j < e && e < (double) (j + l);
         return bl && !bl2;
     }
 
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (!this.isVisible()) return false;
+        int bookLeft = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset;
+        int bookTop = (this.height - BookLayout.TEXTURE_HEIGHT) / 2;
         return this.recipesPage.mouseScrolled(mouseX, mouseY, scrollX, scrollY,
-                getBookLeft(), getBookTop(),
-                getCurrentBookWidth(), VANILLA_BOOK_HEIGHT);
+                bookLeft, bookTop,
+                BookLayout.TEXTURE_WIDTH, BookLayout.TEXTURE_HEIGHT);
     }
 
     @Override
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
         if (!this.isVisible()) return false;
 
+        int bookLeft = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset;
+        int bookTop = (this.height - BookLayout.TEXTURE_HEIGHT) / 2;
+
         if (this.recipesPage.mouseClicked(mouseX, mouseY, button,
-                getBookLeft(), getBookTop(),
-                getCurrentBookWidth(), VANILLA_BOOK_HEIGHT)) {
+                bookLeft, bookTop,
+                BookLayout.TEXTURE_WIDTH, BookLayout.TEXTURE_HEIGHT)) {
             this.handlePlaceRecipe();
             return true;
         }
@@ -547,11 +409,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         if (ISettingsButton.super.settingsButtonMouseClicked(this.settingsButton, mouseX, mouseY, button)) {
             return true;
         }
-
-        // if (this.expandedToggleButton != null // TEMPORARILY DISABLED
-        //         && this.expandedToggleButton.mouseClicked(mouseX, mouseY, button)) {
-        //     return true;
-        // }
 
         Iterator<BRBGroupButtonWidget> tabButtonsIter = this.tabButtons.iterator();
 
@@ -633,8 +490,8 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     protected void refreshTabButtons() {
-        int i = getBookLeft() - BookLayout.TAB_BUTTON_WIDTH;
-        int j = getBookTop() + BookLayout.TAB_TOP_OFFSET;
+        int i = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset - BookLayout.TAB_BUTTON_WIDTH;
+        int j = (this.height - BookLayout.TEXTURE_HEIGHT) / 2 + BookLayout.TAB_TOP_OFFSET;
         int l = 0;
 
         for (BRBGroupButtonWidget button : this.tabButtons) {
@@ -645,26 +502,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             button.setPosition(i, j + BookLayout.TAB_BUTTON_SPACING * l++);
         }
     }
-
-    /** Create or reposition the expanded-mode toggle button below the left-side tabs. */
-    // protected void refreshExpandedToggleButton() { // TEMPORARILY DISABLED
-    //     int tabX = getBookLeft() - BookLayout.TAB_BUTTON_WIDTH;
-    //     int tabY = getBookTop() + BookLayout.TAB_TOP_OFFSET;
-    //     int buttonY = tabY + BookLayout.TAB_BUTTON_SPACING * this.tabButtons.size() + 3;
-    //     if (this.expandedToggleButton == null) {
-    //         this.expandedToggleButton = new ImageButton(
-    //                 tabX, buttonY, 20, 18,
-    //                 BRBTextures.RECIPE_BOOK_BUTTON_SPRITES,
-    //                 button -> {
-    //                     BetterRecipeBook.ctx().config().expandedRecipeBook =
-    //                             !BetterRecipeBook.ctx().config().expandedRecipeBook;
-    //                     AppContext.instance().events().requestConfigRefresh();
-    //                     initVisuals();
-    //                 });
-    //     } else {
-    //         this.expandedToggleButton.setPosition(tabX, buttonY);
-    //     }
-    // }
 
     public void renderGhostRecipe(GuiGraphics guiGraphics, int x, int y, boolean bl, float delta) {
         if (selectedTab == null || ghostRecipe == null) return;
