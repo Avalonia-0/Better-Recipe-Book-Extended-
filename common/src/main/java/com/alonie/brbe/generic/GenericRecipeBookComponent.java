@@ -678,8 +678,8 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
                     tabX, buttonY, 20, 18,
                     BRBTextures.RECIPE_BOOK_BUTTON_SPRITES,
                     button -> {
-                        BetterRecipeBook.ctx().config().expandedRecipeBook =
-                                !BetterRecipeBook.ctx().config().expandedRecipeBook;
+                        // Disabled: the toggle is always set to false.
+                        BetterRecipeBook.ctx().config().expandedRecipeBook = false;
                         AppContext.instance().events().requestConfigRefresh();
                         // Force visual rebuild
                         initVisuals();
