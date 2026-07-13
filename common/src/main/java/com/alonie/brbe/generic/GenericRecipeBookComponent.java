@@ -62,7 +62,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     protected StateSwitchingButton filterButton;
     protected ImageButton settingsButton;
     @Nullable
-    protected ImageButton expandedToggleButton;
+    // protected ImageButton expandedToggleButton; // TEMPORARILY DISABLED
     public GenericRecipePage<M, C, R> recipesPage;
     protected final List<BRBGroupButtonWidget> tabButtons = Lists.newArrayList();
     @Nullable
@@ -161,7 +161,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.selectedTab.setStateTriggered(true);
         this.updateCollections(false);
         this.refreshTabButtons();
-        this.refreshExpandedToggleButton();
+        // this.refreshExpandedToggleButton(); // TEMPORARILY DISABLED
     }
 
     public void render(GuiGraphics gui, int mouseX, int mouseY, float delta) {
@@ -212,9 +212,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
         this.filterButton.render(gui, mouseX, mouseY, delta);
 
-        if (this.expandedToggleButton != null) {
-            this.expandedToggleButton.render(gui, mouseX, mouseY, delta);
-        }
+        // if (this.expandedToggleButton != null) { // TEMPORARILY DISABLED
+        //     this.expandedToggleButton.render(gui, mouseX, mouseY, delta);
+        // }
 
         ISettingsButton.super.renderSettingsButton(this.settingsButton, gui, mouseX, mouseY, delta);
 
@@ -569,10 +569,10 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             return true;
         }
 
-        if (this.expandedToggleButton != null
-                && this.expandedToggleButton.mouseClicked(mouseX, mouseY, button)) {
-            return true;
-        }
+        // if (this.expandedToggleButton != null // TEMPORARILY DISABLED
+        //         && this.expandedToggleButton.mouseClicked(mouseX, mouseY, button)) {
+        //     return true;
+        // }
 
         Iterator<BRBGroupButtonWidget> tabButtonsIter = this.tabButtons.iterator();
 
@@ -668,26 +668,24 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     /** Create or reposition the expanded-mode toggle button below the left-side tabs. */
-    protected void refreshExpandedToggleButton() {
-        int tabX = getBookLeft() - BookLayout.TAB_BUTTON_WIDTH;
-        int tabY = getBookTop() + BookLayout.TAB_TOP_OFFSET;
-        int buttonY = tabY + BookLayout.TAB_BUTTON_SPACING * this.tabButtons.size() + 3; // below last tab + gap
-
-        if (this.expandedToggleButton == null) {
-            this.expandedToggleButton = new ImageButton(
-                    tabX, buttonY, 20, 18,
-                    BRBTextures.RECIPE_BOOK_BUTTON_SPRITES,
-                    button -> {
-                        // Disabled: the toggle is always set to false.
-                        BetterRecipeBook.ctx().config().expandedRecipeBook = false;
-                        AppContext.instance().events().requestConfigRefresh();
-                        // Force visual rebuild
-                        initVisuals();
-                    });
-        } else {
-            this.expandedToggleButton.setPosition(tabX, buttonY);
-        }
-    }
+    // protected void refreshExpandedToggleButton() { // TEMPORARILY DISABLED
+    //     int tabX = getBookLeft() - BookLayout.TAB_BUTTON_WIDTH;
+    //     int tabY = getBookTop() + BookLayout.TAB_TOP_OFFSET;
+    //     int buttonY = tabY + BookLayout.TAB_BUTTON_SPACING * this.tabButtons.size() + 3;
+    //     if (this.expandedToggleButton == null) {
+    //         this.expandedToggleButton = new ImageButton(
+    //                 tabX, buttonY, 20, 18,
+    //                 BRBTextures.RECIPE_BOOK_BUTTON_SPRITES,
+    //                 button -> {
+    //                     BetterRecipeBook.ctx().config().expandedRecipeBook =
+    //                             !BetterRecipeBook.ctx().config().expandedRecipeBook;
+    //                     AppContext.instance().events().requestConfigRefresh();
+    //                     initVisuals();
+    //                 });
+    //     } else {
+    //         this.expandedToggleButton.setPosition(tabX, buttonY);
+    //     }
+    // }
 
     public void renderGhostRecipe(GuiGraphics guiGraphics, int x, int y, boolean bl, float delta) {
         if (selectedTab == null || ghostRecipe == null) return;

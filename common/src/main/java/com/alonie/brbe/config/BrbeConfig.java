@@ -43,7 +43,6 @@ public class BrbeConfig implements ConfigData {
     public boolean keepCentered = false;
 
     @ConfigEntry.Category("ui")
-    @ConfigEntry.Gui.Excluded
     @ConfigEntry.Gui.Tooltip
     public boolean expandedRecipeBook = false;
 

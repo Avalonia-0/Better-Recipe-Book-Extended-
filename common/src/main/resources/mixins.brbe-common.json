@@ -9,8 +9,6 @@
     "DisableBook",
     "DisableBounce",
     "DisableCraftableFilter",
-    "ExpandedBookMixin",
-    "ExpandedRecipeBookPageMixin",
     "MouseScrollHandler",
     "RemoveBookButton",
     "ScreenRenderMixin",
