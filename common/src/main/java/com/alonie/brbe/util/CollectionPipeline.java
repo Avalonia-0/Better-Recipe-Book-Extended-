@@ -186,7 +186,9 @@ public final class CollectionPipeline {
                         PinnableRecipeCollection.of(c));
 
             if (hasPartialData) {
-                CollectionCategory cat = PartialCraftingUtil.categorize(c);
+                // Use EvenIfStale to prevent category flicker when sorting
+                // runs across a generation boundary (tab switch, config change).
+                CollectionCategory cat = PartialCraftingUtil.categorizeEvenIfStale(c);
                 if (isPinned) {
                     switch (cat) {
                         case TRULY_CRAFTABLE -> pinnedCraftable.add(c);

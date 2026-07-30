@@ -4,7 +4,7 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.gui.screens.inventory.EffectRenderingInventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.network.chat.Component;
@@ -40,7 +40,7 @@ public abstract class RecipeButtonMixin {
         List<RecipeHolder<?>> recipes = cir.getReturnValue();
         if ((recipes != null && !recipes.isEmpty())
                 || !BetterRecipeBook.ctx().config().showAllRecipesInSurvival
-                || !(Minecraft.getInstance().screen instanceof InventoryScreen)) {
+                || !(Minecraft.getInstance().screen instanceof EffectRenderingInventoryScreen)) {
             return;
         }
 
@@ -59,7 +59,7 @@ public abstract class RecipeButtonMixin {
     private void betterRecipeBook$appendIncompatibleWarning(
             CallbackInfoReturnable<List<Component>> cir) {
         if (!BetterRecipeBook.ctx().config().showAllRecipesInSurvival) return;
-        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
+        if (!(Minecraft.getInstance().screen instanceof EffectRenderingInventoryScreen)) return;
 
         List<Component> list = cir.getReturnValue();
         if (list == null || list.isEmpty()) return;

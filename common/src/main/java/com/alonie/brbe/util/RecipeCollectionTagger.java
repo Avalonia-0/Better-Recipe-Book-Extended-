@@ -131,15 +131,17 @@ public final class RecipeCollectionTagger<T> {
     /**
      * Remove all tags for a collection without clearing its checked-generation
      * mark.  Use this when a collection is re-evaluated and found to have
-     * no tags in the current generation.
+     * no tags in the current generation — the collection was <em>checked</em>,
+     * it just has zero matching tags.
      */
     public void clearTags(RecipeCollection collection) {
         tags.remove(collection);
-        checkedGenerations.remove(collection);
+        // Intentionally preserve checkedGenerations — the collection was
+        // processed in the current generation, it just has no tags.
     }
 
-    /** Remove both tags and the checked-generation mark. */
-    public void clearAll(RecipeCollection collection) {
+    /** Remove both tags and the checked-generation mark for a collection. */
+    public void removeCollection(RecipeCollection collection) {
         tags.remove(collection);
         checkedGenerations.remove(collection);
     }
@@ -148,5 +150,15 @@ public final class RecipeCollectionTagger<T> {
     public void clearAll() {
         tags.clear();
         checkedGenerations.clear();
+    }
+
+    /**
+     * Reset the generation counter and clear all state.
+     * Equivalent to {@link #clearAll()} plus generation reset.
+     */
+    public void reset() {
+        tags.clear();
+        checkedGenerations.clear();
+        currentGeneration = 0;
     }
 }

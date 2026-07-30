@@ -189,8 +189,19 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         // init), every field is null — bail out cleanly.
         if (this.backButton == null || this.forwardButton == null || this.buttons == null) return;
 
-        // Scroll is now handled via mouseScrolled() — the render-based queued scroll
-        // is intentionally removed to avoid double-processing.
+        // Process queued scroll — captured by MouseScrollHandler at the
+        // GLFW level and stored in BetterRecipeBook.queuedScroll.  Processed
+        // at render time (same as scrollablepages/RecipeBookPageMixin).
+        int queued = BetterRecipeBook.getQueuedScroll();
+        if (queued != 0 && totalPages > 1 && isMouseOverRecipeBookPage(mouseX, mouseY, blitX, blitY)) {
+            currentPage += queued;
+            if (currentPage >= totalPages) {
+                currentPage = BetterRecipeBook.config.scrollAround ? currentPage % totalPages : totalPages - 1;
+            } else if (currentPage < 0) {
+                currentPage = BetterRecipeBook.config.scrollAround ? (currentPage % totalPages) + totalPages : 0;
+            }
+            updateButtonsForPage();
+        }
         BetterRecipeBook.setQueuedScroll(0);
 
         if (this.totalPages > 1) {

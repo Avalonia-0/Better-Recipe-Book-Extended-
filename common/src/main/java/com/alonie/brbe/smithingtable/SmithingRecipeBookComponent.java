@@ -29,13 +29,16 @@ public class SmithingRecipeBookComponent extends GenericRecipeBookComponent<Smit
 
     public void init(int width, int height, Minecraft minecraft, boolean widthNarrow, SmithingMenu menu, Consumer<ItemStack> onGhostRecipeUpdate, RegistryAccess registryAccess, RecipeManager recipeManager) {
         this.recipeManager = recipeManager;
-        this.ghostRecipe = new SmithingGhostRecipe(onGhostRecipeUpdate, registryAccess);
-        this.ghostRecipe.setDefaultRenderingPredicate(this.menu);
-        // recipesPage MUST be assigned before super.init() because
-        // super.init() -> setVisible(true) -> initVisuals() -> recipesPage.initialize()
+        // recipesPage MUST be assigned before initVisuals() because initVisuals() calls recipesPage.initialize()
         this.recipesPage = new SmithingRecipeBookPage(registryAccess, () -> BRBBookSettings.isFiltering(getRecipeBookType()));
 
         super.init(width, height, minecraft, widthNarrow, menu, onGhostRecipeUpdate, registryAccess);
+
+        // ghostRecipe was overwritten by super.init() — re-create it with the correct type
+        // and re-attach the predicate (which needs menu to be set first).
+        this.ghostRecipe = new SmithingGhostRecipe(onGhostRecipeUpdate, registryAccess);
+        this.ghostRecipe.setDefaultRenderingPredicate(menu);
+        this.initVisuals();
     }
 
     @Override

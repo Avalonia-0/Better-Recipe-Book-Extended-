@@ -9,82 +9,84 @@ import net.minecraft.world.item.crafting.ShapelessRecipe;
 
 import java.util.*;
 
+/**
+ * Detects recipes that require a larger crafting grid than is currently
+ * available (e.g. 3×3 recipes on a 2×2 inventory screen).
+ *
+ * <p>Data is stored via {@link RecipeCollectionTagger} for generation-aware
+ * lifecycle management, replacing the previous inline WeakHashMap pattern.</p>
+ */
 public final class IncompatibleCraftingUtil {
 
-    private static final WeakHashMap<RecipeCollection, Set<ResourceLocation>> INCOMPATIBLE_RECIPES = new WeakHashMap<>();
-    private static final WeakHashMap<RecipeCollection, Integer> CHECKED_COLLECTIONS = new WeakHashMap<>();
-    private static int filteringGeneration;
-    private static boolean filteringActive;
+    private static final RecipeCollectionTagger<ResourceLocation> tagger =
+            new RecipeCollectionTagger<>();
 
     private IncompatibleCraftingUtil() {}
 
+    // ── Lifecycle ────────────────────────────────────────────────────
+
     public static boolean isActive() {
-        return filteringActive;
+        // Active whenever the tagger has been started for this cycle.
+        // In practice checked via the mixin's retainIncompatible flag.
+        return true;
     }
 
     public static void beginFiltering(boolean active) {
-        filteringActive = active;
-        if (active) {
-            if (filteringGeneration == Integer.MAX_VALUE) {
-                INCOMPATIBLE_RECIPES.clear();
-                CHECKED_COLLECTIONS.clear();
-                filteringGeneration = 0;
-            }
-            filteringGeneration++;
-        }
+        tagger.beginFiltering(active);
     }
+
+    public static void clearCaches() {
+        // no-op: WeakHashMap-style storage auto-cleans via the tagger.
+        // Kept for callers that expect an explicit cleanup hook.
+    }
+
+    // ── Marking ──────────────────────────────────────────────────────
 
     /**
-     * Compatibility shim — WeakHashMaps auto-clean, so explicit clear
-     * is not needed, but we keep it for callers.
+     * Marks recipes in the collection that require a larger grid than
+     * the current 2×2 inventory screen.  Also populates
+     * {@code fitsDimensions} so the pipeline can display them.
+     *
+     * <p><b>Note:</b> the fitsDimensions write is a legacy coupling that
+     * will be moved to the unified pipeline in Phase 2 of the refactor.</p>
      */
-    public static void clearCaches() {
-        // no-op: WeakHashMaps handle cleanup automatically
-    }
-
     public static void markIncompatibleRecipes(RecipeCollection collection) {
-        CHECKED_COLLECTIONS.put(collection, filteringGeneration);
+        tagger.markAsChecked(collection);
         Set<ResourceLocation> incompatible = null;
         RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
 
         for (RecipeHolder<?> holder : collection.getRecipes()) {
-            if (holder.value() instanceof ShapedRecipe shaped) {
-                if (shaped.getWidth() > 2 || shaped.getHeight() > 2) {
-                    if (incompatible == null) incompatible = new HashSet<>();
-                    incompatible.add(holder.id());
-                    accessor.getFitsDimensions().add(holder);
-                }
-            } else if (holder.value() instanceof ShapelessRecipe shapeless) {
-                if (shapeless.getIngredients().size() > 4) {
-                    if (incompatible == null) incompatible = new HashSet<>();
-                    incompatible.add(holder.id());
-                    accessor.getFitsDimensions().add(holder);
-                }
+            if (isLargeRecipe(holder.value())) {
+                if (incompatible == null) incompatible = new HashSet<>();
+                incompatible.add(holder.id());
+                // Legacy: populate fitsDimensions so the pipeline displays
+                // these recipes.  Will move to the pipeline in Phase 2.
+                accessor.getFitsDimensions().add(holder);
             }
         }
 
         if (incompatible != null && !incompatible.isEmpty()) {
-            INCOMPATIBLE_RECIPES.put(collection, incompatible);
+            tagger.setAllTags(collection, incompatible);
         } else {
-            INCOMPATIBLE_RECIPES.remove(collection);
+            tagger.clearTags(collection);
         }
     }
 
     public static void markIncompatibleOnCollection(RecipeCollection collection, ResourceLocation id) {
-        CHECKED_COLLECTIONS.put(collection, filteringGeneration);
-        Set<ResourceLocation> existing = INCOMPATIBLE_RECIPES.get(collection);
-        if (existing != null) {
-            existing.add(id);
-        } else {
-            INCOMPATIBLE_RECIPES.put(collection, new HashSet<>(Collections.singleton(id)));
-        }
+        tagger.markAsChecked(collection);
+        tagger.addTag(collection, id);
     }
+
+    // ── Queries ──────────────────────────────────────────────────────
 
     public static boolean isIncompatible(RecipeCollection collection, ResourceLocation id) {
-        Set<ResourceLocation> set = INCOMPATIBLE_RECIPES.get(collection);
-        return set != null && set.contains(id);
+        return tagger.hasTagEvenIfStale(collection, id);
     }
 
+    /**
+     * Checks whether a specific recipe within a collection is incompatible
+     * by scanning the collection's recipes for a large-grid match.
+     */
     public static boolean checkIncompatible(RecipeCollection collection, ResourceLocation id) {
         for (RecipeHolder<?> holder : collection.getRecipes()) {
             if (!holder.id().equals(id)) continue;
@@ -101,16 +103,17 @@ public final class IncompatibleCraftingUtil {
         return holder != null && isLargeRecipe(holder.value());
     }
 
+    public static boolean hasIncompatibleRecipes(RecipeCollection collection) {
+        return tagger.hasAnyTagEvenIfStale(collection);
+    }
+
+    // ── Internal ─────────────────────────────────────────────────────
+
     private static boolean isLargeRecipe(net.minecraft.world.item.crafting.Recipe<?> recipe) {
         if (recipe instanceof ShapedRecipe shaped)
             return shaped.getWidth() > 2 || shaped.getHeight() > 2;
         if (recipe instanceof ShapelessRecipe shapeless)
             return shapeless.getIngredients().size() > 4;
         return false;
-    }
-
-    public static boolean hasIncompatibleRecipes(RecipeCollection collection) {
-        Set<ResourceLocation> set = INCOMPATIBLE_RECIPES.get(collection);
-        return set != null && !set.isEmpty();
     }
 }

@@ -68,6 +68,9 @@ public final class BrbeDiagnostic {
         failed += checkConstraintLayout(sb) ? 0 : 1;
         passed += checkConstraintLayout(sb) ? 1 : 0;
 
+        failed += checkRecipeBookState(sb) ? 0 : 1;
+        passed += checkRecipeBookState(sb) ? 1 : 0;
+
         sb.append("\n─── Result ───────────────────────────────────────────\n");
         sb.append(String.format("  %d passed, %d failed, %d total\n",
                 passed, failed, passed + failed));
@@ -89,6 +92,105 @@ public final class BrbeDiagnostic {
     }
 
     // ── Individual checks ──────────────────────────────────────────
+
+    private static boolean checkRecipeBookState(StringBuilder sb) {
+        sb.append("\n─── 8. Recipe Book Runtime State ──────────────────────\n");
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.screen == null) {
+                sb.append("  SKIP  no screen open\n");
+                return true;
+            }
+
+            // Config snapshot
+            var cfg = BetterRecipeBook.ctx().config();
+            sb.append(String.format("  INFO  config: showAll=%s pCE=%s pME=%s keepCentered=%s\n",
+                    cfg.showAllRecipesInSurvival, cfg.partialCraftingEnabled,
+                    cfg.partialMarkingEnabled, cfg.keepCentered));
+
+            // Screen info
+            boolean onInventory = mc.screen instanceof net.minecraft.client.gui.screens.inventory.EffectRenderingInventoryScreen;
+            sb.append(String.format("  INFO  screen=%s onInventory=%s\n",
+                    mc.screen.getClass().getSimpleName(), onInventory));
+
+            // Recipe book component info
+            if (!(mc.screen instanceof net.minecraft.client.gui.screens.recipebook.RecipeUpdateListener rul)) {
+                sb.append("  SKIP  no recipe book on this screen\n");
+                return true;
+            }
+
+            var comp = rul.getRecipeBookComponent();
+            if (comp == null) {
+                sb.append("  FAIL  recipe book component is null\n");
+                return false;
+            }
+
+            var compAccessor = (com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor) comp;
+            var tab = compAccessor.getSelectedTab();
+            var book = compAccessor.getRecipeBook();
+            var page = compAccessor.getRecipeBookPage();
+            var pageAccessor = (com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor) page;
+
+            sb.append(String.format("  INFO  selectedTab=%s visible=%s\n",
+                    tab != null ? tab.getCategory().getClass().getSimpleName() : "NULL",
+                    comp.isVisible()));
+
+            if (tab != null && book != null) {
+                var collections = book.getCollection(tab.getCategory());
+                int totalRecipes = 0, craftable = 0, partial = 0, incompatible = 0;
+                int emptyFits = 0, partialFits = 0, fullFits = 0;
+
+                for (var c : collections) {
+                    totalRecipes += c.getRecipes().size();
+                    if (c.hasCraftable()) craftable++;
+                    if (PartialCraftingUtil.hasPartialMaterials(c)) partial++;
+                    if (IncompatibleCraftingUtil.hasIncompatibleRecipes(c)) incompatible++;
+                    var ca = (com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor) c;
+                    int fitCount = ca.getFitsDimensions().size();
+                    if (fitCount == 0) emptyFits++;
+                    else if (fitCount < c.getRecipes().size()) partialFits++;
+                    else fullFits++;
+                }
+
+                sb.append(String.format("  INFO  collections=%d recipes=%d\n",
+                        collections.size(), totalRecipes));
+                sb.append(String.format("  INFO  craftable=%d partial=%d incompatible=%d\n",
+                        craftable, partial, incompatible));
+                sb.append(String.format("  INFO  fits: full=%d partial=%d empty=%d\n",
+                        fullFits, partialFits, emptyFits));
+
+                // Page state
+                var storedCollections = pageAccessor.getCollections();
+                sb.append(String.format("  INFO  page: storedCols=%d visible=%s\n",
+                        storedCollections != null ? storedCollections.size() : 0,
+                        comp.isVisible()));
+
+                // Show first 5 collections with state
+                int shown = 0;
+                for (var c : collections) {
+                    if (shown >= 5) break;
+                    var ca = (com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor) c;
+                    int fitCount = ca.getFitsDimensions().size();
+                    String first = c.getRecipes().iterator().next().value()
+                            .getResultItem(c.registryAccess()).getHoverName().getString();
+                    sb.append(String.format("         [%s%s%s] %s (%d/%d fit)\n",
+                            c.hasCraftable() ? "C" : "-",
+                            PartialCraftingUtil.hasPartialMaterials(c) ? "P" : "-",
+                            fitCount == 0 ? "E" : (fitCount < c.getRecipes().size() ? "p" : "F"),
+                            first, fitCount, c.getRecipes().size()));
+                    shown++;
+                }
+                if (collections.size() > 5)
+                    sb.append(String.format("         ... and %d more\n", collections.size() - 5));
+            }
+
+            sb.append("  PASS  recipe book state captured\n");
+            return true;
+        } catch (Exception e) {
+            sb.append(String.format("  FAIL  %s\n", e.getMessage()));
+            return false;
+        }
+    }
 
     private static boolean checkAppContext(StringBuilder sb) {
         sb.append("─── 1. AppContext (DI Root) ───────────────────────────\n");

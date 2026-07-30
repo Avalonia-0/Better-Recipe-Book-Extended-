@@ -15,13 +15,10 @@ public class MouseScrollHandler {
     @Final @Shadow
     private Minecraft minecraft;
 
-    @Inject(at = @At(value = "RETURN"), method = "onScroll")
-    public void onMouseScroll(long window, double arg1, double vertical, CallbackInfo ci) {
-        if (BetterRecipeBook.getQueuedScroll() == 0 && true) {
-            assert minecraft.player != null;
-
-            double d = (this.minecraft.options.discreteMouseScroll().get() ? Math.signum(vertical) : vertical) * this.minecraft.options.mouseWheelSensitivity().get();
-            BetterRecipeBook.setQueuedScroll((int) -Math.signum(d));
+    @Inject(at = @At("HEAD"), method = "onScroll")
+    public void onMouseScroll(long window, double horizontal, double vertical, CallbackInfo ci) {
+        if (vertical != 0 && BetterRecipeBook.getQueuedScroll() == 0) {
+            BetterRecipeBook.setQueuedScroll(vertical > 0 ? -1 : 1);
         }
     }
 }

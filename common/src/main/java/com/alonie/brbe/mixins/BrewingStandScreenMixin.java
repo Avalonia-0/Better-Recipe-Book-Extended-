@@ -91,6 +91,15 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
     }
 
     @Override
+    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (scrollY != 0 && this._$recipeBookComponent.isVisible()) {
+            this._$recipeBookComponent.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+            return true;
+        }
+        return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
+    }
+
+    @Override
     protected boolean hasClickedOutside(double d, double e, int i, int j, int k) {
         boolean bl = d < (double) i || e < (double) j || d >= (double) (i + this.imageWidth) || e >= (double) (j + this.imageHeight);
         return this._$recipeBookComponent.hasClickedOutside(d, e, this.leftPos, this.topPos, this.imageWidth, this.imageHeight, k) && bl;

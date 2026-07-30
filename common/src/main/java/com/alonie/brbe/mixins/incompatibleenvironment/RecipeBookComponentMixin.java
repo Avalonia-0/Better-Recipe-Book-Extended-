@@ -3,7 +3,7 @@ package com.alonie.brbe.mixins.incompatibleenvironment;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.gui.screens.inventory.EffectRenderingInventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
@@ -23,14 +23,25 @@ public abstract class RecipeBookComponentMixin {
     @Shadow @Final private net.minecraft.client.ClientRecipeBook book;
     @Shadow private RecipeBookTabButton selectedTab;
 
+    /**
+     * Prevent ghost-recipe preview for 3×3 recipes on the 2×2 inventory
+     * screen.  The preview shows items that would be placed, but since
+     * the grid is too small the placement would fail silently — leaving
+     * items stuck in the crafting grid.
+     *
+     * <p>In 1.21.1, {@code setupGhostRecipe} is the only client-side
+     * entry point for recipe placement.  When cancelled, neither the
+     * preview nor the actual item transfer occurs.  (There is no
+     * {@code handleRecipeClicked} method on {@code RecipeBookComponent}
+     * in this version — placement is driven entirely through the ghost
+     * recipe + server packet round-trip.)
+     */
     @Inject(method = "setupGhostRecipe", at = @At("HEAD"), cancellable = true)
     private void brbe$preventIncompatibleRecipeClick(
             RecipeHolder<?> recipe, List list, CallbackInfo ci) {
         if (!BetterRecipeBook.ctx().config().showAllRecipesInSurvival) return;
-        if (!(Minecraft.getInstance().screen instanceof InventoryScreen)) return;
+        if (!(Minecraft.getInstance().screen instanceof EffectRenderingInventoryScreen)) return;
 
-        // Check via the recipe directly (works for RBIP creative tabs
-        // where book.getCollection() may return null for non-vanilla categories)
         if (IncompatibleCraftingUtil.checkIncompatible(recipe)) {
             ci.cancel();
             return;

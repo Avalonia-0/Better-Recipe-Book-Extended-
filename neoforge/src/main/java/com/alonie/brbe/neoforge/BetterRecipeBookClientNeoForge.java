@@ -36,9 +36,10 @@ public class BetterRecipeBookClientNeoForge {
 
     public static void init(IEventBus modEventBus) {
 
-        // Register key mappings (F = pin recipe)
+        // Register key mappings (F = pin recipe, K = diagnostic dump)
         modEventBus.addListener(RegisterKeyMappingsEvent.class, event -> {
             event.register(BetterRecipeBook.PIN_MAPPING);
+            event.register(BetterRecipeBook.DIAGNOSTIC_MAPPING);
         });
         // Register platform provider
         PlatformPotionUtilImpl.init();

@@ -355,6 +355,11 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.setVisible(!this.isVisible());
     }
 
+    @Override
+    public boolean isMouseOver(double mouseX, double mouseY) {
+        return false;
+    }
+
     public boolean hasClickedOutside(double d, double e, int i, int j, int k, int l, int m) {
         if (!this.isVisible()) {
             return true;
@@ -370,9 +375,13 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         if (!this.isVisible()) return false;
         int bookLeft = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset;
         int bookTop = (this.height - BookLayout.TEXTURE_HEIGHT) / 2;
-        return this.recipesPage.mouseScrolled(mouseX, mouseY, scrollX, scrollY,
+        boolean handled = this.recipesPage.mouseScrolled(mouseX, mouseY, scrollX, scrollY,
                 bookLeft, bookTop,
                 BookLayout.TEXTURE_WIDTH, BookLayout.TEXTURE_HEIGHT);
+        if (handled) {
+            BetterRecipeBook.setQueuedScroll(0);
+        }
+        return handled;
     }
 
     @Override
@@ -490,7 +499,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     protected void refreshTabButtons() {
-        int i = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset - BookLayout.TAB_BUTTON_WIDTH;
+        int i = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset - BookLayout.TAB_BUTTON_WIDTH + 1;
         int j = (this.height - BookLayout.TEXTURE_HEIGHT) / 2 + BookLayout.TAB_TOP_OFFSET;
         int l = 0;
 

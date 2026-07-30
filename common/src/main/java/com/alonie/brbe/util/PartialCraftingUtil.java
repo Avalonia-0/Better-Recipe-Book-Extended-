@@ -15,39 +15,47 @@ import net.minecraft.world.item.crafting.RecipeHolder;
 
 import java.util.*;
 
+/**
+ * Detects recipes that are <em>partially craftable</em> — the player has
+ * some (but not all) matching ingredients.
+ *
+ * <p>Data is stored via {@link RecipeCollectionTagger} for generation-aware
+ * lifecycle management.  Generation-aware queries (prefixed with
+ * {@code CurrentGen}) see only data from the current marking cycle;
+ * {@code EvenIfStale} queries see data from any generation.</p>
+ *
+ * <p>The legacy methods ({@link #isPartiallyCraftable},
+ * {@link #hasPartialMaterials}) use EvenIfStale semantics to preserve
+ * backward compatibility with Step 0 cleanup code that runs after
+ * generation advancement but before re-marking.</p>
+ */
 public final class PartialCraftingUtil {
 
-    // ── Core data stores ─────────────────────────────────────────────
-    // WeakHashMap keyed directly by RecipeCollection instance.
-    // Entries are auto-cleaned when RecipeCollections are GC'd.
-    private static final WeakHashMap<RecipeCollection, Set<ResourceLocation>> PARTIAL_RECIPES = new WeakHashMap<>();
-    private static final WeakHashMap<RecipeCollection, Integer> CHECKED_COLLECTIONS = new WeakHashMap<>();
-
-    private static int filteringGeneration;
-    private static boolean filteringActive;
+    // ── Core data store ──────────────────────────────────────────────
+    private static final RecipeCollectionTagger<ResourceLocation> tagger =
+            new RecipeCollectionTagger<>();
 
     /**
-     * Set by {@link #requestForceFullRefresh()} when the pipeline needs the
-     * next {@code updateCollections} call to run the full vanilla+BRBE
-     * cycle (vanilla forEach + partial marking) even when the inventory
-     * hasn't changed.  Consumed by {@link #consumeForceFullRefresh()}.
+     * Legacy force-refresh flag.  Gradually being replaced by the config
+     * event bus; kept here until Phase 2 merge fully migrates callers.
      */
     private static volatile boolean forceFullRefresh = false;
 
     private PartialCraftingUtil() {}
 
+    // ── Lifecycle ────────────────────────────────────────────────────
+
     /**
      * Force a full rebuild on the next {@code updateCollections} pass.
      * Call when config options affecting partial-craftable display change.
      *
-     * <p>IMPORTANT: does NOT clear PARTIAL_RECIPES — the redirect cleanup
+     * <p>IMPORTANT: does NOT clear tagger data — the redirect cleanup
      * path in {@code incompletecrafting/RecipeBookComponentMixin} needs it
      * to identify which entries to purge from the vanilla craftable set.</p>
      */
     public static void invalidateCaches() {
-        CHECKED_COLLECTIONS.clear();
-        filteringGeneration = 0;
-        filteringActive = false;
+        tagger.clearAll();   // clear generation marks so re-evaluation happens
+        tagger.reset();      // reset generation counter
         forceFullRefresh = true;
     }
 
@@ -55,29 +63,18 @@ public final class PartialCraftingUtil {
         return BetterRecipeBook.ctx().config().partialMarkingEnabled;
     }
 
+    /**
+     * Delegates to {@link RecipeCollectionTagger#beginFiltering}.
+     * When {@code active} is true, increments the generation counter so
+     * stale data from previous cycles is invisible to generation-aware
+     * queries.  When false, preserves the current generation.
+     */
     public static void beginFilteringUpdate(boolean active) {
-        filteringActive = active;
-        if (active) {
-            if (filteringGeneration == Integer.MAX_VALUE) {
-                PARTIAL_RECIPES.clear();
-                CHECKED_COLLECTIONS.clear();
-                filteringGeneration = 0;
-            }
-            filteringGeneration++;
-        }
+        tagger.beginFiltering(active);
     }
 
-    /**
-     * Request that the next {@code updateCollections} call forces a full
-     * refresh (vanilla {@code canCraft} + partial marking) regardless of
-     * whether the inventory has changed.
-     *
-     * <p>Called from {@code populatePage()} after it finishes its best-effort
-     * partial marking, because {@code populatePage} cannot call vanilla's
-     * {@code canCraft} to rebuild the craftable set from ground truth.
-     * The forced refresh ensures the next user interaction produces
-     * correct results.
-     */
+    // ── Force-full-refresh (legacy — to be replaced in Phase 2) ─────
+
     public static void requestForceFullRefresh() {
         forceFullRefresh = true;
     }
@@ -94,14 +91,14 @@ public final class PartialCraftingUtil {
      * (save listener) so the next marking cycle starts fresh.
      */
     public static void clearCaches() {
-        PARTIAL_RECIPES.clear();
-        CHECKED_COLLECTIONS.clear();
-        filteringGeneration = 0;
+        tagger.clearAll();
     }
+
+    // ── Atomic marking + injection ───────────────────────────────────
 
     /**
      * Atomically mark partial recipes AND inject them into the craftable
-     * set.  Both the PARTIAL_RECIPES map and {@code brbe$getCraftable()}
+     * set.  Both the tagger data and {@code brbe$getCraftable()}
      * must be updated together, otherwise RecipeButtons show wrong
      * textures (partials look craftable or vice versa).
      */
@@ -123,9 +120,9 @@ public final class PartialCraftingUtil {
         }
     }
 
-    /**
-     * Simple 64-bit hash of slot state (item presence + counts).
-     */
+    // ── Slot / inventory hashing ─────────────────────────────────────
+
+    /** Simple 64-bit hash of slot state (item presence + counts). */
     public static long slotHash(NonNullList<Slot> slots) {
         long h = 1;
         for (Slot slot : slots) {
@@ -149,11 +146,8 @@ public final class PartialCraftingUtil {
         return inventoryItems;
     }
 
-    /**
-     * Checks all recipes in the collection and marks those that have some
-     * (but not all) matching ingredients.  Uses pre-hashed inventory set
-     * for O(1) ingredient lookup.
-     */
+    // ── Marking ──────────────────────────────────────────────────────
+
     public static boolean markPartialMaterials(RecipeCollection collection, NonNullList<Slot> slots) {
         return markPartialMaterials(collection, hashInventory(slots));
     }
@@ -165,7 +159,7 @@ public final class PartialCraftingUtil {
         if (!enabled()) return false;
         if (wasCheckedForPartialMaterials(collection)) return hasPartialMaterials(collection);
 
-        CHECKED_COLLECTIONS.put(collection, filteringGeneration);
+        tagger.markAsChecked(collection);
         boolean markedAny = false;
         Set<ResourceLocation> partialRecipes = new HashSet<>();
 
@@ -185,9 +179,9 @@ public final class PartialCraftingUtil {
         }
 
         if (markedAny) {
-            PARTIAL_RECIPES.put(collection, partialRecipes);
+            tagger.setAllTags(collection, partialRecipes);
         } else {
-            PARTIAL_RECIPES.remove(collection);
+            tagger.clearTags(collection); // preserves checked-generation mark
         }
 
         return markedAny;
@@ -195,25 +189,78 @@ public final class PartialCraftingUtil {
 
     public static void markPartialMaterial(RecipeCollection collection, ResourceLocation recipeId) {
         if (!enabled()) return;
-        CHECKED_COLLECTIONS.put(collection, filteringGeneration);
-        PARTIAL_RECIPES.put(collection, new HashSet<>(Collections.singleton(recipeId)));
+        tagger.markAsChecked(collection);
+        tagger.addTag(collection, recipeId);
     }
+
+    // ── Freshness ────────────────────────────────────────────────────
 
     public static boolean wasCheckedForPartialMaterials(RecipeCollection collection) {
         if (!enabled()) return false;
-        Integer generation = CHECKED_COLLECTIONS.get(collection);
-        return filteringActive && generation != null && generation == filteringGeneration;
+        return tagger.wasChecked(collection);
     }
+
+    // ── Normal queries (generation-aware — see only current cycle) ───
+
+    /**
+     * True if the recipe is partially craftable according to the
+     * <em>current</em> marking generation.
+     */
+    public static boolean isPartiallyCraftableCurrentGen(RecipeCollection collection, ResourceLocation recipeId) {
+        if (!enabled()) return false;
+        return tagger.hasTag(collection, recipeId);
+    }
+
+    /**
+     * True if the collection has at least one partially-craftable recipe
+     * in the <em>current</em> marking generation.
+     */
+    public static boolean hasPartialMaterialsCurrentGen(RecipeCollection collection) {
+        if (!enabled()) return false;
+        return tagger.hasAnyTag(collection);
+    }
+
+    // ── EvenIfStale queries (see all generations) ────────────────────
+
+    /**
+     * True if the recipe is partially craftable, even if the data is from
+     * a previous marking generation.  Use for Step 0 cleanup (removing
+     * stale injections) and in contexts where generation state is unknown.
+     */
+    public static boolean isPartiallyCraftableEvenIfStale(RecipeCollection collection, ResourceLocation recipeId) {
+        if (!enabled()) return false;
+        return tagger.hasTagEvenIfStale(collection, recipeId);
+    }
+
+    /**
+     * True if the collection has at least one partially-craftable recipe,
+     * even if the data is from a previous marking generation.
+     */
+    public static boolean hasPartialMaterialsEvenIfStale(RecipeCollection collection) {
+        if (!enabled()) return false;
+        return tagger.hasAnyTagEvenIfStale(collection);
+    }
+
+    // ── Legacy methods (EvenIfStale + enabled guard) ─────────────────
+    // These preserve the old behavior where queries directly read the
+    // map without generation awareness.  Step 0 cleanup in the
+    // incompletecrafting Mixin relies on this to find stale entries
+    // after beginFilteringUpdate(true) advances the generation.
+    // Phase 2 will switch cleanup to EvenIfStale and these to CurrentGen.
 
     public static boolean isPartiallyCraftable(RecipeCollection collection, RecipeHolder<?> recipe) {
         return isPartiallyCraftable(collection, recipe.id());
     }
 
     public static boolean isPartiallyCraftable(RecipeCollection collection, ResourceLocation recipeId) {
-        if (!enabled()) return false;
-        Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(collection);
-        return partialRecipes != null && partialRecipes.contains(recipeId);
+        return isPartiallyCraftableEvenIfStale(collection, recipeId);
     }
+
+    public static boolean hasPartialMaterials(RecipeCollection collection) {
+        return hasPartialMaterialsEvenIfStale(collection);
+    }
+
+    // ── Raw queries (bypass enabled() guard + EvenIfStale) ───────────
 
     /**
      * Raw check — bypasses the {@link #enabled()} guard.  For cleanup code
@@ -221,8 +268,7 @@ public final class PartialCraftingUtil {
      * been disabled in config.
      */
     public static boolean hasPartialMaterialsRaw(RecipeCollection collection) {
-        Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(collection);
-        return partialRecipes != null && !partialRecipes.isEmpty();
+        return tagger.hasAnyTagEvenIfStale(collection);
     }
 
     /**
@@ -230,14 +276,26 @@ public final class PartialCraftingUtil {
      * @see #hasPartialMaterialsRaw(RecipeCollection)
      */
     public static boolean isPartiallyCraftableRaw(RecipeCollection collection, ResourceLocation recipeId) {
-        Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(collection);
-        return partialRecipes != null && partialRecipes.contains(recipeId);
+        return tagger.hasTagEvenIfStale(collection, recipeId);
     }
 
-    public static boolean hasPartialMaterials(RecipeCollection collection) {
-        if (!enabled()) return false;
-        return hasPartialMaterialsRaw(collection);
+    // ── Mutation ─────────────────────────────────────────────────────
+
+    /**
+     * Removes a single recipe from the partial-craftable set for a
+     * collection.  If the collection has no more partial recipes after
+     * removal, the collection entry is dropped from the map entirely.
+     *
+     * <p>Used during the 3×3-grid cleanup pass on the inventory screen
+     * (2×2 grid) — recipes that require a larger grid should never be
+     * marked as partially craftable because the player may already have
+     * all ingredients.</p>
+     */
+    public static void removePartialRecipe(RecipeCollection collection, ResourceLocation recipeId) {
+        tagger.removeTag(collection, recipeId);
     }
+
+    // ── Categorization ───────────────────────────────────────────────
 
     /**
      * Classifies a collection by iterating its recipes and checking each
@@ -246,14 +304,26 @@ public final class PartialCraftingUtil {
      * sort methods and button mixins should use this instead of inline loops.
      */
     public static CollectionCategory categorize(RecipeCollection c) {
-        // categorize is only called when partialMarkingEnabled is true
-        // (the caller checks this via hasPartialData), so enabled() and
-        // the normal isPartiallyCraftable query are safe.
         if (!enabled()) return CollectionCategory.UNASSIGNED;
+        return categorizeImpl(c, false);
+    }
 
+    /**
+     * Like {@link #categorize} but uses EvenIfStale queries so sorting
+     * is stable across generation boundaries.  Use in pipeline sorting
+     * to prevent category flicker on tab switches.
+     */
+    public static CollectionCategory categorizeEvenIfStale(RecipeCollection c) {
+        if (!enabled()) return CollectionCategory.UNASSIGNED;
+        return categorizeImpl(c, true);
+    }
+
+    private static CollectionCategory categorizeImpl(RecipeCollection c, boolean evenIfStale) {
         boolean truly = false, partial = false;
         for (RecipeHolder<?> holder : c.getRecipes()) {
-            if (isPartiallyCraftable(c, holder.id())) {
+            if (evenIfStale
+                    ? isPartiallyCraftableEvenIfStale(c, holder.id())
+                    : isPartiallyCraftable(c, holder.id())) {
                 partial = true;
             } else if (c.isCraftable(holder)) {
                 truly = true;
@@ -265,10 +335,12 @@ public final class PartialCraftingUtil {
         return CollectionCategory.UNASSIGNED;
     }
 
+    // ── Bulk retrieval ───────────────────────────────────────────────
+
     public static List<RecipeHolder<?>> getPartiallyCraftableRecipes(RecipeCollection collection) {
         if (!enabled()) return Collections.emptyList();
-        Set<ResourceLocation> partialRecipes = PARTIAL_RECIPES.get(collection);
-        if (partialRecipes == null || partialRecipes.isEmpty()) {
+        Set<ResourceLocation> partialRecipes = tagger.getTagsEvenIfStale(collection);
+        if (partialRecipes.isEmpty()) {
             return Collections.emptyList();
         }
 
@@ -282,17 +354,14 @@ public final class PartialCraftingUtil {
         return recipes;
     }
 
-    /**
-     * Legacy matching using raw slots (slower, kept for backward compat).
-     */
+    // ── Ingredient matching ──────────────────────────────────────────
+
+    @SuppressWarnings("unused")
     private static boolean hasMatchingIngredient(List<Ingredient> ingredients, NonNullList<Slot> slots) {
         Set<Item> inventoryItems = hashInventory(slots);
         return hasMatchingIngredientFast(ingredients, inventoryItems);
     }
 
-    /**
-     * Fast matching using pre-hashed inventory set — O(1) per ingredient.
-     */
     private static boolean hasMatchingIngredientFast(List<Ingredient> ingredients, Set<Item> inventoryItems) {
         for (Ingredient ingredient : ingredients) {
             if (ingredient.isEmpty()) continue;

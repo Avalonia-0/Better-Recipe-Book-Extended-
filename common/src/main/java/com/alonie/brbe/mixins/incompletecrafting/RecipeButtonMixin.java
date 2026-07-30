@@ -1,7 +1,6 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.util.BrbeLogger;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -65,21 +64,12 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
 
     @Redirect(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))
     private boolean brbe$renderPartiallyCraftableAsCraftable(RecipeCollection collection, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        // Partial recipes should render with the "craftable" visual style
+        // (bright icon, multi-recipe indicator) so they look actionable.
+        // State is maintained by the unified pipeline in
+        // incompletecrafting/RecipeBookComponentMixin — no per-frame
+        // re-injection needed.
         boolean hasPartial = PartialCraftingUtil.hasPartialMaterials(collection);
-        if (hasPartial && !collection.hasCraftable()) {
-            // Self-heal: re-inject partials into the craftable set.
-            int healed = 0;
-            var ca = (com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor) collection;
-            for (var holder : collection.getRecipes()) {
-                if (PartialCraftingUtil.isPartiallyCraftable(collection, holder.id())) {
-                    ca.brbe$getCraftable().add(holder);
-                    healed++;
-                }
-            }
-            BrbeLogger.log(BrbeLogger.Category.STATE,
-                    "RecipeButton self-heal: healed %d partials, hasCraftable=%s",
-                    healed, collection.hasCraftable());
-        }
         return collection.hasCraftable() || hasPartial;
     }
 

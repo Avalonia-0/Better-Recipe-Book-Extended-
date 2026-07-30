@@ -15,6 +15,9 @@ public interface RecipeBookComponentAccessor {
     @Accessor("ghostRecipe")
     GhostRecipe getGhostRecipe();
 
+    @Accessor("book")
+    net.minecraft.client.ClientRecipeBook getRecipeBook();
+
     @Accessor("recipeBookPage")
     RecipeBookPage getRecipeBookPage();
 
