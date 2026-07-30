@@ -1,7 +1,7 @@
 package com.alonie.brbe.mixins.settings;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.config.Config;
+import com.alonie.brbe.config.BrbeConfig;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
 import me.shedaniel.autoconfig.AutoConfigClient;
@@ -53,7 +53,7 @@ public abstract class RecipeBookComponentMixin {
             this._$settingsButton = new ImageButton(i + 11, j, 18, 18,
                     BRBTextures.SETTINGS_BUTTON_SPRITES, button -> {
                 try {
-                    var screen = AutoConfigClient.getConfigScreen(Config.class,
+                    var screen = AutoConfigClient.getConfigScreen(BrbeConfig.class,
                             Minecraft.getInstance().gui.screen()).get();
                     Minecraft.getInstance().gui.setScreen(screen);
                 } catch (NoClassDefFoundError e) {

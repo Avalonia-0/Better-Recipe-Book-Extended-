@@ -31,7 +31,7 @@ public abstract class RecipeBookPageMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     public void mouseClickedBtn(MouseButtonEvent event, int areaLeft, int areaTop, int areaWidth, int areaHeight, boolean widthTooNarrow, CallbackInfoReturnable<Boolean> cir) {
-        if (!BetterRecipeBook.config.scrollAround || totalPages <= 1 || event.button() != 0) {
+        if (!BetterRecipeBook.config.scrolling.scrollAround || totalPages <= 1 || event.button() != 0) {
             return;
         }
 
@@ -55,10 +55,10 @@ public abstract class RecipeBookPageMixin {
             if (isMouseOverRecipeBookPage(k, l, i, j) && totalPages > 1) {
                 currentPage += BetterRecipeBook.queuedScroll;
                 if (currentPage >= totalPages) {
-                    currentPage = BetterRecipeBook.config.scrollAround ? currentPage % totalPages : totalPages - 1;
+                    currentPage = BetterRecipeBook.config.scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;
                 } else if (currentPage < 0) {
                     // required as % is not modulus, it is remainder. we need to force output positive by((currentPage % totalPages) + totalPages)
-                    currentPage = BetterRecipeBook.config.scrollAround ? (currentPage % totalPages) + totalPages : 0;
+                    currentPage = BetterRecipeBook.config.scrolling.scrollAround ? (currentPage % totalPages) + totalPages : 0;
                 }
 
                 updateButtonsForPage();
@@ -78,7 +78,7 @@ public abstract class RecipeBookPageMixin {
 
     @Inject(method = "updateArrowButtons", at = @At("RETURN"))
     private void updateArrowButtons(CallbackInfo ci) {
-        if (BetterRecipeBook.config.scrollAround && totalPages > 1) {
+        if (BetterRecipeBook.config.scrolling.scrollAround && totalPages > 1) {
             forwardButton.visible = true;
             backButton.visible = true;
             forwardButton.active = true;

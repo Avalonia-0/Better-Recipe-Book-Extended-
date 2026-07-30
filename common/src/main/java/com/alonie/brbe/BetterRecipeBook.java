@@ -3,7 +3,7 @@ package com.alonie.brbe;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.config.AppContext;
-import com.alonie.brbe.config.Config;
+import com.alonie.brbe.config.BrbeConfig;
 import com.alonie.brbe.config.ConfigEventBus;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.pin.JsonPinStore;
@@ -17,9 +17,6 @@ import me.shedaniel.autoconfig.serializer.Toml4jConfigSerializer;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.InteractionResult;
-import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -30,8 +27,8 @@ public class BetterRecipeBook {
     public static int queuedScroll;
     public static boolean isFilteringNone;
 
-    public static Config config;
-    public static ConfigHolder<Config> configHolder;
+    public static BrbeConfig config;
+    public static ConfigHolder<BrbeConfig> configHolder;
 
     public static PinnedRecipeManager pinnedRecipeManager;
     public static InstantCraftingManager instantCraftingManager;
@@ -60,8 +57,6 @@ public class BetterRecipeBook {
     public static BRBBookCategories.Category SMITHING_TRANSFORM;
     public static BRBBookCategories.Category SMITHING_TRIM;
 
-    private static boolean categoriesInitialized = false;
-
     /** The new dependency-injection root.  Created once in {@link #init()}. */
     private static AppContext appContext;
 
@@ -70,21 +65,19 @@ public class BetterRecipeBook {
         return appContext;
     }
 
-    public static synchronized void ensureCategories() {
-        if (categoriesInitialized) return;
-        try {
-            BREWING = BRBHelper.createBook(MOD_ID, "brewing_stand");
-            SMITHING = BRBHelper.createBook(MOD_ID, "smithing_table");
-            BREWING_POTION = BREWING.createCategory(new ItemStack(Items.POTION));
-            BREWING_SPLASH_POTION = BREWING.createCategory(new ItemStack(Items.SPLASH_POTION));
-            BREWING_LINGERING_POTION = BREWING.createCategory(new ItemStack(Items.LINGERING_POTION));
-            SMITHING_SEARCH = SMITHING.createSearch();
-            SMITHING_TRANSFORM = SMITHING.createCategory(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE));
-            SMITHING_TRIM = SMITHING.createCategory(new ItemStack(Items.NETHERITE_CHESTPLATE));
-            categoriesInitialized = true;
-        } catch (Exception e) {
-            // init failed — leave flag false so the next call retries
-        }
+    /** Delegates to {@link AppContext#ensureCategories()}. Bridges static fields. */
+    public static void ensureCategories() {
+        if (appContext == null) return;
+        appContext.ensureCategories();
+        // Bridge to legacy static fields
+        BREWING = appContext.brewingBook();
+        SMITHING = appContext.smithingBook();
+        BREWING_POTION = appContext.brewingPotion();
+        BREWING_SPLASH_POTION = appContext.brewingSplashPotion();
+        BREWING_LINGERING_POTION = appContext.brewingLingeringPotion();
+        SMITHING_SEARCH = appContext.smithingSearch();
+        SMITHING_TRANSFORM = appContext.smithingTransform();
+        SMITHING_TRIM = appContext.smithingTrim();
     }
 
     public static void init() {
@@ -95,9 +88,9 @@ public class BetterRecipeBook {
 
         // Register config (existing logic, unchanged)
         try {
-            AutoConfig.register(Config.class, Toml4jConfigSerializer::new);
+            AutoConfig.register(BrbeConfig.class, Toml4jConfigSerializer::new);
 
-            configHolder = AutoConfig.getConfigHolder(Config.class);
+            configHolder = AutoConfig.getConfigHolder(BrbeConfig.class);
             config = configHolder.getConfig();
         } catch (Exception e) {
             BetterRecipeBook.LOGGER.warn("[BRBE] Config error: {}", e.getMessage());
@@ -116,24 +109,14 @@ public class BetterRecipeBook {
                 PartialCraftingUtil.invalidateCaches();
             });
 
-            // When any config field changes, request a recipe book UI refresh.
-            // (The AppContext.saveListener already calls requestConfigRefresh
-            // for recipe-relevant changes; this subscriber provides an additional
-            // safety net — matching 1.21.11's pattern.)
+            // When any config field changes, update static reference + request UI refresh.
             appContext.events().subscribe(ConfigEventBus.ConfigChanged.class, event -> {
+                boolean unlockChanged = config.newRecipes.unlockAll != event.config().newRecipes.unlockAll;
                 config = event.config();
                 appContext.events().requestConfigRefresh();
-                RecipeUnlockUtil.syncToConfig();
-            });
-
-            // Wire legacy config save listener for unlock recipes
-            configHolder.registerSaveListener((holder, cfg) -> {
-                boolean unlockChanged = config.newRecipes.unlockAll != cfg.newRecipes.unlockAll;
-                BetterRecipeBook.config = cfg;
                 if (unlockChanged) {
                     RecipeUnlockUtil.syncToConfig();
                 }
-                return InteractionResult.SUCCESS;
             });
 
             // Wire async Pin I/O

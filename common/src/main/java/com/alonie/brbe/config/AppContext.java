@@ -27,8 +27,8 @@ public final class AppContext {
 
     // -- Core services --------------------------------------------------------
 
-    private volatile Config config;
-    private final ConfigHolder<Config> configHolder;
+    private volatile BrbeConfig config;
+    private final ConfigHolder<BrbeConfig> configHolder;
     private final ConfigEventBus events;
     private final PinnedRecipeManager pinnedRecipeManager;
     private final InstantCraftingManager instantCraftingManager;
@@ -50,14 +50,14 @@ public final class AppContext {
     private boolean cachedShowAllRecipesInSurvival;
     private boolean cachedNoGrouped;
 
-    private void snapshotRecipeConfig(Config cfg) {
+    private void snapshotRecipeConfig(BrbeConfig cfg) {
         this.cachedPartialCraftingEnabled = cfg.partialCraftingEnabled;
         this.cachedPartialMarkingEnabled = cfg.partialMarkingEnabled;
         this.cachedShowAllRecipesInSurvival = cfg.showAllRecipesInSurvival;
         this.cachedNoGrouped = cfg.alternativeRecipes.noGrouped;
     }
 
-    private boolean recipeRelevantChanged(Config cfg) {
+    private boolean recipeRelevantChanged(BrbeConfig cfg) {
         return cfg.partialCraftingEnabled != this.cachedPartialCraftingEnabled
             || cfg.partialMarkingEnabled != this.cachedPartialMarkingEnabled
             || cfg.showAllRecipesInSurvival != this.cachedShowAllRecipesInSurvival
@@ -72,7 +72,7 @@ public final class AppContext {
     private volatile BRBBookCategories.Category smithingTrim;
     private volatile boolean categoriesInitialized = false;
 
-    private AppContext(Config config, ConfigHolder<Config> configHolder) {
+    private AppContext(BrbeConfig config, ConfigHolder<BrbeConfig> configHolder) {
         this.config = config;
         this.configHolder = configHolder;
         this.events = new ConfigEventBus();
@@ -117,7 +117,7 @@ public final class AppContext {
     // -- Singleton access -----------------------------------------------------
 
     /** Create the singleton. Called once from {@code BetterRecipeBook.init()}. */
-    public static AppContext create(Config config, ConfigHolder<Config> configHolder) {
+    public static AppContext create(BrbeConfig config, ConfigHolder<BrbeConfig> configHolder) {
         if (INSTANCE != null) {
             throw new IllegalStateException("AppContext already created");
         }
@@ -149,8 +149,8 @@ public final class AppContext {
 
     // -- Getters --------------------------------------------------------------
 
-    public Config config() { return config; }
-    public ConfigHolder<Config> configHolder() { return configHolder; }
+    public BrbeConfig config() { return config; }
+    public ConfigHolder<BrbeConfig> configHolder() { return configHolder; }
     public ConfigEventBus events() { return events; }
     public PinnedRecipeManager pins() { return pinnedRecipeManager; }
     public InstantCraftingManager instantCraft() { return instantCraftingManager; }
