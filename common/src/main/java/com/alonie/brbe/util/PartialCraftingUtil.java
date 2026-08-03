@@ -12,6 +12,8 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.ShapedRecipe;
+import net.minecraft.world.item.crafting.ShapelessRecipe;
 
 import java.util.*;
 
@@ -168,6 +170,14 @@ public final class PartialCraftingUtil {
             // this guarantees isPartiallyCraftable() is mutually exclusive
             // with isCraftable(), so RecipeButtonMixin doesn't need a guard.
             if (collection.isCraftable(recipe)) {
+                continue;
+            }
+
+            // 3×3 配方：2×2 生存网格放不下，材料是否齐全都不标"缺少部分材料"。
+            // 材料齐全的 3×3 配方（如铁剑）应显示不可合成 + incompatible 警告，
+            // 而不是红色 partial 覆盖层。preCheck 负责把材料齐全的 3×3 提升到
+            // craftable（showAll=true 时）；这里统一跳过所有 3×3。
+            if (needsLargerGrid(recipe)) {
                 continue;
             }
 
@@ -370,6 +380,24 @@ public final class PartialCraftingUtil {
                     return true;
                 }
             }
+        }
+        return false;
+    }
+
+    // ---- 3×3 网格判定 ----
+
+    /**
+     * 配方是否需要 3×3 合成网格（2×2 生存背包网格放不下）。
+     * 这类配方无论材料是否齐全，都不属于"缺少部分材料"——
+     * 网格不够由 {@code IncompatibleCraftingUtil} 的警告处理。
+     */
+    public static boolean needsLargerGrid(RecipeHolder<?> holder) {
+        Recipe<?> recipe = holder.value();
+        if (recipe instanceof ShapedRecipe shaped) {
+            return shaped.getWidth() > 2 || shaped.getHeight() > 2;
+        }
+        if (recipe instanceof ShapelessRecipe shapeless) {
+            return shapeless.getIngredients().size() > 4;
         }
         return false;
     }
