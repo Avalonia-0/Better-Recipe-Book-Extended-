@@ -160,6 +160,11 @@ public final class RecipePipeline {
             //    "first open after startup" catch-up (state is current)
             brbe$preCheck(collections, ctx);
         }
+
+        // ── 诊断：每次物品栏刷新后检查配方状态 ──
+        if (ctx.menuSlots != null) {
+            RecipeStateDiagnostic.run(collections, ctx.menuSlots);
+        }
     }
 
     /**
