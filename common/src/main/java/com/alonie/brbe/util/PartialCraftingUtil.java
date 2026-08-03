@@ -101,6 +101,13 @@ public final class PartialCraftingUtil {
                 continue;
             }
 
+            // 3×3 配方：2×2 生存网格放不下，材料是否齐全都不标"缺少部分材料"。
+            // 材料齐全的 3×3 配方（如铁剑）应显示不可合成 + incompatible 警告，
+            // 而不是红色 partial 覆盖层。
+            if (needsLargerGrid(recipe.display())) {
+                continue;
+            }
+
             if (recipe.craftingRequirements().map(requirements -> hasMatchingIngredientFast(requirements, inventoryItems)).orElse(false)
                     || hasMatchingDisplayIngredientFast(recipe.display(), inventoryItems)) {
                 partialRecipes.add(recipe.id());
@@ -314,6 +321,23 @@ public final class PartialCraftingUtil {
             }
         }
 
+        return false;
+    }
+
+    // ---- 3×3 网格判定 ----
+
+    /**
+     * 配方是否需要 3×3 合成网格（2×2 生存背包网格放不下）。
+     * 这类配方无论材料是否齐全，都不属于"缺少部分材料"——
+     * 网格不够由 {@code IncompatibleCraftingUtil} 的警告处理。
+     */
+    public static boolean needsLargerGrid(RecipeDisplay display) {
+        if (display instanceof ShapedCraftingRecipeDisplay shaped) {
+            return shaped.width() > 2 || shaped.height() > 2;
+        }
+        if (display instanceof ShapelessCraftingRecipeDisplay shapeless) {
+            return shapeless.ingredients().size() > 4;
+        }
         return false;
     }
 }

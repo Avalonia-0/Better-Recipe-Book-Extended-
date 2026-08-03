@@ -275,13 +275,7 @@ public abstract class RecipeBookComponentMixin {
     /** True if a crafting display needs more than a 2×2 grid. */
     @Unique
     private static boolean brbe$needsLargerGrid(RecipeDisplay display) {
-        if (display instanceof ShapedCraftingRecipeDisplay shaped) {
-            return shaped.width() > 2 || shaped.height() > 2;
-        }
-        if (display instanceof ShapelessCraftingRecipeDisplay shapeless) {
-            return shapeless.ingredients().size() > 4;
-        }
-        return false;
+        return PartialCraftingUtil.needsLargerGrid(display);
     }
 
     /** True if every partially-craftable recipe in the collection needs a 3×3 grid. */
