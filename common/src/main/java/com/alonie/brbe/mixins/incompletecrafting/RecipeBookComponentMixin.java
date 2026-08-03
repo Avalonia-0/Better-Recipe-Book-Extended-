@@ -48,6 +48,10 @@ public abstract class RecipeBookComponentMixin {
     @Unique
     private long brbe$lastSlotHash;
 
+    // -- diagnostic: store processed list to ensure same objects as rendering --
+    @Unique
+    private List<RecipeCollection> brbe$lastProcessedCollections;
+
     @Inject(method = "updateCollections", at = @At("HEAD"))
     private void brbe$trackPartialFilteringUpdate(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
         RecipeBookState.beginCollectionProcessing();
@@ -104,6 +108,8 @@ public abstract class RecipeBookComponentMixin {
     // run vanilla's own predicate with our already-modified craftable set.
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z", ordinal = 0))
     private boolean brbe$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
+        this.brbe$lastProcessedCollections = collections;
+
         // ── Gate variables: single point of truth for each concern ──
         boolean onInventoryScreen = this.minecraft != null
                 && this.minecraft.screen instanceof InventoryScreen;
@@ -270,6 +276,13 @@ public abstract class RecipeBookComponentMixin {
         });
 
         return removed;
+    }
+
+    // ═══════════ 诊断：每次物品栏刷新后检查配方状态 ═══════════
+
+    @Inject(method = "updateCollections", at = @At("TAIL"))
+    private void brbe$diagnostic(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
+        com.alonie.brbe.util.RecipeStateDiagnostic.run(brbe$lastProcessedCollections, menu.slots);
     }
 
     /** True if a crafting display needs more than a 2×2 grid. */
