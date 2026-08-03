@@ -231,7 +231,7 @@ cp fabric/build/libs/BetterRecipeBookExtended-fabric-1.21.1-2.1.5.jar /media/…
 cp neoforge/build/libs/BetterRecipeBookExtended-neoforge-1.21.1-2.1.5.jar /media/…/1.21.1-NeoForge/mods/
 ```
 
-Test instance paths follow the pattern `/media/avalonia/data/MinecraftLib/versions/<version>-<loader>/mods/`.
+Test instance paths follow the pattern `/home/avalonia/data/MinecraftLib/versions/<version>-<loader>/mods/`.
 
 ## Dependencies
 

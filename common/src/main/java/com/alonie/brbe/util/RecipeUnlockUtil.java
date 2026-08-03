@@ -7,8 +7,12 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.RecipeUpdateListener;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.item.crafting.RecipeManager;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 
 public class RecipeUnlockUtil {
+
+    private static final Logger LOG = LogManager.getLogger("brbe-diag");
 
     public static void unlockRecipesIfRequired() {
         if (BetterRecipeBook.ctx().config().newRecipes.unlockAll) {
@@ -47,7 +51,13 @@ public class RecipeUnlockUtil {
                 .brbe$setupCollections(recipeManager.getRecipes(), minecraft.level.registryAccess());
 
         // Update each collection's known-recipe state
-        recipeBook.getCollections().forEach(recipeCollection -> recipeCollection.updateKnownRecipes(recipeBook));
+        int knownColls = 0;
+        for (var coll : recipeBook.getCollections()) {
+            coll.updateKnownRecipes(recipeBook);
+            if (coll.hasKnownRecipes()) knownColls++;
+        }
+        LOG.warn("[BRBE-DIAG] unlockRecipes DONE: collections={} knownColls={}",
+                recipeBook.getCollections().size(), knownColls);
         if (minecraft.screen instanceof RecipeUpdateListener rul) {
             rul.recipesUpdated();
         }

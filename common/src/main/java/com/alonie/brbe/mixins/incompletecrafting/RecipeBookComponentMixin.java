@@ -108,9 +108,14 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
 
         // Diagnostic: count craftable state before pipeline
         int diagCraftableBefore = 0;
+        int diagKnown = 0;
         for (RecipeCollection c : collections) {
             if (c.hasCraftable()) diagCraftableBefore++;
+            if (c.hasKnownRecipes()) diagKnown++;
         }
+        com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
+                "[BRBE-DIAG] forEach: total={} known={} craftable={}",
+                collections.size(), diagKnown, diagCraftableBefore);
 
         Set<Item> inventoryItems = PartialCraftingUtil.hashInventory(menu.slots);
 
@@ -193,6 +198,17 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
                 && minecraft.screen instanceof EffectRenderingInventoryScreen;
         boolean partialCrafting = BetterRecipeBook.ctx().config().partialCraftingEnabled;
         boolean partialMarking = BetterRecipeBook.ctx().config().partialMarkingEnabled;
+
+        // Diagnostic: category + known count of the list after vanilla removeIf
+        int knownAfter = 0;
+        if (list != null) {
+            for (RecipeCollection c : list) if (c.hasKnownRecipes()) knownAfter++;
+        }
+        com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
+                "[BRBE-DIAG] pageUpdateRedirect: listSize={} known={} onInv={} tab={}",
+                list == null ? -1 : list.size(), knownAfter, onInventory,
+                this.getSelectedTab() != null
+                        ? this.getSelectedTab().getCategory() : "null");
 
         if (list == null || list.isEmpty()) {
             com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
