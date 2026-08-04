@@ -318,6 +318,28 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
 
         boolean onInventory = minecraft != null
                 && minecraft.screen instanceof EffectRenderingInventoryScreen;
+        boolean showAll = BetterRecipeBook.ctx().config().showAllRecipesInSurvival;
+
+        // removeIf #0 等价：尊重解锁状态 —— 未解锁配方的 collection 始终隐藏，
+        // 与 unlockAll 正交。不绕过 vanilla 的 hasKnownRecipes 过滤。
+        collections.removeIf(c -> !c.hasKnownRecipes());
+
+        // removeIf #1 等价 + sARIS 增强：fits 空的 collection。
+        // - 工作台(!onInventory)：保留（prepareDisplay 会 repopulate fits）
+        // - 物品栏 showAll=false：删除（3×3 隐藏，原版 2×2 逻辑）
+        // - 物品栏 showAll=true：保留含 3×3 配方的（sARIS 核心，未解锁已被上一步删除）
+        collections.removeIf(c -> {
+            if (!onInventory) return false;
+            if (c.hasFitting()) return false;
+            if (showAll && PartialCraftingUtil.hasAnyLargerGridRecipe(c)) return false;
+            return true;
+        });
+
+        if (collections.isEmpty()) {
+            recipeBookPage.updateCollections(collections, true);
+            return;
+        }
+
         boolean partialCrafting = BetterRecipeBook.ctx().config().partialCraftingEnabled;
         boolean partialMarking = BetterRecipeBook.ctx().config().partialMarkingEnabled;
 

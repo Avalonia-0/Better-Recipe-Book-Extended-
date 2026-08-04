@@ -42,7 +42,10 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     protected abstract List<RecipeHolder<?>> getOrderedRecipes();
 
     /**
-     * Disables the crafting filter so all recipes are always visible.
+     * Disables the crafting filter so all recipes are always visible,
+     * but only while the partial-crafting feature is enabled.  When
+     * partialCraftingEnabled is off (and showAllRecipesInSurvival too),
+     * the vanilla "only show craftable" toggle behaves normally.
      * 1.21.1 checks filtering via book.isFiltering(menu) on RecipeBook,
      * not via a method on RecipeBookComponent.
      */
@@ -51,7 +54,8 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         at = @At(value = "INVOKE", target = "Lnet/minecraft/stats/RecipeBook;isFiltering(Lnet/minecraft/world/inventory/RecipeBookMenu;)Z")
     )
     private boolean brbe$disableFilteringInOrdered(RecipeBook book, RecipeBookMenu<?, ?> menu) {
-        return false;
+        if (BetterRecipeBook.ctx().config().partialCraftingEnabled) return false;
+        return book.isFiltering(menu);
     }
 
     @Redirect(
@@ -59,7 +63,8 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         at = @At(value = "INVOKE", target = "Lnet/minecraft/stats/RecipeBook;isFiltering(Lnet/minecraft/world/inventory/RecipeBookMenu;)Z")
     )
     private boolean brbe$disableFilteringInRender(RecipeBook book, RecipeBookMenu<?, ?> menu) {
-        return false;
+        if (BetterRecipeBook.ctx().config().partialCraftingEnabled) return false;
+        return book.isFiltering(menu);
     }
 
     @Redirect(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/recipebook/RecipeCollection;hasCraftable()Z"))

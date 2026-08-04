@@ -386,6 +386,14 @@ public final class PartialCraftingUtil {
 
     // ---- 3×3 网格判定 ----
 
+    /** True if any recipe in the collection needs a 3×3 crafting grid. */
+    public static boolean hasAnyLargerGridRecipe(RecipeCollection collection) {
+        for (RecipeHolder<?> holder : collection.getRecipes()) {
+            if (needsLargerGrid(holder)) return true;
+        }
+        return false;
+    }
+
     /**
      * 配方是否需要 3×3 合成网格（2×2 生存背包网格放不下）。
      * 这类配方无论材料是否齐全，都不属于"缺少部分材料"——
