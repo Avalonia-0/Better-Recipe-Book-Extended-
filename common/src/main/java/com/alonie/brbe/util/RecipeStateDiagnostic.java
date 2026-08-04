@@ -62,11 +62,19 @@ public final class RecipeStateDiagnostic {
         lastDiagnosticSlotHash = hash;
 
         Set<Item> inventoryItems = PartialCraftingUtil.hashInventory(menuSlots);
+        // Item → 总数量。诊断的数量检查用它判断"类型齐全但数量不足"的配方。
+        Map<Item, Integer> inventoryCounts = new HashMap<>();
+        for (Slot slot : menuSlots) {
+            ItemStack stack = slot.getItem();
+            if (!stack.isEmpty()) {
+                inventoryCounts.merge(stack.getItem(), stack.getCount(), Integer::sum);
+            }
+        }
 
         LOG.warn("══════════════════════════════════════════════");
         LOG.warn("[BRBE-DIAG] 物品栏刷新 — 配方状态合格性检测开始");
         LOG.warn("[BRBE-DIAG] slotHash=0x{} 集合数={} 库存物品={}",
-                Long.toHexString(hash), processedCollections.size(), inventoryItems.size());
+                Long.toHexString(hash), processedCollections.size(), inventoryCounts.size());
 
         int total = 0, valid = 0, invalid = 0, skipped = 0;
         Map<String, List<String>> invalidByCollection = new LinkedHashMap<>();
@@ -80,7 +88,7 @@ public final class RecipeStateDiagnostic {
                 total++;
 
                 // ── 调查 1：独立材料预测 ──
-                PredictedState predicted = predictState(holder, inventoryItems);
+                PredictedState predicted = predictState(holder, inventoryItems, inventoryCounts);
                 if (predicted == PredictedState.UNKNOWN) {
                     skipped++;
                     continue;
@@ -150,7 +158,8 @@ public final class RecipeStateDiagnostic {
 
     // ═══════════ 调查 1：独立材料预测（旧式 Recipe 模型） ═══════════
 
-    private static PredictedState predictState(RecipeHolder<?> holder, Set<Item> inventoryItems) {
+    private static PredictedState predictState(RecipeHolder<?> holder, Set<Item> inventoryItems,
+                                               Map<Item, Integer> inventoryCounts) {
         Recipe<?> recipe = holder.value();
         NonNullList<Ingredient> ingredients;
         if (recipe instanceof ShapedRecipe shaped) {
@@ -161,22 +170,38 @@ public final class RecipeStateDiagnostic {
             return PredictedState.UNKNOWN; // 熔炉/锻造/切石机等无法用此方式推测
         }
 
+        // 统计每个物品在配方所有成分槽中出现的次数。形状配方里同一物品
+        // 占多个槽 = 需要多份（如 2×羊毛地毯）。数量不足的配方应预测为
+        // PARTIAL，而不是 CRAFTABLE。
+        Map<Item, Integer> neededCounts = new HashMap<>();
         int totalSlots = 0;
-        int matchedSlots = 0;
         for (Ingredient ingredient : ingredients) {
             if (ingredient.isEmpty()) continue;
             totalSlots++;
-            boolean matched = false;
+            // 成分的候选物品：取第一个在库存中存在的（类型匹配）
+            Item chosen = null;
             for (ItemStack stack : ingredient.getItems()) {
                 if (!stack.isEmpty() && inventoryItems.contains(stack.getItem())) {
-                    matched = true;
+                    chosen = stack.getItem();
                     break;
                 }
             }
-            if (matched) matchedSlots++;
+            if (chosen != null) {
+                neededCounts.merge(chosen, 1, Integer::sum);
+            }
         }
 
         if (totalSlots == 0) return PredictedState.UNKNOWN;
+
+        // 数量不足：某物品在成分槽出现次数 > 库存数量
+        for (Map.Entry<Item, Integer> e : neededCounts.entrySet()) {
+            int available = inventoryCounts.getOrDefault(e.getKey(), 0);
+            if (available < e.getValue()) {
+                return PredictedState.PARTIAL;
+            }
+        }
+
+        int matchedSlots = neededCounts.size();
         if (matchedSlots == totalSlots) return PredictedState.CRAFTABLE;
         if (matchedSlots == 0) return PredictedState.UNCRAFTABLE;
         return PredictedState.PARTIAL;
