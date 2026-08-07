@@ -5,7 +5,7 @@ import com.alonie.brbe.config.Config;
 import com.alonie.brbe.layout.BookLayout;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
-import me.shedaniel.autoconfig.AutoConfigClient;
+import com.alonie.brbe.util.ConfigTipsHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ImageButton;
@@ -20,9 +20,8 @@ public interface ISettingsButton {
     default ImageButton createSettingsButton(int i, int j) {
         if (BetterRecipeBook.ctx().config().settingsButton) {
             return new ImageButton(i + BookLayout.SETTINGS_X_OFFSET, j + BookLayout.SETTINGS_Y_OFFSET,
-                    BookLayout.SETTINGS_SIZE, BookLayout.SETTINGS_SIZE, BRBTextures.SETTINGS_BUTTON_SPRITES, button -> {
-                Minecraft.getInstance().setScreen(AutoConfigClient.getConfigScreen(Config.class, Minecraft.getInstance().screen).get());
-            });
+                    BookLayout.SETTINGS_SIZE, BookLayout.SETTINGS_SIZE, BRBTextures.SETTINGS_BUTTON_SPRITES, button ->
+                    ConfigTipsHelper.openConfigScreen(Config.class, Minecraft.getInstance().screen));
         }
         return null;
     }

@@ -100,4 +100,15 @@ public interface BRBSmithingRecipe extends GenericRecipe {
     default String getSearchString(BRBBookCategories.Category category) {
         return this.getTemplateType();
     }
+
+    @Override
+    default boolean usesItem(ItemStack item) {
+        if (this.requiresTemplate() && this.getTemplate().test(item)) {
+            return true;
+        }
+        if (this.getBase().getItem().equals(item.getItem())) {
+            return true;
+        }
+        return this.requiresAddition() && this.getAddition().test(item);
+    }
 }

@@ -153,10 +153,20 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor guiGraphics, int i, int j, float f) {
-        super.extractRenderState(guiGraphics, i, j, f);
+        this.extractBackground(guiGraphics, i, j, f);
+        this.extractContents(guiGraphics, i, j, f);
+
+        guiGraphics.nextStratum();
         if (this._$recipeBookComponent.isVisible()) {
             this._$recipeBookComponent.extractRenderState(guiGraphics, i, j, f);
             this._$recipeBookComponent.renderGhostRecipe(guiGraphics, this.leftPos, this.topPos, false, f);
+        }
+
+        guiGraphics.nextStratum();
+        this.extractCarriedItem(guiGraphics, i, j);
+        this.extractSnapbackItem(guiGraphics);
+        this.extractTooltip(guiGraphics, i, j);
+        if (this._$recipeBookComponent.isVisible()) {
             this._$recipeBookComponent.drawTooltip(guiGraphics, this.leftPos, this.topPos, i, j);
         }
     }
@@ -174,6 +184,13 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     public void extractOnboardingTooltips(GuiGraphicsExtractor guiGraphics, int i, int j, CallbackInfo ci) {
         if (BetterRecipeBook.config.enableBook && _$recipeBookComponent.isShowingGhostRecipe()) {
             ci.cancel();
+        }
+    }
+
+    @Inject(method = "containerTick", at = @At("RETURN"))
+    public void containerTick(CallbackInfo ci) {
+        if (this._$recipeBookComponent != null) {
+            this._$recipeBookComponent.tick();
         }
     }
 

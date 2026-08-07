@@ -82,6 +82,13 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
         return super.charTyped(event);
     }
 
+    @Inject(method = "containerTick", at = @At("RETURN"))
+    public void containerTick(CallbackInfo ci) {
+        if (this._$recipeBookComponent != null) {
+            this._$recipeBookComponent.tick();
+        }
+    }
+
     @Override
     protected void slotClicked(Slot slot, int x, int y, ContainerInput clickType) {
         // clear ghost recipe if an empty ingredient slot is clicked with no items
@@ -100,10 +107,20 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor guiGraphics, int i, int j, float f) {
-        super.extractRenderState(guiGraphics, i, j, f);
+        this.extractBackground(guiGraphics, i, j, f);
+        this.extractContents(guiGraphics, i, j, f);
+
+        guiGraphics.nextStratum();
         if (this._$recipeBookComponent.isVisible()) {
             this._$recipeBookComponent.extractRenderState(guiGraphics, i, j, f);
             this._$recipeBookComponent.renderGhostRecipe(guiGraphics, this.leftPos, this.topPos, false, f);
+        }
+
+        guiGraphics.nextStratum();
+        this.extractCarriedItem(guiGraphics, i, j);
+        this.extractSnapbackItem(guiGraphics);
+        this.extractTooltip(guiGraphics, i, j);
+        if (this._$recipeBookComponent.isVisible()) {
             this._$recipeBookComponent.drawTooltip(guiGraphics, this.leftPos, this.topPos, i, j);
         }
     }

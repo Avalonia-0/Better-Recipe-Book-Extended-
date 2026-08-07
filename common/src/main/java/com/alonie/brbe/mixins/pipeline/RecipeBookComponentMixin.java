@@ -6,6 +6,7 @@ import com.alonie.brbe.search.SearchQuery;
 import com.alonie.brbe.util.CollectionPipeline;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.EditBox;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
@@ -18,6 +19,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.List;
 
@@ -52,6 +54,20 @@ public abstract class RecipeBookComponentMixin {
     private SearchQuery brbe$parsedQuery;
 
     // ---- Search text save / restore ----
+
+    /**
+     * 右键点击搜索框时清空搜索文字并刷新。
+     */
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void brbe$rightClickClearSearch(MouseButtonEvent event, boolean doubled,
+                                            CallbackInfoReturnable<Boolean> cir) {
+        if (event.button() != 1 || searchBox == null) return;
+        if (!searchBox.isMouseOver(event.x(), event.y())) return;
+        searchBox.setValue("");
+        searchBox.setFocused(true);
+        ((RecipeBookComponentAccessor) this).updateCollectionsInvoker(true, false);
+        cir.setReturnValue(true);
+    }
 
     /**
      * Stage 0a: At HEAD, detect advanced search syntax.

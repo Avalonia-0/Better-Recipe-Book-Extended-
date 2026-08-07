@@ -2,6 +2,7 @@ package com.alonie.recipebookispain_extended;
 
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
+import com.alonie.brbe.mixins.accessors.CreativeModeTabsAccessor;
 import com.alonie.recipebookispain_extended.access.ItemAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -82,6 +83,11 @@ public class RecipeBookIsPain {
         } catch (Exception e) {
             LOGGER.warn("[RBIP] Could not refresh creative item groups before building recipe book tabs", e);
         }
+        // The eager rebuild above caches CACHED_PARAMETERS, which makes the
+        // creative inventory screen skip its own rebuild (and skip building the
+        // SessionSearchTrees search trees → all creative search results blank).
+        // Null it so the game rebuilds on the creative screen.
+        CreativeModeTabsAccessor.brbe$invalidateCachedParameters(null);
 
         // --- Phase 1: standard search-tab scanning ---
         CreativeModeTabs.allTabs().stream().filter(RecipeBookIsPain::shouldMirror).forEach(tab -> {

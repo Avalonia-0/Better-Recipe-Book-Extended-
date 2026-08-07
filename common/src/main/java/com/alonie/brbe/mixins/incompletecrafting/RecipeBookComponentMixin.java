@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
 import com.alonie.brbe.util.CollectionCategory;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
@@ -11,6 +12,7 @@ import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.inventory.RecipeBookMenu;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
@@ -52,6 +54,33 @@ public abstract class RecipeBookComponentMixin {
     @Unique
     private List<RecipeCollection> brbe$lastProcessedCollections;
 
+    @Unique
+    private net.minecraft.world.item.ItemStack brbe$lastCarried = net.minecraft.world.item.ItemStack.EMPTY;
+
+    /**
+     * 鼠标拿起物品 = 放入一个特殊槽位（carried）。槽位变化应触发配方书刷新，
+     * 让配方书基于 slots+carried 重新计算状态（拿起新材料 → 新配方可合成；
+     * 拿起已有材料 → 材料集合不变 → 状态不变）。
+     *
+     * <p>必须在触发前重置 brbe$lastSlotHash：vanilla tick 已因槽位变化跑过
+     * 一轮 selectMatchingRecipes（用不含 carried 的 stackedContents 清空
+     * craftable 集合），若 lastSlotHash 保持相同，第二轮 updateCollections
+     * 会走 vanilla removeIf 提前分支，BRBE 的 elevate 不重跑 → 材料齐全的
+     * 配方掉出可合成。重置后 inventoryChanged=true → 走完整标记 + carried 提升。
+     */
+    @Inject(method = "tick", at = @At("RETURN"))
+    private void brbe$detectCarriedChange(CallbackInfo ci) {
+        if (!((net.minecraft.client.gui.screens.recipebook.RecipeBookComponent) (Object) this).isVisible()) {
+            return;
+        }
+        ItemStack carried = this.menu.getCarried();
+        if (!ItemStack.matches(carried, this.brbe$lastCarried)) {
+            this.brbe$lastCarried = carried.copy();
+            this.brbe$lastSlotHash = 0; // 强制下一轮走完整标记路径
+            ((RecipeBookComponentAccessor) this).updateStackedContentsInvoker();
+        }
+    }
+
     @Inject(method = "updateCollections", at = @At("HEAD"))
     private void brbe$trackPartialFilteringUpdate(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
         RecipeBookState.beginCollectionProcessing();
@@ -83,17 +112,12 @@ public abstract class RecipeBookComponentMixin {
     private void brbe$reinjectAfterSelectMatching(CallbackInfo ci) {
         if (!BetterRecipeBook.config.partialMarkingEnabled) return;
 
-        boolean filter3x3 = !BetterRecipeBook.config.showAllRecipesInSurvival;
-
         for (net.minecraft.client.gui.screens.recipebook.RecipeBookComponent.TabInfo tabInfo : this.tabInfos) {
             for (RecipeCollection collection : this.book.getCollection(tabInfo.category())) {
                 if (PartialCraftingUtil.hasPartialMaterialsEvenIfStale(collection)) {
                     RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
                     for (RecipeDisplayEntry entry : collection.getRecipes()) {
                         if (PartialCraftingUtil.isPartiallyCraftableEvenIfStale(collection, entry.id())) {
-                            if (filter3x3 && brbe$needsLargerGrid(entry.display())) {
-                                continue;
-                            }
                             accessor.brbe$getCraftable().add(entry.id());
                         }
                     }
@@ -120,11 +144,16 @@ public abstract class RecipeBookComponentMixin {
         // be in PARTIAL_RECIPES — regardless of which screen we're on.
         // (The screen might not be InventoryScreen yet if updateCollections
         // fires during screen transition.)
-        boolean filter3x3 = !BetterRecipeBook.config.showAllRecipesInSurvival;
 
         // ── Slot cache: skip when inventory unchanged ──
-        long slotHash = PartialCraftingUtil.slotHash(this.menu.slots);
+        // 鼠标拿起物（carried）也算作物品栏一部分，纳入哈希以触发重标记。
+        net.minecraft.world.item.ItemStack carried = this.menu.getCarried();
+        long slotHash = PartialCraftingUtil.slotHash(this.menu.slots, carried);
         boolean inventoryChanged = (slotHash != this.brbe$lastSlotHash);
+        com.alonie.brbe.BetterRecipeBook.LOGGER.info("[BRBE-CARRIED] updateCollections: slotHash=0x{} last=0x{} inventoryChanged={} carried='{}'(x{}) inventoryItems={}",
+                Long.toHexString(slotHash), Long.toHexString(this.brbe$lastSlotHash),
+                inventoryChanged, carried.getItem(), carried.getCount(),
+                PartialCraftingUtil.hashInventory(this.menu.slots, -1, carried).size());
         // Config changes also force a full re-marking pass.
         // Consumed here (inside the normal tick→updateCollections path)
         // so the page number is NOT reset.
@@ -179,9 +208,6 @@ public abstract class RecipeBookComponentMixin {
                 for (RecipeDisplayEntry entry : collection.getRecipes()) {
                     RecipeDisplayId id = entry.id();
                     if (PartialCraftingUtil.isPartiallyCraftableEvenIfStale(collection, id)) {
-                        if (filter3x3 && brbe$needsLargerGrid(entry.display())) {
-                            continue; // never injected — leave vanilla craftable alone
-                        }
                         accessor.brbe$getCraftable().remove(id);
                     }
                 }
@@ -189,55 +215,67 @@ public abstract class RecipeBookComponentMixin {
         }
 
         PartialCraftingUtil.beginFilteringUpdate(true);
-        java.util.Set<net.minecraft.world.item.Item> inventoryItems = PartialCraftingUtil.hashInventory(this.menu.slots);
+        java.util.Set<net.minecraft.world.item.Item> inventoryItems = PartialCraftingUtil.hashInventory(this.menu.slots, -1, carried);
+        // partialOnlyWhenCarrying：残缺配方只在拿起物品时显示，且只显示与
+        // carried 相关的配方 → 匹配集仅含 carried 类型（carried 为空则空集，
+        // 完全不标 partial）。
+        boolean partialOnlyWhenCarrying = BetterRecipeBook.config.partialOnlyWhenCarrying;
+        java.util.Set<net.minecraft.world.item.Item> markItems = partialOnlyWhenCarrying
+                ? (carried.isEmpty() ? java.util.Set.of() : java.util.Set.of(carried.getItem()))
+                : inventoryItems;
+        // Item → 总数量。数量感知的材料齐全判定（3×3）需要它区分
+        // "类型齐全但数量不足"（铁斧 3 铁锭 2 木棍，库存各 1 → 材料不足）。
+        java.util.Map<net.minecraft.world.item.Item, Integer> inventoryCounts = new java.util.HashMap<>();
+        for (net.minecraft.world.inventory.Slot slot : this.menu.slots) {
+            ItemStack stack = slot.getItem();
+            if (!stack.isEmpty()) {
+                inventoryCounts.merge(stack.getItem(), stack.getCount(), Integer::sum);
+            }
+        }
+        if (!carried.isEmpty()) {
+            inventoryCounts.merge(carried.getItem(), carried.getCount(), Integer::sum);
+        }
 
         for (RecipeCollection collection : collections) {
-            PartialCraftingUtil.markPartialMaterials(collection, inventoryItems);
+            PartialCraftingUtil.markPartialMaterials(collection, inventoryItems, inventoryCounts, markItems);
+        }
 
-            // Inject partial recipes into craftable set
+        // ── Carried-as-special-slot: when holding an item, elevate ALL
+        // material-complete recipes (slots + carried) so picking up an item
+        // never changes the recipe book.  Vanilla isCraftable ignores carried,
+        // so a recipe whose material moved to the hand would otherwise drop
+        // to partial/uncraftable.  MUST run BEFORE the partial injection below:
+        // once a partial recipe is injected into the craftable set,
+        // isCraftable() becomes true and the elevation would skip it.
+        if (!carried.isEmpty()) {
+            for (RecipeCollection collection : collections) {
+                PartialCraftingUtil.elevateFullyCraftableWithCarried(collection, inventoryItems, inventoryCounts);
+            }
+        }
+
+        // Inject partial recipes into craftable set
+        for (RecipeCollection collection : collections) {
             if (PartialCraftingUtil.hasPartialMaterials(collection)) {
                 RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
                 for (RecipeDisplayEntry entry : collection.getRecipes()) {
                     RecipeDisplayId id = entry.id();
                     if (PartialCraftingUtil.isPartiallyCraftable(collection, id)) {
-                        // Don't inject 3×3 partial recipes when showAllRecipesInSurvival
-                        // is off — they can't be crafted in the 2×2 grid and would
-                        // otherwise survive the vanilla filter, producing "air
-                        // placeholder" ghost recipe slots.
-                        if (filter3x3 && brbe$needsLargerGrid(entry.display())) {
-                            continue;
-                        }
                         accessor.brbe$getCraftable().add(id);
                     }
                 }
             }
         }
 
-        PartialCraftingUtil.beginFilteringUpdate(false);
-
-        // ── Root-cause cleanup: purge 3×3 recipes from the partial set ──
-        // markPartialMaterials can be over-aggressive — it marks any recipe
-        // that has at least one matching ingredient in the inventory and is
-        // not already in the craftable set.  For 3×3 recipes when
-        // showAllRecipesInSurvival=false, this is never useful: the
-        // injection guard above skips them, and if we leave them in
-        // PARTIAL_RECIPES Step 0 will destroy vanilla's craftable marking
-        // on the next call, creating a permanent "partial" degradation loop.
-        //
-        // Removing them here (single source of truth) breaks the cycle
-        // regardless of what guards exist in Step 0 / injection / keepPartial.
-        if (filter3x3) {
+        // ── Pre-check (parity with 1.21.1): on inventory screen with showAll,
+        // elevate fully-craftable 3×3 recipes to craftable so they behave the
+        // same as 2×2 recipes (vanilla canCraft rejects them on the 2×2 grid).
+        if (retainIncompatible) {
             for (RecipeCollection collection : collections) {
-                if (PartialCraftingUtil.hasPartialMaterials(collection)) {
-                    for (RecipeDisplayEntry entry : collection.getRecipes()) {
-                        if (brbe$needsLargerGrid(entry.display())
-                                && PartialCraftingUtil.isPartiallyCraftable(collection, entry.id())) {
-                            PartialCraftingUtil.unmarkPartial(collection, entry.id());
-                        }
-                    }
-                }
+                PartialCraftingUtil.elevateFullyCraftable3x3(collection, inventoryItems, inventoryCounts);
             }
         }
+
+        PartialCraftingUtil.beginFilteringUpdate(false);
 
         // ── Incompatible recipe marking ──
         if (retainIncompatible) {
@@ -260,15 +298,8 @@ public abstract class RecipeBookComponentMixin {
         boolean removed = collections.removeIf(collection -> {
             if (!predicate.test(collection)) return false;
             if (keepPartial && PartialCraftingUtil.hasPartialMaterials(collection)) {
-                // Even if collection has partial materials, when
-                // showAllRecipesInSurvival is off, skip the keep-partial
-                // protection if EVERY partial recipe in the collection
-                // needs a 3×3 grid. The injection loop above already skipped
-                // those, so the collection would render as an air placeholder.
-                if (filter3x3
-                        && brbe$allPartialRecipesNeedLargerGrid(collection)) {
-                    return true; // remove
-                }
+                // 3×3 partial recipes are material-deficient and were injected
+                // into craftable, so they survive the vanilla filter normally.
                 return false;
             }
             if (keepIncompatible && IncompatibleCraftingUtil.hasIncompatibleRecipes(collection)) return false;
@@ -282,7 +313,7 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "updateCollections", at = @At("TAIL"))
     private void brbe$diagnostic(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
-        com.alonie.brbe.util.RecipeStateDiagnostic.run(brbe$lastProcessedCollections, menu.slots);
+        com.alonie.brbe.util.RecipeStateDiagnostic.run(brbe$lastProcessedCollections, menu.slots, this.menu.getCarried());
     }
 
     /** True if a crafting display needs more than a 2×2 grid. */
@@ -291,16 +322,4 @@ public abstract class RecipeBookComponentMixin {
         return PartialCraftingUtil.needsLargerGrid(display);
     }
 
-    /** True if every partially-craftable recipe in the collection needs a 3×3 grid. */
-    @Unique
-    private static boolean brbe$allPartialRecipesNeedLargerGrid(RecipeCollection collection) {
-        for (RecipeDisplayEntry entry : collection.getRecipes()) {
-            if (PartialCraftingUtil.isPartiallyCraftable(collection, entry.id())) {
-                if (!brbe$needsLargerGrid(entry.display())) {
-                    return false; // found at least one 2×2 partial recipe
-                }
-            }
-        }
-        return true; // all partial recipes are 3×3 (or there are no partial recipes)
-    }
 }
