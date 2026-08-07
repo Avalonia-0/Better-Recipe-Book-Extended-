@@ -1,5 +1,6 @@
 package com.alonie.brbe.mixins.search;
 
+import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.search.SearchCache;
 import com.alonie.brbe.search.SearchQuery;
 import net.minecraft.client.Minecraft;
@@ -17,6 +18,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyArg;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -38,6 +40,20 @@ public class RecipeBookComponentMixin {
 
     @Unique
     private SearchQuery betterRecipeBook$parsedQuery;
+
+    /**
+     * 右键点击搜索框时清空搜索文字并刷新。
+     */
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void betterRecipeBook$rightClickClearSearch(double mouseX, double mouseY, int button,
+                                                        CallbackInfoReturnable<Boolean> cir) {
+        if (button != 1 || searchBox == null) return;
+        if (!searchBox.isMouseOver(mouseX, mouseY)) return;
+        searchBox.setValue("");
+        searchBox.setFocused(true);
+        ((RecipeBookComponentAccessor) this).updateCollectionsInvoker(true);
+        cir.setReturnValue(true);
+    }
 
     /**
      * HEAD: Save search text.  If the query is advanced, clear the search

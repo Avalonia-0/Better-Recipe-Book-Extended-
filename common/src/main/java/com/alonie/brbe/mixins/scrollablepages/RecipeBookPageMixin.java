@@ -28,6 +28,18 @@ public abstract class RecipeBookPageMixin {
     @Shadow
     private StateSwitchingButton backButton;
 
+    @Shadow
+    private net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent overlay;
+
+    /**
+     * 翻页（点击/滚轮/updateCollections 等所有路径都会走到
+     * updateButtonsForPage）后关闭替代配方 overlay，否则它会留在原地。
+     */
+    @Inject(method = "updateButtonsForPage", at = @At("RETURN"))
+    private void brbe$closeOverlayOnPageChange(CallbackInfo ci) {
+        this.overlay.setVisible(false);
+    }
+
     @Inject(method = "mouseClicked", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/StateSwitchingButton;mouseClicked(DDI)Z"), cancellable = true)
     public void mouseClickedBtn(double mouseX, double mouseY, int button, int areaLeft, int areaTop, int areaWidth, int areaHeight, CallbackInfoReturnable<Boolean> cir) {
         if (forwardButton.mouseClicked(mouseX, mouseY, button)) {

@@ -4,7 +4,6 @@ import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.layout.BookLayout;
-import com.alonie.brbe.mixins.accessors.KeyMappingAccessor;
 import com.alonie.brbe.util.BRBTextures;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -143,20 +142,6 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         var tipCtx = Item.TooltipContext.of(registryAccess);
         list.addAll(getCurrentDisplayedRecipe().getResult(registryAccess, category).getTooltipLines(tipCtx, Minecraft.getInstance().player, TooltipFlag.NORMAL));
 
-        this.addPinTooltip(list);
-
         return list;
-    }
-
-    public void addPinTooltip(List<Component> list) {
-        list.add(Component.empty());
-
-        if (true) {
-            if (BetterRecipeBook.pinnedRecipeManager.has(collection)) {
-                list.add(Component.translatable("brb.gui.pin.remove", ((KeyMappingAccessor) BetterRecipeBook.PIN_MAPPING).getKey().getDisplayName()));
-            } else {
-                list.add(Component.translatable("brb.gui.pin.add", ((KeyMappingAccessor) BetterRecipeBook.PIN_MAPPING).getKey().getDisplayName()));
-            }
-        }
     }
 }

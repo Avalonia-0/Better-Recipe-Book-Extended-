@@ -27,6 +27,10 @@ public final class PipelineContext {
     public final boolean isFiltering;
     public final boolean inventoryChanged;
     public final PinnedRecipeManager pinnedManager;
+    /** Result slot index of the menu, excluded from material counting. */
+    public final int resultSlotIndex;
+    /** 鼠标拿起物品（作为物品栏一部分参与检测），可为空。 */
+    public final ItemStack carried;
 
     private PipelineContext(Builder b) {
         this.inventoryItems = b.inventoryItems;
@@ -38,6 +42,8 @@ public final class PipelineContext {
         this.isFiltering = b.isFiltering;
         this.inventoryChanged = b.inventoryChanged;
         this.pinnedManager = b.pinnedManager;
+        this.resultSlotIndex = b.resultSlotIndex;
+        this.carried = b.carried;
     }
 
     public static Builder builder() {
@@ -70,6 +76,8 @@ public final class PipelineContext {
         private boolean isFiltering;
         private boolean inventoryChanged = true;
         private PinnedRecipeManager pinnedManager;
+        private int resultSlotIndex = -1;
+        private ItemStack carried = ItemStack.EMPTY;
 
         public Builder inventoryItems(Set<Item> v) { inventoryItems = v; return this; }
         public Builder menuSlots(NonNullList<Slot> v) { menuSlots = v; return this; }
@@ -80,6 +88,8 @@ public final class PipelineContext {
         public Builder isFiltering(boolean v) { isFiltering = v; return this; }
         public Builder inventoryChanged(boolean v) { inventoryChanged = v; return this; }
         public Builder pinnedManager(PinnedRecipeManager v) { pinnedManager = v; return this; }
+        public Builder resultSlotIndex(int v) { resultSlotIndex = v; return this; }
+        public Builder carried(ItemStack v) { carried = v; return this; }
 
         public PipelineContext build() {
             return new PipelineContext(this);

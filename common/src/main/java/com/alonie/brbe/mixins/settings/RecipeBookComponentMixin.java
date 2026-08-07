@@ -4,7 +4,7 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.config.Config;
 import com.alonie.brbe.layout.BookLayout;
 import com.alonie.brbe.util.BRBTextures;
-import me.shedaniel.autoconfig.AutoConfig;
+import com.alonie.brbe.util.ConfigTipsHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ImageButton;
@@ -49,8 +49,7 @@ public abstract class RecipeBookComponentMixin {
             this._$settingsButton = new ImageButton(i + BookLayout.SETTINGS_X_OFFSET, j,
                     BookLayout.SETTINGS_SIZE, BookLayout.SETTINGS_SIZE,
                     BRBTextures.SETTINGS_BUTTON_SPRITES, button -> {
-                Minecraft.getInstance().setScreen(
-                        AutoConfig.getConfigScreen(Config.class, Minecraft.getInstance().screen).get());
+                ConfigTipsHelper.openConfigScreen(Config.class, Minecraft.getInstance().screen);
             });
         }
     }

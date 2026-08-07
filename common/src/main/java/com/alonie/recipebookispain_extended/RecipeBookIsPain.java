@@ -1,6 +1,7 @@
 package com.alonie.recipebookispain_extended;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.mixins.accessors.CreativeModeTabsAccessor;
 import com.alonie.brbe.config.AppContext;
 import com.alonie.brbe.config.ConfigEventBus;
 import net.minecraft.client.Minecraft;
@@ -176,6 +177,11 @@ public class RecipeBookIsPain {
                     false,
                     client.level.registryAccess()
             );
+            // The eager rebuild above caches CACHED_PARAMETERS, which makes the
+            // creative inventory screen skip its own rebuild (and skip building
+            // the SessionSearchTrees search trees → all creative search results
+            // blank).  Null it so the game rebuilds on the creative screen.
+            CreativeModeTabsAccessor.brbe$invalidateCachedParameters(null);
 
             // ── Strategy A: use getDisplayItems() (vanilla + NeoForge) ──
             int tabCount = 0;

@@ -115,6 +115,8 @@ public final class RecipePipeline {
         // The pre-check (elevating 3×3 full-material recipes on the 2×2
         // inventory grid) must run regardless of partialMarkingEnabled —
         // it's about showAllRecipesInSurvival, not partial marking.
+        // Carried-as-special-slot: 拿起物品时任何屏幕都需运行 pre-check。
+        boolean carriedHeld = ctx.carried != null && !ctx.carried.isEmpty();
         if (ctx.partialMarkingEnabled && ctx.inventoryChanged) {
             PartialCraftingUtil.beginFilteringUpdate(true);
 
@@ -142,28 +144,40 @@ public final class RecipePipeline {
             // (vanilla rejected them), so the pre-check sees them correctly.
             // markPartialMaterials (in markAndInject) then sees
             // isCraftable=true and skips them — they won't be tagged partial.
-            if (ctx.onInventoryScreen && ctx.showAllRecipesInSurvival) {
+            // Carried-as-special-slot: 拿起物品时任何屏幕都需运行 pre-check，
+            // 把 slots+carried 材料齐全的配方提升回 craftable（否则材料移到
+            // 手上后配方掉出可合成——26.x 的 elevateFullyCraftableWithCarried
+            // 是独立 if (!carried.isEmpty()) 任何屏幕都跑）。
+            if ((ctx.onInventoryScreen && ctx.showAllRecipesInSurvival) || carriedHeld) {
                 brbe$preCheck(collections, ctx);
             }
 
             // Step 3c: mark + inject fresh partial recipes
+            // partialOnlyWhenCarrying：残缺配方只在拿起物品时显示，且只显示
+            // 与 carried 相关的配方 → 匹配集仅含 carried 类型（为空则空集）。
+            Set<Item> matchItems = ctx.inventoryItems;
+            if (BetterRecipeBook.ctx().config().partialOnlyWhenCarrying) {
+                matchItems = (ctx.carried != null && !ctx.carried.isEmpty())
+                        ? Set.of(ctx.carried.getItem()) : Set.of();
+            }
             for (RecipeCollection coll : collections) {
-                PartialCraftingUtil.markAndInject(coll, ctx.inventoryItems);
+                PartialCraftingUtil.markAndInject(coll, ctx.inventoryItems, matchItems);
             }
 
             PartialCraftingUtil.beginFilteringUpdate(false);
-        } else if (ctx.onInventoryScreen && ctx.showAllRecipesInSurvival) {
+        } else if ((ctx.onInventoryScreen && ctx.showAllRecipesInSurvival) || carriedHeld) {
             // Run pre-check on inventory screen with showAll.
             // Covers two cases:
             // 1. partialMarkingEnabled=false → only pre-check (no marking)
             // 2. partialMarkingEnabled=true + inventoryChanged=false →
             //    "first open after startup" catch-up (state is current)
+            // carriedHeld: 拿起物品时任何屏幕都跑 carried 提升。
             brbe$preCheck(collections, ctx);
         }
 
         // ── 诊断：每次物品栏刷新后检查配方状态 ──
         if (ctx.menuSlots != null) {
-            RecipeStateDiagnostic.run(collections, ctx.menuSlots);
+            RecipeStateDiagnostic.run(collections, ctx.menuSlots, ctx.carried);
         }
     }
 
@@ -177,15 +191,28 @@ public final class RecipePipeline {
      */
     private static void brbe$preCheck(List<RecipeCollection> collections,
                                        PipelineContext ctx) {
-        if (!ctx.onInventoryScreen || !ctx.showAllRecipesInSurvival) return;
+        boolean carriedHeld = ctx.carried != null && !ctx.carried.isEmpty();
+        boolean inventoryScreenWithShowAll = ctx.onInventoryScreen && ctx.showAllRecipesInSurvival;
+        // 3×3 elevation only applies on the inventory screen with showAll;
+        // carried-as-special-slot applies on any screen when holding an item.
+        if (!inventoryScreenWithShowAll && !carriedHeld) return;
 
         int total3x3 = 0, skippedCraftable = 0, elevated = 0;
         for (RecipeCollection coll : collections) {
             RecipeCollectionAccessor ca = (RecipeCollectionAccessor) coll;
             for (RecipeHolder<?> holder : coll.getRecipes()) {
-                if (!brbe$needsLargerGrid(holder)) continue;
-                total3x3++;
+                boolean largerGrid = brbe$needsLargerGrid(holder);
+                if (largerGrid) total3x3++;
                 if (coll.isCraftable(holder)) { skippedCraftable++; continue; }
+                // 无 carried 时，3×3 区别对待只在生存模式物品栏配方书 + showAll：
+                // 背包 2×2 网格放不下 → vanilla isCraftable 拒绝 → 提升。
+                // 合成台有 3×3 网格，vanilla 正常判可合成，无需提升。
+                //
+                // carried（拿起物品）时，3×3 在任何屏幕都参与提升——vanilla
+                // 的 canCraft/isCraftable 不看 carried，材料移到手上后工作台
+                // 的 3×3 配方也会掉出可合成（vanilla 判材料缺失）。slots+carried
+                // 材料齐全的 3×3 需提升回 craftable，carried 才算"检索空间"。
+                if (largerGrid && !inventoryScreenWithShowAll && !carriedHeld) continue;
                 if (brbe$hasAllIngredients(holder.value(), ctx)) {
                     ca.brbe$getCraftable().add(holder);
                     PartialCraftingUtil.removePartialRecipe(coll, holder.id());
@@ -194,8 +221,8 @@ public final class RecipePipeline {
             }
         }
         com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
-                "[BRBE-DIAG] pre-check: total3x3={} skippedCraftable={} elevated={}",
-                total3x3, skippedCraftable, elevated);
+                "[BRBE-DIAG] pre-check: total3x3={} skippedCraftable={} elevated={} carriedHeld={}",
+                total3x3, skippedCraftable, elevated, carriedHeld);
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -448,12 +475,21 @@ public final class RecipePipeline {
         }
 
         // Build mutable inventory: item → available count
+        // Skip the result slot — the crafted product must not count as
+        // an available material, otherwise a result that happens to match
+        // a 3×3 ingredient would make the recipe look "has all materials".
+        // The mouse-carried item counts as a special slot (part of the
+        // inventory), so materials moved to the hand are still available.
         Map<Item, Integer> available = new HashMap<>();
         for (var slot : ctx.menuSlots) {
+            if (slot.index == ctx.resultSlotIndex) continue;
             ItemStack stack = slot.getItem();
             if (!stack.isEmpty()) {
                 available.merge(stack.getItem(), stack.getCount(), Integer::sum);
             }
+        }
+        if (ctx.carried != null && !ctx.carried.isEmpty()) {
+            available.merge(ctx.carried.getItem(), ctx.carried.getCount(), Integer::sum);
         }
 
         // Consume one item per non-empty ingredient

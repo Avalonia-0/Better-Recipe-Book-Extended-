@@ -105,7 +105,16 @@ public final class PartialCraftingUtil {
      * textures (partials look craftable or vice versa).
      */
     public static void markAndInject(RecipeCollection collection, Set<Item> inventoryItems) {
-        boolean marked = markPartialMaterials(collection, inventoryItems);
+        markAndInject(collection, inventoryItems, inventoryItems);
+    }
+
+    /**
+     * {@code matchItems} 单独控制"哪些配方会被检索为残缺"（与 inventoryItems
+     * 解耦）。partialOnlyWhenCarrying 场景：matchItems 仅含 carried 类型
+     * （或空集 → 完全不标 partial），3×3 材料齐全判定仍用完整库存。
+     */
+    public static void markAndInject(RecipeCollection collection, Set<Item> inventoryItems, Set<Item> matchItems) {
+        boolean marked = markPartialMaterials(collection, inventoryItems, matchItems);
         if (!hasPartialMaterials(collection)) return;
         int injected = 0;
         var ca = (RecipeCollectionAccessor) collection;
@@ -126,6 +135,14 @@ public final class PartialCraftingUtil {
 
     /** Simple 64-bit hash of slot state (item presence + counts). */
     public static long slotHash(NonNullList<Slot> slots) {
+        return slotHash(slots, ItemStack.EMPTY);
+    }
+
+    /**
+     * 包含鼠标拿起物品（carried）的哈希。拿起/放下物品会改变哈希，
+     * 从而触发配方书重新标记（否则 cache 跳过导致标记不更新）。
+     */
+    public static long slotHash(NonNullList<Slot> slots, ItemStack carried) {
         long h = 1;
         for (Slot slot : slots) {
             ItemStack stack = slot.getItem();
@@ -134,16 +151,42 @@ public final class PartialCraftingUtil {
                 h = 31 * h + stack.getCount();
             }
         }
+        if (carried != null && !carried.isEmpty()) {
+            h = 31 * h + (long) carried.getItem().hashCode();
+            h = 31 * h + carried.getCount();
+        }
         return h;
     }
 
     public static Set<Item> hashInventory(NonNullList<Slot> slots) {
+        return hashInventory(slots, -1);
+    }
+
+    /**
+     * Like {@link #hashInventory} but skips the slot at {@code excludeIndex}
+     * (or no slot if {@code excludeIndex < 0}).  Used to exclude the recipe
+     * result slot: the crafted product sits in the result slot and must not
+     * count as an available material, otherwise a just-crafted product would
+     * make every recipe needing it appear "partially craftable".
+     */
+    public static Set<Item> hashInventory(NonNullList<Slot> slots, int excludeIndex) {
+        return hashInventory(slots, excludeIndex, ItemStack.EMPTY);
+    }
+
+    /**
+     * 包含鼠标拿起物品（carried）的库存类型集。
+     */
+    public static Set<Item> hashInventory(NonNullList<Slot> slots, int excludeIndex, ItemStack carried) {
         Set<Item> inventoryItems = new HashSet<>();
         for (Slot slot : slots) {
+            if (slot.index == excludeIndex) continue;
             ItemStack stack = slot.getItem();
             if (!stack.isEmpty()) {
                 inventoryItems.add(stack.getItem());
             }
+        }
+        if (carried != null && !carried.isEmpty()) {
+            inventoryItems.add(carried.getItem());
         }
         return inventoryItems;
     }
@@ -158,6 +201,15 @@ public final class PartialCraftingUtil {
      * Checks all recipes in the collection using a pre-hashed inventory set.
      */
     public static boolean markPartialMaterials(RecipeCollection collection, Set<Item> inventoryItems) {
+        return markPartialMaterials(collection, inventoryItems, inventoryItems);
+    }
+
+    /**
+     * {@code matchItems} 单独控制"哪些配方会被检索为残缺"（与 inventoryItems
+     * 解耦）。partialOnlyWhenCarrying 场景：matchItems 仅含 carried 类型
+     * （或空集 → 完全不标 partial），3×3 材料齐全判定仍用完整库存。
+     */
+    public static boolean markPartialMaterials(RecipeCollection collection, Set<Item> inventoryItems, Set<Item> matchItems) {
         if (!enabled()) return false;
         if (wasCheckedForPartialMaterials(collection)) return hasPartialMaterials(collection);
 
@@ -173,16 +225,17 @@ public final class PartialCraftingUtil {
                 continue;
             }
 
-            // 3×3 配方：2×2 生存网格放不下，材料是否齐全都不标"缺少部分材料"。
-            // 材料齐全的 3×3 配方（如铁剑）应显示不可合成 + incompatible 警告，
-            // 而不是红色 partial 覆盖层。preCheck 负责把材料齐全的 3×3 提升到
-            // craftable（showAll=true 时）；这里统一跳过所有 3×3。
+            // 3×3 配方：2×2 生存网格放不下。
+            // 材料齐全 → 不标 partial（网格问题，由 incompatible 警告处理）。
+            // 材料不足 → 标 partial（确实缺材料）。
+            Recipe<?> vanillaRecipe = recipe.value();
             if (needsLargerGrid(recipe)) {
-                continue;
+                if (hasAllIngredients(vanillaRecipe.getIngredients(), inventoryItems)) {
+                    continue;
+                }
             }
 
-            Recipe<?> vanillaRecipe = recipe.value();
-            if (hasMatchingIngredientFast(vanillaRecipe.getIngredients(), inventoryItems)) {
+            if (hasMatchingIngredientFast(vanillaRecipe.getIngredients(), matchItems)) {
                 partialRecipes.add(recipe.id());
                 markedAny = true;
             }
@@ -370,6 +423,22 @@ public final class PartialCraftingUtil {
     private static boolean hasMatchingIngredient(List<Ingredient> ingredients, NonNullList<Slot> slots) {
         Set<Item> inventoryItems = hashInventory(slots);
         return hasMatchingIngredientFast(ingredients, inventoryItems);
+    }
+
+    /** True if every ingredient is present in inventory (by type). */
+    private static boolean hasAllIngredients(List<Ingredient> ingredients, Set<Item> inventoryItems) {
+        for (Ingredient ingredient : ingredients) {
+            if (ingredient.isEmpty()) continue;
+            boolean found = false;
+            for (ItemStack stack : ingredient.getItems()) {
+                if (!stack.isEmpty() && inventoryItems.contains(stack.getItem())) {
+                    found = true;
+                    break;
+                }
+            }
+            if (!found) return false;
+        }
+        return true;
     }
 
     private static boolean hasMatchingIngredientFast(List<Ingredient> ingredients, Set<Item> inventoryItems) {

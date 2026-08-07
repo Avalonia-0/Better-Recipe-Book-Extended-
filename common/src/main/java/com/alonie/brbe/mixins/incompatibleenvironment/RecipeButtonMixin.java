@@ -59,6 +59,7 @@ public abstract class RecipeButtonMixin {
     private void betterRecipeBook$appendIncompatibleWarning(
             CallbackInfoReturnable<List<Component>> cir) {
         if (!BetterRecipeBook.ctx().config().showAllRecipesInSurvival) return;
+        if (BetterRecipeBook.ctx().config().hideIncompatibleMark) return;
         if (!(Minecraft.getInstance().screen instanceof EffectRenderingInventoryScreen)) return;
 
         List<Component> list = cir.getReturnValue();

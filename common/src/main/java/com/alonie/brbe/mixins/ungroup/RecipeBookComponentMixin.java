@@ -103,7 +103,8 @@ public class RecipeBookComponentMixin {
         boolean brbeManagesFilter = BetterRecipeBook.ctx().config().partialCraftingEnabled;
         if (brbeManagesFilter || book.isFiltering(menu)) {
             PartialCraftingUtil.beginFilteringUpdate(true);
-            Set<Item> inventoryItems = PartialCraftingUtil.hashInventory(menu.slots);
+            Set<Item> inventoryItems = PartialCraftingUtil.hashInventory(
+                    menu.slots, menu.getResultSlotIndex(), menu.getCarried());
 
             if (brbeManagesFilter) {
                 // BRBE mode: mark partials for sorting, but don't remove

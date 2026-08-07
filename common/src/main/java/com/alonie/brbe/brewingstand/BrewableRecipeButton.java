@@ -62,8 +62,6 @@ public class BrewableRecipeButton extends GenericRecipeButton<BrewingRecipeColle
 
         list.add(Component.literal(inputStack.getHoverName().getString()).withStyle(colour));
 
-        this.addPinTooltip(list);
-
         return list;
     }
 }

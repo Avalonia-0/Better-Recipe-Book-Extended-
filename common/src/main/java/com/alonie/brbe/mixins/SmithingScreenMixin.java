@@ -3,6 +3,7 @@ package com.alonie.brbe.mixins;
 import com.alonie.brbe.BetterRecipeBook;
 // import com.alonie.brbe.interfaces.ExpandedBookScreen; // TEMPORARILY DISABLED
 import com.alonie.brbe.interfaces.TopLayerOverlayProvider;
+import com.alonie.brbe.mixins.accessors.AbstractContainerScreenAccessor;
 import com.alonie.brbe.smithingtable.SmithingRecipeBookComponent;
 import com.alonie.brbe.smithingtable.SmithingRecipeBookPage;
 import com.alonie.brbe.util.BRBTextures;
@@ -129,6 +130,21 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
         if (this._$recipeBookComponent.isVisible()) {
             this._$recipeBookComponent.render(guiGraphics, i, j, f);
             this._$recipeBookComponent.renderGhostRecipe(guiGraphics, this.leftPos, this.topPos, false, f);
+        }
+
+        // Redraw the carried item so it always draws on top of the recipe book
+        // (vanilla draws it before the book's @Inject RETURN, so the book would
+        // otherwise cover it).
+        if (!this.menu.getCarried().isEmpty()) {
+            com.mojang.blaze3d.vertex.PoseStack pose = guiGraphics.pose();
+            pose.pushPose();
+            pose.translate(this.leftPos, this.topPos, 0.0F);
+            ((AbstractContainerScreenAccessor) this).brbe$renderFloatingItem(
+                    guiGraphics, this.menu.getCarried(), i - this.leftPos - 8, j - this.topPos - 8, "");
+            pose.popPose();
+        }
+
+        if (this._$recipeBookComponent.isVisible()) {
             this._$recipeBookComponent.drawTooltip(guiGraphics, this.leftPos, this.topPos, i, j);
         }
     }
@@ -146,6 +162,13 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     public void renderOnboardingTooltips(GuiGraphics guiGraphics, int i, int j, CallbackInfo ci) {
         if (BetterRecipeBook.ctx().config().enableBook && _$recipeBookComponent.isShowingGhostRecipe()) {
             ci.cancel();
+        }
+    }
+
+    @Inject(method = "containerTick", at = @At("RETURN"))
+    public void containerTick(CallbackInfo ci) {
+        if (this._$recipeBookComponent != null) {
+            this._$recipeBookComponent.tick();
         }
     }
 

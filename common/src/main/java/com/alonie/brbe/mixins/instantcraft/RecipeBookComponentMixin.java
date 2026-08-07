@@ -84,10 +84,10 @@ public abstract class RecipeBookComponentMixin {
         // Y: bottom-aligned with forward arrow
         int btnY;
         if (fwd != null) {
-            btnY = fwd.getY() + fwd.getHeight() - 18;
+            btnY = fwd.getY() + fwd.getHeight() - 18 + 1;
         } else {
             int bt = (this.height - 166) / 2;
-            btnY = bt + 137 + 17 - 18;
+            btnY = bt + 137 + 17 - 18 + 1;
         }
 
         this.brbe$instantCraftButton = new StateSwitchingButton(

@@ -124,9 +124,6 @@ public class BrbeConfig implements ConfigData {
 
     public static class Scrolling implements ConfigData {
         @ConfigEntry.Gui.Tooltip
-        public boolean enableScrolling = true;
-
-        @ConfigEntry.Gui.Tooltip
         public boolean scrollAround = false;
     }
 

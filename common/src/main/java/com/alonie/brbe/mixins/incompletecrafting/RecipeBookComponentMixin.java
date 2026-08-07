@@ -13,6 +13,7 @@ import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.item.Item;
+import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -64,6 +65,33 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
     @Unique
     private int brbe$lastFirstCollIdHash;
 
+    @Unique
+    private ItemStack brbe$lastCarried = ItemStack.EMPTY;
+
+    /**
+     * 鼠标拿起物品 = 放入一个特殊槽位（carried）。槽位变化应触发配方书刷新，
+     * 让配方书基于 slots+carried 重新计算状态（拿起新材料 → 新配方可合成；
+     * 拿起已有材料 → 材料集合不变 → 状态不变）。
+     *
+     * <p>必须在触发前重置 brbe$lastSlotHash：vanilla tick 已因槽位变化跑过
+     * 一轮 selectMatchingRecipes（用不含 carried 的 stackedContents 清空
+     * craftable 集合），若 lastSlotHash 保持相同，第二轮 updateCollections
+     * 会走 vanilla removeIf 提前分支，BRBE 的 elevate 不重跑 → 材料齐全的
+     * 配方掉出可合成。重置后 inventoryChanged=true → 走完整标记 + carried 提升。
+     */
+    @Inject(method = "tick", at = @At("RETURN"))
+    private void brbe$detectCarriedChange(CallbackInfo ci) {
+        if (!((RecipeBookComponent) (Object) this).isVisible()) {
+            return;
+        }
+        ItemStack carried = menu.getCarried();
+        if (!ItemStack.matches(carried, brbe$lastCarried)) {
+            brbe$lastCarried = carried.copy();
+            brbe$lastSlotHash = 0; // 强制下一轮走完整标记路径
+            this.updateStackedContentsInvoker();
+        }
+    }
+
     // =================================================================
     // @Redirect List.forEach — vanilla canCraft + BRBE state update
     // =================================================================
@@ -76,7 +104,9 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
 
         PerfTimer.begin();
 
-        long slotHash = PartialCraftingUtil.slotHash(menu.slots);
+        // 鼠标拿起物（carried）也算作物品栏一部分，纳入哈希以触发重标记。
+        ItemStack carried = menu.getCarried();
+        long slotHash = PartialCraftingUtil.slotHash(menu.slots, carried);
         boolean forceRefresh = PartialCraftingUtil.consumeForceFullRefresh();
         boolean inventoryChanged = slotHash != brbe$lastSlotHash || forceRefresh;
         boolean onInventory = minecraft != null
@@ -117,14 +147,17 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
                 "[BRBE-DIAG] forEach: total={} known={} craftable={}",
                 collections.size(), diagKnown, diagCraftableBefore);
 
-        Set<Item> inventoryItems = PartialCraftingUtil.hashInventory(menu.slots);
+        Set<Item> inventoryItems = PartialCraftingUtil.hashInventory(
+                menu.slots, menu.getResultSlotIndex(), carried);
 
         boolean needsMarkAndInject = inventoryChanged || rebuildDetected
                 || forceRefresh;
 
         PipelineContext ctx = PipelineContext.builder()
                 .inventoryItems(inventoryItems)
+                .carried(carried)
                 .menuSlots(menu.slots)
+                .resultSlotIndex(menu.getResultSlotIndex())
                 .onInventoryScreen(onInventory)
                 // On the crafting table, also run markAndInject when
                 // rebuild detected so partial recipes are restored.
@@ -231,8 +264,11 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
                 && minecraft.player.getRecipeBook().isFiltering(menu);
 
         PipelineContext ctx = PipelineContext.builder()
-                .inventoryItems(PartialCraftingUtil.hashInventory(menu.slots))
+                .inventoryItems(PartialCraftingUtil.hashInventory(
+                        menu.slots, menu.getResultSlotIndex(), menu.getCarried()))
+                .carried(menu.getCarried())
                 .menuSlots(menu.slots)
+                .resultSlotIndex(menu.getResultSlotIndex())
                 .onInventoryScreen(onInventory)
                 .partialMarkingEnabled(partialMarking)
                 .brbeSortEnabled(partialCrafting)
@@ -350,8 +386,11 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
                 && minecraft.player.getRecipeBook().isFiltering(menu);
 
         PipelineContext ctx = PipelineContext.builder()
-                .inventoryItems(PartialCraftingUtil.hashInventory(menu.slots))
+                .inventoryItems(PartialCraftingUtil.hashInventory(
+                        menu.slots, menu.getResultSlotIndex(), menu.getCarried()))
+                .carried(menu.getCarried())
                 .menuSlots(menu.slots)
+                .resultSlotIndex(menu.getResultSlotIndex())
                 .onInventoryScreen(onInventory)
                 .partialMarkingEnabled(partialMarking)
                 .brbeSortEnabled(partialCrafting)

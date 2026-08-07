@@ -232,6 +232,11 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Inject(at = @At("HEAD"), method = "render")
     private void rbip$hotReload(GuiGraphics g, int mx, int my, float d, CallbackInfo ci) {
+        // Guard: when RBIP is disabled, the tabsNeedBuild branch below never
+        // runs buildCreativeTabs() (which calls ensureFields()), so the wipe
+        // in the reload branch would NPE on the null creativeButtons list.
+        rbip$ensureFields();
+
         // Deferred tab creation: initVisuals sets a flag, we do the
         // expensive widget creation here on the first render frame.
         // This keeps initVisuals fast (0ms instead of 200-300ms).
@@ -652,50 +657,23 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Unique private static final int SCROLL_PADDING = 20;
 
-    // Simple bounding box: { left, top, right, bottom }
-    @Unique
-    private static int[] rbip$box(int l, int t, int r, int b) { return new int[]{l, t, r, b}; }
-    @Unique
-    private static int rbip$width(int[] box) { return box[2] - box[0]; }
-    @Unique
-    private static int rbip$height(int[] box) { return box[3] - box[1]; }
-
     @Unique
     private boolean rbip$isMouseOverAnyVisibleTab(double mouseX, double mouseY) {
-        int[] topArea = null;
-        int[] bottomArea = null;
-
-        for (RecipeBookTabButton btn : this.tabButtons) {
-            if (!btn.visible) continue;
-            RecipeGroupButtonPlacement p = ((RecipeGroupButtonPlacementAccess) btn).rbip$getPlacement();
-            if (p == RecipeGroupButtonPlacement.TOP) {
-                int[] expanded = rbip$expandBox(btn);
-                topArea = topArea == null ? expanded : rbip$mergeBoxes(topArea, expanded);
-            } else if (p == RecipeGroupButtonPlacement.BOTTOM) {
-                int[] expanded = rbip$expandBox(btn);
-                bottomArea = bottomArea == null ? expanded : rbip$mergeBoxes(bottomArea, expanded);
-            } else if (rbip$isInside(mouseX, mouseY, btn.getX(), btn.getY(), btn.getWidth(), btn.getHeight())) {
-                return true;
-            }
+        // 固定滚动区域 = 创造模式标签的完整容纳空间（不依赖实际放置的标签）：
+        // 左侧 6 槽整列 + 顶部整行 + 底部整行（含 SCROLL_PADDING 上下扩展）。
+        // 只要鼠标落在这些槽位区域内（即便该处没有标签）即可翻页。
+        if (rbip$isInside(mouseX, mouseY, rbip$getTabX(), rbip$getTabY(),
+                TAB_W, LEFT_SLOTS * TAB_H)) {
+            return true;
         }
-        if (topArea != null && rbip$isInside(mouseX, mouseY, topArea[0], topArea[1],
-                rbip$width(topArea), rbip$height(topArea))) return true;
-        if (bottomArea != null && rbip$isInside(mouseX, mouseY, bottomArea[0], bottomArea[1],
-                rbip$width(bottomArea), rbip$height(bottomArea))) return true;
-        return false;
-    }
-
-    @Unique
-    private int[] rbip$expandBox(RecipeBookTabButton btn) {
-        return rbip$box(
-                btn.getX(), btn.getY() - SCROLL_PADDING,
-                btn.getX() + btn.getWidth(), btn.getY() + btn.getHeight() + SCROLL_PADDING);
-    }
-
-    @Unique
-    private int[] rbip$mergeBoxes(int[] a, int[] b) {
-        return rbip$box(
-                Math.min(a[0], b[0]), Math.min(a[1], b[1]),
-                Math.max(a[2], b[2]), Math.max(a[3], b[3]));
+        int horizX = rbip$getHorizontalTabStartX();
+        int horizW = rbip$getTopSlots() * HORIZ_STEP;
+        int horizH = ROT_TAB_H + 2 * SCROLL_PADDING;
+        if (rbip$isInside(mouseX, mouseY, horizX, rbip$getTopTabY() - SCROLL_PADDING,
+                horizW, horizH)) {
+            return true;
+        }
+        return rbip$isInside(mouseX, mouseY, horizX, rbip$getBottomTabY() - SCROLL_PADDING,
+                horizW, horizH);
     }
 }
