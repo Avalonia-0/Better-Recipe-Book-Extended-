@@ -7,3 +7,7 @@
 neoforge/.gradle/
 neoforge/build/
 .architectury-transformer/debug.log
+
+# local/experimental
+.claude/
+resourcepacks/
