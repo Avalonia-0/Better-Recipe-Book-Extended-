@@ -187,13 +187,6 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
         }
     }
 
-    @Inject(method = "containerTick", at = @At("RETURN"))
-    public void containerTick(CallbackInfo ci) {
-        if (this._$recipeBookComponent != null) {
-            this._$recipeBookComponent.tick();
-        }
-    }
-
     @Inject(method = "slotChanged", at = @At(value = "HEAD"))
     public void slotChanged(AbstractContainerMenu abstractContainerMenu, int i, ItemStack itemStack, CallbackInfo ci) {
         if (i == SmithingMenu.BASE_SLOT || i == SmithingMenu.ADDITIONAL_SLOT || i == SmithingMenu.TEMPLATE_SLOT || i == SmithingMenu.RESULT_SLOT) {
