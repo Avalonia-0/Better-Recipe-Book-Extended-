@@ -16,6 +16,7 @@
     "accessors.AbstractRecipeBookScreenAccessor",
     "accessors.BrewingStandMenuAccessor",
     "accessors.ClientRecipeBookAccessor",
+    "accessors.CreativeModeTabsAccessor",
     "accessors.GhostSlotsAccessor",
     "accessors.HolderReferenceAccessor",
     "accessors.KeyMappingAccessor",

@@ -1,6 +1,7 @@
 package com.alonie.brbe.util;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.core.NonNullList;
@@ -19,8 +20,10 @@ import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 public final class PartialCraftingUtil {
@@ -62,6 +65,14 @@ public final class PartialCraftingUtil {
     // ---- Inventory hashing (unchanged) ----
 
     public static long slotHash(NonNullList<Slot> slots) {
+        return slotHash(slots, ItemStack.EMPTY);
+    }
+
+    /**
+     * 包含鼠标拿起物品（carried）的哈希。拿起/放下物品会改变哈希，
+     * 从而触发配方书重新标记（否则 cache 跳过导致标记不更新）。
+     */
+    public static long slotHash(NonNullList<Slot> slots, ItemStack carried) {
         long h = 1;
         for (Slot slot : slots) {
             ItemStack stack = slot.getItem();
@@ -70,16 +81,42 @@ public final class PartialCraftingUtil {
                 h = 31 * h + stack.getCount();
             }
         }
+        if (carried != null && !carried.isEmpty()) {
+            h = 31 * h + (long)carried.getItem().hashCode();
+            h = 31 * h + carried.getCount();
+        }
         return h;
     }
 
     public static java.util.Set<Item> hashInventory(NonNullList<Slot> slots) {
+        return hashInventory(slots, -1);
+    }
+
+    /**
+     * Like {@link #hashInventory} but skips the slot at {@code excludeIndex}
+     * (or no slot if {@code excludeIndex < 0}).  Used to exclude the recipe
+     * result slot: the crafted product sits in the result slot and must not
+     * count as an available material, otherwise a just-crafted product would
+     * make every recipe needing it appear "partially craftable".
+     */
+    public static java.util.Set<Item> hashInventory(NonNullList<Slot> slots, int excludeIndex) {
+        return hashInventory(slots, excludeIndex, ItemStack.EMPTY);
+    }
+
+    /**
+     * 包含鼠标拿起物品（carried）的库存类型集。
+     */
+    public static java.util.Set<Item> hashInventory(NonNullList<Slot> slots, int excludeIndex, ItemStack carried) {
         java.util.Set<Item> inventoryItems = new java.util.HashSet<>();
         for (Slot slot : slots) {
+            if (slot.index == excludeIndex) continue;
             ItemStack stack = slot.getItem();
             if (!stack.isEmpty()) {
                 inventoryItems.add(stack.getItem());
             }
+        }
+        if (carried != null && !carried.isEmpty()) {
+            inventoryItems.add(carried.getItem());
         }
         return inventoryItems;
     }
@@ -91,6 +128,22 @@ public final class PartialCraftingUtil {
     }
 
     public static boolean markPartialMaterials(RecipeCollection collection, java.util.Set<Item> inventoryItems) {
+        return markPartialMaterials(collection, inventoryItems, null);
+    }
+
+    public static boolean markPartialMaterials(RecipeCollection collection, java.util.Set<Item> inventoryItems,
+                                               java.util.Map<Item, Integer> inventoryCounts) {
+        return markPartialMaterials(collection, inventoryItems, inventoryCounts, inventoryItems);
+    }
+
+    /**
+     * {@code matchItems} 单独控制"哪些配方会被检索为残缺"——与 {@code inventoryItems}
+     * （材料齐全判定用）解耦。partialOnlyWhenCarrying 场景：matchItems 仅含
+     * carried 类型（或空集 → 完全不标 partial），而 3×3 材料齐全判定仍用完整库存。
+     */
+    public static boolean markPartialMaterials(RecipeCollection collection, java.util.Set<Item> inventoryItems,
+                                               java.util.Map<Item, Integer> inventoryCounts,
+                                               java.util.Set<Item> matchItems) {
         if (!enabled()) return false;
         if (tagger.wasChecked(collection)) return tagger.hasAnyTag(collection);
         tagger.markAsChecked(collection);
@@ -101,8 +154,20 @@ public final class PartialCraftingUtil {
                 continue;
             }
 
-            if (recipe.craftingRequirements().map(requirements -> hasMatchingIngredientFast(requirements, inventoryItems)).orElse(false)
-                    || hasMatchingDisplayIngredientFast(recipe.display(), inventoryItems)) {
+            // 3×3 配方：2×2 生存网格放不下。
+            // 材料齐全（类型+数量都够）→ 不标 partial（网格问题，由 incompatible 警告处理）。
+            // 材料不足（缺类型或缺数量）→ 标 partial（确实缺材料）。
+            if (needsLargerGrid(recipe.display())) {
+                boolean complete = inventoryCounts != null
+                        ? hasAllIngredients(recipe, inventoryItems, inventoryCounts)
+                        : hasAllIngredients(recipe, inventoryItems);
+                if (complete) {
+                    continue;
+                }
+            }
+
+            if (recipe.craftingRequirements().map(requirements -> hasMatchingIngredientFast(requirements, matchItems)).orElse(false)
+                    || hasMatchingDisplayIngredientFast(recipe.display(), matchItems)) {
                 partialRecipes.add(recipe.id());
                 markedAny = true;
             }
@@ -256,10 +321,155 @@ public final class PartialCraftingUtil {
         return combinedRecipes;
     }
 
+    // ---- 3×3 网格判定 ----
+
+    /**
+     * 配方是否需要 3×3 合成网格（2×2 生存背包网格放不下）。
+     * 这类配方无论材料是否齐全，都不属于"缺少部分材料"——
+     * 网格不够由 {@code IncompatibleCraftingUtil} 的警告处理。
+     */
+    public static boolean needsLargerGrid(RecipeDisplay display) {
+        if (display instanceof ShapedCraftingRecipeDisplay shaped) {
+            return shaped.width() > 2 || shaped.height() > 2;
+        }
+        if (display instanceof ShapelessCraftingRecipeDisplay shapeless) {
+            return shapeless.ingredients().size() > 4;
+        }
+        return false;
+    }
+
     // ---- Ingredient matching helpers (unchanged) ----
 
     private static boolean hasMatchingIngredient(List<Ingredient> ingredients, NonNullList<Slot> slots) {
         return hasMatchingIngredientFast(ingredients, hashInventory(slots));
+    }
+
+    /**
+     * Pre-check (parity with 1.21.1 RecipePipeline): on the inventory screen
+     * with showAllRecipesInSurvival on, vanilla {@code canCraft} rejects 3×3
+     * recipes on the 2×2 grid even when all materials are present.  Re-evaluate
+     * them against raw item types and elevate to the craftable set so 3×3 and
+     * 2×2 recipes behave identically.  Any stale partial tag is cleared.
+     */
+    public static void elevateFullyCraftable3x3(RecipeCollection collection, java.util.Set<Item> inventoryItems) {
+        elevateFullyCraftable3x3(collection, inventoryItems, null);
+    }
+
+    public static void elevateFullyCraftable3x3(RecipeCollection collection, java.util.Set<Item> inventoryItems,
+                                                java.util.Map<Item, Integer> inventoryCounts) {
+        RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+        for (RecipeDisplayEntry entry : collection.getRecipes()) {
+            if (!needsLargerGrid(entry.display())) continue;
+            RecipeDisplayId id = entry.id();
+            if (collection.isCraftable(id)) continue;
+            boolean complete = inventoryCounts != null
+                    ? hasAllIngredients(entry, inventoryItems, inventoryCounts)
+                    : hasAllIngredients(entry, inventoryItems);
+            if (complete) {
+                accessor.brbe$getCraftable().add(id);
+                unmarkPartial(collection, id);
+            }
+        }
+    }
+
+    /** True if every ingredient is present in inventory (by type). */
+    /**
+     * Carried-as-special-slot elevation: when the player holds an item
+     * (mouse carried), vanilla {@code isCraftable()} still evaluates only
+     * the menu slots — so a recipe whose materials moved from a slot into
+     * the hand would drop out of the craftable set even though the
+     * materials are fully available.  Re-evaluate ALL recipes (not just
+     * 3×3) against slots+carried and elevate material-complete ones, so
+     * picking up an item never changes the recipe book (materials simply
+     * moved to the special "hand" slot).
+     */
+    public static void elevateFullyCraftableWithCarried(RecipeCollection collection, java.util.Set<Item> inventoryItems,
+                                                        java.util.Map<Item, Integer> inventoryCounts) {
+        RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+        for (RecipeDisplayEntry entry : collection.getRecipes()) {
+            RecipeDisplayId id = entry.id();
+            if (collection.isCraftable(id)) continue;
+            boolean complete = inventoryCounts != null
+                    ? hasAllIngredients(entry, inventoryItems, inventoryCounts)
+                    : hasAllIngredients(entry, inventoryItems);
+            if (complete) {
+                accessor.brbe$getCraftable().add(id);
+                unmarkPartial(collection, id);
+            }
+        }
+    }
+
+    private static boolean hasAllIngredients(RecipeDisplayEntry recipe, java.util.Set<Item> inventoryItems) {
+        return recipe.craftingRequirements().map(requirements -> {
+            for (Ingredient ingredient : requirements) {
+                if (ingredient.isEmpty()) continue;
+                if (!ingredient.items().anyMatch(holder -> inventoryItems.contains(holder.value()))) {
+                    return false;
+                }
+            }
+            return true;
+        }).orElse(false);
+    }
+
+    /**
+     * Quantity-aware variant: true only if every ingredient slot has a match
+     * in inventory AND the inventory holds enough of each item.  A recipe
+     * needing 3 iron + 2 sticks with only 1 of each in inventory must NOT be
+     * treated as material-complete (it is material-deficient → partial).
+     * Mirrors {@code RecipeStateDiagnostic.predictState} counting.
+     */
+    private static boolean hasAllIngredients(RecipeDisplayEntry recipe, java.util.Set<Item> inventoryItems,
+                                             java.util.Map<Item, Integer> inventoryCounts) {
+        RecipeDisplay display = recipe.display();
+        List<SlotDisplay> slotDisplays;
+        if (display instanceof ShapedCraftingRecipeDisplay shaped) {
+            slotDisplays = shaped.ingredients();
+        } else if (display instanceof ShapelessCraftingRecipeDisplay shapeless) {
+            slotDisplays = shapeless.ingredients();
+        } else {
+            return false;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return false;
+        ContextMap context = SlotDisplayContext.fromLevel(mc.level);
+
+        Map<Item, Integer> neededCounts = new HashMap<>();
+        int totalSlots = 0;
+        for (SlotDisplay slot : slotDisplays) {
+            List<ItemStack> variants;
+            try {
+                variants = slot.resolveForStacks(context);
+            } catch (Exception e) {
+                continue;
+            }
+            boolean emptySlot = true;
+            for (ItemStack candidate : variants) {
+                if (!candidate.isEmpty()) { emptySlot = false; break; }
+            }
+            if (emptySlot) continue;
+            totalSlots++;
+            Item chosen = variants.stream()
+                    .filter(s -> !s.isEmpty())
+                    .map(ItemStack::getItem)
+                    .filter(inventoryItems::contains)
+                    .findFirst().orElse(null);
+            if (chosen != null) {
+                neededCounts.merge(chosen, 1, Integer::sum);
+            }
+        }
+
+        if (totalSlots == 0) return false;
+
+        // 数量不足：某物品在成分槽出现次数 > 库存数量
+        for (Map.Entry<Item, Integer> e : neededCounts.entrySet()) {
+            int available = inventoryCounts.getOrDefault(e.getKey(), 0);
+            if (available < e.getValue()) {
+                return false;
+            }
+        }
+
+        // 所有成分槽都有匹配（每槽最多匹配一种物品）
+        return neededCounts.values().stream().mapToInt(Integer::intValue).sum() == totalSlots;
     }
 
     private static boolean hasMatchingIngredientFast(List<Ingredient> ingredients, java.util.Set<Item> inventoryItems) {

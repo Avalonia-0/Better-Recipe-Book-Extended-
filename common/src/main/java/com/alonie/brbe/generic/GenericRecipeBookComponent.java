@@ -5,6 +5,7 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.api.BRBBookSettings;
 import com.alonie.brbe.compat.ItemViewCompat;
+import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.interfaces.IPinningComponent;
 import com.alonie.brbe.interfaces.ISettingsButton;
 import com.alonie.brbe.search.SearchCache;
@@ -53,7 +54,7 @@ import java.util.*;
 import java.util.function.Consumer;
 
 public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu, C extends GenericRecipeBookCollection<R, M>, R extends GenericRecipe> implements Renderable, NarratableEntry, GuiEventListener, ISettingsButton, IPinningComponent<C> {
-    protected static final Component SEARCH_HINT = Component.translatable("gui.recipebook.search_hint");
+    protected static final Component SEARCH_HINT = RecipeBookComponentAccessor.getSEARCH_HINT();
     protected static final Component ALL_RECIPES_TOOLTIP = Component.translatable("gui.recipebook.toggleRecipes.all");
     boolean visible;
     protected boolean ignoreTextInput;
@@ -83,6 +84,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     /** The ghost ingredient ItemStack the mouse was over during the last tooltip render. */
     @Nullable
     private ItemStack brbe$lastHoveredGhostItem;
+
+    /** Last carried item, to detect pick-up/drop and refresh partial visibility. */
+    private ItemStack brbe$lastCarried = ItemStack.EMPTY;
 
 //    private int timesInventoryChanged;
 
@@ -136,7 +140,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.searchBox = new EditBox(this.minecraft.font, i + 25, j + 13, 81, this.minecraft.font.lineHeight + 5, Component.translatable("itemGroup.search"));
         this.searchBox.setMaxLength(50);
         this.searchBox.setVisible(true);
-        this.searchBox.setTextColor(0xFFFFFF);
+        this.searchBox.setTextColor(0xFFFFFFFF);
         this.searchBox.setValue(string);
         this.searchBox.setHint(SEARCH_HINT);
         this.settingsButton = createSettingsButton(i, j);
@@ -145,7 +149,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         this.filterButton = new StateSwitchingButton(i + 110, j + 12, 26, 16, false);
         this.filterButton.useStateTriggeredForTexture(true);
         this.filterButton.setStateTriggered(BRBBookSettings.isFiltering(this.getRecipeBookType()));
-        this.filterButton.initTextureValues(BRBTextures.RECIPE_BOOK_FILTER_BUTTON_SPRITES);
+        this.filterButton.initTextureValues(BRBTextures.filterButtonFor(this.getRecipeBookType()));
         this.updateFilterButtonTooltip();
 
         List<BRBBookCategories.Category> categories = BRBBookCategories.getCategories(this.getRecipeBookType());
@@ -342,10 +346,31 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             });
         }
 
-        if (BRBBookSettings.isFiltering(this.getRecipeBookType())) {
-            results.removeIf((result) -> !result.atleastOneCraftable(this.menu.slots)
-                    && !result.atleastOnePartiallyCraftable(this.menu.slots));
-        }
+        // partialOnlyWhenCarrying applies regardless of the "craftable only"
+        // filter toggle: partial recipes are hidden by default and only shown
+        // while the player is holding one of their materials.
+        boolean isFiltering = BRBBookSettings.isFiltering(this.getRecipeBookType());
+        boolean partialOnlyWhenCarrying = BetterRecipeBook.config.partialOnlyWhenCarrying;
+        ItemStack carried = this.menu.getCarried();
+        results.removeIf((result) -> {
+            if (result.atleastOneCraftable(this.menu.slots)) {
+                return false; // craftable → always keep
+            }
+            if (partialOnlyWhenCarrying) {
+                // Nothing held → hide all partial recipes.
+                if (carried == null || carried.isEmpty()) {
+                    return true;
+                }
+                // Only keep partial recipes that actually use the held item.
+                for (R recipe : result.getRecipes()) {
+                    if (recipe.usesItem(carried)) {
+                        return false; // uses held item → keep
+                    }
+                }
+                return true; // unrelated partial → hide
+            }
+            return isFiltering && !result.atleastOnePartiallyCraftable(this.menu.slots);
+        });
 
         this.brbe$sortByPinsInPlace(results);
         if (BRBBookSettings.isFiltering(this.getRecipeBookType())) {
@@ -353,6 +378,22 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         }
 
         this.recipesPage.setResults(results, b, selectedTab.getCategory());
+    }
+
+    /**
+     * Detects a change in the carried item (pick-up/drop) and refreshes the
+     * collection list, so {@code partialOnlyWhenCarrying} visibility updates
+     * live. Called from the host screen's {@code containerTick}.
+     */
+    public void tick() {
+        if (!this.isVisible() || this.menu == null) {
+            return;
+        }
+        ItemStack carried = this.menu.getCarried();
+        if (!ItemStack.matches(carried, this.brbe$lastCarried)) {
+            this.brbe$lastCarried = carried.copy();
+            this.updateCollections(false);
+        }
     }
 
     private void brbe$sortCraftableBeforePartial(List<C> results) {
@@ -430,6 +471,13 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
         if (this.recipesPage.mouseClicked(mouseX, mouseY, button, (this.width - 147) / 2 - this.xOffset, (this.height - 166) / 2, 147, 166)) {
             this.handlePlaceRecipe();
+            return true;
+        }
+
+        if (button == 1 && this.searchBox.isMouseOver(mouseX, mouseY)) {
+            searchBox.setValue("");
+            searchBox.setFocused(true);
+            this.updateCollections(true);
             return true;
         }
 

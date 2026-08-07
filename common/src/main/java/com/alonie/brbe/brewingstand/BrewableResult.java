@@ -10,6 +10,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionContents;
 
@@ -87,6 +88,20 @@ public class BrewableResult implements GenericRecipe {
     @Override
     public String getSearchString(BRBBookCategories.Category category) {
         return getHoverName(category).getString();
+    }
+
+    @Override
+    public boolean usesItem(ItemStack item) {
+        if (getIngredient(recipe).test(item)) {
+            return true;
+        }
+        // The input potion may be in any of the three forms (potion/splash/lingering).
+        for (Item potionItem : List.of(Items.POTION, Items.SPLASH_POTION, Items.LINGERING_POTION)) {
+            if (ItemStack.isSameItemSameComponents(potionStackFromPotion(potionItem, getFrom(recipe)), item)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static ItemStack potionStackFromPotion(Item item, Potion pot) {

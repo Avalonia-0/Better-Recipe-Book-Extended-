@@ -4,7 +4,7 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.config.BrbeConfig;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
-import me.shedaniel.autoconfig.AutoConfigClient;
+import com.alonie.brbe.util.ConfigTipsHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ImageButton;
@@ -51,15 +51,8 @@ public abstract class RecipeBookComponentMixin {
             int i = (this.width - 147) / 2 - this.xOffset;
             int j = (this.height - 166) / 2 + 137;
             this._$settingsButton = new ImageButton(i + 11, j, 18, 18,
-                    BRBTextures.SETTINGS_BUTTON_SPRITES, button -> {
-                try {
-                    var screen = AutoConfigClient.getConfigScreen(BrbeConfig.class,
-                            Minecraft.getInstance().gui.screen()).get();
-                    Minecraft.getInstance().gui.setScreen(screen);
-                } catch (NoClassDefFoundError e) {
-                    // Cloth Config not available
-                }
-            });
+                    BRBTextures.SETTINGS_BUTTON_SPRITES, button ->
+                    ConfigTipsHelper.openConfigScreen(BrbeConfig.class, Minecraft.getInstance().gui.screen()));
         }
     }
 
