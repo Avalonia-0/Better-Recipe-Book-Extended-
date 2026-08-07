@@ -82,13 +82,6 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
         return super.charTyped(event);
     }
 
-    @Inject(method = "containerTick", at = @At("RETURN"))
-    public void containerTick(CallbackInfo ci) {
-        if (this._$recipeBookComponent != null) {
-            this._$recipeBookComponent.tick();
-        }
-    }
-
     @Override
     protected void slotClicked(Slot slot, int x, int y, ClickType clickType) {
         // clear ghost recipe if an empty ingredient slot is clicked with no items

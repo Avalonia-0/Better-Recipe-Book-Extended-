@@ -87,9 +87,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     @Nullable
     private ItemStack brbe$lastHoveredGhostItem;
 
-    /** Last carried item, to detect pick-up/drop and refresh partial visibility. */
-    private ItemStack brbe$lastCarried = ItemStack.EMPTY;
-
 //    private int timesInventoryChanged;
 
     protected GenericRecipeBookComponent() {
@@ -348,31 +345,10 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             });
         }
 
-        // partialOnlyWhenCarrying applies regardless of the "craftable only"
-        // filter toggle: partial recipes are hidden by default and only shown
-        // while the player is holding one of their materials.
-        boolean isFiltering = BRBBookSettings.isFiltering(this.getRecipeBookType());
-        boolean partialOnlyWhenCarrying = BetterRecipeBook.config.partialOnlyWhenCarrying;
-        ItemStack carried = this.menu.getCarried();
-        results.removeIf((result) -> {
-            if (result.atleastOneCraftable(this.menu.slots)) {
-                return false; // craftable → always keep
-            }
-            if (partialOnlyWhenCarrying) {
-                // Nothing held → hide all partial recipes.
-                if (carried == null || carried.isEmpty()) {
-                    return true;
-                }
-                // Only keep partial recipes that actually use the held item.
-                for (R recipe : result.getRecipes()) {
-                    if (recipe.usesItem(carried)) {
-                        return false; // uses held item → keep
-                    }
-                }
-                return true; // unrelated partial → hide
-            }
-            return isFiltering && !result.atleastOnePartiallyCraftable(this.menu.slots);
-        });
+        if (BRBBookSettings.isFiltering(this.getRecipeBookType())) {
+            results.removeIf((result) -> !result.atleastOneCraftable(this.menu.slots)
+                    && !result.atleastOnePartiallyCraftable(this.menu.slots));
+        }
 
         this.brbe$sortByPinsInPlace(results);
         if (BRBBookSettings.isFiltering(this.getRecipeBookType())) {
@@ -380,22 +356,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         }
 
         this.recipesPage.setResults(results, b, selectedTab.getCategory());
-    }
-
-    /**
-     * Detects a change in the carried item (pick-up/drop) and refreshes the
-     * collection list, so {@code partialOnlyWhenCarrying} visibility updates
-     * live. Called from the host screen's {@code containerTick}.
-     */
-    public void tick() {
-        if (!this.isVisible() || this.menu == null) {
-            return;
-        }
-        ItemStack carried = this.menu.getCarried();
-        if (!ItemStack.matches(carried, this.brbe$lastCarried)) {
-            this.brbe$lastCarried = carried.copy();
-            this.updateCollections(false);
-        }
     }
 
     private void brbe$sortCraftableBeforePartial(List<C> results) {
