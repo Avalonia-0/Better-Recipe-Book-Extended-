@@ -63,13 +63,18 @@ public final class RecipeStateDiagnostic {
      */
     public static void run(List<RecipeCollection> processedCollections,
                            NonNullList<Slot> menuSlots) {
+        run(processedCollections, menuSlots, net.minecraft.world.item.ItemStack.EMPTY);
+    }
+
+    public static void run(List<RecipeCollection> processedCollections,
+                           NonNullList<Slot> menuSlots, ItemStack carried) {
         if (processedCollections == null || processedCollections.isEmpty()) return;
 
-        long hash = PartialCraftingUtil.slotHash(menuSlots);
+        long hash = PartialCraftingUtil.slotHash(menuSlots, carried);
         if (hash == lastDiagnosticSlotHash) return;
         lastDiagnosticSlotHash = hash;
 
-        Set<Item> inventoryItems = PartialCraftingUtil.hashInventory(menuSlots);
+        Set<Item> inventoryItems = PartialCraftingUtil.hashInventory(menuSlots, -1, carried);
         // Item → 总数量。诊断的数量检查用它判断"类型齐全但数量不足"的配方。
         Map<Item, Integer> inventoryCounts = new HashMap<>();
         for (Slot slot : menuSlots) {
@@ -77,6 +82,9 @@ public final class RecipeStateDiagnostic {
             if (!stack.isEmpty()) {
                 inventoryCounts.merge(stack.getItem(), stack.getCount(), Integer::sum);
             }
+        }
+        if (!carried.isEmpty()) {
+            inventoryCounts.merge(carried.getItem(), carried.getCount(), Integer::sum);
         }
         ContextMap context = null;
         Minecraft mc = Minecraft.getInstance();
@@ -117,13 +125,19 @@ public final class RecipeStateDiagnostic {
                 boolean ok;
 
                 if (needsGrid) {
-                    // 3×3 配方：2×2 生存网格放不下。无论材料是否齐全，都永不标 partial。
-                    // 材料齐全 → 不可合成轮廓 + incompatible 警告（cft:N partial:N 合格）
-                    // 合成台（3×3）中 isCraftable=true → cft:Y partial:N 也合格
-                    ok = !isPartial;
-                    label = isPartial
-                            ? "不合格(3×3配方被误标partial)"
-                            : "3×3配方(网格决定, 材料" + (predicted == PredictedState.CRAFTABLE ? "齐全" : "不足") + ")";
+                    // 3×3 配方：2×2 生存网格放不下。
+                    // 材料齐全 → 不标 partial（网格问题，incompatible 警告处理）
+                    // 部分材料在库存 → 应标 partial（确实缺材料）
+                    // 无材料在库存 → 不标 partial（不是"缺部分材料"）
+                    ok = switch (predicted) {
+                        case PARTIAL -> isPartial;
+                        default -> !isPartial;
+                    };
+                    label = switch (predicted) {
+                        case CRAFTABLE -> "3×3配方(网格决定, 材料齐全)";
+                        case PARTIAL -> "3×3配方(材料不足, " + (isPartial ? "已标partial" : "未标partial") + ")";
+                        default -> "3×3配方(无材料在库存)";
+                    };
                 } else {
                     // 2×2 网格可容纳配方：预测必须与标记一致
                     switch (predicted) {
@@ -211,7 +225,10 @@ public final class RecipeStateDiagnostic {
             }
         }
 
-        int matchedSlots = neededCounts.size();
+        // 已匹配槽位数 = 各物品在成分槽出现次数之和（每槽最多匹配一种物品）。
+        // 不能用 neededCounts.size()——单一物品多槽位配方（剪刀 2×铁锭）
+        // 类型数 1 ≠ 槽位数 2，会误判为 PARTIAL。
+        int matchedSlots = neededCounts.values().stream().mapToInt(Integer::intValue).sum();
         if (matchedSlots == totalSlots) return PredictedState.CRAFTABLE;
         if (matchedSlots == 0) return PredictedState.UNCRAFTABLE;
         return PredictedState.PARTIAL;

@@ -3,7 +3,6 @@ package com.alonie.brbe.generic;
 import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
-import com.alonie.brbe.mixins.accessors.KeyMappingAccessor;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ModNameUtil;
@@ -161,21 +160,6 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
             }
         }
 
-        this.addPinTooltip(list);
-
         return list;
-    }
-
-    public void addPinTooltip(List<Component> list) {
-        list.add(Component.empty());
-
-        if (true) {
-            String keyName = ((KeyMappingAccessor) BetterRecipeBook.PIN_MAPPING).getKey().getDisplayName().getString();
-            if (BetterRecipeBook.pinnedRecipeManager.has(collection)) {
-                list.add(Component.translatable("brbe.gui.pin.remove", keyName));
-            } else {
-                list.add(Component.translatable("brbe.gui.pin.add", keyName));
-            }
-        }
     }
 }

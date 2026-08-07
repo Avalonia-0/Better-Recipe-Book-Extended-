@@ -153,9 +153,15 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
 
     @Inject(method = "render", at = @At("RETURN"))
     public void render(GuiGraphics guiGraphics, int i, int j, float f, CallbackInfo ci) {
+        guiGraphics.nextStratum();
         if (this._$recipeBookComponent.isVisible()) {
             this._$recipeBookComponent.render(guiGraphics, i, j, f);
             this._$recipeBookComponent.renderGhostRecipe(guiGraphics, this.leftPos, this.topPos, false, f);
+        }
+
+        guiGraphics.nextStratum();
+        this.renderCarriedItem(guiGraphics, i, j);
+        if (this._$recipeBookComponent.isVisible()) {
             this._$recipeBookComponent.drawTooltip(guiGraphics, this.leftPos, this.topPos, i, j);
         }
     }
@@ -173,6 +179,13 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     public void renderOnboardingTooltips(GuiGraphics guiGraphics, int i, int j, CallbackInfo ci) {
         if (BetterRecipeBook.config.enableBook && _$recipeBookComponent.isShowingGhostRecipe()) {
             ci.cancel();
+        }
+    }
+
+    @Inject(method = "containerTick", at = @At("RETURN"))
+    public void containerTick(CallbackInfo ci) {
+        if (this._$recipeBookComponent != null) {
+            this._$recipeBookComponent.tick();
         }
     }
 

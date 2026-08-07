@@ -26,6 +26,11 @@ public class Config implements ConfigData {
     public boolean keepCentered = false;
 
     @ConfigEntry.Category("ui")
+    @ConfigEntry.Gui.Excluded
+    @ConfigEntry.Gui.Tooltip()
+    public boolean expandedRecipeBook = false;
+
+    @ConfigEntry.Category("ui")
     public boolean hideReiJeiOverlay = false;
 
     @ConfigEntry.Category("ui")
@@ -33,6 +38,7 @@ public class Config implements ConfigData {
     public boolean settingsButton = true;
 
     @ConfigEntry.Category("ui")
+    @ConfigEntry.Gui.Tooltip()
     public boolean enableBook = true;
 
     // -- 配方设置 --------------------------------------------------------------
@@ -42,12 +48,20 @@ public class Config implements ConfigData {
     public boolean showAllRecipesInSurvival = true;
 
     @ConfigEntry.Category("recipeSettings")
+    public boolean hideIncompatibleMark = false;
+
+    @ConfigEntry.Category("recipeSettings")
     @ConfigEntry.Gui.Tooltip()
     public boolean partialCraftingEnabled = true;
 
     @ConfigEntry.Category("recipeSettings")
+    @ConfigEntry.Gui.PrefixText()
     @ConfigEntry.Gui.Tooltip()
     public boolean partialMarkingEnabled = true;
+
+    @ConfigEntry.Category("recipeSettings")
+    @ConfigEntry.Gui.Tooltip()
+    public boolean partialOnlyWhenCarrying = true;
 
     @ConfigEntry.Category("recipeSettings")
     @ConfigEntry.Gui.PrefixText()
@@ -65,5 +79,10 @@ public class Config implements ConfigData {
         public boolean enableRecipeBookIsPain = true;
 
         public boolean enableTabPage = true;
+    }
+
+    @Override
+    public void validatePostLoad() {
+        this.expandedRecipeBook = false;
     }
 }

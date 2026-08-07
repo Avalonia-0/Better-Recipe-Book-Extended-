@@ -29,6 +29,18 @@ public abstract class RecipeBookPageMixin {
     @Shadow
     private ImageButton backButton;
 
+    @Shadow
+    private net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent overlay;
+
+    /**
+     * 翻页（点击/滚轮/updateCollections 等所有路径都会走到
+     * updateButtonsForPage）后关闭替代配方 overlay，否则它会留在原地。
+     */
+    @Inject(method = "updateButtonsForPage", at = @At("RETURN"))
+    private void brbe$closeOverlayOnPageChange(CallbackInfo ci) {
+        this.overlay.setVisible(false);
+    }
+
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     public void mouseClickedBtn(MouseButtonEvent event, int areaLeft, int areaTop, int areaWidth, int areaHeight, boolean widthTooNarrow, CallbackInfoReturnable<Boolean> cir) {
         if (!BetterRecipeBook.config.scrollAround || totalPages <= 1 || event.button() != 0) {

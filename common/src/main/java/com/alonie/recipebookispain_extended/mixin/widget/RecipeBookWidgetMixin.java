@@ -389,68 +389,26 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Unique
     private boolean rbip$isMouseOverAnyVisibleTab(double mouseX, double mouseY) {
-        RbipScrollArea topArea = null;
-        RbipScrollArea bottomArea = null;
-
-        for (RecipeBookTabButton widget : this.tabButtons) {
-            if (!widget.visible) continue;
-
-            RecipeGroupButtonPlacement placement = ((RecipeGroupButtonPlacementAccess) widget).rbip$getPlacement();
-            if (placement == RecipeGroupButtonPlacement.TOP) {
-                topArea = this.rbip$includeScrollArea(topArea, this.rbip$getExpandedHorizontalArea(widget));
-            } else if (placement == RecipeGroupButtonPlacement.BOTTOM) {
-                bottomArea = this.rbip$includeScrollArea(bottomArea, this.rbip$getExpandedHorizontalArea(widget));
-            } else if (this.rbip$isInside(mouseX, mouseY, widget.getX(), widget.getY(), widget.getWidth(), widget.getHeight())) {
-                return true;
-            }
-        }
-
-        if (topArea != null && this.rbip$isInside(
-                mouseX, mouseY,
-                topArea.left(), topArea.top(),
-                topArea.width(), topArea.height())) {
+        // 固定滚动区域 = 创造模式标签的完整容纳空间（不依赖实际放置的标签）：
+        // 左侧 6 槽整列 + 顶部整行 + 底部整行（含 padding 上下扩展）。
+        // 只要鼠标落在这些槽位区域内（即便该处没有标签）即可翻页。
+        if (this.rbip$isInside(mouseX, mouseY, this.rbip$getTabX(), this.rbip$getTabY(),
+                RBIP_TAB_WIDTH, RBIP_LEFT_TOTAL_SLOTS * RBIP_TAB_HEIGHT)) {
             return true;
         }
-
-        return bottomArea != null && this.rbip$isInside(
-                mouseX, mouseY,
-                bottomArea.left(), bottomArea.top(),
-                bottomArea.width(), bottomArea.height());
-    }
-
-    @Unique
-    private RbipScrollArea rbip$getExpandedHorizontalArea(RecipeBookTabButton widget) {
-        return new RbipScrollArea(
-                widget.getX(),
-                widget.getY() - RBIP_HORIZONTAL_SCROLL_OUTWARD_PADDING,
-                widget.getX() + widget.getWidth(),
-                widget.getY() + widget.getHeight() + RBIP_HORIZONTAL_SCROLL_OUTWARD_PADDING);
-    }
-
-    @Unique
-    private RbipScrollArea rbip$includeScrollArea(RbipScrollArea current, RbipScrollArea area) {
-        return current == null
-                ? area
-                : new RbipScrollArea(
-                        Math.min(current.left(), area.left()),
-                        Math.min(current.top(), area.top()),
-                        Math.max(current.right(), area.right()),
-                        Math.max(current.bottom(), area.bottom()));
+        int horizX = this.rbip$getHorizontalTabStartX();
+        int horizW = RBIP_TOP_SLOTS * RBIP_EXTENDED_SLOT_STEP;
+        int horizH = RBIP_ROTATED_TAB_HEIGHT + 2 * RBIP_HORIZONTAL_SCROLL_OUTWARD_PADDING;
+        if (this.rbip$isInside(mouseX, mouseY, horizX, this.rbip$getTopTabY() - RBIP_HORIZONTAL_SCROLL_OUTWARD_PADDING,
+                horizW, horizH)) {
+            return true;
+        }
+        return this.rbip$isInside(mouseX, mouseY, horizX, this.rbip$getBottomTabY() - RBIP_HORIZONTAL_SCROLL_OUTWARD_PADDING,
+                horizW, horizH);
     }
 
     @Unique
     private boolean rbip$isInside(double x, double y, int left, int top, int width, int height) {
         return x >= left && x < left + width && y >= top && y < top + height;
-    }
-
-    @Unique
-    private record RbipScrollArea(int left, int top, int right, int bottom) {
-        private int width() {
-            return this.right - this.left;
-        }
-
-        private int height() {
-            return this.bottom - this.top;
-        }
     }
 }

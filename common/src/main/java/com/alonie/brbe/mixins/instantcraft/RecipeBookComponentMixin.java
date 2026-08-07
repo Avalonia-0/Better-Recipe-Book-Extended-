@@ -53,7 +53,7 @@ public abstract class RecipeBookComponentMixin {
 
         // Right-aligned with grid zone right edge, bottom-aligned with forward arrow
         int btnX = i + BookLayout.TEXTURE_WIDTH - BookLayout.GRID_PAD - 26;
-        int btnY = j + BookLayout.SETTINGS_Y_OFFSET + 17 - 18;
+        int btnY = j + BookLayout.SETTINGS_Y_OFFSET + 17 - 18 + 1;
 
         this.brbe$instantCraftButton = new StateSwitchingButton(
                 btnX, btnY, 26, 18, false);

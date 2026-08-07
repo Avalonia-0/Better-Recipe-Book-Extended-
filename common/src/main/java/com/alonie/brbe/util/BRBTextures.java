@@ -22,6 +22,27 @@ public class BRBTextures {
             Identifier.withDefaultNamespace("recipe_book/filter_disabled_highlighted")
     );
 
+    public static final WidgetSprites BREWING_FILTER_BUTTON_SPRITES = new WidgetSprites(
+            Identifier.fromNamespaceAndPath(NS, "recipe_book/filter_brewing_enabled"),
+            Identifier.fromNamespaceAndPath(NS, "recipe_book/filter_brewing_disabled"),
+            Identifier.fromNamespaceAndPath(NS, "recipe_book/filter_brewing_enabled_highlighted"),
+            Identifier.fromNamespaceAndPath(NS, "recipe_book/filter_brewing_disabled_highlighted")
+    );
+
+    public static final WidgetSprites SMITHING_FILTER_BUTTON_SPRITES = new WidgetSprites(
+            Identifier.fromNamespaceAndPath(NS, "recipe_book/filter_smithing_enabled"),
+            Identifier.fromNamespaceAndPath(NS, "recipe_book/filter_smithing_disabled"),
+            Identifier.fromNamespaceAndPath(NS, "recipe_book/filter_smithing_enabled_highlighted"),
+            Identifier.fromNamespaceAndPath(NS, "recipe_book/filter_smithing_disabled_highlighted")
+    );
+
+    /** Pick the filter sprites for a recipe book type (brewing/smithing; fallback = vanilla). */
+    public static WidgetSprites filterButtonFor(BRBHelper.Book book) {
+        if (book == BetterRecipeBook.BREWING) return BREWING_FILTER_BUTTON_SPRITES;
+        if (book == BetterRecipeBook.SMITHING) return SMITHING_FILTER_BUTTON_SPRITES;
+        return RECIPE_BOOK_FILTER_BUTTON_SPRITES;
+    }
+
     public static final WidgetSprites RECIPE_BOOK_PAGE_FORWARD_SPRITES = new WidgetSprites(
             Identifier.withDefaultNamespace("recipe_book/page_forward"),
             Identifier.withDefaultNamespace("recipe_book/page_forward_highlighted")
