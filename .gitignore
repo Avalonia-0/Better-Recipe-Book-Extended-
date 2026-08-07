@@ -17,3 +17,7 @@
 /*.jar
 /HeadlessMC/
 /logs/
+
+# local/experimental
+.claude/
+resourcepacks/
