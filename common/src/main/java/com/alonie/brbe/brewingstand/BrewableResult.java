@@ -85,20 +85,6 @@ public class BrewableResult implements GenericRecipe {
         return getHoverName(category).getString();
     }
 
-    @Override
-    public boolean usesItem(ItemStack item) {
-        if (getIngredient(recipe).test(item)) {
-            return true;
-        }
-        // The input potion may be in any of the three forms (potion/splash/lingering).
-        for (Item potionItem : List.of(Items.POTION, Items.SPLASH_POTION, Items.LINGERING_POTION)) {
-            if (ItemStack.isSameItemSameComponents(potionStackFromPotion(potionItem, getFrom(recipe)), item)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
     public static ItemStack potionStackFromPotion(Item item, Potion pot) {
         return PotionContents.createItemStack(item, BuiltInRegistries.POTION.wrapAsHolder(pot));
     }

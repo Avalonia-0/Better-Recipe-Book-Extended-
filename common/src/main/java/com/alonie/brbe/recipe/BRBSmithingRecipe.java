@@ -73,15 +73,4 @@ public interface BRBSmithingRecipe extends SmithingRecipe, GenericRecipe {
     default String getSearchString(BRBBookCategories.Category category) {
         return this.getTemplateType();
     }
-
-    @Override
-    default boolean usesItem(ItemStack item) {
-        if (this.getTemplate().test(item)) {
-            return true;
-        }
-        if (this.getBase().getItem().equals(item.getItem())) {
-            return true;
-        }
-        return this.getAddition().test(item);
-    }
 }

@@ -73,9 +73,6 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     @Nullable
     private ItemStack brbe$lastHoveredGhostItem;
 
-    /** Last carried item, to detect pick-up/drop and refresh partial visibility. */
-    private ItemStack brbe$lastCarried = ItemStack.EMPTY;
-
     protected GenericRecipeBookComponent() {
     }
 
@@ -163,6 +160,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
     public void render(GuiGraphics gui, int mouseX, int mouseY, float delta) {
         if (!this.isVisible()) return;
+
 
         if (this.doubleRefresh) {
             // Minecraft doesn't populate the inventory on initialization so this is the only solution I have
@@ -305,48 +303,11 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         if (shouldSort) {
             results = CollectionPipeline.applyPartialSortGeneric(results);
         }
-        // partialOnlyWhenCarrying applies regardless of the "craftable only"
-        // filter toggle: partial recipes are hidden by default and only shown
-        // while the player is holding one of their materials.
-        boolean partialOnlyWhenCarrying = BetterRecipeBook.ctx().config().partialOnlyWhenCarrying;
-        ItemStack carried = this.menu.getCarried();
-        results.removeIf((result) -> {
-            if (result.atleastOneCraftable(this.menu.slots)) {
-                return false; // craftable → always keep
-            }
-            if (partialOnlyWhenCarrying) {
-                // Nothing held → hide all partial recipes.
-                if (carried == null || carried.isEmpty()) {
-                    return true;
-                }
-                // Only keep partial recipes that actually use the held item.
-                for (R recipe : result.getRecipes()) {
-                    if (recipe.usesItem(carried)) {
-                        return false; // uses held item → keep
-                    }
-                }
-                return true; // unrelated partial → hide
-            }
-            return isFiltering && !result.atleastOnePartiallyCraftable(this.menu.slots);
-        });
+        if (isFiltering) {
+            results = CollectionPipeline.applyFilterToggleGeneric(results, isFiltering);
+        }
 
         this.recipesPage.setResults(results, resetPageNumber, selectedTab.getCategory());
-    }
-
-    /**
-     * Detects a change in the carried item (pick-up/drop) and refreshes the
-     * collection list, so {@code partialOnlyWhenCarrying} visibility updates
-     * live. Called from the host screen's {@code containerTick}.
-     */
-    public void tick() {
-        if (!this.isVisible() || this.menu == null) {
-            return;
-        }
-        ItemStack carried = this.menu.getCarried();
-        if (!ItemStack.matches(carried, this.brbe$lastCarried)) {
-            this.brbe$lastCarried = carried.copy();
-            this.updateCollections(false);
-        }
     }
 
     private boolean matchesSearch(C collection, SearchQuery query, SearchCache cache) {
