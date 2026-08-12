@@ -6,9 +6,12 @@ import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
 import com.alonie.brbe.util.CollectionCategory;
 import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
+import com.alonie.brbe.util.PartialGhostOverlayUtil;
 import com.alonie.brbe.util.RecipeBookState;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.gui.screens.recipebook.GhostSlots;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.inventory.RecipeBookMenu;
@@ -38,6 +41,15 @@ public abstract class RecipeBookComponentMixin {
 
     @Shadow @Final
     protected Minecraft minecraft;
+
+    @Shadow
+    private RecipeDisplayId lastRecipe;
+
+    @Shadow
+    private RecipeCollection lastRecipeCollection;
+
+    @Shadow @Final
+    private GhostSlots ghostSlots;
 
     @Shadow
     private net.minecraft.client.gui.components.EditBox searchBox;
@@ -323,6 +335,15 @@ public abstract class RecipeBookComponentMixin {
     @Inject(method = "updateCollections", at = @At("TAIL"))
     private void brbe$diagnostic(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
         com.alonie.brbe.util.RecipeStateDiagnostic.run(brbe$lastProcessedCollections, menu.slots, this.menu.getCarried());
+    }
+
+    /**
+     * 渲染幽灵物品前计算残缺配方的红遮罩槽位：物品栏已有的材料按幽灵槽位顺序
+     * （从左到右、从上到下）逐个扣除，对应槽位不再绘制红色遮罩。
+     */
+    @Inject(method = "extractGhostRecipe", at = @At("HEAD"))
+    private void brbe$preparePartialGhostOverlay(GuiGraphicsExtractor graphics, boolean isResultSlotBig, CallbackInfo ci) {
+        PartialGhostOverlayUtil.prepare(this.lastRecipe, this.lastRecipeCollection, this.menu.slots, this.menu.getCarried(), this.ghostSlots);
     }
 
 }

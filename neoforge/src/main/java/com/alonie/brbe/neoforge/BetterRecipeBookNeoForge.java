@@ -1,7 +1,7 @@
 package com.alonie.brbe.neoforge;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.config.Config;
+import com.alonie.brbe.config.BrbeConfig;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.common.Mod;
 import net.neoforged.bus.api.IEventBus;
@@ -20,7 +20,7 @@ public final class BetterRecipeBookNeoForge {
             container.registerExtensionPoint(IConfigScreenFactory.class,
                     (modContainer, parent) -> {
                         try {
-                            return (net.minecraft.client.gui.screens.Screen) getConfigScreenMethod.invoke(null, Config.class, parent);
+                            return (net.minecraft.client.gui.screens.Screen) getConfigScreenMethod.invoke(null, BrbeConfig.class, parent);
                         } catch (Exception ignored) {
                             return parent;
                         }

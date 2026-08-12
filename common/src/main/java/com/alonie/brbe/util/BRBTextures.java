@@ -12,6 +12,7 @@ public class BRBTextures {
 
     public static final Identifier RECIPE_BOOK_BUTTON_SLOT_CRAFTABLE_SPRITE = Identifier.withDefaultNamespace("recipe_book/slot_craftable");
     public static final Identifier RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE = Identifier.withDefaultNamespace("recipe_book/slot_uncraftable");
+    public static final Identifier RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE = Identifier.fromNamespaceAndPath(NS, "recipe_book/slot_partial");
     public static final Identifier RECIPE_BOOK_PIN_SPRITE = Identifier.fromNamespaceAndPath(NS, "recipe_book/pin");
     public static final Identifier RECIPE_BOOK_OVERLAY_PIN_SPRITE = Identifier.fromNamespaceAndPath(NS, "recipe_book/overlay_pin");
     
@@ -76,6 +77,9 @@ public class BRBTextures {
             Identifier.fromNamespaceAndPath(NS, "recipe_book/plain_overlay_highlighted"),
             Identifier.fromNamespaceAndPath(NS, "recipe_book/plain_overlay_disabled_highlighted")
     );
+
+    public static final Identifier FURNACE_FIRE_SPRITE =
+            Identifier.fromNamespaceAndPath(NS, "recipe_book/furnace_fire");
 
     public static final WidgetSprites SETTINGS_BUTTON_SPRITES = new WidgetSprites(
             Identifier.fromNamespaceAndPath(NS, "recipe_book/button_settings"),

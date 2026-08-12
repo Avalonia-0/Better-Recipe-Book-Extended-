@@ -4,6 +4,7 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.BrewingRecipeBookComponent;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBTextures;
+import com.alonie.brbe.util.RecipeViewerOverlay;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ImageButton;
@@ -115,6 +116,11 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
         if (this._$recipeBookComponent.isVisible()) {
             this._$recipeBookComponent.drawTooltip(guiGraphics, this.leftPos, this.topPos, i, j);
         }
+
+        // This screen overrides extractRenderState without delegating to
+        // AbstractContainerScreen, so the viewer overlay (hooked on the base
+        // class) must be drawn here explicitly.
+        RecipeViewerOverlay.render(guiGraphics, i, j, f);
     }
 
     // fix brewing progress indicator offset when recipe book is open by modifying the width offset

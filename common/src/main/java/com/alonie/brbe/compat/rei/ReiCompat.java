@@ -2,12 +2,13 @@ package com.alonie.brbe.compat.rei;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.compat.ItemViewCompat;
-
+import com.alonie.brbe.compat.ModLoaderCompat;
 import net.minecraft.world.item.ItemStack;
 
 public class ReiCompat {
     private static volatile boolean registered;
 
+    /** Called from platform-specific init. */
     public static void register() {
         if (!isModLoaded("roughlyenoughitems")) return;
 
@@ -32,6 +33,7 @@ public class ReiCompat {
         registered = true;
     }
 
+    /** Lazy fallback: called on first isLoaded() check if register() wasn't called yet. */
     private static void ensureRegistered() {
         if (registered) return;
         registered = true;
@@ -72,6 +74,12 @@ public class ReiCompat {
         return ItemViewCompat.openUsageView(stack);
     }
 
+    /**
+     * Query REI's configured key binding via reflection.
+     *
+     * @param getterName {@code "getRecipeKeybind"} or {@code "getUsageKeybind"}
+     * @return true if the key press matches REI's configured binding
+     */
     static boolean matchesKeyBind(String getterName, int keyCode, int scanCode) {
         try {
             Class<?> configObj = Class.forName("me.shedaniel.rei.api.client.config.ConfigObject");
@@ -89,29 +97,6 @@ public class ReiCompat {
     }
 
     private static boolean isModLoaded(String modId) {
-        // Try Fabric Loader first (Fabric)
-        try {
-            Class<?> fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader");
-            Object instance = fabricLoader.getMethod("getInstance").invoke(null);
-            return (boolean) instance.getClass().getMethod("isModLoaded", String.class)
-                    .invoke(instance, modId);
-        } catch (Throwable ignored) { }
-
-        // Try NeoForge ModList (NeoForge)
-        try {
-            Class<?> modList = Class.forName("net.neoforged.fml.ModList");
-            Object instance = modList.getMethod("get").invoke(null);
-            return (boolean) instance.getClass().getMethod("isLoaded", String.class)
-                    .invoke(instance, modId);
-        } catch (Throwable ignored) { }
-
-        // Try legacy FMLLoader (older NeoForge / Forge)
-        try {
-            Class<?> fmlLoader = Class.forName("net.neoforged.fml.loading.FMLLoader");
-            return (boolean) fmlLoader.getMethod("isModLoaded", String.class)
-                    .invoke(null, modId);
-        } catch (Throwable ignored) { }
-
-        return false;
+        return ModLoaderCompat.isModLoaded(modId);
     }
 }

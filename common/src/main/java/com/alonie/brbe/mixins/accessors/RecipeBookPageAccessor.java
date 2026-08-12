@@ -1,5 +1,6 @@
 package com.alonie.brbe.mixins.accessors;
 
+import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
@@ -20,5 +21,23 @@ public interface RecipeBookPageAccessor {
 
     @Accessor("recipeCollections")
     List<RecipeCollection> getCollections();
+
+    @Accessor("forwardButton")
+    ImageButton getForwardButton();
+
+    @Accessor("backButton")
+    ImageButton getBackButton();
+
+    @Accessor("currentPage")
+    int getCurrentPage();
+
+    @Accessor("currentPage")
+    void setCurrentPage(int currentPage);
+
+    @Accessor("totalPages")
+    int getTotalPages();
+
+    @org.spongepowered.asm.mixin.gen.Invoker("updateButtonsForPage")
+    void updateButtonsForPageInvoker();
 
 }

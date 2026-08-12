@@ -37,7 +37,7 @@ import java.util.List;
 
 @Mixin(RecipeBookComponent.class)
 public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
-    @Unique private static final Identifier RBIP_PAGE_BUTTONS = Identifier.fromNamespaceAndPath("recipe-book-is-pain-extended", "textures/rbip/recipe_book_buttons.png");
+    @Unique private static final Identifier RBIP_PAGE_BUTTONS = Identifier.fromNamespaceAndPath("brbe", "textures/rbip/recipe_book_buttons.png");
     @Unique private static final int RBIP_FALLBACK_GROUPS_PER_PAGE = 5;
     @Unique private static final int RBIP_PAGE_BUTTON_WIDTH = 14;
     @Unique private static final int RBIP_PAGE_BUTTON_HEIGHT = 13;
@@ -153,8 +153,9 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         if (!this.isVisible() || this.rbip$pageCount <= 1) return;
 
-        this.rbip$drawPageControl(context, this.rbip$pageControlX, this.rbip$pageControlY, false, this.rbip$page > 0, mouseX, mouseY);
-        this.rbip$drawPageControl(context, this.rbip$pageControlX + 15, this.rbip$pageControlY, true, this.rbip$page < this.rbip$pageCount - 1, mouseX, mouseY);
+        boolean wrap = com.alonie.brbe.BetterRecipeBook.config.scrolling.scrollAround;
+        this.rbip$drawPageControl(context, this.rbip$pageControlX, this.rbip$pageControlY, false, wrap || this.rbip$page > 0, mouseX, mouseY);
+        this.rbip$drawPageControl(context, this.rbip$pageControlX + 15, this.rbip$pageControlY, true, wrap || this.rbip$page < this.rbip$pageCount - 1, mouseX, mouseY);
 
         if (this.minecraft.gui.screen() != null
                 && (this.rbip$isInside(mouseX, mouseY, this.rbip$pageControlX, this.rbip$pageControlY, RBIP_PAGE_BUTTON_WIDTH, RBIP_PAGE_BUTTON_HEIGHT)
@@ -170,17 +171,24 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
         int x = (int) click.x();
         int y = (int) click.y();
+        boolean wrap = com.alonie.brbe.BetterRecipeBook.config.scrolling.scrollAround;
 
         if (this.rbip$isInside(x, y, this.rbip$pageControlX, this.rbip$pageControlY, RBIP_PAGE_BUTTON_WIDTH, RBIP_PAGE_BUTTON_HEIGHT)) {
-            if (this.rbip$page > 0) {
-                this.rbip$page--;
+            int prev = wrap
+                    ? (this.rbip$page - 1 + this.rbip$pageCount) % this.rbip$pageCount
+                    : Math.max(0, this.rbip$page - 1);
+            if (prev != this.rbip$page) {
+                this.rbip$page = prev;
                 this.rbip$applyPagination(false);
                 AbstractWidget.playButtonClickSound(this.minecraft.getSoundManager());
                 cir.setReturnValue(true);
             }
         } else if (this.rbip$isInside(x, y, this.rbip$pageControlX + 15, this.rbip$pageControlY, RBIP_PAGE_BUTTON_WIDTH, RBIP_PAGE_BUTTON_HEIGHT)) {
-            if (this.rbip$page < this.rbip$pageCount - 1) {
-                this.rbip$page++;
+            int next = wrap
+                    ? (this.rbip$page + 1) % this.rbip$pageCount
+                    : Math.min(this.rbip$pageCount - 1, this.rbip$page + 1);
+            if (next != this.rbip$page) {
+                this.rbip$page = next;
                 this.rbip$applyPagination(false);
                 AbstractWidget.playButtonClickSound(this.minecraft.getSoundManager());
                 cir.setReturnValue(true);
@@ -202,12 +210,33 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         }
 
         int nextPage = this.rbip$page + (verticalAmount > 0.0D ? -1 : 1);
-        nextPage = Math.max(0, Math.min(nextPage, this.rbip$pageCount - 1));
+        if (com.alonie.brbe.BetterRecipeBook.config.scrolling.scrollAround) {
+            // Wrap around: a scroll past the last page returns to the first
+            // (and past the first goes to the last), matching scrollAround.
+            nextPage = (nextPage % this.rbip$pageCount + this.rbip$pageCount) % this.rbip$pageCount;
+        } else {
+            nextPage = Math.max(0, Math.min(nextPage, this.rbip$pageCount - 1));
+        }
         if (nextPage != this.rbip$page) {
             this.rbip$page = nextPage;
             this.rbip$applyPagination(false);
+            if (com.alonie.brbe.BetterRecipeBook.config.scrollPageSound
+                    && this.minecraft.getSoundManager() != null) {
+                AbstractWidget.playButtonClickSound(this.minecraft.getSoundManager());
+            }
         }
         return true;
+    }
+
+    @Override
+    public int rbip$getPage() {
+        return this.rbip$page;
+    }
+
+    @Override
+    public void rbip$setPage(int page) {
+        this.rbip$page = page;
+        this.rbip$applyPagination(false);
     }
 
     @Unique
@@ -401,8 +430,14 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
                 horizW, horizH)) {
             return true;
         }
-        return this.rbip$isInside(mouseX, mouseY, horizX, this.rbip$getBottomTabY() - RBIP_HORIZONTAL_SCROLL_OUTWARD_PADDING,
-                horizW, horizH);
+        if (this.rbip$isInside(mouseX, mouseY, horizX, this.rbip$getBottomTabY() - RBIP_HORIZONTAL_SCROLL_OUTWARD_PADDING,
+                horizW, horizH)) {
+            return true;
+        }
+        // The turn-page buttons themselves are also a scroll zone.
+        int btnW = RBIP_PAGE_BUTTON_WIDTH * 2 + 15;
+        return this.rbip$isInside(mouseX, mouseY, this.rbip$pageControlX, this.rbip$pageControlY,
+                btnW, RBIP_PAGE_BUTTON_HEIGHT);
     }
 
     @Unique

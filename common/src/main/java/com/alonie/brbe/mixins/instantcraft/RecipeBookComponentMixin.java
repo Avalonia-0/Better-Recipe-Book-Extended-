@@ -81,6 +81,14 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     public void mouseClicked(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+        // While the BRBE R/U viewer overlay is up it acts as an opaque top
+        // layer: a click over the overlay must not trigger the instant-craft
+        // button underneath (the viewer's swallow-click returns true without
+        // firing anything).
+        if (com.alonie.brbe.cache.RecipeViewerIndex.isViewerActive()) {
+            return;
+        }
+
         if (!this.isVisible() || brbe$shouldSkip() || this.brbe$instantCraftButton == null) {
             return;
         }

@@ -49,12 +49,12 @@ public class BrewableRecipeButton extends GenericRecipeButton<BrewingRecipeColle
         );
         list.add(Component.empty());
 
-        ChatFormatting colour = this.collection.getFirst().hasIngredient(this.menu.slots) ? ChatFormatting.WHITE : ChatFormatting.DARK_GRAY;
+        ChatFormatting colour = this.collection.getFirst().hasIngredient(this.menu.slots, this.menu.getCarried()) ? ChatFormatting.WHITE : ChatFormatting.DARK_GRAY;
         list.add(Component.literal(ClientCompat.firstIngredientItem(getIngredient(this.collection.getFirst().recipe)).getHoverName().getString()).withStyle(colour));
         list.add(Component.literal("->").withStyle(ChatFormatting.DARK_GRAY));
 
         ItemStack inputStack = this.collection.getFirst().inputAsItemStack(this.category);
-        if (!this.collection.getFirst().hasInput(this.category, this.menu.slots)) {
+        if (!this.collection.getFirst().hasInput(this.category, this.menu.slots, this.menu.getCarried())) {
             colour = ChatFormatting.DARK_GRAY;
         }
         list.add(Component.literal(inputStack.getHoverName().getString()).withStyle(colour));

@@ -71,10 +71,15 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
                 && (collection.isCraftable(current, menu.slots) || isPartial);
         Identifier outlineTexture = effectiveCraftable ?
                 BRBTextures.RECIPE_BOOK_BUTTON_SLOT_CRAFTABLE_SPRITE : BRBTextures.RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE;
-        ClientCompat.blitSprite(gui, outlineTexture, getX(), getY(), this.width, this.height);
+
+        // partial recipes: use the red-check sprite from the compat pack when available,
+        // otherwise fall back to the vanilla sprite + red overlay
+        boolean redCheck = isPartial && ClientCompat.hasSpriteResource(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE);
+        ClientCompat.blitSprite(gui, redCheck ? BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE : outlineTexture,
+                getX(), getY(), this.width, this.height);
 
         // red overlay for partially craftable recipes (drawn before item so item shows on top)
-        if (isPartial) {
+        if (isPartial && !redCheck) {
             gui.fill(getX() + 1, getY() + 1, getX() + this.width - 1, getY() + this.height - 1, 0x60FF3333);
         }
 
@@ -97,6 +102,60 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         }
 
         return list.get(currentIndex);
+    }
+
+    /**
+     * 挤压离场渲染：配方格子以给定宽度渲染（blit 贴图被横向压缩），用于配方
+     * 滑出视窗边界时被挤压消失的效果。右/左边缘由 slotX/width 决定（边缘钳制在
+     * 视窗边界），图标在格子宽度不足以容纳时（&lt;=20）消失。
+     */
+    public void renderSquashed(GuiGraphicsExtractor gui, int slotX, int width, int bx, int slotY) {
+        if (this.collection == null || width <= 0) {
+            return;
+        }
+        List<R> list = getOrderedRecipes();
+        if (list.isEmpty()) {
+            return;
+        }
+        R current = getCurrentDisplayedRecipe();
+        if (current == null) {
+            return;
+        }
+        boolean isPartial = this.collection.getPartiallyCraftableRecipes().stream()
+                .anyMatch(r -> r.id().equals(current.id()));
+        boolean effectiveCraftable = collection.isCraftable(current, menu.slots) || isPartial;
+        Identifier outlineTexture = effectiveCraftable ?
+                BRBTextures.RECIPE_BOOK_BUTTON_SLOT_CRAFTABLE_SPRITE : BRBTextures.RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE;
+        boolean redCheck = isPartial && ClientCompat.hasSpriteResource(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE);
+        Identifier sprite = redCheck ? BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE : outlineTexture;
+        int rightBound = slotX + width;
+        if (width < 25) {
+            // 伪压缩：内容在 [slotX, rightBound] 内裁剪（中间随滑动变短）。图标完整跟随
+            // 配方位置滑出视窗；左右边界 2px 最后渲染（上层），盖住经过边界的图标。
+            gui.enableScissor(slotX, slotY, rightBound, slotY + this.height);
+            ClientCompat.blitSprite(gui, sprite, bx, slotY, this.width, this.height);
+            if (isPartial && !redCheck) {
+                gui.fill(slotX + 1, slotY + 1, rightBound - 1, slotY + this.height - 1, 0x60FF3333);
+            }
+            gui.disableScissor();
+            ItemStack result = current.getResult(registryAccess, category);
+            gui.fakeItem(result, bx + 4, slotY + 4);
+            // 左边界 2px（上层，盖住图标）
+            gui.enableScissor(slotX, slotY, Math.min(slotX + 2, rightBound), slotY + this.height);
+            ClientCompat.blitSprite(gui, sprite, slotX, slotY, this.width, this.height);
+            gui.disableScissor();
+            // 右边界 2px（上层，盖住图标）
+            gui.enableScissor(Math.max(rightBound - 2, slotX), slotY, rightBound, slotY + this.height);
+            ClientCompat.blitSprite(gui, sprite, rightBound - this.width, slotY, this.width, this.height);
+            gui.disableScissor();
+        } else {
+            ClientCompat.blitSprite(gui, sprite, slotX, slotY, this.width, this.height);
+            if (isPartial && !redCheck) {
+                gui.fill(slotX + 1, slotY + 1, slotX + this.width - 1, slotY + this.height - 1, 0x60FF3333);
+            }
+            ItemStack result = current.getResult(registryAccess, category);
+            gui.fakeItem(result, bx + 4, slotY + 4);
+        }
     }
 
     public boolean isOnlyOption() {

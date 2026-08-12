@@ -109,12 +109,12 @@ Potion brewing is platform-dependent (`PotionBrewing.Mix` is package-private). E
 
 # Deploy (build JAR → copy to test instance)
 # Fabric:
-cp fabric/build/libs/BetterRecipeBookExtended-fabric-26.2-2.1.5.jar /media/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/
+cp fabric/build/libs/brbe-ava-fabric-26.2-2.2.1.jar /home/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/
 # NeoForge:
-cp neoforge/build/libs/BetterRecipeBookExtended-neoforge-26.2-2.1.5.jar /media/avalonia/data/MinecraftLib/versions/26.2-NeoForge/mods/
+cp neoforge/build/libs/brbe-ava-neoforge-26.2-2.2.1.jar /home/avalonia/data/MinecraftLib/versions/26.2-NeoForge/mods/
 ```
 
-Test instance paths follow the pattern `/media/avalonia/data/MinecraftLib/versions/<version>-<loader>/mods/`.
+Test instance path rule: `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSION}-{MOD_LOADER}/mods/` (`MOD_LOADER` capitalized: `Fabric`/`NeoForge`). 构建完必须部署；部署前将实例内同版本 JAR 备份为 `*.jar.bak.YYYYMMDD`。
 
 ## Config features and their gates
 
@@ -129,8 +129,9 @@ Test instance paths follow the pattern `/media/avalonia/data/MinecraftLib/versio
 | `instantCraft.enabled` | Shift-click instant craft (auto-move result to inventory) | `InstantCraftingManager` + `instantcraft/` mixins |
 | `alternativeRecipes.noGrouped` | Ungroup recipe variants into separate buttons | `ungroup/RecipeBookComponentMixin` |
 | `keepCentered` | Keep recipe book centered on screen | `centered/RecipeBookComponentMixin` |
-| `showModName` | Display mod namespace on recipe tooltips | `modname/RecipeButtonMixin` |
+| `showModName` | Display mod namespace on recipe tooltips | `modname/RecipeButtonMixin` + `modname/GhostRecipeTooltipMixin` |
 | `scrolling.enabled` | Confine scroll to recipe book area | `MouseScrollHandler` + `scrollablepages/RecipeBookPageMixin` |
+| `pageFlipVolume` | Page-flip sound volume slider added to vanilla Sound Options screen (0.0–1.0, default 1.0 = vanilla). Value in `brbe.toml`, not options.txt | `soundoptions/SoundOptionsScreenMixin` + `scrollablepages/RecipeBookPageMixin` |
 | `newRecipes` | Badge/indicator for newly unlocked recipes | `NewRecipes` config class |
 
 ## RBIP (Recipe Book is Pain) module

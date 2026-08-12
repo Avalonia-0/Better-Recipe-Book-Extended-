@@ -2,6 +2,7 @@ package com.alonie.brbe.mixins.settings;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.config.BrbeConfig;
+import com.alonie.brbe.layout.BookLayout;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.ConfigTipsHelper;
@@ -49,8 +50,9 @@ public abstract class RecipeBookComponentMixin {
     public void reset(CallbackInfo ci) {
         if (BetterRecipeBook.config.settingsButton) {
             int i = (this.width - 147) / 2 - this.xOffset;
-            int j = (this.height - 166) / 2 + 137;
-            this._$settingsButton = new ImageButton(i + 11, j, 18, 18,
+            int j = (this.height - 166) / 2 + BookLayout.settingsY();
+            this._$settingsButton = new ImageButton(i + BookLayout.SETTINGS_X_OFFSET, j,
+                    BookLayout.settingsSize(), BookLayout.settingsSize(),
                     BRBTextures.SETTINGS_BUTTON_SPRITES, button ->
                     ConfigTipsHelper.openConfigScreen(BrbeConfig.class, Minecraft.getInstance().gui.screen()));
         }

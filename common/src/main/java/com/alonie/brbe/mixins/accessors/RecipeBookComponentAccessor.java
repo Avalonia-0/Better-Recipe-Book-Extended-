@@ -4,10 +4,15 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.recipebook.GhostSlots;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
+import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
+import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.gen.Accessor;
 import org.spongepowered.asm.mixin.gen.Invoker;
+
+import java.util.List;
 
 @Mixin(RecipeBookComponent.class)
 public interface RecipeBookComponentAccessor {
@@ -15,11 +20,29 @@ public interface RecipeBookComponentAccessor {
     @Accessor("recipeBookPage")
     RecipeBookPage getRecipeBookPage();
 
+    @Accessor("tabButtons")
+    List<RecipeBookTabButton> getTabButtons();
+
+    @Accessor("selectedTab")
+    RecipeBookTabButton getSelectedTab();
+
+    @Accessor("selectedTab")
+    void setSelectedTab(RecipeBookTabButton selectedTab);
+
+    @Invoker("updateTabs")
+    void updateTabsInvoker(boolean filteringCraftable);
+
     @Accessor("searchBox")
     EditBox getSearchBox();
 
     @Accessor("searchBox")
     void setSearchBox(EditBox searchBox);
+
+    @Invoker("setVisible")
+    void setVisibleInvoker(boolean visible);
+
+    @Invoker("toggleVisibility")
+    void toggleVisibilityInvoker();
 
     @Invoker("isFiltering")
     boolean isFilteringInvoker();
@@ -36,8 +59,18 @@ public interface RecipeBookComponentAccessor {
     @Accessor("xOffset")
     int getXOffset();
 
+    @Invoker("getXOrigin")
+    int brbe$invokeGetXOrigin();
+
+    @Invoker("getYOrigin")
+    int brbe$invokeGetYOrigin();
+
     @Accessor("ghostSlots")
     GhostSlots getGhostSlots();
+
+    @Invoker("tryPlaceRecipe")
+    boolean tryPlaceRecipeInvoker(RecipeCollection collection, RecipeDisplayId id,
+                                  boolean hasShiftDown);
 
     @Accessor("SEARCH_HINT")
     static Component getSEARCH_HINT() {

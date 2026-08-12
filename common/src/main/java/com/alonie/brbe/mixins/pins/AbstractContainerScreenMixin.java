@@ -43,6 +43,14 @@ public abstract class AbstractContainerScreenMixin {
 
     @Inject(method = "extractRenderState", at = @At(value = "RETURN"))
     public void brbe$renderVisibleOverlayOnTop(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY, float partialTick, org.spongepowered.asm.mixin.injection.callback.CallbackInfo ci) {
+        // During the BRBE R/U viewer, skip the second overlay draw so tooltips
+        // rendered from extractTooltip (and the deferred channel) paint above
+        // the box.  The overlay is already drawn once inside the recipe book
+        // page; redrawing it on a higher stratum would cover the tooltip.
+        if (com.alonie.brbe.cache.RecipeViewerIndex.isViewerActive()) {
+            return;
+        }
+
         RecipeBookComponent<?> book = this.recipeBookComponent;
         if (!book.isVisible()) {
             return;

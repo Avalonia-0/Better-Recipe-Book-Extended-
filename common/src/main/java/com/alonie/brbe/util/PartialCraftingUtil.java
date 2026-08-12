@@ -62,6 +62,41 @@ public final class PartialCraftingUtil {
         return tagger.wasChecked(collection);
     }
 
+    /**
+     * Prepare a fresh viewer (BRBE R/U alternative-recipe group) collection for
+     * partial-crafting display: mark partially-craftable recipes and inject
+     * them into the craftable set, mirroring what the recipe book's
+     * updateCollections does for its own collections.  Without this a fresh
+     * viewer collection would show every partial recipe as plain
+     * "uncraftable" (grey slot, no red overlay).
+     */
+    public static void prepareForViewer(RecipeCollection collection, NonNullList<Slot> slots, ItemStack carried) {
+        if (!enabled()) return;
+        Set<Item> inventoryItems = hashInventory(slots, -1, carried);
+        // The BRBE R/U viewer is unaffected by partialOnlyWhenCarrying: it always
+        // marks every partial recipe against the full inventory, so the query
+        // overlay shows partial (missing-material) recipes even when the player
+        // is not carrying anything (and the book itself hides them).
+        Set<Item> markItems = inventoryItems;
+        Map<Item, Integer> counts = new HashMap<>();
+        for (Slot slot : slots) {
+            ItemStack stack = slot.getItem();
+            if (!stack.isEmpty()) counts.merge(stack.getItem(), stack.getCount(), Integer::sum);
+        }
+        if (carried != null && !carried.isEmpty()) {
+            counts.merge(carried.getItem(), carried.getCount(), Integer::sum);
+        }
+        markPartialMaterials(collection, inventoryItems, counts, markItems);
+        if (hasPartialMaterials(collection)) {
+            RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+            for (RecipeDisplayEntry entry : collection.getRecipes()) {
+                if (isPartiallyCraftable(collection, entry.id())) {
+                    accessor.brbe$getCraftable().add(entry.id());
+                }
+            }
+        }
+    }
+
     // ---- Inventory hashing (unchanged) ----
 
     public static long slotHash(NonNullList<Slot> slots) {

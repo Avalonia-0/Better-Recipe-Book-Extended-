@@ -17,6 +17,13 @@ public class BrbeConfig implements ConfigData {
 
     // -- 配方书设置（general 标签）--------------------------------------------
 
+    /** 保存配方书上一次的浏览记录（标签 + 页码），下次打开恢复。 */
+    @ConfigEntry.Gui.Tooltip
+    public boolean saveRecipeBookPosition = true;
+
+    @ConfigEntry.Gui.Tooltip
+    public boolean recipeViewerEnabled = true;
+
     @ConfigEntry.Gui.Tooltip
     public boolean showModName = false;
 
@@ -43,6 +50,20 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Category("ui")
     @ConfigEntry.Gui.Tooltip
     public boolean hideReiJeiOverlay = false;
+
+    /** 鼠标滚轮翻页音效：滚轮翻页（配方区/配方书标签/查询浮层）时播放点击音。 */
+    @ConfigEntry.Category("ui")
+    @ConfigEntry.Gui.PrefixText
+    public boolean scrollPageSound = true;
+
+    /** 翻页音效音量（0.0–1.0，默认 1.0 = 原生音量），可在「音乐与声音」界面调节。 */
+    @ConfigEntry.Category("ui")
+    public float pageFlipVolume = 1.0f;
+
+    @ConfigEntry.Category("ui")
+    @ConfigEntry.Gui.PrefixText
+    @ConfigEntry.Gui.TransitiveObject
+    public PageAnimation pageAnimation = new PageAnimation();
 
     @ConfigEntry.Category("ui")
     @ConfigEntry.Gui.PrefixText
@@ -73,7 +94,7 @@ public class BrbeConfig implements ConfigData {
 
     @ConfigEntry.Category("recipeSettings")
     @ConfigEntry.Gui.Tooltip
-    public boolean partialOnlyWhenCarrying = true;
+    public boolean partialOnlyWhenCarrying = false;
 
     @ConfigEntry.Category("recipeSettings")
     @ConfigEntry.Gui.PrefixText
@@ -86,6 +107,11 @@ public class BrbeConfig implements ConfigData {
     public AlternativeRecipes alternativeRecipes = new AlternativeRecipes();
 
     // -- Inner config class ---------------------------------------------------
+
+    public static class PageAnimation {
+        public boolean pageAnimationEnabled = false;
+        public float pageAnimationDuration = 0.1f;
+    }
 
     public static class RecipeBookIsPain implements ConfigData {
         @ConfigEntry.Gui.PrefixText

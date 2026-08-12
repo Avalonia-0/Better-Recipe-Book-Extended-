@@ -13,6 +13,18 @@ public interface OverlayRecipeComponentAccessor {
     @Accessor("recipeButtons")
     List<AbstractWidget> getRecipeButtons();
 
+    @Accessor("x")
+    int getX();
+
+    @Accessor("y")
+    int getY();
+
+    @Accessor("x")
+    void setX(int x);
+
+    @Accessor("y")
+    void setY(int y);
+
     @Accessor("isFurnaceMenu")
     boolean isFurnaceMenu();
 

@@ -123,11 +123,15 @@ public abstract class RecipeBookComponentMixin {
             // public no-arg methods to find the one that returns List<ItemStack>.
             for (java.lang.reflect.Method m : ghostSlot.getClass().getMethods()) {
                 if (m.getReturnType() == java.util.List.class && m.getParameterCount() == 0) {
+                    // GhostSlot is package-private; cross-package reflection
+                    // needs setAccessible or invoke throws IllegalAccessException.
+                    m.trySetAccessible();
                     @SuppressWarnings("unchecked")
                     java.util.List<ItemStack> items = (java.util.List<ItemStack>) m.invoke(ghostSlot);
-                    if (items != null && !items.isEmpty()) {
-                        ItemStack first = items.get(0);
-                        if (first != null && !first.isEmpty()) return first;
+                    if (items != null) {
+                        for (ItemStack stack : items) {
+                            if (stack != null && !stack.isEmpty()) return stack;
+                        }
                     }
                 }
             }

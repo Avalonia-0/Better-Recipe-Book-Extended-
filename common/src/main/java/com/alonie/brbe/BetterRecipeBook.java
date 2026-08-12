@@ -45,6 +45,20 @@ public class BetterRecipeBook {
             KEY_CATEGORY
     );
 
+    public static final KeyMapping RECIPE_VIEW_MAPPING = new KeyMapping(
+            "key.brbe.recipeView",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_R,
+            KEY_CATEGORY
+    );
+
+    public static final KeyMapping USAGE_VIEW_MAPPING = new KeyMapping(
+            "key.brbe.usageView",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_U,
+            KEY_CATEGORY
+    );
+
 
 
     public static BRBHelper.Book BREWING;
