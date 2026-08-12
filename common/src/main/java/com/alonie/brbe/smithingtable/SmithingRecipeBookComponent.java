@@ -60,7 +60,9 @@ public class SmithingRecipeBookComponent extends GenericRecipeBookComponent<Smit
 
         this.ghostRecipe.clear();
 
-        if (!result.hasMaterials(this.menu.slots, this.registryAccess)) {
+        // 放置路径维持只看 slots：材料在鼠标上时显示 ghost 引导放料，
+        // 不把 carried 计入放置判定（放置循环只遍历 slots，无法从 carried 取料）。
+        if (!result.hasMaterials(this.menu.slots, this.registryAccess, ItemStack.EMPTY)) {
             this.setupGhostRecipe(result, this.menu.slots);
             return;
         }

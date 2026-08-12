@@ -30,7 +30,7 @@ public final class ConfigTipsHelper {
         registerCarousel(ConfigTipCarousel.builder()
                 .category(Component.translatable("text.autoconfig.brbe.category.default"))
                 .prefix(Component.translatable("brb.gui.tip.prefix"))
-                .tipKeys(List.of("brb.gui.tip.1", "brb.gui.tip.2", "brb.gui.tip.3", "brb.gui.tip.4", "brb.gui.tip.5"))
+                .tipKeys(List.of("brb.gui.tip.1", "brb.gui.tip.2", "brb.gui.tip.3", "brb.gui.tip.4", "brb.gui.tip.5", "brb.gui.tip.6", "brb.gui.tip.7"))
                 .build());
     }
 

@@ -21,7 +21,7 @@
   "text.autoconfig.brbe.option.partialOnlyWhenCarrying.@Tooltip": "殘缺配方將不再始終顯示，需要透過拿起一件物品來顯示與之相關的殘缺配方，使介面更簡潔。",
   "text.autoconfig.brbe.option.partialMarkingEnabled.@Tooltip": "對於物品欄中存在部分材料的配方，將賦予它們特殊紋理。",
   "text.autoconfig.brbe.option.settingsButton": "顯示設定按鈕",
-  "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§e提示：§7如果你停用了以下兩個選項，需要透過模組選單來重新開啟它們。",
+  "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§e提示：§e如果你停用了以下兩個選項，需要透過模組選單來重新開啟它們。",
   "text.autoconfig.brbe.option.instantCraft.showButton": "顯示一鍵製作按鈕",
   "text.autoconfig.brbe.option.instantCraft.enabled": "啟用一鍵製作",
   "text.autoconfig.brbe.option.alternativeRecipes.onHover": "只在懸停時顯示替代配方",
@@ -60,5 +60,7 @@
   "brb.gui.tip.3": "殘缺配方就是物品欄存在其部分材料且不可合成的配方。",
   "brb.gui.tip.4": "搭配物品管理器使用也挺不錯的，你可以在配方書中查詢配方的合成與用途（快捷鍵跟隨對應物品管理器）。還可以在“介面”中隱藏物品管理器的介面。",
   "brb.gui.tip.5": "創造模式標籤功能來自Recipe Book is Pain模組！",
+  "brb.gui.tip.6": "來社群媒體和大家交個朋友！",
+  "brb.gui.tip.7": "所有代碼均由DeepSeek生成！",
   "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§e殘缺配方標記"
 }

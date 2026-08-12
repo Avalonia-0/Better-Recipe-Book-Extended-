@@ -6,14 +6,18 @@ import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.util.*;
 import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.EffectRenderingInventoryScreen;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.gui.screens.recipebook.GhostRecipe;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
+import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -53,6 +57,7 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
     @Shadow private ClientRecipeBook book;
     @Shadow @Final private RecipeBookPage recipeBookPage;
     @Shadow private String lastSearch;
+    @Shadow @Final protected GhostRecipe ghostRecipe;
 
     @Unique
     private long brbe$lastSlotHash;
@@ -407,5 +412,32 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         // List.forEach in updateCollections().  Only prepare display here.
         List<RecipeCollection> result = RecipePipeline.prepareDisplay(collections, ctx);
         recipeBookPage.updateCollections(result, true);
+    }
+
+    /**
+     * 渲染幽灵物品前计算残缺配方的红遮罩槽位：物品栏已有的材料按幽灵槽位顺序
+     * （从左到右、从上到下）逐个扣除，对应槽位不再绘制红色遮罩。
+     */
+    @Inject(method = "renderGhostRecipe", at = @At("HEAD"))
+    private void brbe$preparePartialGhostOverlay(GuiGraphics graphics, int x, int y, boolean bigSlot, float delta, CallbackInfo ci) {
+        RecipeHolder<?> recipe = this.ghostRecipe.getRecipe();
+        if (recipe == null) return;
+        RecipeCollection collection = brbe$findGhostRecipeCollection(recipe);
+        if (collection == null) return;
+        PartialGhostOverlayUtil.prepare(recipe, collection, this.menu.slots, this.menu.getCarried(),
+                this.ghostRecipe, x, y, bigSlot);
+    }
+
+    /** 从当前标签页的配方集合中定位幽灵配方所属的集合。 */
+    @Unique
+    private RecipeCollection brbe$findGhostRecipeCollection(RecipeHolder<?> recipe) {
+        RecipeBookTabButton tab = this.getSelectedTab();
+        if (tab == null) return null;
+        for (RecipeCollection c : this.book.getCollection(tab.getCategory())) {
+            for (RecipeHolder<?> r : c.getRecipes()) {
+                if (r.id().equals(recipe.id())) return c;
+            }
+        }
+        return null;
     }
 }

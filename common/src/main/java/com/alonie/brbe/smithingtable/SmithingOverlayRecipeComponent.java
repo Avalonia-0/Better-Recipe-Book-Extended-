@@ -47,12 +47,15 @@ public class SmithingOverlayRecipeComponent implements Renderable, GuiEventListe
         this.isVisible = true;
         this.recipeButtons.clear();
 
+        List<BRBSmithingRecipe> partialRecipes = recipeCollection.getPartiallyCraftableRecipes();
+
         for (int index = 0; index < totalRecipeCount; ++index) {
             boolean isCraftable = index < lockedRecipeCount;
             BRBSmithingRecipe recipeHolder = isCraftable ? lockedRecipes.get(index) : unlockedRecipes.get(index - lockedRecipeCount);
+            boolean partial = partialRecipes.stream().anyMatch(r -> r.id().equals(recipeHolder.id()));
             int buttonX = this.x + 4 + 25 * (index % columns);
             int buttonY = this.y + 5 + 25 * (index / columns);
-            this.recipeButtons.add(new OverlayRecipeButton(buttonX, buttonY, recipeHolder, isCraftable, registryAccess));
+            this.recipeButtons.add(new OverlayRecipeButton(buttonX, buttonY, recipeHolder, isCraftable, registryAccess, partial));
         }
 
         this.lastRecipeClicked = null;
@@ -146,15 +149,17 @@ public class SmithingOverlayRecipeComponent implements Renderable, GuiEventListe
     public static class OverlayRecipeButton extends AbstractWidget {
         final BRBSmithingRecipe recipe;
         private final boolean isCraftable;
+        private final boolean partial;
         private RegistryAccess registryAccess;
 
-        public OverlayRecipeButton(int i, int j, BRBSmithingRecipe smithableResult, boolean isCraftable, RegistryAccess registryAccess) {
+        public OverlayRecipeButton(int i, int j, BRBSmithingRecipe smithableResult, boolean isCraftable, RegistryAccess registryAccess, boolean partial) {
             super(i, j, 200, 20, CommonComponents.EMPTY);
             this.width = 24;
             this.height = 24;
             this.recipe = smithableResult;
             this.isCraftable = isCraftable;
             this.registryAccess = registryAccess;
+            this.partial = partial;
         }
 
         public void updateWidgetNarration(NarrationElementOutput narrationElementOutput) {
@@ -164,9 +169,13 @@ public class SmithingOverlayRecipeComponent implements Renderable, GuiEventListe
         public void renderWidget(GuiGraphics guiGraphics, int i, int j, float f) {
             ResourceLocation resourceLocation;
 
-            resourceLocation = BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(this.isCraftable, isHoveredOrFocused());
+            // Partial recipes keep the craftable sprite (light border); the red overlay marks them.
+            resourceLocation = BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(this.isCraftable || this.partial, isHoveredOrFocused());
 
             guiGraphics.blitSprite(resourceLocation, this.getX(), this.getY(), this.width, this.height);
+            if (this.partial) {
+                guiGraphics.fill(this.getX() + 1, this.getY() + 1, this.getX() + this.width - 1, this.getY() + this.height - 1, 0x60FF3333);
+            }
             guiGraphics.pose().pushPose();
 //            guiGraphics.pose().translate(this.getX() + 2, this.getY() + 2, 150.0);
 

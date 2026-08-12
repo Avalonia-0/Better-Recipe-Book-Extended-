@@ -7,6 +7,7 @@ import net.minecraft.core.NonNullList;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.inventory.SmithingMenu;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,9 +19,10 @@ public class SmithingRecipeCollection extends GenericRecipeBookCollection<BRBSmi
 
     public List<BRBSmithingRecipe> getDisplayRecipes(boolean craftable) {
         List<BRBSmithingRecipe> list = Lists.newArrayList();
+        ItemStack carried = this.menu.getCarried();
 
         for (BRBSmithingRecipe recipe : this.recipes) {
-            if (recipe.hasMaterials(this.menu.slots, registryAccess) == craftable) {
+            if (recipe.hasMaterials(this.menu.slots, registryAccess, carried) == craftable) {
                 list.add(recipe);
             }
         }
@@ -30,8 +32,9 @@ public class SmithingRecipeCollection extends GenericRecipeBookCollection<BRBSmi
 
     @Override
     public boolean atleastOneCraftable(NonNullList<Slot> slots) {
+        ItemStack carried = this.menu.getCarried();
         for (BRBSmithingRecipe recipe : this.recipes) {
-            if (recipe.hasMaterials(slots, registryAccess)) {
+            if (recipe.hasMaterials(slots, registryAccess, carried)) {
                 return true;
             }
         }
@@ -47,11 +50,12 @@ public class SmithingRecipeCollection extends GenericRecipeBookCollection<BRBSmi
     @Override
     public List<BRBSmithingRecipe> getPartiallyCraftableRecipes(NonNullList<Slot> slots) {
         List<BRBSmithingRecipe> partial = new ArrayList<>();
+        ItemStack carried = this.menu.getCarried();
         for (BRBSmithingRecipe recipe : this.recipes) {
-            if (!recipe.hasMaterials(slots, registryAccess)) {
-                boolean hasTemplate = recipe.hasTemplate(slots);
-                boolean hasBase = recipe.hasBase(slots, registryAccess);
-                boolean hasAddition = recipe.hasAddition(slots);
+            if (!recipe.hasMaterials(slots, registryAccess, carried)) {
+                boolean hasTemplate = recipe.hasTemplate(slots, carried);
+                boolean hasBase = recipe.hasBase(slots, registryAccess, carried);
+                boolean hasAddition = recipe.hasAddition(slots, carried);
                 if ((hasTemplate || hasBase || hasAddition) && !(hasTemplate && hasBase && hasAddition)) {
                     partial.add(recipe);
                 }

@@ -1,6 +1,7 @@
 package com.alonie.brbe.util;
 
 import com.alonie.brbe.BetterRecipeBook;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.resources.ResourceLocation;
 
@@ -8,10 +9,21 @@ public class BRBTextures {
 
     private static final String NS = BetterRecipeBook.MOD_ID;
 
+    /** True if the red-check sprite is present (provided by the compat pack). */
+    public static boolean hasPartialSprite() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft == null || minecraft.getResourceManager() == null) return false;
+        ResourceLocation fileId = ResourceLocation.fromNamespaceAndPath(
+                RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE.getNamespace(),
+                "textures/gui/sprites/" + RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE.getPath() + ".png");
+        return minecraft.getResourceManager().getResource(fileId).isPresent();
+    }
+
     public static final ResourceLocation RECIPE_BOOK_BACKGROUND_TEXTURE = ResourceLocation.withDefaultNamespace("textures/gui/recipe_book.png");
 
     public static final ResourceLocation RECIPE_BOOK_BUTTON_SLOT_CRAFTABLE_SPRITE = ResourceLocation.withDefaultNamespace("recipe_book/slot_craftable");
     public static final ResourceLocation RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE = ResourceLocation.withDefaultNamespace("recipe_book/slot_uncraftable");
+    public static final ResourceLocation RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE = ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/slot_partial");
     public static final ResourceLocation RECIPE_BOOK_PIN_SPRITE = ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/pin");
     public static final ResourceLocation RECIPE_BOOK_OVERLAY_PIN_SPRITE = ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/overlay_pin");
     

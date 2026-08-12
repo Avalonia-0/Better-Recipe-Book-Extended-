@@ -9,6 +9,7 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.BrewingStandMenu;
 import net.minecraft.world.inventory.Slot;
+import net.minecraft.world.item.ItemStack;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -24,9 +25,10 @@ public class BrewingRecipeCollection extends GenericRecipeBookCollection<Brewabl
 
     public List<BrewableResult> getDisplayRecipes(boolean craftable) {
         List<BrewableResult> list = Lists.newArrayList();
+        ItemStack carried = this.menu.getCarried();
 
         for (BrewableResult recipe : this.recipes) {
-            if (recipe.hasMaterials(this.category, this.menu.slots) == craftable) {
+            if (recipe.hasMaterials(this.category, this.menu.slots, carried) == craftable) {
                 list.add(recipe);
             }
         }
@@ -47,8 +49,9 @@ public class BrewingRecipeCollection extends GenericRecipeBookCollection<Brewabl
 
     @Override
     public boolean atleastOneCraftable(NonNullList<Slot> slots) {
+        ItemStack carried = this.menu.getCarried();
         for (BrewableResult recipe : this.recipes) {
-            if (recipe.hasMaterials(this.category, slots)) {
+            if (recipe.hasMaterials(this.category, slots, carried)) {
                 return true;
             }
         }
@@ -64,10 +67,11 @@ public class BrewingRecipeCollection extends GenericRecipeBookCollection<Brewabl
     @Override
     public List<BrewableResult> getPartiallyCraftableRecipes(NonNullList<Slot> slots) {
         List<BrewableResult> partial = new ArrayList<>();
+        ItemStack carried = this.menu.getCarried();
         for (BrewableResult recipe : this.recipes) {
-            if (!recipe.hasMaterials(this.category, slots)) {
-                boolean hasIngredient = recipe.hasIngredient(slots);
-                boolean hasInput = recipe.hasInput(this.category, slots);
+            if (!recipe.hasMaterials(this.category, slots, carried)) {
+                boolean hasIngredient = recipe.hasIngredient(slots, carried);
+                boolean hasInput = recipe.hasInput(this.category, slots, carried);
                 if ((hasIngredient || hasInput) && !(hasIngredient && hasInput)) {
                     partial.add(recipe);
                 }

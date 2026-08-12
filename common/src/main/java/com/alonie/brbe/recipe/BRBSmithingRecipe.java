@@ -30,18 +30,23 @@ public interface BRBSmithingRecipe extends SmithingRecipe, GenericRecipe {
 
     Ingredient getAddition();
 
-    default boolean hasMaterials(NonNullList<Slot> slots, RegistryAccess registryAccess) {
-        return hasTemplate(slots) && hasBase(slots, registryAccess) && hasAddition(slots);
+    default boolean hasMaterials(NonNullList<Slot> slots, RegistryAccess registryAccess, ItemStack carried) {
+        return hasTemplate(slots, carried) && hasBase(slots, registryAccess, carried) && hasAddition(slots, carried);
     }
 
-    default boolean hasTemplate(List<Slot> slots) {
+    default boolean hasTemplate(List<Slot> slots, ItemStack carried) {
+        if (!carried.isEmpty() && this.getTemplate().test(carried)) return true;
+
         for (Slot slot : slots) {
             if (this.getTemplate().test(slot.getItem())) return true;
         }
         return false;
     }
 
-    default boolean hasBase(List<Slot> slots, RegistryAccess registryAccess) {
+    default boolean hasBase(List<Slot> slots, RegistryAccess registryAccess, ItemStack carried) {
+        if (!carried.isEmpty() && !carried.has(DataComponents.TRIM) && getBase().getItem().equals(carried.getItem()))
+            return true;
+
         for (Slot slot : slots) {
             if (!slot.getItem().has(DataComponents.TRIM) && getBase().getItem().equals(slot.getItem().getItem()))
                 return true;
@@ -49,7 +54,9 @@ public interface BRBSmithingRecipe extends SmithingRecipe, GenericRecipe {
         return false;
     }
 
-    default boolean hasAddition(List<Slot> slots) {
+    default boolean hasAddition(List<Slot> slots, ItemStack carried) {
+        if (!carried.isEmpty() && getAddition().test(carried)) return true;
+
         for (Slot slot : slots) {
             if (getAddition().test(slot.getItem())) return true;
         }

@@ -26,8 +26,9 @@ public class BrewableResult implements GenericRecipe {
         this.input = BuiltInRegistries.POTION.getKey(getFrom(recipe));
     }
 
-    public boolean hasIngredient(List<Slot> slots) {
+    public boolean hasIngredient(List<Slot> slots, ItemStack carried) {
         for (ItemStack itemStack : getIngredient(recipe).getItems()) {
+            if (!carried.isEmpty() && itemStack.getItem().equals(carried.getItem())) return true;
             for (Slot slot : slots) {
                 if (itemStack.getItem().equals(slot.getItem().getItem())) return true;
             }
@@ -42,8 +43,11 @@ public class BrewableResult implements GenericRecipe {
         return potionStackFromPotion(potionItem, inputPotion);
     }
 
-    public boolean hasInput(BRBBookCategories.Category category, List<Slot> slots) {
+    public boolean hasInput(BRBBookCategories.Category category, List<Slot> slots, ItemStack carried) {
         ItemStack inputStack = inputAsItemStack(category);
+
+        if (!carried.isEmpty() && ItemStack.isSameItemSameComponents(inputStack, carried))
+            return true;
 
         for (Slot slot : slots) {
             ItemStack itemStack = slot.getItem();
@@ -55,9 +59,9 @@ public class BrewableResult implements GenericRecipe {
         return false;
     }
 
-    public boolean hasMaterials(BRBBookCategories.Category category, List<Slot> slots) {
-        boolean hasIngredient = hasIngredient(slots);
-        boolean hasInput = hasInput(category, slots);
+    public boolean hasMaterials(BRBBookCategories.Category category, List<Slot> slots, ItemStack carried) {
+        boolean hasIngredient = hasIngredient(slots, carried);
+        boolean hasInput = hasInput(category, slots, carried);
 
         return hasIngredient && hasInput;
     }

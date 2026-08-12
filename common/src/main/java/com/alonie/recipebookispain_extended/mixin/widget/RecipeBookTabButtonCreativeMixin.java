@@ -1,5 +1,6 @@
 package com.alonie.recipebookispain_extended.mixin.widget;
 
+import com.alonie.brbe.util.BRBTextures;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.access.CreativeTabButtonAccess;
 import com.alonie.recipebookispain_extended.access.RecipeGroupButtonPlacement;
@@ -55,16 +56,16 @@ public abstract class RecipeBookTabButtonCreativeMixin
 
     @Unique
     private static final ResourceLocation TEX_BOTTOM =
-            ResourceLocation.fromNamespaceAndPath("recipe-book-is-pain-extended", "textures/rbip/bottom_tab.png");
+            ResourceLocation.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab.png");
     @Unique
     private static final ResourceLocation TEX_BOTTOM_SEL =
-            ResourceLocation.fromNamespaceAndPath("recipe-book-is-pain-extended", "textures/rbip/bottom_tab_selected.png");
+            ResourceLocation.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab_selected.png");
     @Unique
     private static final ResourceLocation TEX_TOP =
-            ResourceLocation.fromNamespaceAndPath("recipe-book-is-pain-extended", "textures/rbip/top_tab.png");
+            ResourceLocation.fromNamespaceAndPath("brbe", "textures/rbip/top_tab.png");
     @Unique
     private static final ResourceLocation TEX_TOP_SEL =
-            ResourceLocation.fromNamespaceAndPath("recipe-book-is-pain-extended", "textures/rbip/top_tab_selected.png");
+            ResourceLocation.fromNamespaceAndPath("brbe", "textures/rbip/top_tab_selected.png");
 
     // ── Cancel unlock bounce for creative tabs ─────────────────
 
@@ -134,6 +135,9 @@ public abstract class RecipeBookTabButtonCreativeMixin
     private int rbip$getRotatedIconX() {
         RecipeBookTabButton self = (RecipeBookTabButton) (Object) this;
         int off = this.rbip$placement == RecipeGroupButtonPlacement.TOP ? 1 : 0;
+        if (this.rbip$placement == RecipeGroupButtonPlacement.TOP && BRBTextures.hasPartialSprite()) {
+            off -= 1; // unique dark 兼容包：顶部 tab 图标左移 1px
+        }
         return self.getX() + (ROT_TAB_W - 16) / 2 + off;
     }
 

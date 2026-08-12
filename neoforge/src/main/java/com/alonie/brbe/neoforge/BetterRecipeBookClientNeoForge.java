@@ -12,14 +12,21 @@ import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.neoforge.NeoForgePlatform;
+import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.server.packs.PackType;
+import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.server.packs.repository.PackSource;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.client.event.RegisterKeyMappingsEvent;
 import net.neoforged.neoforge.client.event.ScreenEvent;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.event.AddPackFindersEvent;
 import net.neoforged.neoforge.event.level.LevelEvent;
 
 import java.util.Collections;
@@ -40,6 +47,16 @@ public class BetterRecipeBookClientNeoForge {
         modEventBus.addListener(RegisterKeyMappingsEvent.class, event -> {
             event.register(BetterRecipeBook.PIN_MAPPING);
             event.register(BetterRecipeBook.DIAGNOSTIC_MAPPING);
+        });
+        // Register built-in resource pack (Unique Dark filter textures)
+        modEventBus.addListener(AddPackFindersEvent.class, event -> {
+            event.addPackFinders(
+                    ResourceLocation.fromNamespaceAndPath("brbe", "resourcepacks/brbe_unique_dark"),
+                    PackType.CLIENT_RESOURCES,
+                    Component.literal("Unique Dark Lite ").append(Component.literal("✕").withStyle(ChatFormatting.YELLOW)).append(Component.literal(" BRBE")),
+                    PackSource.BUILT_IN,
+                    false,
+                    Pack.Position.TOP);
         });
         // Register platform provider
         PlatformPotionUtilImpl.init();

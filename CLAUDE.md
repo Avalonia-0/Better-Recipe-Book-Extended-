@@ -140,7 +140,7 @@ Uses **Cloth Config / AutoConfig** with TOML serialization (`brbe.toml`). Config
 | `alternativeRecipes.noGrouped` | Ungroup recipe variants | `ungroup/RecipeBookComponentMixin` |
 | `partialCraftingEnabled` | Show partially craftable recipes | `incompletecrafting/` mixins |
 | `keepCentered` | Center the recipe book | `centered/RecipeBookComponentMixin` |
-| `showModName` | Display source mod name in tooltip | `modname/RecipeButtonMixin` |
+| `showModName` | Display source mod name in tooltip | `modname/RecipeButtonMixin` + `modname/GhostRecipeTooltipMixin` |
 
 Config categories (TOML sections): `ui`, `recipeFilter`, `rbip`, `newRecipes`, `instantCraft`, `alternativeRecipes`, `scrolling`.
 
@@ -227,11 +227,11 @@ PerfTimer.logAndReset("updateCollections");
 ./gradlew cleanLoomCache && rm -rf .gradle && ./gradlew build
 
 # Deploy (build JAR → copy to test instance)
-cp fabric/build/libs/BetterRecipeBookExtended-fabric-1.21.1-2.1.5.jar /media/…/1.21.1-Fabric/mods/
-cp neoforge/build/libs/BetterRecipeBookExtended-neoforge-1.21.1-2.1.5.jar /media/…/1.21.1-NeoForge/mods/
+cp fabric/build/libs/brbe-ava-fabric-1.21.1-2.2.1.jar /home/avalonia/data/MinecraftLib/versions/1.21.1-Fabric/mods/
+cp neoforge/build/libs/brbe-ava-neoforge-1.21.1-2.2.1.jar /home/avalonia/data/MinecraftLib/versions/1.21.1-NeoForge/mods/
 ```
 
-Test instance paths follow the pattern `/home/avalonia/data/MinecraftLib/versions/<version>-<loader>/mods/`.
+Test instance path rule: `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSION}-{MOD_LOADER}/mods/` (`MOD_LOADER` capitalized: `Fabric`/`NeoForge`). 构建完必须部署；部署前将实例内同版本 JAR 备份为 `*.jar.bak.YYYYMMDD`。
 
 ## Dependencies
 

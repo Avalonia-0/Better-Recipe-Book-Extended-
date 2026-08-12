@@ -46,7 +46,7 @@ public class BrewableRecipeButton extends GenericRecipeButton<BrewingRecipeColle
         list.add(Component.literal(""));
 
         ChatFormatting colour = ChatFormatting.DARK_GRAY;
-        if (collection.getFirst().hasIngredient(menu.slots)) {
+        if (collection.getFirst().hasIngredient(menu.slots, menu.getCarried())) {
             colour = ChatFormatting.WHITE;
         }
 
@@ -56,7 +56,7 @@ public class BrewableRecipeButton extends GenericRecipeButton<BrewingRecipeColle
 
         ItemStack inputStack = this.collection.getFirst().inputAsItemStack(category);
 
-        if (!collection.getFirst().hasInput(category, menu.slots)) {
+        if (!collection.getFirst().hasInput(category, menu.slots, menu.getCarried())) {
             colour = ChatFormatting.DARK_GRAY;
         }
 

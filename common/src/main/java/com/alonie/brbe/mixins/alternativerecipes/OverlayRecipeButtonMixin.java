@@ -49,20 +49,25 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
 
     @Inject(at = @At("HEAD"), method = "renderWidget", cancellable = true)
     public void renderWidget(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
-        boolean effectiveCraftable = this.isCraftable
-                || PartialCraftingUtil.isPartiallyCraftable(field_3113.getRecipeCollection(), this.recipe);
-        ResourceLocation resourceLocation;
-
-        if (((OverlayRecipeComponentAccessor) field_3113).isFurnaceMenu()) {
-            resourceLocation = BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(effectiveCraftable, isHoveredOrFocused());
-        } else {
-            resourceLocation = BRBTextures.RECIPE_BOOK_CRAFTING_OVERLAY_SPRITE.get(effectiveCraftable, isHoveredOrFocused());
+        OverlayRecipeComponentAccessor overlay = (OverlayRecipeComponentAccessor) field_3113;
+        boolean furnaceBook = overlay.isFurnaceMenu();
+        boolean partial = PartialCraftingUtil.isPartiallyCraftable(field_3113.getRecipeCollection(), this.recipe);
+        if (furnaceBook) {
+            // Furnace books (furnace / blast furnace / smoker) have no partial state.
+            partial = false;
         }
+        boolean effectiveCraftable = this.isCraftable || partial;
+        ResourceLocation resourceLocation = (furnaceBook
+                ? BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE
+                : BRBTextures.RECIPE_BOOK_CRAFTING_OVERLAY_SPRITE)
+                .get(effectiveCraftable, isHoveredOrFocused());
 
         gui.blitSprite(resourceLocation, getX(), getY(), this.width, this.height);
 
-        // Red overlay for partially-craftable recipes
-        if (PartialCraftingUtil.isPartiallyCraftable(field_3113.getRecipeCollection(), this.recipe)) {
+        // Red overlay for partially-craftable recipes.  Kept vanilla-style here
+        // (craftable sprite + red overlay) — the compat pack's red check is not
+        // applied to alternative-recipe groups.
+        if (partial) {
             gui.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + height - 1, 0x60FF3333);
         }
 
