@@ -162,11 +162,11 @@ Both must be kept in sync when adding new mixin targets that need private/protec
 ./gradlew cleanLoomCache && rm -rf .gradle && ./gradlew build
 
 # Deploy (build JAR → copy to test instance)
-cp fabric/build/libs/BetterRecipeBookExtended-fabric-26.1.2-2.1.5.jar /media/…/26.1.2-Fabric/mods/
-cp neoforge/build/libs/BetterRecipeBookExtended-neoforge-26.1.2-2.1.5.jar /media/…/26.1.2-NeoForge/mods/
+cp fabric/build/libs/brbe-ava-fabric-26.1.2-2.2.1.jar /home/avalonia/data/MinecraftLib/versions/26.1.2-Fabric/mods/
+cp neoforge/build/libs/brbe-ava-neoforge-26.1.2-2.2.1.jar /home/avalonia/data/MinecraftLib/versions/26.1.2-NeoForge/mods/
 ```
 
-Test instance paths follow the pattern `/media/avalonia/data/MinecraftLib/versions/<version>-<loader>/mods/`.
+Test instance path rule: `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSION}-{MOD_LOADER}/mods/` (`MOD_LOADER` capitalized: `Fabric`/`NeoForge`). 构建完必须部署；部署前将实例内同版本 JAR 备份为 `*.jar.bak.YYYYMMDD`。
 
 ## Key mappings
 
@@ -193,7 +193,7 @@ Config is managed by Cloth Config AutoConfig, serialized to `brbe.toml`. Categor
 | `instantCraft.enabled` | Shift-click instant craft | `InstantCraftingManager` |
 | `alternativeRecipes.noGrouped` | Ungroup recipe variants | `ungroup/RecipeBookComponentMixin` |
 | `keepCentered` | Keep recipe book centered | `centered/RecipeBookComponentMixin` |
-| `showModName` | Display mod source on recipe buttons | `modname/RecipeButtonMixin` |
+| `showModName` | Display mod source on recipe buttons | `modname/RecipeButtonMixin` + `modname/GhostRecipeTooltipMixin` |
 | `settingsButton` | Show settings button in recipe book | `settings/RecipeBookComponentMixin` |
 | `enableBook` | Enable/disable the recipe book entirely | `DisableBook` mixin |
 | `scrolling.*` | Scroll behavior configuration | `MouseScrollHandler`, `scrollablepages/` |

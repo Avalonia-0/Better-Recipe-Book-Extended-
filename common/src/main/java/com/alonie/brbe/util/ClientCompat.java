@@ -77,4 +77,17 @@ public final class ClientCompat {
         ItemStack[] items = ingredientItems(ingredient);
         return items.length == 0 ? ItemStack.EMPTY : items[0];
     }
+
+    /**
+     * True if a GUI sprite exists in the current resource stack (compat packs included).
+     * The sprite identifier is mapped to its actual file id ({@code textures/gui/sprites/... + ".png"})
+     * because {@code getResourceStack} looks up pack files by their full id (the sprite
+     * atlas convention adds the directory prefix and the file extension).
+     */
+    public static boolean hasSpriteResource(Identifier spriteId) {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft == null || minecraft.getResourceManager() == null) return false;
+        Identifier fileId = spriteId.withPath("textures/gui/sprites/" + spriteId.getPath() + ".png");
+        return !minecraft.getResourceManager().getResourceStack(fileId).isEmpty();
+    }
 }

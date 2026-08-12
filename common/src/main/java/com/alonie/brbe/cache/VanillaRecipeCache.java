@@ -91,6 +91,13 @@ public final class VanillaRecipeCache {
      */
     public static void detectAndInject(ClientRecipeBook recipeBook,
                                         Map<RecipeDisplayId, RecipeDisplayEntry> known) {
+        if (BetterRecipeBook.config != null && !BetterRecipeBook.config.newRecipes.unlockAll) {
+            // unlock-all is off: the book must only show server-unlocked recipes.
+            // Drop any locally-injected cache entries (negative IDs) so the
+            // local complement cannot bypass the toggle.
+            known.keySet().removeIf(id -> id.index() < 0);
+            return;
+        }
         if (cache.isEmpty()) return;
 
         lastServerCount = (int) known.keySet().stream().filter(id -> id.index() >= 0).count();

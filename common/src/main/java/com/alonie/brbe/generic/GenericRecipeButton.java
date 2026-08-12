@@ -71,10 +71,15 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
                 && (collection.isCraftable(current, menu.slots) || isPartial);
         Identifier outlineTexture = effectiveCraftable ?
                 BRBTextures.RECIPE_BOOK_BUTTON_SLOT_CRAFTABLE_SPRITE : BRBTextures.RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE;
-        ClientCompat.blitSprite(gui, outlineTexture, getX(), getY(), this.width, this.height);
+
+        // partial recipes: use the red-check sprite from the compat pack when available,
+        // otherwise fall back to the vanilla sprite + red overlay
+        boolean redCheck = isPartial && ClientCompat.hasSpriteResource(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE);
+        ClientCompat.blitSprite(gui, redCheck ? BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE : outlineTexture,
+                getX(), getY(), this.width, this.height);
 
         // red overlay for partially craftable recipes (drawn before item so item shows on top)
-        if (isPartial) {
+        if (isPartial && !redCheck) {
             gui.fill(getX() + 1, getY() + 1, getX() + this.width - 1, getY() + this.height - 1, 0x60FF3333);
         }
 

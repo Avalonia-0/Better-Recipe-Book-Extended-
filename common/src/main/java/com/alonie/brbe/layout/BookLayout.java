@@ -1,5 +1,7 @@
 package com.alonie.brbe.layout;
 
+import com.alonie.brbe.util.BRBTextures;
+import com.alonie.brbe.util.ClientCompat;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 
 /**
@@ -59,6 +61,16 @@ public final class BookLayout {
     public static final int SETTINGS_X_OFFSET = 11;
     public static final int SETTINGS_Y_OFFSET = 137;
     public static final int SETTINGS_SIZE = 18;
+
+    /** Settings button size — 20 when the unique-dark compat pack provides 20×20 sprites. */
+    public static int settingsSize() {
+        return ClientCompat.hasSpriteResource(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE) ? 20 : SETTINGS_SIZE;
+    }
+
+    /** Settings button Y offset — 1px higher when the unique-dark compat pack is active. */
+    public static int settingsY() {
+        return ClientCompat.hasSpriteResource(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE) ? SETTINGS_Y_OFFSET - 1 : SETTINGS_Y_OFFSET;
+    }
 
     /** Page arrow offsets. */
     public static final int ARROW_Y_OFFSET = 137;

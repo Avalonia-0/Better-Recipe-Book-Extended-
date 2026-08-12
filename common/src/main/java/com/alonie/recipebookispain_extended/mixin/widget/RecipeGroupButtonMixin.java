@@ -1,5 +1,7 @@
 package com.alonie.recipebookispain_extended.mixin.widget;
 
+import com.alonie.brbe.util.BRBTextures;
+import com.alonie.brbe.util.ClientCompat;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.access.RecipeGroupButtonPlacement;
 import com.alonie.recipebookispain_extended.access.RecipeGroupButtonPlacementAccess;
@@ -28,10 +30,10 @@ public abstract class RecipeGroupButtonMixin extends ImageButton implements Reci
     @Unique private static final int RBIP_TAB_HEIGHT = 27;
     @Unique private static final int RBIP_ROTATED_TAB_WIDTH = 27;
     @Unique private static final int RBIP_ROTATED_TAB_HEIGHT = 35;
-    @Unique private static final Identifier RBIP_BOTTOM_TAB = Identifier.fromNamespaceAndPath("recipe-book-is-pain-extended", "textures/rbip/bottom_tab.png");
-    @Unique private static final Identifier RBIP_BOTTOM_TAB_SELECTED = Identifier.fromNamespaceAndPath("recipe-book-is-pain-extended", "textures/rbip/bottom_tab_selected.png");
-    @Unique private static final Identifier RBIP_TOP_TAB = Identifier.fromNamespaceAndPath("recipe-book-is-pain-extended", "textures/rbip/top_tab.png");
-    @Unique private static final Identifier RBIP_TOP_TAB_SELECTED = Identifier.fromNamespaceAndPath("recipe-book-is-pain-extended", "textures/rbip/top_tab_selected.png");
+    @Unique private static final Identifier RBIP_BOTTOM_TAB = Identifier.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab.png");
+    @Unique private static final Identifier RBIP_BOTTOM_TAB_SELECTED = Identifier.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab_selected.png");
+    @Unique private static final Identifier RBIP_TOP_TAB = Identifier.fromNamespaceAndPath("brbe", "textures/rbip/top_tab.png");
+    @Unique private static final Identifier RBIP_TOP_TAB_SELECTED = Identifier.fromNamespaceAndPath("brbe", "textures/rbip/top_tab_selected.png");
 
     @Unique private RecipeGroupButtonPlacement rbip$placement = RecipeGroupButtonPlacement.NORMAL;
 
@@ -149,7 +151,11 @@ public abstract class RecipeGroupButtonMixin extends ImageButton implements Reci
 
     @Unique
     private int rbip$getRotatedIconX() {
-        int offset = this.rbip$placement == RecipeGroupButtonPlacement.TOP ? 1 : 0;
+        boolean top = this.rbip$placement == RecipeGroupButtonPlacement.TOP;
+        int offset = top ? 1 : 0;
+        if (top && ClientCompat.hasSpriteResource(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE)) {
+            offset -= 1; // unique dark 兼容包：顶部 tab 图标左移 1px
+        }
         return this.getX() + (RBIP_ROTATED_TAB_WIDTH - 16) / 2 + offset;
     }
 

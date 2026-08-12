@@ -61,7 +61,7 @@ public class Config implements ConfigData {
 
     @ConfigEntry.Category("recipeSettings")
     @ConfigEntry.Gui.Tooltip()
-    public boolean partialOnlyWhenCarrying = true;
+    public boolean partialOnlyWhenCarrying = false;
 
     @ConfigEntry.Category("recipeSettings")
     @ConfigEntry.Gui.PrefixText()

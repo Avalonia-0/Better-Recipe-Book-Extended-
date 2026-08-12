@@ -50,9 +50,9 @@ public abstract class RecipeBookComponentMixin {
     public void reset(CallbackInfo ci) {
         if (BetterRecipeBook.ctx().config().settingsButton) {
             int i = (this.width - BookLayout.TEXTURE_WIDTH) / 2 - this.xOffset;
-            int j = (this.height - BookLayout.TEXTURE_HEIGHT) / 2 + BookLayout.SETTINGS_Y_OFFSET;
+            int j = (this.height - BookLayout.TEXTURE_HEIGHT) / 2 + BookLayout.settingsY();
             this._$settingsButton = new ImageButton(i + BookLayout.SETTINGS_X_OFFSET, j,
-                    BookLayout.SETTINGS_SIZE, BookLayout.SETTINGS_SIZE,
+                    BookLayout.settingsSize(), BookLayout.settingsSize(),
                     BRBTextures.SETTINGS_BUTTON_SPRITES, button ->
                     ConfigTipsHelper.openConfigScreen(Config.class, Minecraft.getInstance().screen));
         }

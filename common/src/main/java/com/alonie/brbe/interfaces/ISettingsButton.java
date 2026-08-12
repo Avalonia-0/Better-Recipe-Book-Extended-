@@ -19,8 +19,8 @@ public interface ISettingsButton {
 
     default ImageButton createSettingsButton(int i, int j) {
         if (BetterRecipeBook.ctx().config().settingsButton) {
-            return new ImageButton(i + BookLayout.SETTINGS_X_OFFSET, j + BookLayout.SETTINGS_Y_OFFSET,
-                    BookLayout.SETTINGS_SIZE, BookLayout.SETTINGS_SIZE, BRBTextures.SETTINGS_BUTTON_SPRITES, button ->
+            return new ImageButton(i + BookLayout.SETTINGS_X_OFFSET, j + BookLayout.settingsY(),
+                    BookLayout.settingsSize(), BookLayout.settingsSize(), BRBTextures.SETTINGS_BUTTON_SPRITES, button ->
                     ConfigTipsHelper.openConfigScreen(Config.class, Minecraft.getInstance().screen));
         }
         return null;

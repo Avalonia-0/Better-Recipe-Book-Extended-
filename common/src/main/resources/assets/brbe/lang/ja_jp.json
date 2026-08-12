@@ -21,7 +21,7 @@
   "text.autoconfig.brbe.option.partialOnlyWhenCarrying.@Tooltip": "不完全なレシピは常に表示されなくなります。アイテムを持つことで、それに関連する不完全なレシピを表示し、UIをすっきりさせます。",
   "text.autoconfig.brbe.option.partialMarkingEnabled.@Tooltip": "インベントリに材料が一部あるレシピに、特別なテクスチャを適用します。",
   "text.autoconfig.brbe.option.settingsButton": "設定ボタンを表示",
-  "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§eヒント：§7以下の2つのオプションを無効にした場合、Modメニューから再度有効にする必要があります。",
+  "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§eヒント：§e以下の2つのオプションを無効にした場合、Modメニューから再度有効にする必要があります。",
   "text.autoconfig.brbe.option.instantCraft.showButton": "一括クラフトボタンを表示",
   "text.autoconfig.brbe.option.instantCraft.enabled": "一括クラフトを有効化",
   "text.autoconfig.brbe.option.alternativeRecipes.onHover": "ホバー時のみ代替レシピを表示",
@@ -62,5 +62,7 @@
   "brbe.gui.tip.3": "不完全レシピとは、インベントリに一部の材料があるが作れないレシピです。",
   "brbe.gui.tip.4": "アイテムマネージャーと併用するのもおすすめです。レシピ本でレシピの合成と用途を調べられます（ショートカットはアイテムマネージャーに準拠）。また「UI」でアイテムマネージャーの表示を非表示にできます。",
   "brbe.gui.tip.5": "クリエイティブモードのタブ機能は Recipe Book is Pain のMODから来ています！",
+  "brbe.gui.tip.6": "SNSでみんなと友達になりましょう！",
+  "brbe.gui.tip.7": "すべてのコードはDeepSeekによって生成されています！",
   "key.brbe.diagnostic": "診断情報 (F8)"
 }
