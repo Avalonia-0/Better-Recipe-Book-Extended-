@@ -39,7 +39,7 @@ import java.util.List;
 
 @Mixin(RecipeBookComponent.class)
 public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
-    @Unique private static final Identifier RBIP_PAGE_BUTTONS = Identifier.fromNamespaceAndPath("recipe-book-is-pain-extended", "textures/rbip/recipe_book_buttons.png");
+    @Unique private static final Identifier RBIP_PAGE_BUTTONS = Identifier.fromNamespaceAndPath("brbe", "textures/rbip/recipe_book_buttons.png");
     @Unique private static final int RBIP_FALLBACK_GROUPS_PER_PAGE = 5;
     @Unique private static final int RBIP_PAGE_BUTTON_WIDTH = 14;
     @Unique private static final int RBIP_PAGE_BUTTON_HEIGHT = 13;

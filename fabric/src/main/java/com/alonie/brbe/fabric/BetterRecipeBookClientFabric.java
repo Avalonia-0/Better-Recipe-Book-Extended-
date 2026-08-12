@@ -11,7 +11,13 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
+import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
+import net.fabricmc.fabric.api.resource.ResourcePackActivationType;
+import net.fabricmc.loader.api.FabricLoader;
+import net.minecraft.ChatFormatting;
+import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.resources.Identifier;
 
 import java.util.Collections;
 import java.util.Set;
@@ -56,5 +62,12 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             this.registeredScreens.add(screen);
             ScreenEvents.afterRender(screen).register(TopLayerOverlayRenderer::render);
         });
+
+        // Register built-in resource pack (Unique Dark filter textures)
+        ResourceManagerHelper.registerBuiltinResourcePack(
+                Identifier.fromNamespaceAndPath("brbe", "brbe_unique_dark"),
+                FabricLoader.getInstance().getModContainer("brbe").orElseThrow(),
+                Component.literal("Unique Dark Lite ").append(Component.literal("✕").withStyle(ChatFormatting.YELLOW)).append(Component.literal(" BRBE")),
+                ResourcePackActivationType.NORMAL);
     }
 }

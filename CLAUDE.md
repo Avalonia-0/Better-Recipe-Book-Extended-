@@ -31,7 +31,7 @@ This is a **multi-version Minecraft mod**. Each git branch targets a specific Mi
 ./gradlew cleanLoomCache && rm -rf .gradle
 ```
 
-JAR outputs: `fabric/build/libs/BetterRecipeBookExtended-fabric-{mcversion}-{version}.jar`
+JAR outputs: `fabric/build/libs/brbe-ava-fabric-{mcversion}-{version}.jar` (neoforge: `brbe-ava-neoforge-{mcversion}-{version}.jar`)
 
 ## Project Structure
 
@@ -98,8 +98,9 @@ Cloth Config provides the configuration GUI. It's `implementation`+`include` (bu
 
 ## Deployment
 
-Test instances at `/media/avalonia/data/MinecraftLib/versions/{version}-{loader}/mods/`. Deploy pattern:
+Test instances at `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSION}-{MOD_LOADER}/mods/` (`MOD_LOADER` capitalized: `Fabric`/`NeoForge`). Deploy pattern:
 ```bash
-cp fabric/build/libs/BetterRecipeBookExtended-fabric-*-2.1.5.jar /path/to/instance/mods/
-rm -f /path/to/instance/mods/BetterRecipeBook*-2.1.2* # clean old version
+cp fabric/build/libs/brbe-ava-fabric-*.jar /home/avalonia/data/MinecraftLib/versions/1.21.11-Fabric/mods/
+cp neoforge/build/libs/brbe-ava-neoforge-*.jar /home/avalonia/data/MinecraftLib/versions/1.21.11-NeoForge/mods/
 ```
+构建完必须部署；部署前将实例内同版本 JAR 备份为 `*.jar.bak.YYYYMMDD`，再覆盖旧版本产物。

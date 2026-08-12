@@ -140,7 +140,9 @@ public class BrewingRecipeBookComponent extends GenericRecipeBookComponent<Brewi
 
         this.ghostRecipe.clear();
 
-        if (!result.hasMaterials(this.selectedTab.getCategory(), menu.slots)) {
+        // 放置路径维持只看 slots：材料在鼠标上时显示 ghost 引导放料，
+        // 不把 carried 计入放置判定（放置循环只遍历 slots，无法从 carried 取料）。
+        if (!result.hasMaterials(this.selectedTab.getCategory(), menu.slots, ItemStack.EMPTY)) {
             setupGhostRecipe(result, menu.slots);
             return;
         }

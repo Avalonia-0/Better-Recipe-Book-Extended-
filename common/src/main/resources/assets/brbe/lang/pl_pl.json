@@ -21,7 +21,7 @@
   "text.autoconfig.brbe.option.partialOnlyWhenCarrying.@Tooltip": "Niekompletne przepisy nie będą już zawsze widoczne. Podnieś przedmiot, aby pokazać powiązane z nim niekompletne przepisy — interfejs pozostanie czysty.",
   "text.autoconfig.brbe.option.partialMarkingEnabled.@Tooltip": "Receptury, których część składników znajduje się w ekwipunku, otrzymają specjalną teksturę.",
   "text.autoconfig.brbe.option.settingsButton": "Pokaż przycisk ustawień",
-  "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§eWskazówka: §7Jeśli wyłączysz poniższe dwie opcje, będziesz musiał użyć ModMenu, aby ponownie je włączyć.",
+  "text.autoconfig.brbe.option.settingsButton.@PrefixText": "§eWskazówka: §eJeśli wyłączysz poniższe dwie opcje, będziesz musiał użyć ModMenu, aby ponownie je włączyć.",
   "text.autoconfig.brbe.option.instantCraft.showButton": "Pokaż przycisk natychmiastowego wytwarzania",
   "text.autoconfig.brbe.option.instantCraft.enabled": "Włącz natychmiastowe wytwarzanie",
   "text.autoconfig.brbe.option.alternativeRecipes.onHover": "Pokaż alternatywne receptury tylko po najechaniu",
@@ -62,5 +62,7 @@
   "brbe.gui.tip.3": "Niekompletne przepisy to takie, które mają część materiałów w ekwipunku, ale nie można ich wytworzyć.",
   "brbe.gui.tip.4": "Używanie z menadżerem przedmiotów też jest świetne — możesz sprawdzać receptury i ich zastosowania w księdze receptur (skróty zależą od menadżera przedmiotów). Możesz też ukryć interfejs menadżera przedmiotów w \"Interfejs\".",
   "brbe.gui.tip.5": "Funkcja zakładek w trybie kreatywnym pochodzi z moda Recipe Book is Pain!",
+  "brbe.gui.tip.6": "Zajrzyj na media społecznościowe i zaprzyjaźnij się z nami!",
+  "brbe.gui.tip.7": "Cały kod został wygenerowany przez DeepSeek!",
   "key.brbe.diagnostic": "Informacje diagnostyczne (F8)"
 }

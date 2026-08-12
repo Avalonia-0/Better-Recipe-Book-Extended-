@@ -1,5 +1,7 @@
 package com.alonie.brbe.mixins.incompletecrafting;
 
+import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -170,7 +172,13 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         if (currentRecipe == null) return;
 
         if (PartialCraftingUtil.isPartiallyCraftable(this.collection, currentRecipe)) {
-            gui.fill(getX() + 1, getY() + 1, getX() + width - 1, getY() + height - 1, 0x60FF3333);
+            // use the red-check sprite from the compat pack when available (covers the vanilla sprite),
+            // otherwise fall back to the vanilla sprite + red overlay
+            if (ClientCompat.hasSpriteResource(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE)) {
+                ClientCompat.blitSprite(gui, BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE, getX(), getY(), this.width, this.height);
+            } else {
+                gui.fill(getX() + 1, getY() + 1, getX() + this.width - 1, getY() + this.height - 1, 0x60FF3333);
+            }
         }
     }
 }

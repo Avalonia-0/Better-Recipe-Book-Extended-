@@ -36,20 +36,22 @@ public interface BRBSmithingRecipe extends GenericRecipe {
         return true;
     }
 
-    default boolean hasMaterials(NonNullList<Slot> slots, RegistryAccess registryAccess) {
-        return hasTemplate(slots) && hasBase(slots, registryAccess) && hasAddition(slots);
+    default boolean hasMaterials(NonNullList<Slot> slots, RegistryAccess registryAccess, ItemStack carried) {
+        return hasTemplate(slots, carried) && hasBase(slots, registryAccess, carried) && hasAddition(slots, carried);
     }
 
-    default boolean hasPartialMaterials(NonNullList<Slot> slots, RegistryAccess registryAccess) {
-        return (this.requiresTemplate() && hasTemplate(slots))
-                || hasBase(slots, registryAccess)
-                || (this.requiresAddition() && hasAddition(slots));
+    default boolean hasPartialMaterials(NonNullList<Slot> slots, RegistryAccess registryAccess, ItemStack carried) {
+        return (this.requiresTemplate() && hasTemplate(slots, carried))
+                || hasBase(slots, registryAccess, carried)
+                || (this.requiresAddition() && hasAddition(slots, carried));
     }
 
-    default boolean hasTemplate(List<Slot> slots) {
+    default boolean hasTemplate(List<Slot> slots, ItemStack carried) {
         if (!this.requiresTemplate()) {
             return true;
         }
+
+        if (!carried.isEmpty() && this.getTemplate().test(carried)) return true;
 
         for (Slot slot : slots) {
             if (this.getTemplate().test(slot.getItem())) return true;
@@ -57,7 +59,10 @@ public interface BRBSmithingRecipe extends GenericRecipe {
         return false;
     }
 
-    default boolean hasBase(List<Slot> slots, RegistryAccess registryAccess) {
+    default boolean hasBase(List<Slot> slots, RegistryAccess registryAccess, ItemStack carried) {
+        if (!carried.isEmpty() && !carried.has(DataComponents.TRIM) && getBase().getItem().equals(carried.getItem()))
+            return true;
+
         for (Slot slot : slots) {
             if (!slot.getItem().has(DataComponents.TRIM) && getBase().getItem().equals(slot.getItem().getItem()))
                 return true;
@@ -65,10 +70,12 @@ public interface BRBSmithingRecipe extends GenericRecipe {
         return false;
     }
 
-    default boolean hasAddition(List<Slot> slots) {
+    default boolean hasAddition(List<Slot> slots, ItemStack carried) {
         if (!this.requiresAddition()) {
             return true;
         }
+
+        if (!carried.isEmpty() && getAddition().test(carried)) return true;
 
         for (Slot slot : slots) {
             if (getAddition().test(slot.getItem())) return true;

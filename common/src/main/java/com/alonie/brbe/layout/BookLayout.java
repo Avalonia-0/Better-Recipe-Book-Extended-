@@ -1,5 +1,8 @@
 package com.alonie.brbe.layout;
 
+import com.alonie.brbe.util.BRBTextures;
+import com.alonie.brbe.util.ClientCompat;
+
 import java.util.EnumMap;
 import java.util.Map;
 
@@ -50,6 +53,16 @@ public final class BookLayout {
 
     /** Settings button (square). */
     public static final int SETTINGS_SIZE = 18;
+
+    /** Settings button size — 20 when the unique-dark compat pack provides 20×20 sprites. */
+    public static int settingsSize() {
+        return ClientCompat.hasSpriteResource(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE) ? 20 : SETTINGS_SIZE;
+    }
+
+    /** Settings button Y offset — 1px higher when the unique-dark compat pack is active. */
+    public static int settingsY() {
+        return ClientCompat.hasSpriteResource(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE) ? SETTINGS_Y_OFFSET - 1 : SETTINGS_Y_OFFSET;
+    }
 
     /** Page arrow button width. */
     public static final int ARROW_WIDTH = 12;

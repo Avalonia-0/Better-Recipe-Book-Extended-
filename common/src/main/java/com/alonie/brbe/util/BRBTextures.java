@@ -12,6 +12,7 @@ public class BRBTextures {
 
     public static final Identifier RECIPE_BOOK_BUTTON_SLOT_CRAFTABLE_SPRITE = Identifier.withDefaultNamespace("recipe_book/slot_craftable");
     public static final Identifier RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE = Identifier.withDefaultNamespace("recipe_book/slot_uncraftable");
+    public static final Identifier RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE = Identifier.fromNamespaceAndPath(NS, "recipe_book/slot_partial");
     public static final Identifier RECIPE_BOOK_PIN_SPRITE = Identifier.fromNamespaceAndPath(NS, "recipe_book/pin");
     public static final Identifier RECIPE_BOOK_OVERLAY_PIN_SPRITE = Identifier.fromNamespaceAndPath(NS, "recipe_book/overlay_pin");
     

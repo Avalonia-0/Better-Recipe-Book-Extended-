@@ -53,12 +53,15 @@ public class SmithingOverlayRecipeComponent implements Renderable, GuiEventListe
         this.visible = true;
         this.recipeButtons.clear();
 
+        List<BRBSmithingRecipe> partialRecipes = recipeCollection.getPartiallyCraftableRecipes();
+
         for (int index = 0; index < totalRecipeCount; ++index) {
             boolean isCraftable = index < lockedRecipeCount;
             BRBSmithingRecipe recipe = isCraftable ? lockedRecipes.get(index) : unlockedRecipes.get(index - lockedRecipeCount);
+            boolean partial = partialRecipes.stream().anyMatch(r -> r.id().equals(recipe.id()));
             int buttonX = this.x + 4 + 25 * (index % columns);
             int buttonY = this.y + 5 + 25 * (index / columns);
-            this.recipeButtons.add(new OverlayRecipeButton(buttonX, buttonY, recipe, isCraftable, registryAccess));
+            this.recipeButtons.add(new OverlayRecipeButton(buttonX, buttonY, recipe, isCraftable, registryAccess, partial));
         }
 
         this.lastRecipeClicked = null;
@@ -146,13 +149,15 @@ public class SmithingOverlayRecipeComponent implements Renderable, GuiEventListe
     public static class OverlayRecipeButton extends AbstractWidget {
         final BRBSmithingRecipe recipe;
         private final boolean craftable;
+        private final boolean partial;
         private final RegistryAccess registryAccess;
 
-        public OverlayRecipeButton(int x, int y, BRBSmithingRecipe recipe, boolean craftable, RegistryAccess registryAccess) {
+        public OverlayRecipeButton(int x, int y, BRBSmithingRecipe recipe, boolean craftable, RegistryAccess registryAccess, boolean partial) {
             super(x, y, 24, 24, CommonComponents.EMPTY);
             this.recipe = recipe;
             this.craftable = craftable;
             this.registryAccess = registryAccess;
+            this.partial = partial;
         }
 
         public boolean mouseClicked(double mouseX, double mouseY, int button) {
@@ -171,8 +176,12 @@ public class SmithingOverlayRecipeComponent implements Renderable, GuiEventListe
 
         @Override
         public void renderWidget(GuiGraphics guiGraphics, int mouseX, int mouseY, float delta) {
-            Identifier sprite = BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(this.craftable, this.isHoveredOrFocused());
+            // Partial recipes keep the craftable sprite (light border); the red overlay marks them.
+            Identifier sprite = BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(this.craftable || this.partial, this.isHoveredOrFocused());
             ClientCompat.blitSprite(guiGraphics, sprite, this.getX(), this.getY(), this.width, this.height);
+            if (this.partial) {
+                guiGraphics.fill(this.getX() + 1, this.getY() + 1, this.getX() + this.width - 1, this.getY() + this.height - 1, 0x60FF3333);
+            }
             guiGraphics.renderFakeItem(this.recipe.getResult(this.registryAccess, BetterRecipeBook.SMITHING_SEARCH), this.getX() + 4, this.getY() + 4);
         }
     }
