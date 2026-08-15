@@ -24,6 +24,11 @@ repositories {
     maven { url = "https://maven.terraformersmc.com/releases/" }
 }
 
+// The companion JEI-plugin mod lives in its own git worktree
+// (../jei-plugins) and is consumed as a built jar file, then bundled whole as a
+// fabric-loader nested mod (jar-in-jar).  Build ../jei-plugins first.
+def jeiPluginsJar = rootProject.file("../jei-plugins/jei-plugins/build/libs/brbe-ava-jei-plugins-26.2-2.3.jar")
+
 dependencies {
     implementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
     implementation("net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}") {
@@ -39,8 +44,7 @@ dependencies {
     def jeiJar = rootProject.file("libs/jei-26.2-fabric-30.4.0.25.jar")
     if (jeiJar.exists()) { compileOnly files(jeiJar) }
     implementation(project(path: ":common"))
-    // Companion JEI-plugin mod, shipped as a nested child mod in this jar.
-    jeiPluginsInJar(project(path: ":jei-plugins"))
+    jeiPluginsInJar files(jeiPluginsJar)
 }
 
 // Include common module (classes + resources) — loom-no-remap doesn't auto-merge
@@ -49,7 +53,7 @@ jar {
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     exclude "rbip-neoforge.mixins.json"
     // The companion mod is bundled whole as a fabric-loader nested mod.
-    from(project(":jei-plugins").tasks.named("jar")) {
+    from(files(jeiPluginsJar)) {
         into("META-INF/jars")
     }
 }
