@@ -72,6 +72,8 @@
   "brbe.gui.tip.5": "クリエイティブモードのタブ機能は Recipe Book is Pain のMODから来ています！",
   "brbe.gui.tip.6": "SNSでみんなと友達になりましょう！",
   "brbe.gui.tip.7": "すべてのコードはDeepSeekによって生成されています！",
+  "brbe.gui.tip.8": "Ctrlキーを押しながらレシピエリアのページ送りボタンをクリックすると、先頭または末尾のページへ素早く移動できます。",
+  "brbe.gui.tip.9": "レシピエリアで指定ページへ移動する方法：検索バーに「……」と入力し、続けてページ番号、最後に「……」と入力します。（「……」は「^」に置き換え可能）",
   "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§e不完全なレシピのマーキング",
   "text.autoconfig.brbe.option.pageAnimation.pageAnimationEnabled": "Page Flip Animation",
   "text.autoconfig.brbe.option.pageAnimationDuration": "Animation Duration"

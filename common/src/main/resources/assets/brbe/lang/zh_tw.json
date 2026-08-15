@@ -72,6 +72,8 @@
   "brbe.gui.tip.5": "創造模式標籤功能來自Recipe Book is Pain模組！",
   "brbe.gui.tip.6": "來社群媒體和大家交個朋友！",
   "brbe.gui.tip.7": "所有代碼均由DeepSeek生成！",
+  "brbe.gui.tip.8": "按住Ctrl並點擊配方區的翻頁鍵，即可快速跳轉至首頁或末頁。",
+  "brbe.gui.tip.9": "在配方區跳轉指定頁碼的方法：在搜尋欄輸入「……」，“再輸入頁碼，最後再輸入「……」。（「……」可替換為「^」）",
   "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§e殘缺配方標記",
   "text.autoconfig.brbe.option.pageAnimation.pageAnimationEnabled": "配方書翻頁動畫",
   "text.autoconfig.brbe.option.pageAnimationDuration": "動畫時長",

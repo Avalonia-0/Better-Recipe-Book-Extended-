@@ -72,6 +72,8 @@
   "brbe.gui.tip.5": "Funkcja zakładek w trybie kreatywnym pochodzi z moda Recipe Book is Pain!",
   "brbe.gui.tip.6": "Zajrzyj na media społecznościowe i zaprzyjaźnij się z nami!",
   "brbe.gui.tip.7": "Cały kod został wygenerowany przez DeepSeek!",
+  "brbe.gui.tip.8": "Przytrzymaj Ctrl i kliknij przycisk przewijania stron w obszarze receptur, aby szybko przejść na pierwszą lub ostatnią stronę.",
+  "brbe.gui.tip.9": "Sposób na przejście do wybranej strony w obszarze receptur: wpisz „……” w pasku wyszukiwania, następnie numer strony i na końcu ponownie „……”. („……” można zastąpić znakiem „^”)",
   "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§eOznaczanie niekompletnych przepisów",
   "text.autoconfig.brbe.option.pageAnimation.pageAnimationEnabled": "Page Flip Animation",
   "text.autoconfig.brbe.option.pageAnimationDuration": "Animation Duration"

@@ -72,6 +72,8 @@
   "brbe.gui.tip.5": "Yaratıcı mod sekmesi özelliği Recipe Book is Pain modundan geliyor!",
   "brbe.gui.tip.6": "Sosyal medyada bize katıl, arkadaş olalım!",
   "brbe.gui.tip.7": "Tüm kod DeepSeek tarafından üretilmiştir!",
+  "brbe.gui.tip.8": "Tarif alanında Ctrl tuşuna basılı tutarak sayfa çevirme düğmesine tıklarsanız doğrudan ilk veya son sayfaya atlayabilirsiniz.",
+  "brbe.gui.tip.9": "Tarif alanında belirli bir sayfaya gitme yöntemi: arama çubuğuna “……” yazın, ardından sayfa numarası ve son olarak tekrar “……”. (“……” yerine “^” kullanılabilir)",
   "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§eEksik Tarif İşaretleme",
   "text.autoconfig.brbe.option.pageAnimation.pageAnimationEnabled": "Page Flip Animation",
   "text.autoconfig.brbe.option.pageAnimationDuration": "Animation Duration"

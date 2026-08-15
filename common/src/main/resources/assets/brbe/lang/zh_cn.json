@@ -77,6 +77,8 @@
   "brbe.gui.tip.5": "创造模式标签功能来自Recipe Book is Pain模组！",
   "brbe.gui.tip.6": "来社交媒体和大家交个朋友！",
   "brbe.gui.tip.7": "所有代码均由DeepSeek生成！",
+  "brbe.gui.tip.8": "按住Ctrl并点击配方区的翻页键，即可快速跳转至首页或尾页。",
+  "brbe.gui.tip.9": "在配方区跳转指定页码的方法：在搜索栏输入“……”，“再输入页码，最后再输入“……”。（“……”可替换为“^”）",
   "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§e残缺配方标记",
   "brbe.category.crafting": "合成",
   "brbe.category.furnace": "熔炉",

@@ -72,6 +72,8 @@
   "brbe.gui.tip.5": "Функция вкладок в креативном режиме взята из мода Recipe Book is Pain!",
   "brbe.gui.tip.6": "Загляните в соцсети и подружитесь с нами!",
   "brbe.gui.tip.7": "Весь код сгенерирован DeepSeek!",
+  "brbe.gui.tip.8": "Удерживайте Ctrl и нажмите кнопку перелистывания в области рецептов, чтобы быстро перейти на первую или последнюю страницу.",
+  "brbe.gui.tip.9": "Как перейти на нужную страницу в области рецептов: введите «……» в строку поиска, затем номер страницы и снова «……». («……» можно заменить на «^»)",
   "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§eОтметка неполных рецептов",
   "text.autoconfig.brbe.option.pageAnimation.pageAnimationEnabled": "Page Flip Animation",
   "text.autoconfig.brbe.option.pageAnimationDuration": "Animation Duration"
