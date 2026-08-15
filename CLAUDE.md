@@ -10,14 +10,16 @@ Each git branch targets a **different Minecraft version** and is built independe
 |-----------|-----------|------|-----------------------------------|------------------|
 | `1.21.1`  | 1.21.1    | 21   | Architectury Loom                 | Fabric + NeoForge |
 | `1.21.11` | 1.21.11   | 21   | Architectury Loom                 | Fabric + NeoForge |
-| `26.2`    | 26.2      | 25   | Architectury Loom (`loom-no-remap`) | Fabric           |
+| `26.2`    | 26.2      | 25   | fabric-loom (`net.fabricmc.fabric-loom`, no-remap) | Fabric |
 
 **The root `build.gradle` validates `minecraft_version` against the branch name at configure time** — it will fail with a clear error if they differ. After switching branches, always run `git checkout -- gradle.properties` to restore the correct version.
 
 ## Module layout
 
+Single-module fabric project — all sources under `src/main/java` + `src/main/resources` (no Architectury multi-module split).
+
 ```
-common/                               ← shared module (fabric-only on this branch)
+src/main/java/com/alonie/brbe/
   api/                                ←   public interfaces (HudHider, ConfigScreenProvider, book categories)
   impl/hud/                           ←   HudHider implementations (JeiHudHider, ReiHudHider)
   compat/                             ←   cross-mod bridges (OverlayHider, CompatMixinPlugin, ItemViewCompat)
@@ -45,34 +47,44 @@ common/                               ← shared module (fabric-only on this bra
     toasts/                           ←     toast suppression mixins
   brewingstand/                       ←   brewing stand recipe book (BrewingRecipeBookComponent, BrewingRecipeCollection, etc.)
   smithingtable/                      ←   smithing table recipe book (SmithingRecipeBookComponent, SmithingRecipeCollection, etc.)
+  fabric/                             ←   Fabric entrypoints + platform init
+    BetterRecipeBookFabric, BetterRecipeBookClientFabric
+    ModMenuReflectiveBridge           ←   reflection-based ModMenu integration
+    Mixins/Accessors/                 ←   Fabric-specific accessor mixins (FabricPotionBrewingAccessor)
+    compat/jei, compat/rei            ←   JEI/REI integration
+  brewingstand/fabric/                ←   PlatformPotionUtilImpl (fabric)
   interfaces/                         ←   cross-cutting interfaces (IPinningComponent, ISettingsButton, TopLayerOverlayProvider, RecipeBookTabButtonIconOffset)
   recipe/                             ←   custom recipe wrappers (BRBSmithingRecipe, etc.)
     smithing/                         ←     smithing transform/trim recipes
   util/                               ←   utility classes (BRBHelper, BRBTextures, ModNameUtil, PartialCraftingUtil, RecipeUnlockUtil, TopLayerOverlayRenderer, etc.)
   widget/                             ←   custom widgets (StateSwitchingButton)
   loaders/                            ←   PotionLoader (registers potion recipes from data packs)
-  recipebookispain_extended/          ←   RBIP module — source-merged into common (not a jar-in-jar)
-    mixin/                            ←     RBIP mixins (widget/, screen/, groups/, ItemMixin, MouseMixin)
-    compat/polymer/                   ←     Polymer integration
-    fabric/                           ←     RBIP Fabric entrypoint
 
-fabric/                               ← Fabric entrypoints + platform init
-  main/java/.../fabric/               ←   BetterRecipeBookFabric, BetterRecipeBookClientFabric
-    ModMenuReflectiveBridge           ←   reflection-based ModMenu integration
-    Mixins/Accessors/                 ←   Fabric-specific accessor mixins
+src/main/resources/
+  fabric.mod.json                     ←   mod metadata (entrypoints, mixins, jars-in-jar)
+  mixins.brbe.json                    ←   platform mixins (FabricPotionBrewingAccessor)
+  mixins.brbe-common.json             ←   all cross-cutting BRBE mixins
+  mixins.brbe-common-compat.json      ←   conditional compat mixins
+  mixins.brbe-jei-common.json         ←   JEI overlay mixins
+  mixins.brbe-rei-common.json         ←   REI overlay mixins
+  recipe-book-is-pain-extended.mixins.json ← RBIP mixins
+  brbe.common.accesswidener           ←   access widener (not declared in fabric.mod.json — inert resource)
+  assets/brbe/                        ←   lang, textures, icon.png
+  resourcepacks/brbe_unique_dark/     ←   built-in resource pack (registered in BetterRecipeBookClientFabric)
 ```
 
 ## Core architecture patterns
 
 ### No Architectury API dependency
-Both the common and platform modules avoid depending on Architectury API at compile time. The `architectury-plugin` is used only for its `loom-no-remap` Loom fork (which provides Mojmap with no remapping needed). Platform-specific code uses native Fabric API directly.
+No Architectury API anywhere. The single-module build uses official `net.fabricmc.fabric-loom` (1.17.18, LoomNoRemap — Minecraft 26.1+ is unobfuscated, Mojang mappings are final and no remap is needed). Platform code uses native Fabric API directly.
 
 ### Mixin configuration split
-There are **four** mixin config files, loaded on Fabric:
+There are **six** mixin config files, all in `src/main/resources`:
 - `mixins.brbe.json` — platform-mixin configs (Fabric's `FabricPotionBrewingAccessor`).
 - `mixins.brbe-common.json` — all cross-cutting BRBE mixins (required: true).
 - `mixins.brbe-common-compat.json` — conditional compat mixins (required: false, with `CompatMixinPlugin` that checks FabricLoader.isModLoaded). Current compat: mousewheelie.
-- `recipe-book-is-pain-extended.mixins.json` — RBIP mixins used by Fabric.
+- `mixins.brbe-jei-common.json` / `mixins.brbe-rei-common.json` — JEI / REI overlay mixins (required: false).
+- `recipe-book-is-pain-extended.mixins.json` — RBIP mixins.
 
 ### Config system
 Uses **Cloth Config** (`me.shedaniel.autoconfig`) with TOML serialization. Config is gated by runtime availability — the `AutoConfig.register()` call is wrapped in try-catch. The config POJO lives at `com.alonie.brbe.config.Config` with nested sub-configs for feature groups (AlternativeRecipes, InstantCraft, Scrolling, NewRecipes, RecipeBookIsPain).
@@ -84,7 +96,7 @@ Implements a mini query language with `|` (OR), space (AND), `-` (negation), `@m
 The mod adds **non-vanilla** recipe book screens for brewing stands and smithing tables. Each has its own component/collection/recipe classes under `brewingstand/` and `smithingtable/`. These are separate from the generic recipe book base classes.
 
 ### Platform potion utilities
-Potion brewing is platform-dependent (`PotionBrewing.Mix` is package-private). Fabric implements `PlatformPotionUtil` via reflection-based accessors in `fabric/.../brewingstand/fabric/PlatformPotionUtilImpl.java`.
+Potion brewing is platform-dependent (`PotionBrewing.Mix` is package-private). Fabric implements `PlatformPotionUtil` via reflection-based accessors in `src/main/java/com/alonie/brbe/brewingstand/fabric/PlatformPotionUtilImpl.java`.
 
 ## Build commands
 
@@ -107,16 +119,16 @@ JAVA_HOME=/usr/lib/jvm/java-25-openjdk sh gradlew build
 ### 常规构建
 
 ```bash
-./gradlew build                       # full build (common + fabric)
-./gradlew :common:compileJava         # compile-only check
-./gradlew :fabric:runClient           # launch Fabric dev client
+./gradlew build                       # full build (single module)
+./gradlew compileJava                 # compile-only check
+./gradlew runClient                   # launch Fabric dev client
 ./gradlew clean build                 # full clean rebuild
 
 # Cache corruption recovery (after branch switches)
 ./gradlew cleanLoomCache && rm -rf .gradle && ./gradlew build
 
 # Deploy (build JAR → copy to test instance)
-cp fabric/build/libs/brbe-ava-fabric-26.2-2.2.1.jar /home/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/
+cp build/libs/brbe-ava-fabric-26.2-2.3.jar /home/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/
 ```
 
 Test instance path rule: `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSION}-{MOD_LOADER}/mods/` (`MOD_LOADER` capitalized: `Fabric`). 构建完必须部署；部署前将实例内同版本 JAR 备份为 `*.jar.bak.YYYYMMDD`。
@@ -141,7 +153,7 @@ Test instance path rule: `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSIO
 
 ## RBIP (Recipe Book is Pain) module
 
-- Source-merged into `common/.../recipebookispain_extended/` — **not** a jar-in-jar dependency. Uses its own package (`com.alonie.recipebookispain_extended`).
+- Lives in `src/main/java/com/alonie/recipebookispain_extended/` in the single-module source tree. Uses its own package (`com.alonie.recipebookispain_extended`).
 - Own mixin config: `recipe-book-is-pain-extended.mixins.json` (Fabric)
 - Platform init: Fabric → `RBIPFabricEntrypoint`
 - Config bridged through `RecipeBookIsPainExtendedConfig.enabled()` → reads `brbe.toml [rbip]`
@@ -162,7 +174,7 @@ Each hider owns its own state (snapshot, guard flags). Adding a new HUD mod only
 
 ## Important gotchas
 
-- **`loom-no-remap` means Mojmap-only.** Intermediary-based mods (like ModMenu) cannot be directly included as compile dependencies. ModMenuFabric integration is done reflectively via `ModMenuReflectiveBridge`.
+- **26.1+ is unobfuscated** — Mojang official mappings are the final names, no remap needed. The build uses `net.fabricmc.fabric-loom` 1.17.18 (`LoomNoRemapGradlePlugin`). Intermediary-based mods (like ModMenu) cannot be directly included as compile dependencies. ModMenuFabric integration is done reflectively via `ModMenuReflectiveBridge`.
 - **JEI is not yet available for 26.2** — JEI-related mixins still compile but the jar dependency is commented out.
 - **Cloth Config for 26.2 is bundled as a separate mod** (not jar-in-jar). The config registration is wrapped in try-catch; if Cloth Config is absent, the mod still runs with default values.
 - **No test suite.** Validation is manual via `runClient` tasks or deploying to a test instance.

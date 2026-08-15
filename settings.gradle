@@ -1,15 +1,9 @@
 pluginManagement {
     repositories {
         maven { url "https://maven.fabricmc.net/" }
-        maven { url "https://maven.architectury.dev/" }
-        // Required to resolve loom-no-remap plugin's own buildscript deps
-        // (mcinjector / DiffPatch), which live on the NeoForged maven.
-        maven { url "https://maven.neoforged.net/releases" }
+        mavenCentral()
         gradlePluginPortal()
     }
 }
-
-include("common")
-include("fabric")
 
 rootProject.name = "Better Recipe Book"

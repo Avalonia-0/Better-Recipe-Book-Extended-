@@ -3,15 +3,13 @@
 **/build/
 **/.gradle/
 
-# IDE
-neoforge/.gradle/
-neoforge/build/
-
 # root build artifacts
 /*.jar
 /HeadlessMC/
 /logs/
 
+# dev run dir
+/run/
+
 # local/experimental
 .claude/
-resourcepacks/
