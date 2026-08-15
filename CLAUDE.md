@@ -10,14 +10,14 @@ Each git branch targets a **different Minecraft version** and is built independe
 |-----------|-----------|------|-----------------------------------|------------------|
 | `1.21.1`  | 1.21.1    | 21   | Architectury Loom                 | Fabric + NeoForge |
 | `1.21.11` | 1.21.11   | 21   | Architectury Loom                 | Fabric + NeoForge |
-| `26.2`    | 26.2      | 25   | Architectury Loom (`loom-no-remap`) | Fabric + NeoForge |
+| `26.2`    | 26.2      | 25   | Architectury Loom (`loom-no-remap`) | Fabric           |
 
 **The root `build.gradle` validates `minecraft_version` against the branch name at configure time** — it will fail with a clear error if they differ. After switching branches, always run `git checkout -- gradle.properties` to restore the correct version.
 
 ## Module layout
 
 ```
-common/                               ← shared across Fabric + NeoForge
+common/                               ← shared module (fabric-only on this branch)
   api/                                ←   public interfaces (HudHider, ConfigScreenProvider, book categories)
   impl/hud/                           ←   HudHider implementations (JeiHudHider, ReiHudHider)
   compat/                             ←   cross-mod bridges (OverlayHider, CompatMixinPlugin, ItemViewCompat)
@@ -55,33 +55,24 @@ common/                               ← shared across Fabric + NeoForge
     mixin/                            ←     RBIP mixins (widget/, screen/, groups/, ItemMixin, MouseMixin)
     compat/polymer/                   ←     Polymer integration
     fabric/                           ←     RBIP Fabric entrypoint
-    neoforge/                         ←     RBIP NeoForge platform impl (in neoforge module)
 
 fabric/                               ← Fabric entrypoints + platform init
   main/java/.../fabric/               ←   BetterRecipeBookFabric, BetterRecipeBookClientFabric
     ModMenuReflectiveBridge           ←   reflection-based ModMenu integration
     Mixins/Accessors/                 ←   Fabric-specific accessor mixins
-
-neoforge/                             ← NeoForge entrypoints + platform init
-  main/java/.../neoforge/             ←   BetterRecipeBookNeoForge, BetterRecipeBookClientNeoForge
-    Mixins/Accessors/                 ←   NeoForge-specific accessor mixins
 ```
 
 ## Core architecture patterns
 
 ### No Architectury API dependency
-Both the common and platform modules avoid depending on Architectury API at compile time. The `architectury-plugin` is used only for its `loom-no-remap` Loom fork (which provides Mojmap with no remapping needed). Platform-specific code uses native Fabric API or NeoForge event bus directly.
+Both the common and platform modules avoid depending on Architectury API at compile time. The `architectury-plugin` is used only for its `loom-no-remap` Loom fork (which provides Mojmap with no remapping needed). Platform-specific code uses native Fabric API directly.
 
 ### Mixin configuration split
-There are **five** mixin config files, loaded differently per platform:
-- `mixins.brbe.json` — platform-mixin configs (Fabric's `FabricPotionBrewingAccessor`, NeoForge's `NeoForgePotionBrewingAccessor`). Each platform module has its own copy.
-- `mixins.brbe-common.json` — all cross-cutting BRBE mixins (required: true), loaded by both platforms.
+There are **four** mixin config files, loaded on Fabric:
+- `mixins.brbe.json` — platform-mixin configs (Fabric's `FabricPotionBrewingAccessor`).
+- `mixins.brbe-common.json` — all cross-cutting BRBE mixins (required: true).
 - `mixins.brbe-common-compat.json` — conditional compat mixins (required: false, with `CompatMixinPlugin` that checks FabricLoader.isModLoaded). Current compat: mousewheelie.
 - `recipe-book-is-pain-extended.mixins.json` — RBIP mixins used by Fabric.
-- `rbip-neoforge.mixins.json` — RBIP mixins used by NeoForge (identical content, different filename for distinct config).
-
-### NeoForge shadow jar packaging
-The NeoForge build uses `com.gradleup.shadow` to bundle the `:common` module classes into the NeoForge JAR. The `jar` task depends on `shadowJar` and extracts from it. This is because `loom-no-remap` does not provide `namedElements` / `transformProduction*` that normally merge multi-project outputs.
 
 ### Config system
 Uses **Cloth Config** (`me.shedaniel.autoconfig`) with TOML serialization. Config is gated by runtime availability — the `AutoConfig.register()` call is wrapped in try-catch. The config POJO lives at `com.alonie.brbe.config.Config` with nested sub-configs for feature groups (AlternativeRecipes, InstantCraft, Scrolling, NewRecipes, RecipeBookIsPain).
@@ -93,7 +84,7 @@ Implements a mini query language with `|` (OR), space (AND), `-` (negation), `@m
 The mod adds **non-vanilla** recipe book screens for brewing stands and smithing tables. Each has its own component/collection/recipe classes under `brewingstand/` and `smithingtable/`. These are separate from the generic recipe book base classes.
 
 ### Platform potion utilities
-Potion brewing is platform-dependent (`PotionBrewing.Mix` is package-private). Each platform implements `PlatformPotionUtil` via reflection-based accessors in `PlatformPotionUtilImpl`.
+Potion brewing is platform-dependent (`PotionBrewing.Mix` is package-private). Fabric implements `PlatformPotionUtil` via reflection-based accessors in `fabric/.../brewingstand/fabric/PlatformPotionUtilImpl.java`.
 
 ## Build commands
 
@@ -111,28 +102,24 @@ cd /home/avalonia/data/dev/mc_mods/BetterRecipeBook/26.2
 JAVA_HOME=/usr/lib/jvm/java-25-openjdk sh gradlew build
 ```
 
-> ⚠️ jei-plugins 未先构建会导致 fabric jar 打包失败或缺嵌套子 mod。neoforge 侧目前仍按独立 jar 分发。
+> ⚠️ jei-plugins 未先构建会导致 fabric jar 打包失败或缺嵌套子 mod。
 
 ### 常规构建
 
 ```bash
-./gradlew build                       # full build (common + fabric + neoforge)
+./gradlew build                       # full build (common + fabric)
 ./gradlew :common:compileJava         # compile-only check
 ./gradlew :fabric:runClient           # launch Fabric dev client
-./gradlew :neoforge:runClient         # launch NeoForge dev client
 ./gradlew clean build                 # full clean rebuild
 
 # Cache corruption recovery (after branch switches)
 ./gradlew cleanLoomCache && rm -rf .gradle && ./gradlew build
 
 # Deploy (build JAR → copy to test instance)
-# Fabric:
 cp fabric/build/libs/brbe-ava-fabric-26.2-2.2.1.jar /home/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/
-# NeoForge:
-cp neoforge/build/libs/brbe-ava-neoforge-26.2-2.2.1.jar /home/avalonia/data/MinecraftLib/versions/26.2-NeoForge/mods/
 ```
 
-Test instance path rule: `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSION}-{MOD_LOADER}/mods/` (`MOD_LOADER` capitalized: `Fabric`/`NeoForge`). 构建完必须部署；部署前将实例内同版本 JAR 备份为 `*.jar.bak.YYYYMMDD`。
+Test instance path rule: `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSION}-{MOD_LOADER}/mods/` (`MOD_LOADER` capitalized: `Fabric`). 构建完必须部署；部署前将实例内同版本 JAR 备份为 `*.jar.bak.YYYYMMDD`。
 
 ## Config features and their gates
 
@@ -155,10 +142,10 @@ Test instance path rule: `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSIO
 ## RBIP (Recipe Book is Pain) module
 
 - Source-merged into `common/.../recipebookispain_extended/` — **not** a jar-in-jar dependency. Uses its own package (`com.alonie.recipebookispain_extended`).
-- Own mixin configs: `recipe-book-is-pain-extended.mixins.json` (Fabric), `rbip-neoforge.mixins.json` (NeoForge)
-- Platform init: NeoForge → `BetterRecipeBookClientNeoForge.init()`, Fabric → `RBIPFabricEntrypoint`
+- Own mixin config: `recipe-book-is-pain-extended.mixins.json` (Fabric)
+- Platform init: Fabric → `RBIPFabricEntrypoint`
 - Config bridged through `RecipeBookIsPainExtendedConfig.enabled()` → reads `brbe.toml [rbip]`
-- KeyMappings and key events: Fabric → `RBIPFabricEntrypoint`, NeoForge → `NeoForgePlatform` (registered on NeoForge event bus)
+- KeyMappings and key events: Fabric → `RBIPFabricEntrypoint`
 - If `enableRecipeBookIsPain` is off, RBIP is a no-op (constructor saves `vanillaTabInfos`, all methods guard on `enabled()`)
 - Polymer compat: optional support for Polymer virtual items via `PolymerCompat` (checks `isModLoaded("polymer")`)
 
