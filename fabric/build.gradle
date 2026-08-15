@@ -15,6 +15,9 @@ configurations {
     compileClasspath.extendsFrom common
     runtimeClasspath.extendsFrom common
     developmentFabric.extendsFrom common
+
+    // Bundled as a jar-in-jar child mod under META-INF/jars/.
+    jeiPluginsInJar
 }
 
 repositories {
@@ -36,6 +39,8 @@ dependencies {
     def jeiJar = rootProject.file("libs/jei-26.2-fabric-30.4.0.25.jar")
     if (jeiJar.exists()) { compileOnly files(jeiJar) }
     implementation(project(path: ":common"))
+    // Companion JEI-plugin mod, shipped as a nested child mod in this jar.
+    jeiPluginsInJar(project(path: ":jei-plugins"))
 }
 
 // Include common module (classes + resources) — loom-no-remap doesn't auto-merge
@@ -43,6 +48,10 @@ jar {
     from project(":common").sourceSets.main.output
     duplicatesStrategy = DuplicatesStrategy.EXCLUDE
     exclude "rbip-neoforge.mixins.json"
+    // The companion mod is bundled whole as a fabric-loader nested mod.
+    from(project(":jei-plugins").tasks.named("jar")) {
+        into("META-INF/jars")
+    }
 }
 
 // JEI overlay mixins are compiled now — JEI jar is available via implementation files(jeiJarPath)
