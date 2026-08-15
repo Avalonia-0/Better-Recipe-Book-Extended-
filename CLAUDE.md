@@ -97,6 +97,24 @@ Potion brewing is platform-dependent (`PotionBrewing.Mix` is package-private). E
 
 ## Build commands
 
+### jei-plugins（先构建，再构建本目录）
+
+> **`jei-plugins` 是独立 git 分支/worktree**（`/home/avalonia/data/dev/mc_mods/BetterRecipeBook/jei-plugins/`，`settings.gradle` 只 `include("common","jei-plugins")`），不在本目录的 `settings.gradle` 中。fabric 主 jar 通过 jar-in-jar（`META-INF/jars/`）跨目录引用它的构建产物——**必须先构建 `../jei-plugins`**：
+
+```bash
+# 1) 构建 jei-plugins 独立工程
+cd /home/avalonia/data/dev/mc_mods/BetterRecipeBook/jei-plugins
+JAVA_HOME=/usr/lib/jvm/java-25-openjdk sh gradlew :jei-plugins:build -x test -x check
+
+# 2) 再构建本目录主 mod（fabric jar 嵌入上面产物）
+cd /home/avalonia/data/dev/mc_mods/BetterRecipeBook/26.2
+JAVA_HOME=/usr/lib/jvm/java-25-openjdk sh gradlew build
+```
+
+> ⚠️ jei-plugins 未先构建会导致 fabric jar 打包失败或缺嵌套子 mod。neoforge 侧目前仍按独立 jar 分发。
+
+### 常规构建
+
 ```bash
 ./gradlew build                       # full build (common + fabric + neoforge)
 ./gradlew :common:compileJava         # compile-only check
