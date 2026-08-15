@@ -104,16 +104,28 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         }
 
         if (this.forwardButton.mouseClicked(mouseX, mouseY, button)) {
-            int target = currentPage + 1;
-            if (target >= totalPages) {
-                target = BetterRecipeBook.config.scrolling.scrollAround ? 0 : totalPages - 1;
+            int target;
+            if (ClientCompat.isControlDown()) {
+                // Ctrl+点击：直接跳到尾页
+                target = totalPages - 1;
+            } else {
+                target = currentPage + 1;
+                if (target >= totalPages) {
+                    target = BetterRecipeBook.config.scrolling.scrollAround ? 0 : totalPages - 1;
+                }
             }
             this.flipTo(target);
             return true;
         } else if (this.backButton.mouseClicked(mouseX, mouseY, button)) {
-            int target = currentPage - 1;
-            if (target < 0) {
-                target = BetterRecipeBook.config.scrolling.scrollAround ? totalPages - 1 : 0;
+            int target;
+            if (ClientCompat.isControlDown()) {
+                // Ctrl+点击：直接跳到首页
+                target = 0;
+            } else {
+                target = currentPage - 1;
+                if (target < 0) {
+                    target = BetterRecipeBook.config.scrolling.scrollAround ? totalPages - 1 : 0;
+                }
             }
             this.flipTo(target);
             return true;
@@ -288,7 +300,7 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
 
     private float pageAnimDuration() {
         if (BetterRecipeBook.config != null) {
-            return BetterRecipeBook.config.pageAnimation.pageAnimationDuration;
+            return BetterRecipeBook.config.pageAnimationDuration;
         }
         return PAGE_ANIM_DURATION_FALLBACK;
     }

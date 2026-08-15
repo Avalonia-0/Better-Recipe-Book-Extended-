@@ -20,8 +20,9 @@ import java.util.List;
 import java.util.Optional;
 
 /**
- * NeoForge-side JEI plugin that bridges recipe/usage view requests
- * from BRBE's recipe book key handlers to JEI's runtime.
+ * NeoForge-side JEI plugin that bridges BRBE's recipe/usage key requests to
+ * JEI's runtime (a coexistence bridge, not a data dependency: BRBE never reads
+ * JEI's recipe data).  Workstation logic is entirely BRBE's own.
  * <p>
  * On NeoForge, JEI discovers plugins by scanning for
  * {@code @JeiPlugin}-annotated classes in the mod JAR.

@@ -1,0 +1,54 @@
+// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
+// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
+package mezz.jei.api.recipe;
+
+import mezz.jei.api.constants.VanillaTypes;
+import mezz.jei.api.ingredients.IIngredientType;
+import mezz.jei.api.ingredients.ITypedIngredient;
+import mezz.jei.api.recipe.types.IRecipeType;
+import net.minecraft.world.item.ItemStack;
+
+import java.util.stream.Stream;
+
+/**
+ * This is a helper class for looking up recipe catalysts.
+ * Create one with {@link IRecipeManager#createRecipeCatalystLookup(IRecipeType)},
+ * then set its properties and call {@link #get()} to get the results.
+ *
+ * @since 9.5.0
+ * @deprecated use {@link ICraftingStationLookup}
+ */
+@SuppressWarnings({"removal", "DeprecatedIsStillUsed"})
+@Deprecated(forRemoval = true, since = "20.0.0")
+public interface IRecipeCatalystLookup {
+	/**
+	 * By default, hidden results are not returned.
+	 * Calling this will make this lookup include hidden recipe catalysts.
+	 *
+	 * @since 9.5.0
+	 */
+	IRecipeCatalystLookup includeHidden();
+
+	/**
+	 * Get the recipe catalyst results for this lookup.
+	 *
+	 * @since 9.5.0
+	 */
+	Stream<ITypedIngredient<?>> get();
+
+	/**
+	 * Get the recipe catalyst results of the given type for this lookup.
+	 *
+	 * @since 9.5.0
+	 */
+	<S> Stream<S> get(IIngredientType<S> ingredientType);
+
+	/**
+	 * Get the ItemStack recipe catalyst results for this lookup.
+	 *
+	 * @since 11.1.1
+	 */
+	default Stream<ItemStack> getItemStack() {
+		return get(VanillaTypes.ITEM_STACK);
+	}
+}

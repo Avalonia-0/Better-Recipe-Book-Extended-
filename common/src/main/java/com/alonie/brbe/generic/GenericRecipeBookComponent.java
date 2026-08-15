@@ -13,6 +13,7 @@ import com.alonie.brbe.search.SearchQuery;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.util.BRBTextures;
+import com.alonie.brbe.util.SearchPageJump;
 import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.Minecraft;
 import com.alonie.brbe.widget.StateSwitchingButton;
@@ -311,12 +312,41 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     private void checkSearchStringUpdate() {
+        // 页码跳转命令（^N^ / ……N^ / ^N…… / ……N……）优先级最高：命中即跳页并清空搜索
+        if (brbe$handlePageJumpCommand()) {
+            return;
+        }
         String string = this.searchBox.getValue().toLowerCase(Locale.ROOT);
         this.pirateSpeechForThePeople(string);
         if (!string.equals(this.lastSearch)) {
             this.updateCollections(false);
             this.lastSearch = string;
         }
+    }
+
+    /**
+     * 搜索栏页码跳转命令：跳到第 N 页，清空搜索栏并取消聚焦。
+     * 页码 1-indexed；格式不对（parse 返回 -1）或页码超出总页数时返回 false，
+     * 由调用方走普通搜索（显示空页），保留输入和聚焦。
+     */
+    private boolean brbe$handlePageJumpCommand() {
+        int page = SearchPageJump.parse(this.searchBox);
+        if (page <= 0) return false;
+        // 用完整类别列表的总页数判断页码合法性。不能用当前 recipesPage.totalPages：
+        // 输入命令过程中间态的搜索词会把列表过滤空，合法页码会被误判为超范围。
+        int fullTotalPages = (int) Math.ceil(this.getCollectionsForCategory().size() / 20.0D);
+        if (page > fullTotalPages) {
+            // 页码不存在：保留输入和聚焦，走普通搜索（无结果自然显示空页）
+            return false;
+        }
+        // 先清空搜索（含 IME 组合残留）并恢复完整列表（页码重置到第 0 页），再跳转目标页
+        this.searchBox.preeditUpdated(null);
+        this.searchBox.setValue("");
+        this.searchBox.setFocused(false);
+        this.lastSearch = "";
+        this.updateCollections(true);
+        this.recipesPage.flipTo(page - 1);
+        return true;
     }
 
     protected void updateCollections(boolean b) {

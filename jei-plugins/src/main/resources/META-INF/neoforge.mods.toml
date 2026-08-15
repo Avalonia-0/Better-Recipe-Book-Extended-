@@ -1,0 +1,17 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+
+[[mods]]
+modId = "brbe_jei_plugins"
+version = "${version}"
+displayName = "BRBE JEI Plugin Replica"
+description = '''Companion mod for Better Recipe Book: loads mod JEI plugins and collects their workstation data when JEI is not installed. Do NOT install together with JEI.'''
+
+[[dependencies.brbe_jei_plugins]]
+modId = "brbe"
+type = "required"
+
+[[dependencies.brbe_jei_plugins]]
+modId = "minecraft"
+type = "required"

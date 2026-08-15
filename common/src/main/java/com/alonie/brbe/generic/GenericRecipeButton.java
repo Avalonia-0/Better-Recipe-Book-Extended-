@@ -6,6 +6,7 @@ import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ModNameUtil;
+import com.alonie.brbe.util.PageAnimationEdges;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -132,7 +133,10 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         if (width < 25) {
             // 伪压缩：内容在 [slotX, rightBound] 内裁剪（中间随滑动变短）。图标完整跟随
             // 配方位置滑出视窗；左右边界 2px 最后渲染（上层），盖住经过边界的图标。
-            gui.enableScissor(slotX, slotY, rightBound, slotY + this.height);
+            // 内容 scissor 右边界收窄 1px：原版 sprite 最右列（col24）顶部 1px 是
+            // 透明的，若内容画到该列，滚动时下层配方会从缺口漏出。收窄后缺口处
+            // 不绘制任何下层内容，仅显示背景（保持透明效果）。
+            gui.enableScissor(slotX, slotY, rightBound - 1, slotY + this.height);
             ClientCompat.blitSprite(gui, sprite, bx, slotY, this.width, this.height);
             if (isPartial && !redCheck) {
                 gui.fill(slotX + 1, slotY + 1, rightBound - 1, slotY + this.height - 1, 0x60FF3333);
@@ -140,14 +144,28 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
             gui.disableScissor();
             ItemStack result = current.getResult(registryAccess, category);
             gui.fakeItem(result, bx + 4, slotY + 4);
-            // 左边界 2px（上层，盖住图标）
-            gui.enableScissor(slotX, slotY, Math.min(slotX + 2, rightBound), slotY + this.height);
-            ClientCompat.blitSprite(gui, sprite, slotX, slotY, this.width, this.height);
-            gui.disableScissor();
-            // 右边界 2px（上层，盖住图标）
-            gui.enableScissor(Math.max(rightBound - 2, slotX), slotY, rightBound, slotY + this.height);
-            ClientCompat.blitSprite(gui, sprite, rightBound - this.width, slotY, this.width, this.height);
-            gui.disableScissor();
+            // 移动方向的前方边缘盖住后方边缘：配方左移（左端被边界压扁）时左边界
+            // 最后渲染（在上层），右移时右边界在上层。
+            boolean movingLeft = bx < slotX;
+            if (movingLeft) {
+                // 右边界先画（下层）
+                gui.enableScissor(Math.max(rightBound - PageAnimationEdges.right(), slotX), slotY, rightBound, slotY + this.height);
+                ClientCompat.blitSprite(gui, sprite, rightBound - this.width, slotY, this.width, this.height);
+                gui.disableScissor();
+                // 左边界最后（上层，盖住右边界）
+                gui.enableScissor(slotX, slotY, Math.min(slotX + PageAnimationEdges.left(), rightBound), slotY + this.height);
+                ClientCompat.blitSprite(gui, sprite, slotX, slotY, this.width, this.height);
+                gui.disableScissor();
+            } else {
+                // 左边界先画（下层）
+                gui.enableScissor(slotX, slotY, Math.min(slotX + PageAnimationEdges.left(), rightBound), slotY + this.height);
+                ClientCompat.blitSprite(gui, sprite, slotX, slotY, this.width, this.height);
+                gui.disableScissor();
+                // 右边界最后（上层，盖住左边界）
+                gui.enableScissor(Math.max(rightBound - PageAnimationEdges.right(), slotX), slotY, rightBound, slotY + this.height);
+                ClientCompat.blitSprite(gui, sprite, rightBound - this.width, slotY, this.width, this.height);
+                gui.disableScissor();
+            }
         } else {
             ClientCompat.blitSprite(gui, sprite, slotX, slotY, this.width, this.height);
             if (isPartial && !redCheck) {

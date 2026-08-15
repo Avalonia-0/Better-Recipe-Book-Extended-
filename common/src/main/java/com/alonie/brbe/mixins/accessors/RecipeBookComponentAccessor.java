@@ -1,5 +1,6 @@
 package com.alonie.brbe.mixins.accessors;
 
+import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.recipebook.GhostSlots;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
@@ -25,6 +26,9 @@ public interface RecipeBookComponentAccessor {
 
     @Accessor("selectedTab")
     RecipeBookTabButton getSelectedTab();
+
+    @Accessor("book")
+    ClientRecipeBook getBook();
 
     @Accessor("selectedTab")
     void setSelectedTab(RecipeBookTabButton selectedTab);
@@ -71,6 +75,12 @@ public interface RecipeBookComponentAccessor {
     @Invoker("tryPlaceRecipe")
     boolean tryPlaceRecipeInvoker(RecipeCollection collection, RecipeDisplayId id,
                                   boolean hasShiftDown);
+
+    @Accessor("lastRecipe")
+    void setLastRecipe(RecipeDisplayId lastRecipe);
+
+    @Accessor("lastRecipeCollection")
+    void setLastRecipeCollection(RecipeCollection collection);
 
     @Accessor("SEARCH_HINT")
     static Component getSEARCH_HINT() {

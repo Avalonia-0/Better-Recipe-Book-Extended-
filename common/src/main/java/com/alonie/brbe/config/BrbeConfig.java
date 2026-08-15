@@ -56,14 +56,17 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.PrefixText
     public boolean scrollPageSound = true;
 
+    @ConfigEntry.Category("ui")
+    @ConfigEntry.Gui.TransitiveObject
+    public PageAnimation pageAnimation = new PageAnimation();
+
     /** 翻页音效音量（0.0–1.0，默认 1.0 = 原生音量），可在「音乐与声音」界面调节。 */
     @ConfigEntry.Category("ui")
     public float pageFlipVolume = 1.0f;
 
+    /** 配方书翻页动画时长（秒）。 */
     @ConfigEntry.Category("ui")
-    @ConfigEntry.Gui.PrefixText
-    @ConfigEntry.Gui.TransitiveObject
-    public PageAnimation pageAnimation = new PageAnimation();
+    public float pageAnimationDuration = 0.5f;
 
     @ConfigEntry.Category("ui")
     @ConfigEntry.Gui.PrefixText
@@ -109,8 +112,7 @@ public class BrbeConfig implements ConfigData {
     // -- Inner config class ---------------------------------------------------
 
     public static class PageAnimation {
-        public boolean pageAnimationEnabled = false;
-        public float pageAnimationDuration = 0.1f;
+        public boolean pageAnimationEnabled = true;
     }
 
     public static class RecipeBookIsPain implements ConfigData {

@@ -9,7 +9,7 @@
   "text.autoconfig.brbe.option.showModName.@Tooltip": "Показывает мод, из которого взят предмет, аналогично Jade.",
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "Скрывать интерфейс менеджера предметов",
   "text.autoconfig.brbe.option.scrollPageSound": "Звук перелистывания страницы",
-  "text.autoconfig.brbe.option.scrollPageSound.@PrefixText": "§eЗвук перелистывания страницы",
+  "text.autoconfig.brbe.option.scrollPageSound.@PrefixText": "§eЗвук и анимация",
   "text.autoconfig.brbe.option.pageFlipVolume": "Sound Volume",
   "soundCategory.brbe_page_flip": "Звук перелистывания страниц книги рецептов",
   "text.autoconfig.brbe.option.saveRecipeBookPosition": "Запоминать последнюю позицию в книге рецептов",
@@ -73,7 +73,6 @@
   "brbe.gui.tip.6": "Загляните в соцсети и подружитесь с нами!",
   "brbe.gui.tip.7": "Весь код сгенерирован DeepSeek!",
   "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§eОтметка неполных рецептов",
-  "text.autoconfig.brbe.option.pageAnimation.@PrefixText": "§ePage Flip Animation",
   "text.autoconfig.brbe.option.pageAnimation.pageAnimationEnabled": "Page Flip Animation",
-  "text.autoconfig.brbe.option.pageAnimation.pageAnimationDuration": "Animation Duration"
+  "text.autoconfig.brbe.option.pageAnimationDuration": "Animation Duration"
 }

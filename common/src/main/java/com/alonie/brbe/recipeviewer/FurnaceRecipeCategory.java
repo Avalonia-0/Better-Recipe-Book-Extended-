@@ -1,21 +1,31 @@
 package com.alonie.brbe.recipeviewer;
 
 import com.alonie.brbe.cache.RecipeViewerIndex;
+import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.AbstractFurnaceMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.crafting.display.FurnaceRecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * The furnace category: smelting recipes (furnace, blast furnace, smoker,
  * campfire).  R = which furnace recipes produce {@code target} (as result);
- * U = what {@code target} smelts into (as ingredient).  Picks the category by
- * default for items that can be smelted (or are smelting results).
+ * U = what {@code target} smelts into (as ingredient).  Aggregates the four
+ * JEI furnace recipe types and dedupes identical smelting content (registered
+ * once per station) into a single representative.
  */
 public final class FurnaceRecipeCategory implements RecipeViewerCategory {
+
+    private static final List<String> FURNACE_TYPES = List.of(
+            "minecraft:smelting", "minecraft:blasting", "minecraft:smoking", "minecraft:campfire_cooking");
 
     @Override
     public String id() {
@@ -34,16 +44,60 @@ public final class FurnaceRecipeCategory implements RecipeViewerCategory {
 
     @Override
     public List<RecipeDisplayEntry> query(ItemStack target, boolean usage) {
-        return usage
-                ? RecipeViewerIndex.furnaceUsagesFor(target)
-                : RecipeViewerIndex.furnaceResultsFor(target);
+        return usage ? mergeUsages(target) : mergeResults(target);
+    }
+
+    private List<RecipeDisplayEntry> mergeResults(ItemStack target) {
+        List<RecipeDisplayEntry> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (String type : FURNACE_TYPES) {
+            for (RecipeDisplayEntry entry : RecipeViewerEngine.resultsFor(type, target)) {
+                FurnaceRecipeDisplay display = RecipeViewerIndex.asFurnace(entry);
+                if (display != null && seen.add(RecipeViewerIndex.furnaceContentKey(display))) {
+                    out.add(entry);
+                }
+            }
+        }
+        return out;
+    }
+
+    private List<RecipeDisplayEntry> mergeUsages(ItemStack target) {
+        List<RecipeDisplayEntry> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (String type : FURNACE_TYPES) {
+            for (RecipeDisplayEntry entry : RecipeViewerEngine.usagesFor(type, target)) {
+                FurnaceRecipeDisplay display = RecipeViewerIndex.asFurnace(entry);
+                if (display != null && seen.add(RecipeViewerIndex.furnaceContentKey(display))) {
+                    out.add(entry);
+                }
+            }
+        }
+        return out;
     }
 
     @Override
     public boolean appliesTo(ItemStack target) {
-        // R = target is a smelting result; U = target is smelted as ingredient.
-        return !RecipeViewerIndex.furnaceResultsFor(target).isEmpty()
-                || !RecipeViewerIndex.furnaceUsagesFor(target).isEmpty();
+        for (String type : FURNACE_TYPES) {
+            if (RecipeViewerEngine.hasContent(type, target, false)
+                    || RecipeViewerEngine.hasContent(type, target, true)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    @Override
+    public boolean appliesToMenu(AbstractContainerMenu menu) {
+        // Furnace, blast furnace and smoker screens all count as the furnace
+        // station.
+        return menu instanceof AbstractFurnaceMenu;
+    }
+
+    @Override
+    public boolean appliesToStation(ItemStack target) {
+        // A furnace-family workstation's usage view lists every recipe its
+        // station can cook (JEI: the station is a condition of those recipes).
+        return RecipeViewerIndex.isFurnaceStation(target);
     }
 
     @Override

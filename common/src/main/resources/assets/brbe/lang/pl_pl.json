@@ -9,7 +9,7 @@
   "text.autoconfig.brbe.option.showModName.@Tooltip": "Pokazuje mod, z którego pochodzi przedmiot, podobnie jak Jade.",
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "Ukryj interfejs menadżera przedmiotów",
   "text.autoconfig.brbe.option.scrollPageSound": "Dźwięk przewijania strony",
-  "text.autoconfig.brbe.option.scrollPageSound.@PrefixText": "§eDźwięk przewijania strony",
+  "text.autoconfig.brbe.option.scrollPageSound.@PrefixText": "§eDźwięk i animacja",
   "text.autoconfig.brbe.option.pageFlipVolume": "Sound Volume",
   "soundCategory.brbe_page_flip": "Dźwięk przewijania stron w księdze receptur",
   "text.autoconfig.brbe.option.saveRecipeBookPosition": "Zapamiętaj ostatnią pozycję w księdze receptur",
@@ -73,7 +73,6 @@
   "brbe.gui.tip.6": "Zajrzyj na media społecznościowe i zaprzyjaźnij się z nami!",
   "brbe.gui.tip.7": "Cały kod został wygenerowany przez DeepSeek!",
   "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§eOznaczanie niekompletnych przepisów",
-  "text.autoconfig.brbe.option.pageAnimation.@PrefixText": "§ePage Flip Animation",
   "text.autoconfig.brbe.option.pageAnimation.pageAnimationEnabled": "Page Flip Animation",
-  "text.autoconfig.brbe.option.pageAnimation.pageAnimationDuration": "Animation Duration"
+  "text.autoconfig.brbe.option.pageAnimationDuration": "Animation Duration"
 }

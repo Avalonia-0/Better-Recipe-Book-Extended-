@@ -13,8 +13,10 @@ import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeComponentAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor;
+import com.alonie.brbe.recipeviewer.FuelRecipeCategory;
 import com.alonie.brbe.recipeviewer.RecipeViewerCategories;
 import com.alonie.brbe.recipeviewer.RecipeViewerCategory;
+import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -29,10 +31,12 @@ import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.ChatFormatting;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.FormattedCharSequence;
 import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
@@ -110,15 +114,26 @@ public final class RecipeViewerOverlay {
     private static int viewerPage;
     private static int viewerPageCount = 1;
 
-    // ── Category tabs (vanilla creative-inventory bottom-tab look, variant 2) ──
+    // ── Category tabs (BRBE's bottom-tab textures, drawn rotated -90°:
+    //    the 35x27 texture displays as a 27x35 tab hanging below the box) ──
     private static final Identifier UNSELECTED_BOTTOM_TAB =
-            Identifier.withDefaultNamespace("container/creative_inventory/tab_bottom_unselected_2");
+            Identifier.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab.png");
     private static final Identifier SELECTED_BOTTOM_TAB =
-            Identifier.withDefaultNamespace("container/creative_inventory/tab_bottom_selected_2");
-    private static final int TAB_WIDTH = 26;
-    private static final int TAB_HEIGHT = 32;
+            Identifier.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab_selected.png");
+    private static final int TAB_TEX_WIDTH = 35;
+    private static final int TAB_TEX_HEIGHT = 27;
+    /** The rotated tab is too tall, so the texture's middle 4px (along its
+     *  width) is cut out and the right half spliced onto the left half. */
+    private static final int TAB_CUT = 6;
+    private static final int TAB_LEFT = 16;
+    private static final int TAB_RIGHT_START = TAB_LEFT + TAB_CUT;
+    /** Displayed size after rotation (-90°) and the middle splice. */
+    private static final int TAB_WIDTH = TAB_TEX_HEIGHT;
+    private static final int TAB_HEIGHT = TAB_TEX_WIDTH - TAB_CUT;
     /** Tabs overhang the box bottom by TAB_HEIGHT - 4 (tab top is 4px above the box bottom). */
     private static final int TAB_OVERHANG = TAB_HEIGHT - 4;
+    /** Tabs only fold into pages once there are more than this many. */
+    private static final int MAX_TABS = 10;
 
     // ── Category ────────────────────────────────────────────────────────────
     /** The item queried when R/U opened the viewer (re-queried on tab switch). */
@@ -128,9 +143,24 @@ public final class RecipeViewerOverlay {
     /** Category whose results are currently shown. */
     private static RecipeViewerCategory currentCategory;
 
+    /** Fuel item under the cursor in the fuel category. */
+    private static ItemStack fuelHoverStack;
+    /** Fuel items shown by the fuel category (cached on rebuild). */
+    private static List<ItemStack> fuelGridItems = List.of();
+
     /** Whether the currently shown category is the furnace category. */
     public static boolean isFurnaceMode() {
         return currentCategory != null && "furnace".equals(currentCategory.id());
+    }
+
+    /** Whether the currently shown category is the stonecutter category. */
+    public static boolean isStonecuttingMode() {
+        return currentCategory != null && "stonecutting".equals(currentCategory.id());
+    }
+
+    /** Whether the currently shown category is the smithing category. */
+    public static boolean isSmithingMode() {
+        return currentCategory != null && "smithing".equals(currentCategory.id());
     }
 
     /** Tab-page index when more categories than columns force folding. */
@@ -141,6 +171,9 @@ public final class RecipeViewerOverlay {
     private static int boxY;
     private static int boxW;
     private static int boxH;
+    /** Screen Y of the tab strip (the box bottom), fixed on open so switching
+     *  tabs never makes the tabs jump vertically when the box height changes. */
+    private static int bottomAnchor;
 
     public static boolean isActive() {
         return RecipeViewerIndex.isViewerActive();
@@ -181,7 +214,10 @@ public final class RecipeViewerOverlay {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return false;
 
-        boolean hitButton = overlay.mouseClicked(event, doubleClick);
+        // The fuel category has no recipe buttons and is not clickable: skip
+        // the overlay button hit-test (which may still hold the previous
+        // category's buttons) so a click on a fuel cell keeps the viewer open.
+        boolean hitButton = isFuelMode() ? false : overlay.mouseClicked(event, doubleClick);
         if (hitButton) {
             // Place the clicked recipe (with a ghost preview for missing
             // materials) only when its station matches the open screen — a
@@ -198,6 +234,12 @@ public final class RecipeViewerOverlay {
                     try {
                         ((RecipeBookComponentAccessor) book)
                                 .tryPlaceRecipeInvoker(collection, id, event.hasShiftDown());
+                        // The vanilla ghost-overlay optimisation (PartialGhostOverlayUtil,
+                        // fed from lastRecipe/lastRecipeCollection in extractGhostRecipe)
+                        // must see the viewer's placed recipe too, otherwise every ghost
+                        // slot keeps its red mask.
+                        ((RecipeBookComponentAccessor) book).setLastRecipe(id);
+                        ((RecipeBookComponentAccessor) book).setLastRecipeCollection(collection);
                     } catch (Exception e) {
                         // Non-fatal: the placement already fired or is invalid.
                     }
@@ -345,6 +387,15 @@ public final class RecipeViewerOverlay {
     /** Draw the overlay on the container's top render stratum. */
     public static void render(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta) {
         if (!isActive()) return;
+        // The fuel category renders a standalone item grid (fuel is not a
+        // recipe, so there are no OverlayRecipeComponent buttons).
+        if (isFuelMode()) {
+            drawCategoryTabs(gui, mouseX, mouseY, true);
+            drawFuelGrid(gui, mouseX, mouseY);
+            drawCategoryTabs(gui, mouseX, mouseY, false);
+            renderTooltip(gui, mouseX, mouseY);
+            return;
+        }
         // Unselected tabs are drawn behind the box so the box's container UI
         // covers their top edge (only the bottom nub shows), mirroring the
         // vanilla creative inventory; the selected tab is redrawn on top.
@@ -357,8 +408,7 @@ public final class RecipeViewerOverlay {
             OverlayRecipeComponentAccessor acc = (OverlayRecipeComponentAccessor) overlay;
             int bx = acc.getX();
             int by = acc.getY();
-            ClientCompat.blitSprite(gui, OVERLAY_RECIPE_SPRITE, bx, by,
-                    PAGE_COLS * 25 + 8, PAGE_ROWS * 25 + 8);
+            ClientCompat.blitSprite(gui, OVERLAY_RECIPE_SPRITE, bx, by, boxW, boxH);
             List<AbstractWidget> buttons = acc.getRecipeButtons();
             for (AbstractWidget w : buttons) {
                 w.extractRenderState(gui, mouseX, mouseY, delta);
@@ -366,7 +416,18 @@ public final class RecipeViewerOverlay {
             drawPageControls(gui, mouseX, mouseY);
         } else {
             drawCategoryTabs(gui, mouseX, mouseY, true);
-            overlay.extractRenderState(gui, mouseX, mouseY, delta);
+            // Draw the background at the widened box width (the extra columns
+            // hold the tab strip), then the buttons at their vanilla 4/5-column
+            // positions.  vanilla's extractRenderState shrink-wraps the
+            // background to the recipe columns, which would leave the widened
+            // tabs floating past the box edge.
+            OverlayRecipeComponentAccessor acc = (OverlayRecipeComponentAccessor) overlay;
+            int bx = acc.getX();
+            int by = acc.getY();
+            ClientCompat.blitSprite(gui, OVERLAY_RECIPE_SPRITE, bx, by, boxW, boxH);
+            for (AbstractWidget w : acc.getRecipeButtons()) {
+                w.extractRenderState(gui, mouseX, mouseY, delta);
+            }
             drawPageControls(gui, mouseX, mouseY);
         }
         drawCategoryTabs(gui, mouseX, mouseY, false);
@@ -385,22 +446,50 @@ public final class RecipeViewerOverlay {
         renderTooltip(gui, mouseX, mouseY);
     }
 
-    /** X of the i-th category tab (i is the tab index within the current tab
-     *  page), aligned so its centre matches the centre of the i-th recipe
-     *  column (button x = boxX + 4 + col*25, width 24), nudged +1px right. */
-    private static int tabX(int i) {
-        return boxX + 4 + i * 25;
+    /** Whether the currently shown category is the fuel category. */
+    private static boolean isFuelMode() {
+        return currentCategory != null && currentCategory.isFuelCategory();
     }
 
-    /** Number of recipe columns the box currently shows (also the max visible
-     *  tabs).  In non-paged mode this is the number of columns actually filled
-     *  by recipes ({@code columnsFor} returns the layout width of 4/5, which can
-     *  exceed the real column count when few recipes are shown), so folding
-     *  kicks in as soon as there are more tabs than filled columns. */
+    /** Draw the fuel category's standalone item grid: plain-overlay cells with
+     *  a 16px item icon each; the hovered cell switches to the highlighted
+     *  overlay (no zoom). */
+    private static void drawFuelGrid(GuiGraphicsExtractor gui, int mouseX, int mouseY) {
+        if (fuelGridItems.isEmpty()) return;
+        ClientCompat.blitSprite(gui, OVERLAY_RECIPE_SPRITE, boxX, boxY, boxW, boxH);
+        int columns = AlternativeOverlayLayout.columnsFor(fuelGridItems.size());
+        fuelHoverStack = null;
+        for (int i = 0; i < fuelGridItems.size(); i++) {
+            int gx = boxX + 4 + (i % columns) * 25;
+            int gy = boxY + 5 + (i / columns) * 25;
+            boolean hovered = inside(mouseX, mouseY, gx, gy, 24, 24);
+            Identifier sprite = BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(true, hovered);
+            ClientCompat.blitSprite(gui, sprite, gx, gy, 24, 24);
+            gui.item(fuelGridItems.get(i), gx + 4, gy + 4);
+            if (hovered) {
+                fuelHoverStack = fuelGridItems.get(i);
+                gui.requestCursor(com.mojang.blaze3d.platform.cursor.CursorTypes.POINTING_HAND);
+            }
+        }
+    }
+
+    /** X of the i-th category tab (i is the tab index within the current tab
+     *  page), stepped by the tab width so tabs never overlap. */
+    private static int tabX(int i) {
+        return boxX + 4 + i * TAB_WIDTH;
+    }
+
+    /** Top edge of the category-tab strip (4px above the box bottom, nudged
+     *  1px down). */
+    private static int tabTop() {
+        return boxY + boxH - 4 + 1;
+    }
+
+    /** Tabs shown per page.  The box is widened (with empty columns) to hold up
+     *  to {@link #MAX_TABS} tabs, so up to ten tabs sit on one page; only above
+     *  that do they fold into pages paged with the mouse wheel over the strip. */
     private static int visibleTabCount() {
-        if (isPaged()) return PAGE_COLS;
-        int count = viewerRecipes.size();
-        return Math.max(1, Math.min(count, AlternativeOverlayLayout.columnsFor(count)));
+        return MAX_TABS;
     }
 
     /** Categories that actually have results for the current query target
@@ -408,8 +497,8 @@ public final class RecipeViewerOverlay {
     private static List<RecipeViewerCategory> visibleCategories() {
         if (queryTarget == null || queryTarget.isEmpty()) return List.of();
         List<RecipeViewerCategory> out = new ArrayList<>();
-        for (RecipeViewerCategory cat : RecipeViewerCategories.REGISTRY) {
-            if (!cat.query(queryTarget, queryUsage).isEmpty()) {
+        for (RecipeViewerCategory cat : RecipeViewerCategories.all()) {
+            if (cat.hasContent(queryTarget, queryUsage)) {
                 out.add(cat);
             }
         }
@@ -434,16 +523,39 @@ public final class RecipeViewerOverlay {
         tabPage = Math.max(0, Math.min(tabPage, tabPageCount - 1));
         int start = tabPage * perPage;
         int end = Math.min(start + perPage, cats.size());
-        int tabY = boxY + boxH - 4;
+        int tabY = tabTop();
         for (int i = start; i < end; i++) {
             RecipeViewerCategory cat = cats.get(i);
             boolean selected = cat == currentCategory;
             if (selected == behind) continue;
             int x = tabX(i - start);
             Identifier sprite = selected ? SELECTED_BOTTOM_TAB : UNSELECTED_BOTTOM_TAB;
-            ClientCompat.blitSprite(gui, sprite, x, tabY, TAB_WIDTH, TAB_HEIGHT);
-            // Unselected tabs sit lower behind the box, so nudge their icon up.
-            gui.item(cat.icon(), x + 5, tabY + (selected ? 9 : 7));
+            // BRBE bottom-tab texture is authored for a -90° (counter-clockwise)
+            // display, so rotate the pose exactly like RBIP's bottom tabs.
+            // Unselected tabs sit 2px higher (partly hidden behind the box),
+            // so shift the whole tab (texture + icon) up together.
+            int tabNudge = selected ? 0 : -2;
+            gui.pose().pushMatrix();
+            gui.pose().translate(x, tabY + TAB_HEIGHT + tabNudge);
+            gui.pose().rotate(-(float) Math.PI / 2.0F);
+            // Left half.
+            gui.blit(RenderPipelines.GUI_TEXTURED, sprite, 0, 0,
+                    0, 0, TAB_LEFT, TAB_TEX_HEIGHT, TAB_TEX_WIDTH, TAB_TEX_HEIGHT);
+            // Right half spliced onto the left, skipping the middle TAB_CUT px.
+            gui.blit(RenderPipelines.GUI_TEXTURED, sprite, TAB_LEFT, 0,
+                    TAB_RIGHT_START, 0,
+                    TAB_TEX_WIDTH - TAB_RIGHT_START, TAB_TEX_HEIGHT,
+                    TAB_TEX_WIDTH, TAB_TEX_HEIGHT);
+            gui.pose().popMatrix();
+            int iconX = x + (TAB_WIDTH - 16) / 2;
+            int iconY = tabY + (selected ? 6 : 4);
+            gui.item(cat.icon(), iconX, iconY);
+            // Fuel category: overlay the fire sprite on the furnace icon's
+            // bottom-right (roughly the lower-right 4/9 region of the 16x16 icon).
+            if (cat.isFuelCategory()) {
+                ClientCompat.blitSprite(gui, BRBTextures.FURNACE_FIRE_SPRITE,
+                        iconX + 10, iconY + 10, 6, 6);
+            }
             if (inside(mouseX, mouseY, x, tabY, TAB_WIDTH, TAB_HEIGHT)) {
                 gui.requestCursor(com.mojang.blaze3d.platform.cursor.CursorTypes.POINTING_HAND);
                 drawTabTooltip(gui, cat, mouseX, mouseY, tabPageCount);
@@ -470,7 +582,7 @@ public final class RecipeViewerOverlay {
         if (event.button() != 0) return false;
         int mx = Mth.floor(event.x());
         int my = Mth.floor(event.y());
-        int tabY = boxY + boxH - 4;
+        int tabY = tabTop();
         List<RecipeViewerCategory> cats = visibleCategories();
         int perPage = visibleTabCount();
         int start = tabPage * perPage;
@@ -497,8 +609,8 @@ public final class RecipeViewerOverlay {
         if (catCount == 0) return false;
         int perPage = visibleTabCount();
         int shown = Math.min(perPage, catCount);
-        int tabY = boxY + boxH - 4;
-        return inside(mouseX, mouseY, boxX, tabY, shown * 25, TAB_HEIGHT);
+        int tabY = tabTop();
+        return inside(mouseX, mouseY, boxX, tabY, shown * TAB_WIDTH, TAB_HEIGHT);
     }
 
     /** Scroll over the tab strip pages the folded categories. */
@@ -530,11 +642,37 @@ public final class RecipeViewerOverlay {
         if (!isActive()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || mc.level == null) return;
+        // Fuel category: a single tooltip (item name + burn-time rows), no
+        // shift variation, positioned off the hovered fuel cell.
+        if (isFuelMode() && fuelHoverStack != null && !fuelHoverStack.isEmpty()) {
+            List<Component> lines = new ArrayList<>(Screen.getTooltipFromItem(mc, fuelHoverStack));
+            List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
+                    new ArrayList<>(lines.size());
+            for (Component line : lines) {
+                components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                        .create(line.getVisualOrderText()));
+            }
+            components.addAll(fuelTooltipComponents(fuelHoverStack));
+            if (BetterRecipeBook.config.showModName) {
+                Component modName = ModNameUtil.getFormattedModName(fuelHoverStack);
+                if (modName != null && !modName.getString().isEmpty()) {
+                    components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                            .create(Component.empty().getVisualOrderText()));
+                    components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                            .create(modName.getVisualOrderText()));
+                }
+            }
+            // No hover zoom in the fuel category, so use the vanilla default
+            // position (no button avoidance / push-away).
+            gui.tooltip(mc.font, components, mouseX, mouseY,
+                    net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner.INSTANCE,
+                    fuelHoverStack.get(net.minecraft.core.component.DataComponents.TOOLTIP_STYLE));
+            return;
+        }
         for (AbstractWidget widget : ((OverlayRecipeComponentAccessor) overlay).getRecipeButtons()) {
             if (!(widget instanceof OverlayRecipeButtonAccessor oba) || !widget.isHoveredOrFocused()) continue;
             RecipeDisplayId id = oba.brbe$getRecipe();
-            RecipeDisplayEntry entry = ((ClientRecipeBookAccessor) mc.player.getRecipeBook())
-                    .brbe$getKnown().get(id);
+            RecipeDisplayEntry entry = entryFor(id);
             if (entry == null) return;
 
             ItemStack output = resolveOutput(entry, mc);
@@ -547,6 +685,32 @@ public final class RecipeViewerOverlay {
             for (Component line : lines) {
                 components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
                         .create(line.getVisualOrderText()));
+            }
+            if (isFurnaceMode() && RecipeViewerIndex.asFurnace(entry) != null) {
+                components.addAll(furnaceTooltipComponents(entry));
+            } else {
+                // Crafting / stonecutting / smithing: show the workstations
+                // that produce this recipe as icons at the bottom of the
+                // tooltip (including mod workstations), no text label.
+                components.addAll(stationIconsTooltipComponents(entry));
+            }
+            // Source-mod name always sits at the very bottom.
+            if (BetterRecipeBook.config.showModName) {
+                Component modName = ModNameUtil.getFormattedModName(output);
+                if (modName != null && !modName.getString().isEmpty()) {
+                    // In the compact (non-Shift) furnace view the white dot
+                    // below the time line already adds vertical space, so drop
+                    // the blank separator line here.
+                    boolean dotBelowTime = isFurnaceMode() && !ClientCompat.isShiftDown()
+                            && (menuIs(FurnaceMenu.class) || menuIs(BlastFurnaceMenu.class)
+                                || menuIs(SmokerMenu.class));
+                    if (!dotBelowTime) {
+                        components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                                .create(Component.empty().getVisualOrderText()));
+                    }
+                    components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                            .create(modName.getVisualOrderText()));
+                }
             }
             // With Shift the hovered button enlarges 4x about its centre; use
             // the enlarged footprint (plus a larger pad) so the tooltip clears
@@ -615,62 +779,204 @@ public final class RecipeViewerOverlay {
             }
         }
 
-        // Furnace viewer: XP (green) followed by per-station cook times.
-        if (isFurnaceMode() && RecipeViewerIndex.asFurnace(entry) != null) {
-            lines.addAll(furnaceTooltipLines(entry));
-        }
-
-        // Source-mod name always sits at the very bottom.
-        if (BetterRecipeBook.config.showModName) {
-            Component modName = ModNameUtil.getFormattedModName(output);
-            if (modName != null && !modName.getString().isEmpty()) {
-                lines.add(Component.empty());
-                lines.add(modName);
-            }
-        }
-
         return lines;
     }
 
-    /** XP + per-station cook-time lines for a furnace recipe tooltip. */
-    private static List<Component> furnaceTooltipLines(RecipeDisplayEntry entry) {
+    /** XP + per-station cook-time rows for a furnace recipe tooltip; each
+     *  station row carries its workstation item icons.  With Shift the cook
+     *  time expands to one labelled row per station; otherwise it is a single
+     *  compact row. */
+    private static List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent>
+            furnaceTooltipComponents(RecipeDisplayEntry entry) {
         FurnaceRecipeDisplay display = RecipeViewerIndex.asFurnace(entry);
-        List<Component> lines = new ArrayList<>();
-        lines.add(Component.empty());
+        List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
+                new ArrayList<>();
+        components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                .create(Component.empty().getVisualOrderText()));
 
         float xp = display.experience();
         String xpText = xp % 1.0f == 0f ? String.valueOf((int) xp)
                 : String.format(Locale.ROOT, "%.2f", xp);
-        lines.add(Component.literal(xpText + " XP").withStyle(ChatFormatting.GREEN));
+        components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                .create(Component.literal(xpText + " XP").withStyle(ChatFormatting.GREEN)
+                        .getVisualOrderText()));
+        components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                .create(Component.empty().getVisualOrderText()));
 
-        // Cook time per station (seconds); a station with no recipe for this
-        // content is omitted (with its separating space) from the line.
         int[] ticks = RecipeViewerIndex.furnaceStationTicks(entry);
         boolean furnaceStn = menuIs(FurnaceMenu.class);
         boolean blastStn = menuIs(BlastFurnaceMenu.class);
         boolean smokerStn = menuIs(SmokerMenu.class);
-        List<Component> parts = new ArrayList<>();
-        if (ticks[0] > 0) {
-            Component t = Component.literal(cookSeconds(ticks[0])).withStyle(ChatFormatting.RED);
-            parts.add(furnaceStn ? Component.literal("•").withStyle(ChatFormatting.WHITE).append(t) : t);
-        }
-        if (ticks[1] > 0) {
-            Component t = Component.literal(cookSeconds(ticks[1])).withStyle(ChatFormatting.GRAY);
-            parts.add(blastStn ? Component.literal("•").withStyle(ChatFormatting.WHITE).append(t) : t);
-        }
-        if (ticks[2] > 0) {
-            Component t = Component.literal(cookSeconds(ticks[2]))
-                    .withStyle(Style.EMPTY.withColor(0xF5DEB3));
-            parts.add(smokerStn ? Component.literal("•").withStyle(ChatFormatting.WHITE).append(t) : t);
-        }
-        if (!parts.isEmpty()) {
-            MutableComponent line = parts.get(0).copy();
-            for (int i = 1; i < parts.size(); i++) {
-                line.append(" ").append(parts.get(i));
+        if (ClientCompat.isShiftDown()) {
+            // Expanded: one labelled row per station subcategory (each its own
+            // component so the rows break lines), colour follows the compact
+            // variant, "•" marks the station the open screen matches.  Each row
+            // carries that subcategory's workstation icons — vanilla and any mod
+            // workstations from the external registry.
+            for (int i = 0; i < ticks.length; i++) {
+                if (ticks[i] <= 0) continue;
+                Component line = stationTimeLine(stationLabel(i), cookSeconds(ticks[i]),
+                        stationStyle(i), stationMatches(i, furnaceStn, blastStn, smokerStn));
+                List<ItemStack> icons = RecipeViewerIndex.workstationsIconsForPrefix(stationCategoryPrefix(i));
+                components.add(new StationLineTooltipComponent(List.of(
+                        new StationLineTooltipComponent.Segment(line.getVisualOrderText(), icons, false))));
             }
-            lines.add(line);
+        } else {
+            // Compact: one row of cook times (workstation icons only appear in
+            // the Shift view); a station with no recipe for this content is
+            // omitted (with its separating space).
+            List<StationLineTooltipComponent.Segment> segments = new ArrayList<>();
+            for (int i = 0; i < ticks.length; i++) {
+                if (ticks[i] <= 0) continue;
+                Component t = Component.literal(cookSeconds(ticks[i])).withStyle(stationStyle(i));
+                // The white dot marking the open screen's station sits below
+                // the time (centred) in this compact view.
+                segments.add(new StationLineTooltipComponent.Segment(t.getVisualOrderText(), List.of(),
+                        stationMatches(i, furnaceStn, blastStn, smokerStn)));
+            }
+            if (!segments.isEmpty()) {
+                components.add(new StationLineTooltipComponent(segments));
+            }
         }
-        return lines;
+        return components;
+    }
+
+    private static String stationLabel(int i) {
+        return switch (i) {
+            case 0 -> "brbe.cooktime.furnace";
+            case 1 -> "brbe.cooktime.blast";
+            case 2 -> "brbe.cooktime.smoker";
+            case 3 -> "brbe.cooktime.campfire";
+            default -> "brbe.cooktime.furnace";
+        };
+    }
+
+    /** Recipe-book category path prefix of the {@code index}-th furnace station,
+     *  used to look up the workstations that serve that subcategory. */
+    private static String stationCategoryPrefix(int i) {
+        return switch (i) {
+            case 0 -> "furnace_";
+            case 1 -> "blast_furnace_";
+            case 2 -> "smoker_";
+            case 3 -> "campfire";
+            default -> "furnace_";
+        };
+    }
+
+    private static Style stationStyle(int i) {
+        return switch (i) {
+            case 0 -> Style.EMPTY.withColor(ChatFormatting.RED);
+            case 1 -> Style.EMPTY.withColor(ChatFormatting.GRAY);
+            case 2 -> Style.EMPTY.withColor(0xF5DEB3);
+            case 3 -> Style.EMPTY.withColor(0xB5651D);
+            default -> Style.EMPTY;
+        };
+    }
+
+    private static boolean stationMatches(int i, boolean furnace, boolean blast, boolean smoker) {
+        return switch (i) {
+            case 0 -> furnace;
+            case 1 -> blast;
+            case 2 -> smoker;
+            default -> false;
+        };
+    }
+
+    /** One labelled cook-time line: a leading white bullet (when the open
+     *  screen matches this station) followed by {@code <label><value>}. */
+    private static Component stationTimeLine(String labelKey, String value,
+                                             Style valueStyle, boolean currentStation) {
+        MutableComponent line = Component.literal("");
+        if (currentStation) {
+            line.append(Component.literal("•").withStyle(ChatFormatting.WHITE));
+        }
+        // Label, separator and value share the station colour; only the bullet
+        // stays white.
+        line.append(Component.translatable(labelKey).withStyle(valueStyle));
+        line.append(Component.literal("：").withStyle(valueStyle));
+        line.append(Component.literal(value).withStyle(valueStyle));
+        return line;
+    }
+
+    /** A tooltip row drawing text segments with their workstation item icons
+     *  immediately after each segment (text drawn in {@code extractText}, icons
+     *  in {@code extractImage}). */
+    private static final class StationLineTooltipComponent
+            implements net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent {
+        private static final int ICON_SIZE = 16;
+        private static final int GAP = 2;
+
+        record Segment(FormattedCharSequence text, List<ItemStack> icons, boolean dotBelow) {}
+
+        private final List<Segment> segments;
+
+        StationLineTooltipComponent(List<Segment> segments) {
+            this.segments = segments;
+        }
+
+        @Override
+        public int getWidth(Font font) {
+            int width = 0;
+            for (Segment seg : segments) {
+                width += font.width(seg.text());
+                if (!seg.icons().isEmpty()) {
+                    width += GAP + ICON_SIZE * seg.icons().size();
+                }
+                width += GAP;
+            }
+            return width;
+        }
+
+        @Override
+        public int getHeight(Font font) {
+            int base = Math.max(font.lineHeight, ICON_SIZE);
+            for (Segment seg : segments) {
+                if (seg.dotBelow()) {
+                    return base + font.lineHeight;
+                }
+            }
+            return base;
+        }
+
+        @Override
+        public void extractText(GuiGraphicsExtractor gui, Font font, int x, int y) {
+            int cx = x;
+            for (Segment seg : segments) {
+                gui.text(font, seg.text(), cx, y, -1, true);
+                cx += font.width(seg.text());
+                if (!seg.icons().isEmpty()) {
+                    cx += GAP + ICON_SIZE * seg.icons().size();
+                }
+                cx += GAP;
+            }
+        }
+
+        @Override
+        public void extractImage(Font font, int x, int y, int width, int height,
+                                 GuiGraphicsExtractor gui) {
+            int cx = x;
+            for (Segment seg : segments) {
+                int textW = font.width(seg.text());
+                if (seg.dotBelow()) {
+                    FormattedCharSequence dot = Component.literal("•")
+                            .withStyle(ChatFormatting.WHITE).getVisualOrderText();
+                    int dotW = font.width(dot);
+                    gui.text(font, dot, cx + (textW - dotW) / 2, y + font.lineHeight, -1, true);
+                }
+                cx += textW + GAP;
+                if (!seg.icons().isEmpty()) {
+                    // Vertically centre the 16px icon against the text line
+                    // (whose height is smaller than the icon), not against the
+                    // whole row — the icon centre aligns with the text centre.
+                    int iy = y + (font.lineHeight - ICON_SIZE) / 2;
+                    for (ItemStack icon : seg.icons()) {
+                        gui.item(icon, cx, iy, 0);
+                        cx += ICON_SIZE;
+                    }
+                }
+                cx += GAP;
+            }
+        }
     }
 
     /** Whether the currently open container menu is of the given type. */
@@ -685,6 +991,57 @@ public final class RecipeViewerOverlay {
         String value = ticks % 20 == 0 ? String.valueOf(ticks / 20)
                 : String.format(Locale.ROOT, "%.1f", ticks / 20.0f);
         return value + "s";
+    }
+
+    /** One tooltip row tagging a non-furnace recipe with its workstation icon
+     *  and name (e.g. "Workstation: [crafting table]"). */
+    private static List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent>
+            stationIconsTooltipComponents(RecipeDisplayEntry entry) {
+        List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
+                new ArrayList<>();
+        components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                .create(Component.empty().getVisualOrderText()));
+        List<ItemStack> icons = currentCategory.stationIconsFor(entry);
+        if (icons.isEmpty()) {
+            icons = List.of(currentCategory.icon());
+        }
+        components.add(new StationLineTooltipComponent(List.of(
+                new StationLineTooltipComponent.Segment(Component.empty().getVisualOrderText(), icons, false))));
+        return components;
+    }
+
+    /** Burn-time tooltip rows for a fuel: one labelled row per furnace station
+     *  (furnace / blast furnace / smoker), each showing how many items the fuel
+     *  can smelt plus the station's workstation icon.  No shift variation, no
+     *  campfire. */
+    private static List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent>
+            fuelTooltipComponents(ItemStack fuel) {
+        FuelRecipeCategory category = (FuelRecipeCategory) currentCategory;
+        int burn = category.burnDuration(fuel);
+        // JEI-style: report how many standard (furnace 200-tick) items the fuel
+        // can smelt, regardless of the station's own cook time.
+        int[] cookTimes = { 200, 200, 200 };
+        String unit = Component.translatable("brbe.cooktime.unit.items").getString();
+        List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
+                new ArrayList<>();
+        components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                .create(Component.empty().getVisualOrderText()));
+        for (int i = 0; i < 3; i++) {
+            String value = fuelCount(burn, cookTimes[i]) + unit;
+            Component line = stationTimeLine(stationLabel(i), value, stationStyle(i), false);
+            components.add(new StationLineTooltipComponent(List.of(
+                    new StationLineTooltipComponent.Segment(line.getVisualOrderText(),
+                            java.util.Arrays.asList(RecipeViewerIndex.stationIcons(i)), false))));
+        }
+        return components;
+    }
+
+    /** How many items {@code burn} ticks smelt at {@code cookTime} ticks each —
+     *  whole count when it divides evenly, otherwise one decimal. */
+    private static String fuelCount(int burn, int cookTime) {
+        if (burn <= 0 || cookTime <= 0) return "0";
+        return burn % cookTime == 0 ? String.valueOf(burn / cookTime)
+                : String.format(Locale.ROOT, "%.1f", burn / (float) cookTime);
     }
 
     /** Positions the tooltip away from the hovered (possibly enlarged) button. */
@@ -775,7 +1132,10 @@ public final class RecipeViewerOverlay {
         queryTarget = null;
         currentCategory = null;
         tabPage = 0;
+        bottomAnchor = 0;
         viewerRecipes = List.of();
+        fuelGridItems = List.of();
+        fuelHoverStack = null;
         viewerPage = 0;
         viewerPageCount = 1;
         overlay.setVisible(false);
@@ -799,10 +1159,16 @@ public final class RecipeViewerOverlay {
         // when no category has results.
         queryTarget = target;
         queryUsage = viewUsage;
-        currentCategory = RecipeViewerCategories.defaultFor(target, viewUsage);
+        currentCategory = RecipeViewerCategories.defaultFor(target, viewUsage, screen.getMenu());
         if (currentCategory == null) return false;
-        List<RecipeDisplayEntry> hits = currentCategory.query(target, viewUsage);
-        if (hits.isEmpty()) return false;
+        List<RecipeDisplayEntry> hits = null;
+        if (currentCategory.isFuelCategory()) {
+            computeFuelBoxSize();
+        } else {
+            hits = currentCategory.query(target, viewUsage);
+            if (hits.isEmpty()) return false;
+            computeBoxSize(hits);
+        }
 
         int guiW = mc.getWindow().getGuiScaledWidth();
         int guiH = mc.getWindow().getGuiScaledHeight();
@@ -826,7 +1192,7 @@ public final class RecipeViewerOverlay {
             anchorY = (guiH - 166) / 2 + 83;
         }
 
-        computeBoxSize(hits);
+        if (hits != null) computeBoxSize(hits);
         boolean paged = viewerPageCount > 1;
 
         // Keep >= 30px to every screen edge when the box fits, else fully inside.
@@ -859,9 +1225,17 @@ public final class RecipeViewerOverlay {
             }
         }
 
+        // Anchor the tab strip (box bottom) here; category switches keep it
+        // fixed and let the box grow upward.
+        bottomAnchor = boxY + boxH;
+
         ownerScreen = screen;
         viewerPage = 0;
-        rebuildWithHits(hits);
+        if (currentCategory.isFuelCategory()) {
+            rebuildFuel();
+        } else {
+            rebuildWithHits(hits);
+        }
         repaginateToSelected();
         RecipeViewerIndex.setViewerActive(true);
         RecipeViewerIndex.setViewerOpenedFromBook(anchorBookButton != null);
@@ -893,6 +1267,9 @@ public final class RecipeViewerOverlay {
 
         viewerRecipes = new ArrayList<>(entries);
         computeBoxSize(hits);
+        // Keep the tab strip (box bottom) anchored; a category switch that
+        // changes the row count grows the box upward instead of moving tabs.
+        boxY = Math.max(0, bottomAnchor - boxH);
         viewerPage = 0;
         showPage(ownerScreen, boxX, boxY, boxW, boxH);
     }
@@ -911,6 +1288,42 @@ public final class RecipeViewerOverlay {
             boxW = Math.min(total, columns) * 25 + 8;
             boxH = rows * 25 + 8;
         }
+        ensureTabWidth();
+    }
+
+    /** Compute boxW/boxH for the fuel grid (no paging — the fuel list is short). */
+    private static void computeFuelBoxSize() {
+        int total = fuelGridItems.size();
+        viewerPageCount = 1;
+        int columns = AlternativeOverlayLayout.columnsFor(total);
+        int rows = (total + columns - 1) / columns;
+        boxW = Math.min(total, columns) * 25 + 8;
+        boxH = rows * 25 + 8;
+        ensureTabWidth();
+    }
+
+    /** Widen the box (with empty columns) so the tab strip can show up to
+     *  {@link #MAX_TABS} tabs on a page without folding when there are more tabs
+     *  than recipe columns.  Only above {@link #MAX_TABS} do tabs fold into
+     *  pages. */
+    private static void ensureTabWidth() {
+        int tabCount = Math.min(visibleCategories().size(), MAX_TABS);
+        int tabW = tabCount * TAB_WIDTH + 8;
+        if (tabW > boxW) {
+            boxW = tabW;
+        }
+    }
+
+    /** Lay out the fuel cell for the queried item alone (fuel is an ingredient
+     *  role: a usage query shows only the queried fuel's burn time, mirroring
+     *  JEI's per-fuel FuelingRecipe).  Keeps the tab strip anchored. */
+    private static void rebuildFuel() {
+        fuelGridItems = List.of(queryTarget);
+        fuelHoverStack = null;
+        viewerRecipes = List.of();
+        computeFuelBoxSize();
+        boxY = Math.max(0, bottomAnchor - boxH);
+        viewerPage = 0;
     }
 
     /** Switch the viewer to {@code category}, re-querying the stored target.
@@ -918,11 +1331,27 @@ public final class RecipeViewerOverlay {
      *  tab always lands on the first visible row of the folded tab strip. */
     private static void switchCategory(RecipeViewerCategory category) {
         if (category == null || category == currentCategory) return;
-        List<RecipeDisplayEntry> hits = category.query(queryTarget, queryUsage);
-        if (hits.isEmpty()) return;
-        currentCategory = category;
-        rebuildWithHits(hits);
+        if (category.isFuelCategory()) {
+            currentCategory = category;
+            computeFuelBoxSize();
+            boxY = Math.max(0, bottomAnchor - boxH);
+            rebuildFuel();
+        } else {
+            List<RecipeDisplayEntry> hits = category.query(queryTarget, queryUsage);
+            if (hits.isEmpty()) return;
+            currentCategory = category;
+            rebuildWithHits(hits);
+        }
+        clampBoxX();
         repaginateToSelected();
+    }
+
+    /** Re-clamp boxX so a box widened by a category switch stays on screen. */
+    private static void clampBoxX() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getWindow() == null) return;
+        int guiW = mc.getWindow().getGuiScaledWidth();
+        boxX = Math.max(0, Math.min(boxX, guiW - boxW));
     }
 
     /** Set {@code tabPage} so the selected category sits on the first visible
@@ -966,8 +1395,12 @@ public final class RecipeViewerOverlay {
         RecipeViewerIndex.snapshotPartials(subset);
 
         boolean paged = viewerPageCount > 1;
-        int w = paged ? PAGE_COLS * 25 + 8 : boxW;
-        int h = paged ? PAGE_ROWS * 25 + 8 : boxH;
+        // The box width is authoritative (widened by ensureTabWidth to hold the
+        // tab strip), so the overlay always lays out at the static width/height
+        // — the box parameters are ignored for sizing, paging and switches stay
+        // in agreement and the widened strip sits inside the box as empty columns.
+        int w = RecipeViewerOverlay.boxW;
+        int h = RecipeViewerOverlay.boxH;
         var ctx = SlotDisplayContext.fromLevel(mc.level);
         overlay.init(subset, ctx, false, boxX, boxY, w, h, paged ? 1.0f : 0f);
         currentCollection = subset;
@@ -1055,11 +1488,22 @@ public final class RecipeViewerOverlay {
      * furnace-type menus (furnace / blast furnace / smoker).  A recipe must not
      * fill items or ghost previews into a wrong-station menu.
      */
+    /** The entry for {@code id}: the engine's registry first (covers synthetic
+     *  entries from the companion mod), then the recipe book's known set. */
+    private static RecipeDisplayEntry entryFor(RecipeDisplayId id) {
+        if (id == null) return null;
+        RecipeDisplayEntry entry = RecipeViewerEngine.entryFor(id);
+        if (entry != null) return entry;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return null;
+        return ((ClientRecipeBookAccessor) mc.player.getRecipeBook()).brbe$getKnown().get(id);
+    }
+
     private static boolean recipeFitsScreen(RecipeDisplayId id, AbstractContainerScreen<?> screen) {
+        if (RecipeViewerEngine.isSynthetic(id)) return false;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return false;
-        RecipeDisplayEntry entry = ((ClientRecipeBookAccessor) mc.player.getRecipeBook())
-                .brbe$getKnown().get(id);
+        RecipeDisplayEntry entry = entryFor(id);
         if (entry == null) return false;
         Identifier cat = BuiltInRegistries.RECIPE_BOOK_CATEGORY.getKey(entry.category());
         if (cat == null) return false;
@@ -1069,9 +1513,17 @@ public final class RecipeViewerOverlay {
         }
         // Smelting recipes place into a furnace-type menu (furnace / blast
         // furnace / smoker); campfire has no menu and is excluded.
-        return (path.startsWith("furnace_") || path.startsWith("blast_furnace_")
-                || path.startsWith("smoker_"))
-                && screen.getMenu() instanceof AbstractFurnaceMenu;
+        if (path.startsWith("furnace_") || path.startsWith("blast_furnace_")
+                || path.startsWith("smoker_")) {
+            return screen.getMenu() instanceof AbstractFurnaceMenu;
+        }
+        if (path.equals("stonecutter")) {
+            return screen.getMenu() instanceof net.minecraft.world.inventory.StonecutterMenu;
+        }
+        if (path.equals("smithing")) {
+            return screen.getMenu() instanceof net.minecraft.world.inventory.SmithingMenu;
+        }
+        return false;
     }
 
     /** Result item of an overlay recipe button (its recipe's primary output). */
@@ -1080,8 +1532,7 @@ public final class RecipeViewerOverlay {
         if (mc.player == null || mc.level == null) return ItemStack.EMPTY;
         try {
             RecipeDisplayId id = button.brbe$getRecipe();
-            RecipeDisplayEntry entry = ((ClientRecipeBookAccessor) mc.player.getRecipeBook())
-                    .brbe$getKnown().get(id);
+            RecipeDisplayEntry entry = entryFor(id);
             if (entry == null) return ItemStack.EMPTY;
             List<ItemStack> results;
             try {
@@ -1195,22 +1646,12 @@ public final class RecipeViewerOverlay {
 
     /** Whether the click lands on the overlay box (buttons + padding). */
     private static boolean inBox(MouseButtonEvent event) {
-        OverlayRecipeComponentAccessor acc = (OverlayRecipeComponentAccessor) overlay;
-        int count = acc.getRecipeButtons().size();
-        int boxW;
-        int boxH;
-        if (viewerPageCount > 1) {
-            boxW = PAGE_COLS * 25 + 8;
-            boxH = PAGE_ROWS * 25 + 8;
-        } else {
-            int columns = AlternativeOverlayLayout.columnsFor(count);
-            int rows = (count + columns - 1) / columns;
-            boxW = Math.min(count, columns) * 25 + 8;
-            boxH = rows * 25 + 8;
-        }
         int mx = Mth.floor(event.x());
         int my = Mth.floor(event.y());
-        return mx >= acc.getX() && mx < acc.getX() + boxW
-                && my >= acc.getY() && my < acc.getY() + boxH;
+        // Use the current box layout fields (not the overlay's buttons, which
+        // may still hold the previous category's after a tab switch) so the
+        // click region always matches what is actually drawn.
+        return mx >= boxX && mx < boxX + boxW
+                && my >= boxY && my < boxY + boxH;
     }
 }

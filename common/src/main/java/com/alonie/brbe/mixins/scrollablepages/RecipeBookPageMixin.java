@@ -9,8 +9,10 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
+import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.util.Util;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -39,6 +41,11 @@ public abstract class RecipeBookPageMixin {
     private ImageButton forwardButton;
     @Shadow
     private ImageButton backButton;
+
+    @Shadow
+    private RecipeDisplayId lastClickedRecipe;
+    @Shadow
+    private RecipeCollection lastClickedRecipeCollection;
 
     @Shadow
     private net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent overlay;
@@ -92,6 +99,10 @@ public abstract class RecipeBookPageMixin {
         }
 
         if (currentPage == totalPages - 1 && ClientCompat.mouseClicked(forwardButton, event.x(), event.y(), event.button())) {
+            // HEAD 拦截绕过了原方法开头的 lastClickedRecipe 重置，必须手动清空，
+            // 否则外层 handlePlaceRecipe 会把上一次点击的配方误放置到合成格。
+            this.lastClickedRecipe = null;
+            this.lastClickedRecipeCollection = null;
             RecipeBookPageAnimBridge.markUserFlip();
             currentPage = 0;
             updateButtonsForPage();
@@ -100,9 +111,46 @@ public abstract class RecipeBookPageMixin {
         }
 
         if (currentPage == 0 && ClientCompat.mouseClicked(backButton, event.x(), event.y(), event.button())) {
+            this.lastClickedRecipe = null;
+            this.lastClickedRecipeCollection = null;
             RecipeBookPageAnimBridge.markUserFlip();
             currentPage = totalPages - 1;
             updateButtonsForPage();
+            cir.setReturnValue(true);
+        }
+    }
+
+    /**
+     * Ctrl+点击翻页箭头直接跳到首页/尾页（跨多页由动画 mixin 自动降级为直接切换）。
+     * HEAD 拦截，优先于原版逐页翻页逻辑；配方查看器激活时不介入。
+     */
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    public void brbe$mouseClickedJumpToEdge(MouseButtonEvent event, int areaLeft, int areaTop, int areaWidth, int areaHeight, boolean widthTooNarrow, CallbackInfoReturnable<Boolean> cir) {
+        if (RecipeViewerIndex.isViewerActive() || event.button() != 0 || !ClientCompat.isControlDown()) {
+            return;
+        }
+
+        if (ClientCompat.mouseClicked(forwardButton, event.x(), event.y(), event.button())) {
+            // 与原版 mouseClicked 开头一致：清空上次点击，避免外层误放置旧配方
+            this.lastClickedRecipe = null;
+            this.lastClickedRecipeCollection = null;
+            if (currentPage < totalPages - 1) {
+                RecipeBookPageAnimBridge.markUserFlip();
+                currentPage = totalPages - 1;
+                updateButtonsForPage();
+            }
+            cir.setReturnValue(true);
+            return;
+        }
+
+        if (ClientCompat.mouseClicked(backButton, event.x(), event.y(), event.button())) {
+            this.lastClickedRecipe = null;
+            this.lastClickedRecipeCollection = null;
+            if (currentPage > 0) {
+                RecipeBookPageAnimBridge.markUserFlip();
+                currentPage = 0;
+                updateButtonsForPage();
+            }
             cir.setReturnValue(true);
         }
     }

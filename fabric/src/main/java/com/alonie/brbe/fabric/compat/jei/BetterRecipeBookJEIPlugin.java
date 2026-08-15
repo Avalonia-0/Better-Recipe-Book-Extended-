@@ -19,6 +19,11 @@ import net.minecraft.world.item.ItemStack;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Fabric-side JEI plugin that bridges BRBE's recipe/usage key requests to JEI's
+ * runtime (a coexistence bridge, not a data dependency: BRBE never reads JEI's
+ * recipe data).  Workstation logic is entirely BRBE's own.
+ */
 @JeiPlugin
 public final class BetterRecipeBookJEIPlugin implements IModPlugin {
     private static final Identifier PLUGIN_UID = Identifier.fromNamespaceAndPath(BetterRecipeBook.MOD_ID, "jei");

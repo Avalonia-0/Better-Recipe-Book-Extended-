@@ -4,6 +4,7 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.mixins.accessors.RecipeButtonAccessor;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.util.PageAnimationEdges;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.RecipeBookPageAnimBridge;
 import net.minecraft.client.Minecraft;
@@ -42,7 +43,7 @@ import java.util.List;
  * 按钮网格区（不影响页码、箭头、替代配方弹层）。非动画路径完全放行原版。</p>
  *
  * <p>受 {@code brbe.toml} 的 {@code pageAnimation.pageAnimationEnabled}（开关）
- * 与 {@code pageAnimation.pageAnimationDuration}（时长，秒）控制。</p>
+ * 与 {@code pageAnimationDuration}（时长，秒）控制。</p>
  */
 @Mixin(RecipeBookPage.class)
 public abstract class RecipeBookPageAnimationMixin {
@@ -253,7 +254,10 @@ public abstract class RecipeBookPageAnimationMixin {
         if (effW < 25) {
             // 伪压缩：内容在 [effX, edgeRight] 内裁剪（中间随滑动变短），左右边界 2px
             // 独立渲染（边框完整不缩放）。图标在边界线之后渲染，完整跟随配方滑出视窗。
-            gui.enableScissor(effX, y, edgeRight, y + 25);
+            // 内容 scissor 右边界收窄 1px：原版 sprite 最右列（col24）顶部 1px 是
+            // 透明的，若内容画到该列，滚动时下层配方会从缺口漏出。收窄后缺口处
+            // 不绘制任何下层内容，仅显示背景（保持透明效果）。
+            gui.enableScissor(effX, y, edgeRight - 1, y + 25);
             gui.blitSprite(ClientCompat.GUI_TEXTURED, sprite, x, y, 25, 25);
             if (isPartial) {
                 if (ClientCompat.hasSpriteResource(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE)) {
@@ -265,14 +269,28 @@ public abstract class RecipeBookPageAnimationMixin {
             gui.disableScissor();
             // 图标（边界线前渲染，边界线将盖住经过的图标）
             gui.fakeItem(snap.getDisplayStack(), x + 4, y + 4);
-            // 左边界 2px（上层，盖住图标）
-            gui.enableScissor(effX, y, Math.min(effX + 2, edgeRight), y + 25);
-            gui.blitSprite(ClientCompat.GUI_TEXTURED, sprite, effX, y, 25, 25);
-            gui.disableScissor();
-            // 右边界 2px（上层，盖住图标）
-            gui.enableScissor(Math.max(edgeRight - 2, effX), y, edgeRight, y + 25);
-            gui.blitSprite(ClientCompat.GUI_TEXTURED, sprite, edgeRight - 25, y, 25, 25);
-            gui.disableScissor();
+            // 移动方向的前方边缘盖住后方边缘：配方左移（左端被边界压扁）时左边界
+            // 最后渲染（在上层），右移时右边界在上层。
+            boolean movingLeft = x < effX;
+            if (movingLeft) {
+                // 右边界先画（下层）
+                gui.enableScissor(Math.max(edgeRight - PageAnimationEdges.right(), effX), y, edgeRight, y + 25);
+                gui.blitSprite(ClientCompat.GUI_TEXTURED, sprite, edgeRight - 25, y, 25, 25);
+                gui.disableScissor();
+                // 左边界最后（上层，盖住右边界）
+                gui.enableScissor(effX, y, Math.min(effX + PageAnimationEdges.left(), edgeRight), y + 25);
+                gui.blitSprite(ClientCompat.GUI_TEXTURED, sprite, effX, y, 25, 25);
+                gui.disableScissor();
+            } else {
+                // 左边界先画（下层）
+                gui.enableScissor(effX, y, Math.min(effX + PageAnimationEdges.left(), edgeRight), y + 25);
+                gui.blitSprite(ClientCompat.GUI_TEXTURED, sprite, effX, y, 25, 25);
+                gui.disableScissor();
+                // 右边界最后（上层，盖住左边界）
+                gui.enableScissor(Math.max(edgeRight - PageAnimationEdges.right(), effX), y, edgeRight, y + 25);
+                gui.blitSprite(ClientCompat.GUI_TEXTURED, sprite, edgeRight - 25, y, 25, 25);
+                gui.disableScissor();
+            }
         } else {
             gui.blitSprite(ClientCompat.GUI_TEXTURED, sprite, effX, y, 25, 25);
             if (isPartial) {
@@ -296,7 +314,7 @@ public abstract class RecipeBookPageAnimationMixin {
     @Unique
     private float brbe$animationDuration() {
         if (BetterRecipeBook.config != null) {
-            return BetterRecipeBook.config.pageAnimation.pageAnimationDuration;
+            return BetterRecipeBook.config.pageAnimationDuration;
         }
         return 0.1F;
     }

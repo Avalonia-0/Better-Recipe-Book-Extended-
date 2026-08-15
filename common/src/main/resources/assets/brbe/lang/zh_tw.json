@@ -9,7 +9,7 @@
   "text.autoconfig.brbe.option.showModName.@Tooltip": "顯示物品的來源模組，與 Jade 類似。",
   "text.autoconfig.brbe.option.hideReiJeiOverlay": "隱藏物品管理器介面",
   "text.autoconfig.brbe.option.scrollPageSound": "滑鼠滾輪翻頁音效",
-  "text.autoconfig.brbe.option.scrollPageSound.@PrefixText": "§e翻頁音效",
+  "text.autoconfig.brbe.option.scrollPageSound.@PrefixText": "§e音效和動畫",
   "text.autoconfig.brbe.option.pageFlipVolume": "音效音量",
   "soundCategory.brbe_page_flip": "配方書翻頁音效",
   "text.autoconfig.brbe.option.saveRecipeBookPosition": "保存配方書上一次的瀏覽記錄",
@@ -73,7 +73,17 @@
   "brbe.gui.tip.6": "來社群媒體和大家交個朋友！",
   "brbe.gui.tip.7": "所有代碼均由DeepSeek生成！",
   "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§e殘缺配方標記",
-  "text.autoconfig.brbe.option.pageAnimation.@PrefixText": "§e翻頁動畫",
   "text.autoconfig.brbe.option.pageAnimation.pageAnimationEnabled": "配方書翻頁動畫",
-  "text.autoconfig.brbe.option.pageAnimation.pageAnimationDuration": "動畫時長"
+  "text.autoconfig.brbe.option.pageAnimationDuration": "動畫時長",
+  "brbe.category.crafting": "合成",
+  "brbe.category.furnace": "熔爐",
+  "brbe.category.fuel": "燒煉燃料",
+  "brbe.category.stonecutting": "切石機",
+  "brbe.category.smithing": "鍛造台",
+  "brbe.cooktime.furnace": "燒煉",
+  "brbe.cooktime.blast": "熔煉",
+  "brbe.cooktime.smoker": "煙熏",
+  "brbe.cooktime.campfire": "營火烹飪",
+  "brbe.cooktime.unit.items": "物品",
+  "brbe.tooltip.station": "工作站"
 }

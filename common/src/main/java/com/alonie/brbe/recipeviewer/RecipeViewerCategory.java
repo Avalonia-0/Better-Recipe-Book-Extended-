@@ -1,6 +1,7 @@
 package com.alonie.brbe.recipeviewer;
 
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 
@@ -35,6 +36,20 @@ public interface RecipeViewerCategory {
         return !target.isEmpty();
     }
 
+    /** Whether this category's station is the currently open screen's menu
+     *  (e.g. the crafting category for a crafting-table menu, the furnace
+     *  category for furnace / blast-furnace / smoker menus). */
+    default boolean appliesToMenu(AbstractContainerMenu menu) {
+        return false;
+    }
+
+    /** Whether this category handles {@code target} as a workstation block:
+     *  its usage view shows every recipe that uses the workstation as a
+     *  condition (JEI semantics), regardless of the open screen. */
+    default boolean appliesToStation(ItemStack target) {
+        return false;
+    }
+
     /**
      * Priority for picking the default tab on open.  Higher wins; return -1 to
      * rule this category out for {@code target}.  The default returns 0 for any
@@ -42,5 +57,28 @@ public interface RecipeViewerCategory {
      */
     default int defaultPriority(ItemStack target) {
         return appliesTo(target) ? 0 : -1;
+    }
+
+    /** Whether this is the fuel category (rendered standalone, no recipe
+     *  buttons). */
+    default boolean isFuelCategory() {
+        return false;
+    }
+
+    /** Workstation item icons that can produce {@code entry}, shown at the
+     *  bottom of the recipe tooltip.  Built-in categories answer from their
+     *  recipe-book category path; dynamic (mod) categories answer from the
+     *  workstations they were registered with.  Empty means "fall back to the
+     *  category icon".  The furnace category is exempt (its tooltip carries its
+     *  per-station icons instead). */
+    default List<ItemStack> stationIconsFor(RecipeDisplayEntry entry) {
+        return List.of();
+    }
+
+    /** Whether this category has anything to show for {@code target}.  The
+     *  default checks {@link #query}; the fuel category overrides this to
+     *  answer from {@code usage && isFuel(target)}. */
+    default boolean hasContent(ItemStack target, boolean usage) {
+        return !query(target, usage).isEmpty();
     }
 }

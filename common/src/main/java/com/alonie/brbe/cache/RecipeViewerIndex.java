@@ -1,11 +1,15 @@
 package com.alonie.brbe.cache;
 
+import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.mixins.accessors.ClientRecipeBookAccessor;
+import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
+import com.google.gson.Gson;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.player.StackedItemContents;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.display.FurnaceRecipeDisplay;
@@ -13,9 +17,15 @@ import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
+import net.minecraft.world.item.crafting.display.SmithingRecipeDisplay;
+import net.minecraft.world.item.crafting.display.StonecutterRecipeDisplay;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -43,103 +53,373 @@ public final class RecipeViewerIndex {
         return known == null ? List.of() : List.copyOf(known.values());
     }
 
-    /** Recipes in the book whose result is {@code target}. */
-    public static List<RecipeDisplayEntry> resultsFor(ItemStack target) {
-        if (target == null || target.isEmpty()) return List.of();
-        List<RecipeDisplayEntry> out = new ArrayList<>();
+    /** Rebuild the query engine's indices from the vanilla known set — one type
+     *  per JEI recipe type ({@code minecraft:smelting}, {@code minecraft:blasting},
+     *  … each its own type so the furnace category can aggregate them with dedup).
+     *  Called after the recipe book's known set is (re)populated. */
+    public static void rebuildEngine() {
+        RecipeViewerEngine.clearVanilla();
+        Map<String, List<RecipeViewerEngine.IndexedRecipe>> grouped = new LinkedHashMap<>();
+        Map<String, List<ItemStack>> stationItems = new LinkedHashMap<>();
         for (RecipeDisplayEntry entry : knownEntries()) {
-            if (!isCraftingTable(entry)) continue;
-            List<ItemStack> results;
-            try {
-                results = entry.resultItems(null);
-            } catch (Exception e) {
-                continue;
-            }
-            for (ItemStack result : results) {
-                if (result.is(target.getItem())) {
-                    out.add(entry);
-                    break;
-                }
+            String path = categoryPath(entry);
+            for (Workstation station : workstations()) {
+                if (!station.matchesPath(path)) continue;
+                String uid = station.typeId();
+                grouped.computeIfAbsent(uid, k -> new ArrayList<>())
+                        .add(new RecipeViewerEngine.IndexedRecipe(entry, inputStacks(entry), outputStacks(entry)));
+                stationItems.computeIfAbsent(uid, k -> new ArrayList<>())
+                        .addAll(java.util.Arrays.asList(station.fallbackIcons()));
+                break;
             }
         }
-        return out;
+        for (Map.Entry<String, List<RecipeViewerEngine.IndexedRecipe>> e : grouped.entrySet()) {
+            RecipeViewerEngine.registerType(e.getKey(), e.getValue(), stationItems.get(e.getKey()));
+        }
+        BetterRecipeBook.LOGGER.info("[BRBE] rebuildEngine: {} types, {} entries",
+                grouped.size(), grouped.values().stream().mapToInt(List::size).sum());
+        RecipeViewerEngine.notifyRebuilt();
     }
 
-    /** Recipes in the book using {@code target} as a material (tag-aware). */
-    public static List<RecipeDisplayEntry> usagesFor(ItemStack target) {
-        if (target == null || target.isEmpty()) return List.of();
-        List<RecipeDisplayEntry> out = new ArrayList<>();
-        for (RecipeDisplayEntry entry : knownEntries()) {
-            if (!isCraftingTable(entry)) continue;
-            Optional<List<Ingredient>> requirements = entry.craftingRequirements();
-            if (requirements.isEmpty()) continue;
+    /** Output item stacks of {@code entry} (its results). */
+    private static List<ItemStack> outputStacks(RecipeDisplayEntry entry) {
+        try {
+            return entry.resultItems(null);
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
+
+    /** Input item stacks of {@code entry}, dispatched by display type: furnace
+     *  uses its ingredient, stonecutter its input, smithing its
+     *  template/base/addition, and everything else (crafting / synthetic) its
+     *  crafting requirements. */
+    private static List<ItemStack> inputStacks(RecipeDisplayEntry entry) {
+        try {
+            if (entry.display() instanceof FurnaceRecipeDisplay furnace) {
+                return resolveSlotDisplay(furnace.ingredient());
+            }
+            if (entry.display() instanceof StonecutterRecipeDisplay stonecutter) {
+                return resolveSlotDisplay(stonecutter.input());
+            }
+            if (entry.display() instanceof SmithingRecipeDisplay smithing) {
+                List<ItemStack> out = new ArrayList<>();
+                for (SlotDisplay slot : List.of(smithing.template(), smithing.base(), smithing.addition())) {
+                    out.addAll(resolveSlotDisplay(slot));
+                }
+                return out;
+            }
+        } catch (Exception ignored) {
+            // fall through to crafting requirements
+        }
+        Optional<List<Ingredient>> requirements = entry.craftingRequirements();
+        if (requirements.isPresent()) {
+            List<ItemStack> out = new ArrayList<>();
             for (Ingredient ingredient : requirements.get()) {
-                boolean match = ingredient.items()
-                        .anyMatch(holder -> holder.value() == target.getItem());
-                if (match) {
-                    out.add(entry);
-                    break;
-                }
+                ingredient.items().forEach(holder -> out.add(new ItemStack(holder.value())));
             }
+            return out;
         }
-        return out;
+        return List.of();
     }
 
-    /** Furnace-type recipes whose smelted result is {@code target}.  The same
-     *  smelting content is registered once per station (furnace / blast
-     *  furnace / smoker / campfire), so entries with identical ingredient +
-     *  result sets are merged into a single representative. */
-    public static List<RecipeDisplayEntry> furnaceResultsFor(ItemStack target) {
-        if (target == null || target.isEmpty()) return List.of();
-        List<RecipeDisplayEntry> out = new ArrayList<>();
-        Set<String> seen = new HashSet<>();
-        for (RecipeDisplayEntry entry : knownEntries()) {
-            if (!isFurnaceTable(entry)) continue;
-            FurnaceRecipeDisplay display = asFurnace(entry);
-            if (display == null) continue;
-            boolean hit = false;
-            for (ItemStack result : resolveSlotDisplay(display.result())) {
-                if (result.is(target.getItem())) {
-                    hit = true;
-                    break;
-                }
+    /** Recipe-book category family of a workstation.  The four furnace-family
+     *  stations share {@link #FURNACE}; every other station maps one-to-one. */
+    private enum Family { CRAFTING, FURNACE, STONECUTTING, SMITHING }
+
+    /**
+     * A workstation: a self-owned identity string (equal to the JEI recipe-type
+     *  id where the two overlap), the recipe-book category paths its recipes
+     *  live under, and its block items.  Recipe entries carry their own
+     *  {@link RecipeDisplayEntry#category()}, so "station → recipes" matches
+     *  each entry's category path at query time — the old type-id → prefix
+     *  switch is gone, its data lives here.
+     */
+    private record Workstation(Family family, String typeId,
+                               List<String> categoryPrefixes,
+                               List<Identifier> stationItems) {
+
+        /** Whether {@code path} is a recipe-book category path of this station.
+         *  A prefix ending in "_" matches by prefix ({@code crafting_}/
+         *  {@code furnace_}/…); any other entry is a full category path matched
+         *  exactly ({@code campfire}/{@code stonecutter}/{@code smithing}). */
+        boolean matchesPath(String path) {
+            for (String prefix : categoryPrefixes) {
+                boolean match = prefix.endsWith("_")
+                        ? path.startsWith(prefix)
+                        : path.equals(prefix);
+                if (match) return true;
             }
-            if (!hit) continue;
-            if (!seen.add(furnaceContentKey(display))) continue;
-            out.add(entry);
+            return false;
         }
-        return out;
+
+        /** Whether {@code item} is one of this workstation's block items. */
+        boolean hasItem(Item item) {
+            return stationItems.contains(BuiltInRegistries.ITEM.getKey(item));
+        }
+
+        /** The workstation's block items as icons. */
+        ItemStack[] fallbackIcons() {
+            List<ItemStack> icons = new ArrayList<>();
+            for (Identifier id : stationItems) {
+                BuiltInRegistries.ITEM.getOptional(id).ifPresent(item -> icons.add(new ItemStack(item)));
+            }
+            return icons.toArray(new ItemStack[0]);
+        }
     }
 
-    /** Furnace-type recipes using {@code target} as the smelted ingredient.
-     *  Entries with identical ingredient + result sets are merged (see
-     *  {@link #furnaceResultsFor}). */
-    public static List<RecipeDisplayEntry> furnaceUsagesFor(ItemStack target) {
-        if (target == null || target.isEmpty()) return List.of();
-        List<RecipeDisplayEntry> out = new ArrayList<>();
-        Set<String> seen = new HashSet<>();
-        for (RecipeDisplayEntry entry : knownEntries()) {
-            if (!isFurnaceTable(entry)) continue;
-            FurnaceRecipeDisplay display = asFurnace(entry);
-            if (display == null) continue;
-            boolean hit = false;
-            for (ItemStack ingredient : resolveSlotDisplay(display.ingredient())) {
-                if (ingredient.is(target.getItem())) {
-                    hit = true;
-                    break;
+    /** Built-in workstation registry: vanilla stations only.  Mod stations
+     *  (e.g. the Farmer's Delight skillet) are supplied by the companion
+     *  {@code brbe-jei-plugins} mod scanning each mod's JEI plugin, or appended
+     *  manually via {@code config/brbe_workstations.json} (see
+     *  {@link #workstations()}).  Recognition is self-contained — no runtime
+     *  JEI data. */
+    private static final List<Workstation> BUILTIN_WORKSTATIONS = List.of(
+            new Workstation(Family.CRAFTING, "minecraft:crafting", List.of("crafting_"),
+                    List.of(Identifier.withDefaultNamespace("crafting_table"))),
+            new Workstation(Family.FURNACE, "minecraft:smelting", List.of("furnace_"),
+                    List.of(Identifier.withDefaultNamespace("furnace"))),
+            new Workstation(Family.FURNACE, "minecraft:blasting", List.of("blast_furnace_"),
+                    List.of(Identifier.withDefaultNamespace("blast_furnace"))),
+            new Workstation(Family.FURNACE, "minecraft:smoking", List.of("smoker_"),
+                    List.of(Identifier.withDefaultNamespace("smoker"))),
+            new Workstation(Family.FURNACE, "minecraft:campfire_cooking", List.of("campfire"),
+                    List.of(Identifier.withDefaultNamespace("campfire"),
+                            Identifier.withDefaultNamespace("soul_campfire"))),
+            new Workstation(Family.STONECUTTING, "minecraft:stonecutting", List.of("stonecutter"),
+                    List.of(Identifier.withDefaultNamespace("stonecutter"))),
+            new Workstation(Family.SMITHING, "minecraft:smithing", List.of("smithing"),
+                    List.of(Identifier.withDefaultNamespace("smithing_table"))));
+
+    /** Effective registry: built-ins plus any stations appended from
+     *  {@code config/brbe_workstations.json} or registered programmatically
+     *  (the {@code brbe-jei-plugins} companion mod).  Built lazily on first
+     *  query so the config file is read only after the client is up. */
+    private static volatile List<Workstation> WORKSTATIONS;
+
+    /** Programmatically registered external stations, injected before the
+     *  registry is first built (or rebuilt immediately if it already was).
+     *  Guarded by {@code RecipeViewerIndex.class}. */
+    private static final List<WorkstationSpec> EXTERNAL_SPECS = new ArrayList<>();
+
+    private static List<Workstation> workstations() {
+        List<Workstation> stations = WORKSTATIONS;
+        if (stations == null) {
+            synchronized (RecipeViewerIndex.class) {
+                stations = WORKSTATIONS;
+                if (stations == null) {
+                    stations = buildWorkstations();
+                    WORKSTATIONS = stations;
                 }
             }
-            if (!hit) continue;
-            if (!seen.add(furnaceContentKey(display))) continue;
-            out.add(entry);
         }
-        return out;
+        return stations;
+    }
+
+    private static List<Workstation> buildWorkstations() {
+        List<Workstation> builtin = BUILTIN_WORKSTATIONS;
+        List<Workstation> config = loadConfigWorkstations();
+        List<Workstation> external = loadExternalWorkstations();
+        BetterRecipeBook.LOGGER.info("[BRBE] buildWorkstations: builtin={} config={} external={}",
+                builtin.size(), config.size(), external.size());
+        List<Workstation> out = new ArrayList<>(builtin);
+        out.addAll(config);
+        out.addAll(external);
+        return List.copyOf(out);
+    }
+
+    /** JSON DTO for {@code config/brbe_workstations.json}. */
+    private static final class WorkstationFile {
+        List<StationEntry> workstations = List.of();
+    }
+
+    private static final class StationEntry {
+        String family;              // "FURNACE" / "CRAFTING" / "STONECUTTING" / "SMITHING"
+        String typeId;              // optional identity string (shown in tooltips)
+        List<String> categoryPrefixes = List.of();  // recipe-book category path prefixes
+        List<String> items = List.of();             // "namespace:block" workstation blocks
+    }
+
+    /** Workstations appended by the modpack author, from
+     *  {@code config/brbe_workstations.json}; empty when absent/invalid.
+     *  Format:
+     *  <pre>
+     *  { "workstations": [ {
+     *      "family": "FURNACE",
+     *      "typeId": "mymod:kiln_smelting",
+     *      "categoryPrefixes": ["mymod_furnace_"],
+     *      "items": ["mymod:kiln"]
+     *  } ] }
+     *  </pre>
+     *  A {@code categoryPrefixes} entry ending in "_" matches category paths by
+     *  prefix (like {@code furnace_}), anything else matches exactly. */
+    private static List<Workstation> loadConfigWorkstations() {
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc == null || mc.gameDirectory == null) return List.of();
+            Path file = mc.gameDirectory.toPath().resolve("config")
+                    .resolve("brbe_workstations.json");
+            if (!Files.exists(file)) return List.of();
+            String json = Files.readString(file, StandardCharsets.UTF_8);
+            WorkstationFile cfg = new Gson().fromJson(json, WorkstationFile.class);
+            if (cfg == null || cfg.workstations == null) return List.of();
+            List<Workstation> out = new ArrayList<>();
+            for (StationEntry entry : cfg.workstations) {
+                Workstation station = parseStationEntry(entry);
+                if (station != null) out.add(station);
+            }
+            return out;
+        } catch (Exception e) {
+            BetterRecipeBook.LOGGER.warn("[BRBE] Failed to read config/brbe_workstations.json: {}", e.toString());
+            return List.of();
+        }
+    }
+
+    private static Workstation parseStationEntry(StationEntry entry) {
+        if (entry == null) return null;
+        Family family;
+        try {
+            family = Family.valueOf(entry.family == null ? "" : entry.family.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            BetterRecipeBook.LOGGER.warn("[BRBE] brbe_workstations.json: unknown family '{}'", entry.family);
+            return null;
+        }
+        List<String> prefixes = new ArrayList<>();
+        if (entry.categoryPrefixes != null) {
+            for (String prefix : entry.categoryPrefixes) {
+                if (prefix != null && !prefix.isBlank()) prefixes.add(prefix);
+            }
+        }
+        List<Identifier> items = new ArrayList<>();
+        if (entry.items != null) {
+            for (String item : entry.items) {
+                try {
+                    String[] parts = item.split(":", 2);
+                    Identifier id = parts.length == 2
+                            ? Identifier.fromNamespaceAndPath(parts[0], parts[1])
+                            : Identifier.withDefaultNamespace(parts[0]);
+                    items.add(id);
+                } catch (Exception e) {
+                    BetterRecipeBook.LOGGER.warn("[BRBE] brbe_workstations.json: bad item id '{}'", item);
+                }
+            }
+        }
+        if (prefixes.isEmpty() || items.isEmpty()) {
+            BetterRecipeBook.LOGGER.warn("[BRBE] brbe_workstations.json: entry needs non-empty categoryPrefixes and items, skipping");
+            return null;
+        }
+        return new Workstation(family, entry.typeId == null ? "" : entry.typeId, prefixes, items);
+    }
+
+    /** Public station descriptor accepted by {@link #registerExternalWorkstations},
+     *  used by the companion {@code brbe-jei-plugins} mod to inject stations
+     *  collected from mod JEI plugins.  Mirrors the config file format:
+     *  {@code family} is one of FURNACE/CRAFTING/STONECUTTING/SMITHING
+     *  (case-insensitive); {@code items} entries may omit the namespace. */
+    public record WorkstationSpec(String family, String typeId,
+                                  List<String> categoryPrefixes, List<String> items) {}
+
+    /** Registers externally collected stations (built-in + config + external
+     *  three-source merge).  If the registry is already built it is rebuilt
+     *  immediately; otherwise the specs are picked up on first build.
+     *  Idempotent: an identical spec is not registered twice. */
+    public static void registerExternalWorkstations(List<WorkstationSpec> specs) {
+        if (specs == null || specs.isEmpty()) return;
+        synchronized (RecipeViewerIndex.class) {
+            int added = 0;
+            for (WorkstationSpec spec : specs) {
+                if (spec != null && !EXTERNAL_SPECS.contains(spec)) {
+                    EXTERNAL_SPECS.add(spec);
+                    added++;
+                }
+            }
+            BetterRecipeBook.LOGGER.info("[BRBE] registerExternalWorkstations: +{} total={} builtAlready={}",
+                    added, EXTERNAL_SPECS.size(), WORKSTATIONS != null);
+            if (WORKSTATIONS != null) {
+                WORKSTATIONS = buildWorkstations();
+            }
+        }
+    }
+
+    private static List<Workstation> loadExternalWorkstations() {
+        synchronized (RecipeViewerIndex.class) {
+            if (EXTERNAL_SPECS.isEmpty()) return List.of();
+            List<Workstation> out = new ArrayList<>();
+            for (WorkstationSpec spec : EXTERNAL_SPECS) {
+                Workstation station = parseWorkstationSpec(spec);
+                if (station != null) out.add(station);
+            }
+            return out;
+        }
+    }
+
+    private static Workstation parseWorkstationSpec(WorkstationSpec spec) {
+        Family family;
+        try {
+            family = Family.valueOf(spec.family() == null ? "" : spec.family().toUpperCase());
+        } catch (IllegalArgumentException e) {
+            BetterRecipeBook.LOGGER.warn("[BRBE] external workstation: unknown family '{}'", spec.family());
+            return null;
+        }
+        List<String> prefixes = new ArrayList<>();
+        if (spec.categoryPrefixes() != null) {
+            for (String prefix : spec.categoryPrefixes()) {
+                if (prefix != null && !prefix.isBlank()) prefixes.add(prefix);
+            }
+        }
+        List<Identifier> items = new ArrayList<>();
+        if (spec.items() != null) {
+            for (String item : spec.items()) {
+                try {
+                    String[] parts = item.split(":", 2);
+                    Identifier id = parts.length == 2
+                            ? Identifier.fromNamespaceAndPath(parts[0], parts[1])
+                            : Identifier.withDefaultNamespace(parts[0]);
+                    items.add(id);
+                } catch (Exception e) {
+                    BetterRecipeBook.LOGGER.warn("[BRBE] external workstation: bad item id '{}'", item);
+                }
+            }
+        }
+        if (prefixes.isEmpty() || items.isEmpty()) {
+            BetterRecipeBook.LOGGER.warn("[BRBE] external workstation: entry needs non-empty categoryPrefixes and items, skipping");
+            return null;
+        }
+        return new Workstation(family, spec.typeId() == null ? "" : spec.typeId(), prefixes, items);
+    }
+
+    /** The workstation {@code target} is, or null when it is not one
+     *  (self-owned registry lookup — no runtime JEI data). */
+    private static Workstation workstationFor(ItemStack target) {
+        if (target == null || target.isEmpty()) return null;
+        return workstationForItem(target.getItem());
+    }
+
+    private static Workstation workstationForItem(Item item) {
+        for (Workstation station : workstations()) {
+            if (station.hasItem(item)) return station;
+        }
+        return null;
+    }
+
+    /** Which workstation {@code target} is (self-owned registry lookup), or
+     *  null when it is not a workstation. */
+    public static String stationTypeIdFor(ItemStack target) {
+        Workstation station = workstationFor(target);
+        return station == null ? null : station.typeId();
+    }
+
+    /** Whether {@code target} is a furnace-family workstation (furnace / blast
+     *  furnace / smoker / campfire / a mod furnace-family station). */
+    public static boolean isFurnaceStation(ItemStack target) {
+        Workstation station = workstationFor(target);
+        return station != null && station.family() == Family.FURNACE;
     }
 
     /** Canonical key of a furnace recipe's content: the sorted smelted
      *  ingredients and sorted results.  Identical across stations so the same
      *  recipe registered for furnace/smoker/campfire dedupes to one entry. */
-    private static String furnaceContentKey(FurnaceRecipeDisplay display) {
+    public static String furnaceContentKey(FurnaceRecipeDisplay display) {
         List<String> ingredients = new ArrayList<>();
         for (ItemStack s : resolveSlotDisplay(display.ingredient())) {
             ingredients.add(BuiltInRegistries.ITEM.getKey(s.getItem()).toString());
@@ -154,10 +434,10 @@ public final class RecipeViewerIndex {
     }
 
     /** Cook time (ticks) of the same smelting content in each station, indexed
-     *  as {furnace, blast furnace, smoker}; 0 when that station has no recipe
-     *  for this content (e.g. food has no blast-furnace variant). */
+     *  as {furnace, blast furnace, smoker, campfire}; 0 when that station has no
+     *  recipe for this content (e.g. food has no blast-furnace variant). */
     public static int[] furnaceStationTicks(RecipeDisplayEntry sample) {
-        int[] ticks = new int[3];
+        int[] ticks = new int[4];
         FurnaceRecipeDisplay sampleDisplay = asFurnace(sample);
         if (sampleDisplay == null) return ticks;
         String key = furnaceContentKey(sampleDisplay);
@@ -171,9 +451,60 @@ public final class RecipeViewerIndex {
                 ticks[1] = display.duration();
             } else if (path.startsWith("smoker_")) {
                 ticks[2] = display.duration();
+            } else if (path.equals("campfire")) {
+                ticks[3] = display.duration();
             }
         }
         return ticks;
+    }
+
+    /** Workstation item icons for a furnace-type station, indexed like
+     *  {@link #furnaceStationTicks}: {furnace, blast furnace, smoker,
+     *  campfire + soul campfire}.  Drawn from the station's own block items
+     *  (self-owned registry — no runtime JEI data). */
+    public static ItemStack[] stationIcons(int stationIndex) {
+        Workstation station = furnaceWorkstation(stationIndex);
+        if (station == null) return new ItemStack[0];
+        return station.fallbackIcons();
+    }
+
+    /** Workstation item icons — one representative per workstation — that can
+     *  produce {@code entry}, including mod workstations from the external
+     *  registry.  Empty when no workstation matches. */
+    public static List<ItemStack> workstationsIconsFor(RecipeDisplayEntry entry) {
+        return workstationsIconsForPath(categoryPath(entry));
+    }
+
+    /** Workstation icons for one furnace subcategory prefix (e.g.
+     *  {@code "furnace_"}, {@code "blast_furnace_"}, {@code "campfire"}). */
+    public static List<ItemStack> workstationsIconsForPrefix(String categoryPrefix) {
+        return workstationsIconsForPath(categoryPrefix);
+    }
+
+    private static List<ItemStack> workstationsIconsForPath(String path) {
+        List<ItemStack> icons = new ArrayList<>();
+        for (Workstation station : workstations()) {
+            if (station.matchesPath(path)) {
+                // Every block of the workstation, not just one representative —
+                // e.g. campfire + soul campfire + the mod's stove/skillet.
+                for (ItemStack icon : station.fallbackIcons()) {
+                    icons.add(icon);
+                }
+            }
+        }
+        return icons;
+    }
+
+    /** The {@code index}-th furnace-family workstation (furnace, blast furnace,
+     *  smoker, campfire). */
+    private static Workstation furnaceWorkstation(int index) {
+        int i = 0;
+        for (Workstation station : workstations()) {
+            if (station.family() != Family.FURNACE) continue;
+            if (i == index) return station;
+            i++;
+        }
+        return null;
     }
 
     /** Recipe-book category path of {@code entry} (e.g. "furnace_food"), or
@@ -191,6 +522,26 @@ public final class RecipeViewerIndex {
     public static FurnaceRecipeDisplay asFurnace(RecipeDisplayEntry entry) {
         try {
             if (entry.display() instanceof FurnaceRecipeDisplay f) return f;
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
+
+    /** Whether {@code entry} is a stonecutter recipe display. */
+    public static StonecutterRecipeDisplay asStonecutter(RecipeDisplayEntry entry) {
+        try {
+            if (entry.display() instanceof StonecutterRecipeDisplay s) return s;
+        } catch (Exception e) {
+            // ignore
+        }
+        return null;
+    }
+
+    /** Whether {@code entry} is a smithing recipe display. */
+    public static SmithingRecipeDisplay asSmithing(RecipeDisplayEntry entry) {
+        try {
+            if (entry.display() instanceof SmithingRecipeDisplay s) return s;
         } catch (Exception e) {
             // ignore
         }
@@ -217,37 +568,6 @@ public final class RecipeViewerIndex {
             // unresolvable
         }
         return out;
-    }
-
-    /** Whether the entry belongs to a furnace-type station (furnace, blast
-     *  furnace, smoker, campfire). */
-    private static boolean isFurnaceTable(RecipeDisplayEntry entry) {
-        try {
-            Identifier key = BuiltInRegistries.RECIPE_BOOK_CATEGORY.getKey(entry.category());
-            if (key == null) return false;
-            String path = key.getPath();
-            return path.startsWith("furnace_")
-                    || path.startsWith("blast_furnace_")
-                    || path.startsWith("smoker_")
-                    || path.equals("campfire");
-        } catch (Exception e) {
-            return false;
-        }
-    }
-
-    /**
-     * Whether the entry belongs to the crafting table (not a furnace /
-     * stonecutter / smithing / other station).  Crafting-table categories all
-     * have paths like {@code crafting_building_blocks}, {@code crafting_misc},
-     * etc.
-     */
-    private static boolean isCraftingTable(RecipeDisplayEntry entry) {
-        try {
-            Identifier key = BuiltInRegistries.RECIPE_BOOK_CATEGORY.getKey(entry.category());
-            return key != null && key.getPath().startsWith("crafting_");
-        } catch (Exception e) {
-            return false;
-        }
     }
 
     /**

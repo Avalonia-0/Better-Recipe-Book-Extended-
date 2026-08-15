@@ -1,5 +1,6 @@
 package com.alonie.brbe.mixins.localcache;
 
+import com.alonie.brbe.cache.RecipeViewerIndex;
 import com.alonie.brbe.cache.VanillaRecipeCache;
 import com.alonie.brbe.util.RecipeBookState;
 import net.minecraft.client.ClientRecipeBook;
@@ -54,5 +55,6 @@ public abstract class ClientRecipeBookMixin {
                 "[BRBE-CACHE] rebuild RETURN — known={}", known.size());
         VanillaRecipeCache.dumpAllKnown(known);
         RecipeBookState.endCycle();
+        RecipeViewerIndex.rebuildEngine();
     }
 }
