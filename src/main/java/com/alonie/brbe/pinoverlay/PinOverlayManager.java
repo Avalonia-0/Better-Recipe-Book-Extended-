@@ -405,8 +405,10 @@ public final class PinOverlayManager {
     private static void refreshRecipeStates() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
+        ItemStack carried = mc.player.containerMenu != null
+                ? mc.player.containerMenu.getCarried() : ItemStack.EMPTY;
         long hash = PartialCraftingUtil.slotHash(
-                PartialCraftingUtil.realInventorySlots(), ItemStack.EMPTY);
+                PartialCraftingUtil.searchSpaceSlots(), carried);
         if (pins.isEmpty()) {
             lastSearchSpaceHash = hash;
             return;

@@ -96,11 +96,7 @@ public final class PinOverlay {
         RecipeCollection collection = RecipeViewerOverlay.capturedOverlayCollection();
         if (collection == null) {
             StackedItemContents stacked = new StackedItemContents();
-            mc.player.getInventory().fillStackedContents(stacked);
-            ItemStack offhand = PartialCraftingUtil.offhandStack();
-            if (!offhand.isEmpty()) {
-                stacked.accountSimpleStack(offhand);
-            }
+            PartialCraftingUtil.fillSearchSpaceStackedContents(stacked);
             collection = RecipeViewerIndex.toCollection(List.of(entry), stacked);
         }
         OverlayRecipeComponent component = new OverlayRecipeComponent(
@@ -370,8 +366,10 @@ public final class PinOverlay {
         // The tagger only marks a collection once per generation; force a
         // re-evaluation so the partial state follows the new search space.
         PartialCraftingUtil.forceReevaluate(collection);
+        ItemStack carried = mc.player.containerMenu != null
+                ? mc.player.containerMenu.getCarried() : ItemStack.EMPTY;
         PartialCraftingUtil.prepareForViewer(
-                collection, PartialCraftingUtil.realInventorySlots(), ItemStack.EMPTY);
+                collection, PartialCraftingUtil.searchSpaceSlots(), carried);
         RecipeViewerIndex.snapshotPartials(collection);
     }
 

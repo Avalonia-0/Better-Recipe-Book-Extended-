@@ -1588,7 +1588,8 @@ public final class RecipeViewerOverlay {
         // slots / carried may be virtual (creative tabs, grids).
         if (ownerScreen != null) {
             PartialCraftingUtil.prepareForViewer(collection,
-                    PartialCraftingUtil.realInventorySlots(), ItemStack.EMPTY);
+                    PartialCraftingUtil.searchSpaceSlots(),
+                    ownerScreen.getMenu().getCarried());
         }
         RecipeViewerIndex.snapshotPartials(collection);
 
@@ -1735,7 +1736,8 @@ public final class RecipeViewerOverlay {
         PartialCraftingUtil.fillSearchSpaceStackedContents(stacked);
         RecipeCollection subset = RecipeViewerIndex.toCollection(pageEntries, stacked);
         PartialCraftingUtil.prepareForViewer(subset,
-                PartialCraftingUtil.realInventorySlots(), ItemStack.EMPTY);
+                PartialCraftingUtil.searchSpaceSlots(),
+                screen.getMenu().getCarried());
         RecipeViewerIndex.snapshotPartials(subset);
 
         boolean paged = viewerPageCount > 1;

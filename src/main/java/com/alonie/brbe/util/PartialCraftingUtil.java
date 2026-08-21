@@ -6,9 +6,13 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.core.NonNullList;
 import net.minecraft.util.context.ContextMap;
+import net.minecraft.world.Container;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.StackedItemContents;
+import net.minecraft.world.inventory.AbstractContainerMenu;
+import net.minecraft.world.inventory.AbstractFurnaceMenu;
 import net.minecraft.world.inventory.RecipeBookMenu;
+import net.minecraft.world.inventory.ResultContainer;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -74,7 +78,7 @@ public final class PartialCraftingUtil {
      *  carried）。pin 与 viewer 的配方状态必须基于真实物品栏：创造模式物品栏的
      *  容器槽位（合成网格）与 carried 可能来自创造标签（虚拟物品），会被错误地
      *  当作可用材料。 */
-    public static NonNullList<Slot> realInventorySlots() {
+    private static NonNullList<Slot> realInventorySlots() {
         NonNullList<Slot> slots = NonNullList.create();
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return slots;
@@ -84,6 +88,32 @@ public final class PartialCraftingUtil {
         }
         for (int i = Inventory.SLOT_BODY_ARMOR; i < Inventory.SLOT_OFFHAND; i++) {
             slots.add(new Slot(inv, i, 0, 0));
+        }
+        return slots;
+    }
+
+    /** 常规检索空间槽位（配方状态判定的**唯一**槽位来源）：玩家真实物品栏
+     *  （items + armor）+ 打开容器菜单的合成网格（工作台/背包 2×2/熔炉
+     *  input+fuel），**排除合成台/熔炉的结果栏**（刚合成的产物不算可用材料）。
+     *  carried（拿起物品）与 offhand（副手）不属于槽位：carried 由
+     *  {@code slotHash}/{@code prepareForViewer} 的参数传入，offhand 由
+     *  {@link #offhandStack()} 在内部单独计入。craftable 判定（stacked）统一
+     *  走 {@link #fillSearchSpaceStackedContents}。创造模式物品栏的容器菜单只
+     *  含真实槽位（创造标签列表不是槽位，网格为玩家实际放入的物品），因此
+     *  不会把创造标签物品计入。 */
+    public static NonNullList<Slot> searchSpaceSlots() {
+        NonNullList<Slot> slots = realInventorySlots();
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return slots;
+        AbstractContainerMenu menu = mc.player.containerMenu;
+        if (!(menu instanceof RecipeBookMenu)) return slots;
+        Container playerInventory = mc.player.getInventory();
+        for (Slot slot : menu.slots) {
+            if (slot.container == playerInventory) continue;                 // 玩家槽位（已含）
+            if (slot.container instanceof ResultContainer) continue;         // 合成结果栏
+            if (menu instanceof AbstractFurnaceMenu furnace
+                    && slot == furnace.getResultSlot()) continue;            // 熔炉结果栏
+            slots.add(slot);
         }
         return slots;
     }
