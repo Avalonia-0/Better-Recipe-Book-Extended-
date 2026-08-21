@@ -30,6 +30,24 @@ public final class RecipeViewerCategories {
 
     private static volatile List<RecipeViewerCategory> ALL;
 
+    /** Set by the JEI plugin collector after each re-collection: the
+     *  "category has no visible objects" computation (category-tab hiding) is
+     *  stale until this flag is consumed by the overlay. */
+    private static volatile boolean visibilityDirty = true;
+
+    /** Mark the category-visibility computation stale (called after every
+     *  plugin re-collection). */
+    public static void markVisibilityDirty() {
+        visibilityDirty = true;
+    }
+
+    /** Whether the visibility computation is stale; consuming resets it. */
+    public static boolean consumeVisibilityDirty() {
+        boolean dirty = visibilityDirty;
+        visibilityDirty = false;
+        return dirty;
+    }
+
     /** All categories: built-in followed by externally registered ones. */
     public static List<RecipeViewerCategory> all() {
         List<RecipeViewerCategory> cached = ALL;

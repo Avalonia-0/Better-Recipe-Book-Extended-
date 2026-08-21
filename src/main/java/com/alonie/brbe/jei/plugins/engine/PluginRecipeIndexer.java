@@ -237,6 +237,9 @@ public final class PluginRecipeIndexer {
             bookStations.addAll(stationsFor(Identifier.parse(e.getKey()), catalysts));
         }
         RecipeViewerEngine.setRecipeBookStationItems(bookStations);
+        // Category-tab visibility (categories whose objects are all hidden by
+        // the filter) depends on the freshly registered engine data.
+        RecipeViewerCategories.markVisibilityDirty();
 
         // Types with a recipe-book category but no recipe-book UI (e.g. bclib
         // registers a RecipeBookCategory while its anvils/alloying furnace have

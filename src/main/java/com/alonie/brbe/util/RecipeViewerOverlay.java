@@ -3,6 +3,7 @@ package com.alonie.brbe.util;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.cache.RecipeViewerIndex;
 import com.alonie.brbe.compat.ItemViewCompat;
+import com.alonie.brbe.jei.plugins.engine.PluginRecipeViewerCategory;
 import com.alonie.brbe.mixins.accessors.ClientRecipeBookAccessor;
 import com.alonie.brbe.pinoverlay.PinOverlay;
 import com.alonie.brbe.pinoverlay.PinOverlayManager;
@@ -63,8 +64,10 @@ import net.minecraft.world.item.crafting.display.SmithingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.StonecutterRecipeDisplay;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 /**
  * The BRBE R/U recipe-viewer as a <b>standalone overlay</b>, decoupled from the
@@ -649,16 +652,62 @@ public final class RecipeViewerOverlay {
     }
 
     /** Categories that actually have results for the current query target
-     *  (tabs with nothing to show are hidden). */
+     *  (tabs with nothing to show are hidden).  With the "hide objects of
+     *  workstations without a recipe book" toggle on, categories whose
+     *  <b>every</b> object is hidden by the filter hide their tab too. */
     private static List<RecipeViewerCategory> visibleCategories() {
         if (queryTarget == null || queryTarget.isEmpty()) return List.of();
+        Set<String> hidden = hiddenCategoryIds();
         List<RecipeViewerCategory> out = new ArrayList<>();
         for (RecipeViewerCategory cat : RecipeViewerCategories.all()) {
+            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+                    && hidden.contains(cat.id())) {
+                continue;
+            }
             if (cat.hasContent(queryTarget, queryUsage)) {
                 out.add(cat);
             }
         }
         return out;
+    }
+
+    /** Cached ids of categories whose objects are ALL hidden by the filter
+     *  (their tab is hidden too).  Rebuilt when the toggle state changes or
+     *  after a plugin re-collection. */
+    private static Set<String> cachedHiddenCategoryIds;
+    private static boolean cachedHiddenConfigState;
+
+    private static Set<String> hiddenCategoryIds() {
+        boolean config = BetterRecipeBook.config.hideNoRecipeBookStationObjects;
+        if (cachedHiddenCategoryIds == null
+                || cachedHiddenConfigState != config
+                || RecipeViewerCategories.consumeVisibilityDirty()) {
+            cachedHiddenCategoryIds = config ? computeHiddenCategoryIds() : Set.of();
+            cachedHiddenConfigState = config;
+        }
+        return cachedHiddenCategoryIds;
+    }
+
+    /** Category ids whose every object has no recipe-book-backed workstation
+     *  (built-in categories and the fuel category are exempt). */
+    private static Set<String> computeHiddenCategoryIds() {
+        Set<String> hidden = new HashSet<>();
+        for (RecipeViewerCategory cat : RecipeViewerCategories.all()) {
+            if (cat.isFuelCategory()) continue;
+            if (!(cat instanceof PluginRecipeViewerCategory plugin)) continue;
+            boolean anyVisible = false;
+            for (String uid : plugin.uids()) {
+                for (RecipeDisplayEntry entry : RecipeViewerEngine.allRecipes(uid)) {
+                    if (entryHasRecipeBookStation(entry, cat.stationIconsFor(entry))) {
+                        anyVisible = true;
+                        break;
+                    }
+                }
+                if (anyVisible) break;
+            }
+            if (!anyVisible) hidden.add(cat.id());
+        }
+        return hidden;
     }
 
     /** Category tabs along the box bottom (vanilla creative-inventory look).
@@ -1766,8 +1815,14 @@ public final class RecipeViewerOverlay {
         if (entry == null) return false;
         if (currentCategory != null && isBuiltinCategory(currentCategory)) return true;
         RecipeViewerCategory category = currentCategory != null ? currentCategory : categoryFor(entry);
-        if (category != null) {
-            for (ItemStack station : category.stationIconsFor(entry)) {
+        return category != null && entryHasRecipeBookStation(entry, category.stationIconsFor(entry));
+    }
+
+    /** Whether {@code entry} has at least one recipe-book-backed workstation
+     *  among {@code icons} or its display's declared crafting station. */
+    private static boolean entryHasRecipeBookStation(RecipeDisplayEntry entry, List<ItemStack> icons) {
+        if (icons != null) {
+            for (ItemStack station : icons) {
                 if (RecipeViewerEngine.isRecipeBookStation(station)) return true;
             }
         }
