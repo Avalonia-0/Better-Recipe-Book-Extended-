@@ -164,15 +164,6 @@ public final class RecipeViewerEngine {
         return uid != null && VANILLA_TYPES.contains(uid);
     }
 
-    /** Drop a recipe type entirely (used to hide a recipe-book-driven type
-     *  whose book has zero unlocked entries).  Stale {@code BY_ID} entries
-     *  are harmless: lookups only reach them through a type's own indices. */
-    public static void removeType(String uid) {
-        if (uid != null) {
-            TYPES.remove(uid);
-        }
-    }
-
     /** Register a callback run after each vanilla recipe-book rebuild (i.e. after
      *  the server's recipe sync).  The companion mod uses this to re-collect mod
      *  recipes once the synchronised recipe registry is populated. */

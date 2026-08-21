@@ -227,26 +227,13 @@ public final class PluginRecipeIndexer {
                     uid, e.getValue().size());
         }
 
-        // Recipe-book-driven types with zero unlocked entries are hidden
-        // entirely: their JEI full collection must not leak as a "show
-        // everything" tab while the recipe book shows nothing.  Detection is
-        // data-driven — a type is recipe-book backed when any of its catalyst
-        // items' namespace has a non-vanilla RecipeBookCategory registered
-        // (the mod ships a recipe book).
-        Set<String> bookNamespaces = new HashSet<>();
-        for (Identifier catId : BuiltInRegistries.RECIPE_BOOK_CATEGORY.keySet()) {
-            if (!"minecraft".equals(catId.getNamespace())) bookNamespaces.add(catId.getNamespace());
-        }
-        for (Map.Entry<Identifier, Set<Identifier>> c : catalysts.entrySet()) {
-            String uid = c.getKey().toString();
-            if (RecipeViewerEngine.isVanillaType(uid) || bookDriven.containsKey(uid)) continue;
-            boolean hasBook = c.getValue() != null && c.getValue().stream()
-                    .anyMatch(id -> bookNamespaces.contains(id.getNamespace()));
-            if (!hasBook) continue;
-            RecipeViewerEngine.removeType(uid);
-            typeInfos.removeIf(t -> t.uid().equals(uid));
-            BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] type {} is recipe-book driven; no unlocked recipes yet, hiding", uid);
-        }
+        // Types with a recipe-book category but no recipe-book UI (e.g. bclib
+        // registers a RecipeBookCategory while its anvils/alloying furnace have
+        // no recipe book) keep the original JEI full-collection path — a
+        // recipe-book category registration alone is NOT evidence of a recipe
+        // book, so nothing is hidden here.  The only authoritative signal is
+        // the known set itself: a type's entries appearing there means the
+        // server treats it as recipe-book backed (bookDriven above).
 
         List<RecipeViewerCategory> dynamicCategories = new ArrayList<>();
         for (List<TypeInfo> group : groupBySharedStation(typeInfos)) {
