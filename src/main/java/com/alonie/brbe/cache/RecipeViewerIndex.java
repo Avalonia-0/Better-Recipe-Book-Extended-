@@ -90,6 +90,33 @@ public final class RecipeViewerIndex {
         RecipeViewerEngine.notifyRebuilt();
     }
 
+    /** Wrap a known display entry as an engine index entry (inputs/outputs
+     *  extracted exactly like the vanilla rebuild does).  Used by the JEI
+     *  plugin collector to register recipe-book-driven mod types from the
+     *  known set. */
+    public static RecipeViewerEngine.IndexedRecipe toIndexed(RecipeDisplayEntry entry) {
+        return new RecipeViewerEngine.IndexedRecipe(entry, inputStacks(entry), outputStacks(entry));
+    }
+
+    /** Known display entries whose recipe-book category id is {@code categoryId}
+     *  (e.g. {@code "farmersdelight:cooking_meals"}).  The known set is the
+     *  server-synced <b>unlocked</b> subset of the recipe book, so this is the
+     *  "unlocked recipes of one recipe-book category" view — the data source
+     *  for JEI plugin recipe types that are backed by a mod recipe book. */
+    public static List<RecipeDisplayEntry> knownEntriesForCategory(String categoryId) {
+        if (categoryId == null) return List.of();
+        List<RecipeDisplayEntry> out = new ArrayList<>();
+        for (RecipeDisplayEntry entry : knownEntries()) {
+            try {
+                Identifier key = BuiltInRegistries.RECIPE_BOOK_CATEGORY.getKey(entry.category());
+                if (key != null && categoryId.equals(key.toString())) out.add(entry);
+            } catch (Exception e) {
+                // unresolvable category — skip
+            }
+        }
+        return out;
+    }
+
     /** Output item stacks of {@code entry} (its results). */
     private static List<ItemStack> outputStacks(RecipeDisplayEntry entry) {
         try {
