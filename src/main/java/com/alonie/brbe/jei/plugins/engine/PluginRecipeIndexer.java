@@ -211,13 +211,41 @@ public final class PluginRecipeIndexer {
             String uid = e.getKey();
             List<ItemStack> stations = stationsFor(Identifier.parse(uid), catalysts);
             RecipeViewerEngine.registerType(uid, e.getValue(), stations);
-            IRecipeCategory<?> category = categoryByUid.get(uid);
-            Component title = category != null ? category.getTitle() : Component.literal(uid);
-            typeInfos.add(new TypeInfo(uid, title, stations));
+            // The JEI full collection may have registered the same type above
+            // (recipe-book data wins in the engine, but the category tab is
+            // created once — a duplicate TypeInfo would surface as a second
+            // tab with the same name).
+            boolean alreadyIndexed = typeInfos.stream().anyMatch(t -> t.uid().equals(uid));
+            if (!alreadyIndexed) {
+                IRecipeCategory<?> category = categoryByUid.get(uid);
+                Component title = category != null ? category.getTitle() : Component.literal(uid);
+                typeInfos.add(new TypeInfo(uid, title, stations));
+            }
             typeCount++;
             recipeCount += e.getValue().size();
             BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] type {} driven by recipe book: {} unlocked recipes",
                     uid, e.getValue().size());
+        }
+
+        // Recipe-book-driven types with zero unlocked entries are hidden
+        // entirely: their JEI full collection must not leak as a "show
+        // everything" tab while the recipe book shows nothing.  Detection is
+        // data-driven — a type is recipe-book backed when any of its catalyst
+        // items' namespace has a non-vanilla RecipeBookCategory registered
+        // (the mod ships a recipe book).
+        Set<String> bookNamespaces = new HashSet<>();
+        for (Identifier catId : BuiltInRegistries.RECIPE_BOOK_CATEGORY.keySet()) {
+            if (!"minecraft".equals(catId.getNamespace())) bookNamespaces.add(catId.getNamespace());
+        }
+        for (Map.Entry<Identifier, Set<Identifier>> c : catalysts.entrySet()) {
+            String uid = c.getKey().toString();
+            if (RecipeViewerEngine.isVanillaType(uid) || bookDriven.containsKey(uid)) continue;
+            boolean hasBook = c.getValue() != null && c.getValue().stream()
+                    .anyMatch(id -> bookNamespaces.contains(id.getNamespace()));
+            if (!hasBook) continue;
+            RecipeViewerEngine.removeType(uid);
+            typeInfos.removeIf(t -> t.uid().equals(uid));
+            BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] type {} is recipe-book driven; no unlocked recipes yet, hiding", uid);
         }
 
         List<RecipeViewerCategory> dynamicCategories = new ArrayList<>();
@@ -226,7 +254,10 @@ public final class PluginRecipeIndexer {
             List<ItemStack> stations = new ArrayList<>();
             Component title = null;
             for (TypeInfo info : group) {
-                uids.add(info.uid());
+                // Dedupe: one type can legally appear once per group (the
+                // recipe-book pass re-registers a type the JEI pass already
+                // indexed) — a duplicated uid would double every query.
+                if (!uids.contains(info.uid())) uids.add(info.uid());
                 stations.addAll(info.stations());
                 if (title == null && !info.stations().isEmpty()) {
                     title = info.title();
