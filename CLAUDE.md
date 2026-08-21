@@ -149,6 +149,15 @@ Cloth Config provides the configuration GUI. It's `implementation`+`include` (bu
 - `OverlayRecipeButtonAccessor` 的 `@Accessor("this$0")` 在本分支（remap 构建）找不到字段——1.21.11 映射后该合成字段名为 **`field_3113`**（26.2 no-remap 保持 `this$0`），此前导致查看浮层每次打开都抛 `InvalidAccessorException`，R/U 查询完全不可用。已改为 `@Accessor("field_3113")`。⚠️ 修改任何 `@Accessor`/`@Invoker` 的成员名时，须用 `javap -p` 核对 1.21.11 named jar 中的实际字段/方法名（合成成员保留 `field_XXXX`/`method_XXXXX` intermediary 名）。
 - 清理调试日志：[BRBE-SQ] 每帧刷屏（RecipeBookPageAnimationMixin）、[BRBE-DUMP] 每次重建 1458 行全量转储（localcache ClientRecipeBookMixin 的 `dumpAllKnown` 调用）。
 
+**2026-08-21 深夜调整（两分支同步）**：
+- **查询界面硬模态防穿透**（`RecipeViewerOverlay`，26.2 同改）：
+  - 弹窗（Shift 预览）打开期间所有点击被认领：弹窗内**左键**继承按钮完整点击（放置配方+音效），弹窗外点击被吞掉，下层按钮/容器收不到
+  - 弹窗打开时滚轮被吞掉（避免翻页重建按钮销毁弹窗）
+  - viewer 打开期间滚轮不穿透到容器（`mouseScrolled` 结尾 `return isActive()`）
+  - 关闭 viewer 时同时 `RecipePopupLayer.close()`（active 标志不再阻塞下一界面）
+- **pin 默认键 F → A**（`BetterRecipeBook.PIN_MAPPING`），7 种语言 tip.2 文案同步
+- **pin 创建即显示 tooltip**：移除 `PinOverlayManager` 创建时的 `disarmTooltip()` 防闪现逻辑（`PinOverlay.disarmTooltip` 已删除；`tooltipArmed` 恒 true）
+
 ## Deployment
 
 Test instances at `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSION}-{MOD_LOADER}/mods/` (`MOD_LOADER` capitalized: `Fabric`/`NeoForge`). Deploy pattern:
