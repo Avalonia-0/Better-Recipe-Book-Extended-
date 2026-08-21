@@ -164,6 +164,13 @@ Cloth Config provides the configuration GUI. It's `implementation`+`include` (bu
 - **工作站 usage 查询架构修复**（`RecipeViewerIndex.rebuildEngine`）：工作站 items 按 typeId 聚合（builtin+config+external 全部条目的 fallbackIcons 合并进引擎 stationItems），此前 external 与 builtin 共享 typeId（如 `minecraft:blasting`）时引擎索引只含 builtin 条目 → 查询 mod 工作站（BetterEnd `end_stone_smelter` 注册为 blasting catalyst）usage 时 viewer 打开但 0 对象。修复后：任何注册工作站块的 usage 查询都返回整个 type（JEI 语义）
 - **合成器（crafter）加入合成类别工作站**（`BUILTIN_WORKSTATIONS` CRAFTING 条目 items 加 `minecraft:crafter`）：usage 查询合成器显示全部合成配方；`recipeFitsScreen` 的 `crafting_` → `AbstractCraftingMenu` 路径不受影响（CrafterMenu 不继承 AbstractCraftingMenu，crafter 界面无配方书放置，仅查询语义生效）
 
+**2026-08-22 早间（二）：JEI 插件类别数据源配方书驱动（两分支同步）**——带配方书的 mod（如 Farmer's Delight 厨锅）的 JEI 插件类别，其配方数据源**自动跟随配方书解锁状态**，不写死任何 mod 路径：
+- 判定：`PluginRecipeIndexer.recipeBookCategoryIds` 遍历该 JEI type 的配方对象（vanilla `Recipe`），收集其 `recipeBookCategory()` 中 namespace ≠ `minecraft` 的注册表类别（RecipeBookCategory 注册表 = "该 mod 有配方书"的权威来源；FD 注册 `cooking_meals/cooking_drinks/cooking_misc/cutting`）
+- 数据源切换：有配方书 → 用 `RecipeViewerIndex.knownEntriesForCategory(categoryId)`（known = 服务端同步的**已解锁**显示条目）注册 type，stations 仍来自 JEI catalysts；无配方书（纯 JEI 类别如 BetterEnd infusion）→ 保持 JEI 全量
+- 行为：配方随进度解锁 → 类别只显示已解锁子集（零解锁时类别不出现）；mod 自动解锁配置 → 服务端全解锁 → known 全量 → 全部显示；解锁变化 → known 重建 → rebuildEngine → 重建监听器 → 重新收集注册，动态跟随
+- 非 vanilla Recipe 对象的 JEI 自定义配方类 → cast 失败 → 安全降级为 JEI 全量
+- `RecipeViewerIndex` 新增 `knownEntriesForCategory(String)` / `toIndexed(RecipeDisplayEntry)` 两个 public helper
+
 ## Deployment
 
 Test instances at `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSION}-{MOD_LOADER}/mods/` (`MOD_LOADER` capitalized: `Fabric`/`NeoForge`). Deploy pattern:
