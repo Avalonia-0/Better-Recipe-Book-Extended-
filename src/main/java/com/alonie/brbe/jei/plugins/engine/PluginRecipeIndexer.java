@@ -73,8 +73,10 @@ public final class PluginRecipeIndexer {
         // The cached JEI drawable layouts hold the old categories/recipes.
         SyntheticRecipeRendererImpl.invalidate();
         Map<IRecipeType<?>, IRecipeCategory<?>> categoryByType = new HashMap<>();
+        Map<String, IRecipeCategory<?>> categoryByUid = new HashMap<>();
         for (IRecipeCategory<?> category : categories) {
             categoryByType.put(category.getRecipeType(), category);
+            categoryByUid.put(category.getRecipeType().getUid().toString(), category);
         }
 
         List<TypeInfo> typeInfos = new ArrayList<>();
@@ -91,35 +93,6 @@ public final class PluginRecipeIndexer {
             }
             String uid = recipeType.getUid().toString();
             List<ItemStack> stations = stationsFor(recipeType.getUid(), catalysts);
-            // Recipe-book-driven types: when the type's recipes declare a mod
-            // RecipeBookCategory (namespace != minecraft, i.e. the mod ships a
-            // recipe book), the data source is the recipe book's unlocked known
-            // set instead of the JEI full collection — progression unlocks (or
-            // the mod's auto-unlock config) flow into the viewer category
-            // automatically, with no per-mod hard-coding.  Stations still come
-            // from the JEI catalysts, so workstation usage queries keep working.
-            Set<String> bookCategoryIds = recipeBookCategoryIds(entry.getValue());
-            if (!bookCategoryIds.isEmpty()) {
-                List<RecipeViewerEngine.IndexedRecipe> knownIndexed = new ArrayList<>();
-                for (String categoryId : bookCategoryIds) {
-                    for (RecipeDisplayEntry knownEntry : RecipeViewerIndex.knownEntriesForCategory(categoryId)) {
-                        knownIndexed.add(RecipeViewerIndex.toIndexed(knownEntry));
-                    }
-                }
-                if (knownIndexed.isEmpty()) {
-                    // Nothing unlocked yet: the recipe book shows nothing, so
-                    // the category stays hidden until a recipe is unlocked.
-                    BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] type {} is recipe-book driven; no unlocked recipes yet, skipping", uid);
-                    continue;
-                }
-                RecipeViewerEngine.registerType(uid, knownIndexed, stations);
-                typeInfos.add(new TypeInfo(uid, category.getTitle(), stations));
-                typeCount++;
-                recipeCount += knownIndexed.size();
-                BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] type {} driven by recipe book: {} unlocked recipes across {} category ids",
-                        uid, knownIndexed.size(), bookCategoryIds.size());
-                continue;
-            }
             RecipeViewerEngine.RecipeBackground background = backgrounds.get(category);
             BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] type {} background={}",
                     uid, background == null ? "none" : background.texture());
@@ -205,6 +178,46 @@ public final class PluginRecipeIndexer {
             typeInfos.add(new TypeInfo(uid, category.getTitle(), stations));
             typeCount++;
             recipeCount += indexed.size();
+        }
+
+        // Recipe-book-driven types: a mod recipe book's unlocked known entries
+        // are the authoritative data source for its JEI recipe type.  Each
+        // known entry's display declares its crafting station (the cooking pot
+        // for Farmer's Delight cooking recipes); matching that station against
+        // the collected catalysts ties the recipe-book category to the JEI
+        // type with no per-mod hard-coding, and progression unlocks (or the
+        // mod's auto-unlock config) flow into the viewer category
+        // automatically.  Registered after the JEI full collection so the
+        // recipe-book data wins when both sources exist.
+        Map<String, List<RecipeViewerEngine.IndexedRecipe>> bookDriven = new LinkedHashMap<>();
+        for (RecipeDisplayEntry knownEntry : RecipeViewerIndex.knownEntries()) {
+            try {
+                // Only mod recipe-book categories participate: vanilla
+                // entries are managed by rebuildEngine, and their displays
+                // must not be re-attributed through a mod's catalysts.
+                Identifier catKey = BuiltInRegistries.RECIPE_BOOK_CATEGORY.getKey(knownEntry.category());
+                if (catKey == null || "minecraft".equals(catKey.getNamespace())) continue;
+                ItemStack station = RecipeViewerIndex.resolveCraftingStation(knownEntry);
+                if (station.isEmpty()) continue;
+                String uid = typeUidForStation(station, catalysts);
+                if (uid == null || RecipeViewerEngine.isVanillaType(uid)) continue;
+                bookDriven.computeIfAbsent(uid, k -> new ArrayList<>())
+                        .add(RecipeViewerIndex.toIndexed(knownEntry));
+            } catch (Exception | LinkageError e) {
+                // one broken entry must not break the recipe-book pass
+            }
+        }
+        for (Map.Entry<String, List<RecipeViewerEngine.IndexedRecipe>> e : bookDriven.entrySet()) {
+            String uid = e.getKey();
+            List<ItemStack> stations = stationsFor(Identifier.parse(uid), catalysts);
+            RecipeViewerEngine.registerType(uid, e.getValue(), stations);
+            IRecipeCategory<?> category = categoryByUid.get(uid);
+            Component title = category != null ? category.getTitle() : Component.literal(uid);
+            typeInfos.add(new TypeInfo(uid, title, stations));
+            typeCount++;
+            recipeCount += e.getValue().size();
+            BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] type {} driven by recipe book: {} unlocked recipes",
+                    uid, e.getValue().size());
         }
 
         List<RecipeViewerCategory> dynamicCategories = new ArrayList<>();
@@ -296,28 +309,19 @@ public final class PluginRecipeIndexer {
         if (ra != rb) parent[ra] = rb;
     }
 
-    /** Recipe-book category ids declared by {@code recipes} whose namespace is
-     *  not minecraft (mod-registered recipe-book categories).  A non-empty set
-     *  means this JEI recipe type is backed by a mod recipe book — its data
-     *  source should be the unlocked known set, not the JEI full collection.
-     *  Recipes that are not vanilla {@code Recipe} objects (JEI-only custom
-     *  recipe classes) are ignored — such types keep the full collection. */
-    private static Set<String> recipeBookCategoryIds(List<Object> recipes) {
-        Set<String> ids = new HashSet<>();
-        if (recipes == null) return ids;
-        for (Object recipe : recipes) {
-            try {
-                if (recipe instanceof net.minecraft.world.item.crafting.Recipe<?> vanilla) {
-                    net.minecraft.world.item.crafting.RecipeBookCategory category = vanilla.recipeBookCategory();
-                    if (category == null) continue;
-                    Identifier key = BuiltInRegistries.RECIPE_BOOK_CATEGORY.getKey(category);
-                    if (key != null && !"minecraft".equals(key.getNamespace())) ids.add(key.toString());
-                }
-            } catch (Exception | LinkageError e) {
-                // not a vanilla Recipe object — JEI-only type, keep full collection
+    /** The JEI recipe type whose catalysts contain {@code station}, or null.
+     *  This is the reverse of the catalysts map ({@code type -> station items})
+     *  and ties a recipe-book entry's declared crafting station to its type. */
+    private static String typeUidForStation(ItemStack station, Map<Identifier, Set<Identifier>> catalysts) {
+        if (station == null || station.isEmpty()) return null;
+        Identifier stationId = BuiltInRegistries.ITEM.getKey(station.getItem());
+        if (stationId == null) return null;
+        for (Map.Entry<Identifier, Set<Identifier>> entry : catalysts.entrySet()) {
+            if (entry.getValue() != null && entry.getValue().contains(stationId)) {
+                return entry.getKey().toString();
             }
         }
-        return ids;
+        return null;
     }
 
     private static List<ItemStack> stationsFor(Identifier recipeTypeUid, Map<Identifier, Set<Identifier>> catalysts) {

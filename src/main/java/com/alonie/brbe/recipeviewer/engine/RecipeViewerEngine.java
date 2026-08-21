@@ -158,6 +158,12 @@ public final class RecipeViewerEngine {
         }
     }
 
+    /** Whether {@code uid} is one of the seven vanilla recipe types (managed
+     *  by {@code RecipeViewerIndex.rebuildEngine}, not by the plugin collector). */
+    public static boolean isVanillaType(String uid) {
+        return uid != null && VANILLA_TYPES.contains(uid);
+    }
+
     /** Register a callback run after each vanilla recipe-book rebuild (i.e. after
      *  the server's recipe sync).  The companion mod uses this to re-collect mod
      *  recipes once the synchronised recipe registry is populated. */
