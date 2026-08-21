@@ -56,6 +56,12 @@ public final class PluginRecipeViewerCategory implements RecipeViewerCategory {
         return uids.get(0);
     }
 
+    /** The recipe types this category wraps (used by the category-visibility
+     *  pass to enumerate every object of the category). */
+    public List<String> uids() {
+        return uids;
+    }
+
     @Override
     public ItemStack icon() {
         return icon;
