@@ -183,3 +183,9 @@ cp neoforge/build/libs/brbe-ava-neoforge-*.jar /home/avalonia/data/MinecraftLib/
 - **pin/viewer 配方状态基于真实物品栏**（2026-08-21，两分支同步）：`PartialCraftingUtil.realInventorySlots()`（items+armor；offhand 由 `offhandStack()` 单独计入）替代屏幕容器槽位。`PinOverlayManager.refreshRecipeStates` 哈希、`PinOverlay.create/refreshRecipeState`（craftable 判定 + partial 标记）、`RecipeViewerOverlay` 两处 `prepareForViewer` 均改用真实物品栏——创造模式物品栏的合成网格与 carried 可能来自创造标签（虚拟物品），不再被当作材料。
 - **常规检索空间统一**（2026-08-21，两分支同步）：`PartialCraftingUtil.searchSpaceSlots()` 是配方状态判定的**唯一槽位来源**——玩家真实物品栏（items+armor）+ 打开容器菜单的合成网格（工作台 3×3 / 背包 2×2 / 熔炉 input+fuel），**排除合成台/熔炉结果栏**（刚合成的产物不算可用材料）。carried（拿起物品）由 `slotHash`/`prepareForViewer` 参数传入，offhand 由 `offhandStack()` 内部计入；craftable 判定（stacked）统一走 `fillSearchSpaceStackedContents`。配方书 mixin、pin（create/refreshRecipeState/refreshRecipeStates）、viewer（2 处 prepareForViewer）、幽灵浮层（PartialGhostOverlayUtil.prepare）、RecipeStateDiagnostic 全部改走该入口。
 - **预览/pin 残缺红罩**（2026-08-21，两分支同步）：残缺配方状态下界面本体盖整块红罩（`0x60FF3333`）。曾两度尝试按槽位标记/挖洞后按用户要求回退，保持整块红罩。
+
+**2026-08-22 凌晨：隐藏无配方书工作站所属的对象（两分支同步）**——新配置项 `hideNoRecipeBookStationObjects`（默认关、无 tooltip、GUI 标题"隐藏无配方书工作站所属的对象"，位于"启用BRBE的查询功能"下方；7 语言翻译键 `text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects`）：
+- 语义：开启后，查询结果中**所有工作站都没有配方书体系**的对象被隐藏；若对象还包含有配方书体系的工作站则保留对象本身，仅 **tooltip 隐藏非法工作站图标**
+- 判定数据：`RecipeViewerEngine.RECIPE_BOOK_STATION_ITEMS`——每次 JEI 收集重建 = vanilla 类型全部工作站（`RecipeViewerIndex.vanillaWorkstationItems()`，含注册到 vanilla type 的 external 站如 end_stone_smelter）+ 配方书驱动 mod 类型的 stations（bookDriven）；`isRecipeBookStation(ItemStack)` 查询
+- 过滤点（`RecipeViewerOverlay`）：`open`/`switchCategory` 的查询结果过 `filterByRecipeBookStations`（内置类别 furnace/crafting/stonecutting/smithing/fuel 的对象恒合法——`isBuiltinCategory`）；`stationIconsTooltipComponents` 图标过滤（过滤后空则省略图标行）
+- 隐藏模式下 **fallback 到 JEI 也被抑制**（BRBE 无法判定的对象不泄漏给外部 viewer）；过滤后空 → viewer 不打开

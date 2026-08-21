@@ -83,5 +83,6 @@
   "text.autoconfig.zzzbrbe.option.recipeViewKey.@Tooltip": "Показывает рецепты, где этот предмет является результатом.",
   "text.autoconfig.zzzbrbe.option.usageViewKey": "Запросить применения",
   "text.autoconfig.zzzbrbe.option.usageViewKey.@Tooltip": "Показывает рецепты, где этот предмет используется как материал или станок.",
-  "key.zzzbrbe.diagnostic": "Diagnostic Dump"
+  "key.zzzbrbe.diagnostic": "Diagnostic Dump",
+  "text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects": "Скрывать объекты станков без книги рецептов"
 }

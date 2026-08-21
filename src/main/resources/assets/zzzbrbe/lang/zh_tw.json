@@ -96,5 +96,6 @@
   "text.autoconfig.zzzbrbe.option.recipeViewKey.@Tooltip": "查詢該物品作為產物的配方。",
   "text.autoconfig.zzzbrbe.option.usageViewKey": "查詢用途",
   "text.autoconfig.zzzbrbe.option.usageViewKey.@Tooltip": "查詢該物品作為材料、工作站的配方。",
-  "key.zzzbrbe.diagnostic": "Diagnostic Dump"
+  "key.zzzbrbe.diagnostic": "Diagnostic Dump",
+  "text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects": "隱藏無配方書工作臺所屬的物件"
 }

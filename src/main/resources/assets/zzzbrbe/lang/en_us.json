@@ -10,6 +10,7 @@
   "text.autoconfig.zzzbrbe.option.saveRecipeBookPosition": "Remember Recipe Book Position",
   "text.autoconfig.zzzbrbe.option.saveRecipeBookPosition.@Tooltip": "Each tab remembers its own page: switching away and back returns to the page you left, and reopening the book does the same. Typing a search starts from page 1; clearing the search returns to the page you were browsing before searching. Lost when the game exits.",
   "text.autoconfig.zzzbrbe.option.recipeViewerEnabled": "Enable BRBE's Query Feature",
+  "text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects": "Hide Objects of Workstations Without Recipe Books",
   "text.autoconfig.zzzbrbe.option.recipeViewerEnabled.@PrefixText": "§eView Recipes / Usages",
   "text.autoconfig.zzzbrbe.option.recipeViewerEnabled.@Tooltip": "Hover over an item or a recipe-book recipe and press R/U (default) to view its crafting recipes and the recipes that use it as a material.\nDisable this or rebind the keys when you want to use the item manager's own view feature.",
   "text.autoconfig.zzzbrbe.option.pinKey": "Pin",

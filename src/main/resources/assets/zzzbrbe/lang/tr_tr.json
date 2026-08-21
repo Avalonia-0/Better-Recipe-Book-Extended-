@@ -83,5 +83,6 @@
   "text.autoconfig.zzzbrbe.option.recipeViewKey.@Tooltip": "Bu eşyayı ürün olarak üreten tarifleri gösterir.",
   "text.autoconfig.zzzbrbe.option.usageViewKey": "Kullanımları Sorgula",
   "text.autoconfig.zzzbrbe.option.usageViewKey.@Tooltip": "Bu eşyayı malzeme veya tezgâh olarak kullanan tarifleri gösterir.",
-  "key.zzzbrbe.diagnostic": "Diagnostic Dump"
+  "key.zzzbrbe.diagnostic": "Diagnostic Dump",
+  "text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects": "Reçete kitabı olmayan tezgâhların nesnelerini gizle"
 }
