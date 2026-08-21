@@ -911,9 +911,17 @@ public final class RecipeViewerOverlay {
             List<Component> lines = new ArrayList<>(Screen.getTooltipFromItem(mc, fuelHoverStack));
             List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
                     new ArrayList<>(lines.size());
-            for (Component line : lines) {
-                components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
-                        .create(line.getVisualOrderText()));
+            for (int i = 0; i < lines.size(); i++) {
+                if (i == 0) {
+                    // The title row also carries the fuel's icon to the right of
+                    // the name, matching the detailed recipe tooltips of the
+                    // other categories.
+                    components.add(new TitleWithIconTooltipComponent(
+                            lines.get(0).getVisualOrderText(), fuelHoverStack));
+                } else {
+                    components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                            .create(lines.get(i).getVisualOrderText()));
+                }
             }
             components.addAll(fuelTooltipComponents(fuelHoverStack));
             if (BetterRecipeBook.config.showModName) {
@@ -1364,9 +1372,14 @@ public final class RecipeViewerOverlay {
         for (int i = 0; i < 3; i++) {
             String value = fuelCount(burn, cookTimes[i]) + unit;
             Component line = stationTimeLine(stationLabel(i), value, stationStyle(i), false);
+            // Every workstation serving this furnace subcategory, not just the
+            // vanilla representative — the same aggregated lookup the furnace
+            // recipe tooltip uses, so JEI-plugin workstations (a mod smelter
+            // registered under minecraft:blasting, a skillet under campfire, …)
+            // show up on the matching row.
+            List<ItemStack> icons = RecipeViewerIndex.workstationsIconsForPrefix(stationCategoryPrefix(i));
             components.add(new StationLineTooltipComponent(List.of(
-                    new StationLineTooltipComponent.Segment(line.getVisualOrderText(),
-                            java.util.Arrays.asList(RecipeViewerIndex.stationIcons(i)), false))));
+                    new StationLineTooltipComponent.Segment(line.getVisualOrderText(), icons, false))));
         }
         return components;
     }
