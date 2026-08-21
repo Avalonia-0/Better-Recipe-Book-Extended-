@@ -11,3 +11,6 @@ neoforge/build/
 # local/experimental
 .claude/
 resourcepacks/
+
+# dev run dir
+/run/

@@ -1,83 +1,111 @@
 plugins {
-    id "architectury-plugin" version "3.4.+"
-    id "dev.architectury.loom" version "1.14.476" apply false
+    id "net.fabricmc.fabric-loom-remap" version "1.14.6"
 }
 
-architectury {
-    minecraft = rootProject.minecraft_version
+// ============================================================
+//  Version sanity check — prevent cross-branch contamination
+// ============================================================
+// Each git branch targets a specific Minecraft version. If
+// gradle.properties was accidentally carried over from another
+// branch, fail fast with a clear message.
+//
+// Expected mapping (branch → minecraft_version):
+//   1.21.1   → 1.21.1
+//   1.21.11  → 1.21.11
+//   26.2     → 26.2
+// ============================================================
+def currentBranch = providers.exec(execSpec -> {
+    execSpec.commandLine("git", "rev-parse", "--abbrev-ref", "HEAD")
+}).standardOutput.asText.get().trim()
+
+def expectedVersion = currentBranch
+// Strip "origin/" prefix if on a remote-tracking branch
+if (expectedVersion.startsWith("origin/")) expectedVersion = expectedVersion.substring(7)
+
+// If the branch name looks like a version (contains a dot or is a single major), validate
+if (expectedVersion.matches(/\d+\.\d+(\.\d+)?/) && expectedVersion != minecraft_version) {
+    throw new GradleException(
+        "Minecraft version mismatch!\n" +
+        "  Branch:            ${currentBranch}\n" +
+        "  Expected version:  ${expectedVersion}\n" +
+        "  gradle.properties: ${minecraft_version}\n" +
+        "\n" +
+        "This usually happens after switching branches without updating gradle.properties.\n" +
+        "Run one of these to fix:\n" +
+        "  - git checkout -- gradle.properties          (restore this branch's file)\n" +
+        "  - gradle cleanLoomCache && rm -rf .gradle   (full cache reset)\n" +
+        "  - Or manually set minecraft_version=${expectedVersion} in gradle.properties"
+    )
 }
 
-subprojects {
-    apply plugin: "dev.architectury.loom"
+base {
+    archivesName = "${archives_base_name}-fabric-${minecraft_version}"
+}
 
-    loom {
-        silentMojangMappingsLicense()
+version = project.mod_version
+group = project.maven_group
+
+repositories {
+    maven { url = "https://maven.fabricmc.net/" }
+    maven { url = "https://maven.shedaniel.me/" }                  // cloth-config
+    maven { url = "https://maven.terraformersmc.com/releases/" }  // modmenu
+    maven { url = "https://api.modrinth.com/maven" }
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    mappings loom.officialMojangMappings()
+
+    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    modImplementation("net.fabricmc.fabric-api:fabric-api:${fabric_api_version}") {
+        exclude group: "net.fabricmc.fabric-api", module: "fabric-api-base"
     }
+    modImplementation "me.shedaniel.cloth:cloth-config-fabric:${cloth_config_version}"
 
-    dependencies {
-        minecraft "com.mojang:minecraft:${rootProject.minecraft_version}"
-        // The following line declares the mojmap mappings, you may use other mappings as well
-        mappings loom.officialMojangMappings()
-        // The following line declares the yarn mappings you may select this one as well.
-        // mappings "net.fabricmc:yarn:1.18+build.1:v2"
-    }
+    modCompileOnly files("libs/modmenu-17.0.0.jar")
 
-    jar {
-        processResources {
-            // don't include things we don't need at runtime
-            exclude("**/*.ase", "**/*.kra")
-        }
+    // JEI — compileOnly from libs/ (JEI plugin source). Missing jar → JEI plugin excluded from compile.
+    def jeiJar = file("libs/jei-1.21.11-fabric-27.4.0.22.jar")
+    if (jeiJar.exists()) {
+        modCompileOnly files(jeiJar)
     }
 }
 
-allprojects {
-    apply plugin: "java"
-    apply plugin: "architectury-plugin"
-    apply plugin: "maven-publish"
+loom {
+    accessWidenerPath = file("src/main/resources/brbe.common.accesswidener")
+}
 
-    base {
-        archivesName = rootProject.archives_base_name
-    }
-    version = rootProject.mod_version
-    group = rootProject.maven_group
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+    options.release = 21
+}
 
-    repositories {
-        // Add repositories to retrieve artifacts from in here.
-        // You should only use this when depending on other mods because
-        // Loom adds the essential maven repositories to download Minecraft and libraries from automatically.
-        // See https://docs.gradle.org/current/userguide/declaring_repositories.html
-        // for more information about repositories.
-
-        maven {
-            url = "https://api.modrinth.com/maven"
-        }
-    }
-
-    tasks.withType(JavaCompile) {
-        options.encoding = "UTF-8"
-        options.release = 21
-    }
-
-    java {
-        // withSourcesJar()  -- disabled: do not package source JARs
+tasks.named("compileJava") {
+    // JEI 缺失时排除 JEI plugin 类（原 fabric 模块的条件编译逻辑）
+    if (!file("libs/jei-1.21.11-fabric-27.4.0.22.jar").exists()) {
+        exclude("com/alonie/brbe/fabric/compat/jei/BetterRecipeBookJEIPlugin.java")
     }
 }
 
-// Ensure JEI library jars are available in libs/ for compilation.
-// If a jar is missing locally, copies it from the test instance mods folders.
-// Run manually: ./gradlew setupLibs
+processResources {
+    // don't include things we don't need at runtime
+    exclude("**/*.ase", "**/*.kra")
+}
+
+// ============================================================
+//  setupLibs — ensure JEI library jars are available in libs/
+//  (copies from the test instance mods folders if missing)
+// ============================================================
 tasks.register("setupLibs") {
     doLast {
-        def libsDir = rootProject.file("libs")
+        def libsDir = file("libs")
         libsDir.mkdirs()
 
         def jeiEntries = [
                 "jei-1.21.11-fabric-27.4.0.22.jar":
-                        "/media/avalonia/data/MinecraftLib/versions/1.21.11-Fabric/mods/jei-1.21.11-fabric-27.4.0.22.jar.disabled",
-                "jei-1.21.11-neoforge-27.4.0.22.jar":
-                        "/media/avalonia/data/MinecraftLib/versions/1.21.11-NeoForge/mods/jei-1.21.11-neoforge-27.4.0.22.jar.disabled"
+                        "/media/avalonia/data/MinecraftLib/versions/1.21.11-Fabric/mods/jei-1.21.11-fabric-27.4.0.22.jar.disabled"
         ]
-
         jeiEntries.each { fileName, sourcePath ->
             def targetFile = new File(libsDir, fileName)
             if (!targetFile.exists()) {
@@ -92,12 +120,25 @@ tasks.register("setupLibs") {
         }
     }
 }
+compileJava.dependsOn(tasks.named("setupLibs"))
 
-// Auto-run setupLibs before any compile task
-gradle.projectsEvaluated {
-    subprojects {
-        tasks.matching { it.name == "compileJava" || it.name == "classes" }.configureEach {
-            dependsOn rootProject.tasks.named("setupLibs")
+// ============================================================
+//  cleanLoomCache — nuke all local loom / fabric caches
+// ============================================================
+tasks.register("cleanLoomCache") {
+    doLast {
+        def loomDirs = [
+            "${gradle.gradleUserHomeDir}/caches/fabric-loom",
+            "${gradle.gradleUserHomeDir}/caches/architectury-loom",
+            "${gradle.gradleUserHomeDir}/caches/loom",
+        ]
+        loomDirs.each { dir ->
+            def f = file(dir)
+            if (f.exists()) {
+                logger.lifecycle("Deleting {}", f)
+                delete f
+            }
         }
+        logger.lifecycle("Run './gradlew' afterwards to re-download all mappings.")
     }
 }

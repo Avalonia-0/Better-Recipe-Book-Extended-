@@ -8,47 +8,54 @@ This is a **multi-version Minecraft mod**. Each git branch targets a specific Mi
 
 | Branch | MC Version | Loom Plugin | Java | Mappings |
 |--------|-----------|-------------|------|----------|
-| `1.21.1` | 1.21.1 | `dev.architectury.loom` | 21 | Yarn (via Architectury remap) |
-| `1.21.11` | 1.21.11 | `dev.architectury.loom` | 21 | Yarn (via Architectury remap) |
-| `26.1.2` | 26.1.2 | `dev.architectury.loom-no-remap` | 25 | Mojang official |
-| `26.2` | 26.2 | `dev.architectury.loom-no-remap` | 25 | Mojang official |
+| `1.21.1` | 1.21.1 | `dev.architectury.loom` | 21 | Mojang official (via Architectury remap) |
+| `1.21.11` | 1.21.11 | `net.fabricmc.fabric-loom-remap` 1.14.6 | 21 | Mojang official (fabric remap) |
+| `26.1.2` | 26.1.2 | `dev.architectury.loom-no-remap` | 25 | Mojang official（已停止维护） |
+| `26.2` | 26.2 | `net.fabricmc.fabric-loom` 1.17.18 | 25 | Mojang official (no-remap) |
 
-**CRITICAL**: `build.gradle` on 26.1.2/26.2 enforces that `minecraft_version` in `gradle.properties` matches the git branch name. Switching branches without updating `gradle.properties` will fail.
+**本分支（1.21.11）已是单模块 fabric 工程**（2026-08-18 切割 NeoForge）：从 Architectury 三模块（common/fabric/neoforge）退回普通 fabric-loom 单模块，源码在 `src/main/java`，Gradle 9.5.1。混淆版本（1.21.11 及更旧）必须用插件 ID `net.fabricmc.fabric-loom-remap`（`fabric-loom` 仅用于 26.1+ 非混淆版本）。
+
+**CRITICAL**: `build.gradle` 校验 `minecraft_version` 必须与 git 分支名一致。切换分支后需恢复 `gradle.properties`。
 
 ## Build Commands
 
 ```bash
 # Compile only (fast, for checking errors)
-./gradlew :common:compileJava :fabric:compileJava :neoforge:compileJava
+./gradlew compileJava
 
 # Full build (produces JARs)
-./gradlew :fabric:build :neoforge:build -x test -x check
+./gradlew build -x test -x check
 
 # Clean build
-./gradlew clean :fabric:build :neoforge:build -x test -x check
+./gradlew clean build -x test -x check
 
 # Reset cross-branch cache corruption
 ./gradlew cleanLoomCache && rm -rf .gradle
+
+# Copy JEI dependency jar from test instance into libs/
+./gradlew setupLibs
 ```
 
-JAR outputs: `fabric/build/libs/brbe-ava-fabric-{mcversion}-{version}.jar` (neoforge: `brbe-ava-neoforge-{mcversion}-{version}.jar`)
+JAR output: `build/libs/brbe-ava-fabric-1.21.11-{version}.jar`
 
 ## Project Structure
 
 ```
-common/         # Shared code (95% of all code lives here)
-  src/main/java/com/alonie/
-    brbe/                   # Main mod: Better Recipe Book Extended
-      mixins/               # Mixin classes targeting vanilla MC classes
-      config/               # Config class + sub-configs
-      util/                 # PartialCraftingUtil, IncompatibleCraftingUtil, etc.
-      generic/              # GenericRecipeButton, GenericRecipeBookComponent, etc.
-      smithingtable/        # Smithing table recipe book
-      brewingstand/         # Brewing stand recipe book
-    recipebookispain_extended/  # RBIP sub-mod: creative tabs in recipe book
+单模块 fabric 工程（无 common/fabric/neoforge 拆分）：
+```
+src/main/java/com/alonie/
+  brbe/                   # Main mod: Better Recipe Book Extended
+    fabric/               # Fabric 入口（entrypoints、JEI/REI compat、Fabric 专用 mixin、ModMenu）
+    mixins/               # Mixin classes targeting vanilla MC classes
+    config/               # Config class + sub-configs
+    util/                 # PartialCraftingUtil, IncompatibleCraftingUtil, etc.
+    generic/              # GenericRecipeButton, GenericRecipeBookComponent, etc.
+    smithingtable/        # Smithing table recipe book
+    brewingstand/         # Brewing stand recipe book（含 fabric/ 平台实现）
+  recipebookispain_extended/  # RBIP sub-mod: creative tabs in recipe book（fabric/ 实现）
 
-fabric/         # Fabric platform module (entrypoints, compat, JEI mixins)
-neoforge/       # NeoForge platform module (entrypoints, compat, JEI plugins)
+src/main/resources/       # 资源 + fabric.mod.json + mixins 配置 + brbe.common.accesswidener
+```
 ```
 
 ## Key Architectural Patterns
@@ -92,9 +99,51 @@ Cloth Config provides the configuration GUI. It's `implementation`+`include` (bu
 
 ## Known Issues by Branch
 
+- **1.21.11 fabric-only**: 2026-08-18 切割 NeoForge，退回单模块 fabric 工程。已删除 neoforge 模块、`rbip-neoforge.mixins.json`、`mixins.brbe-jei-common.json`（fabric 端用 `mixins.brbe-jei.json`）。构建工具链：Gradle 9.5.1 + `fabric-loom-remap` 1.14.6。
 - **26.2 NeoForge**: NeoForge 26.2.0.0-beta exits silently after classloader build — pre-release beta bug, not BRBE.
 - **26.2 Fabric**: Works but Cloth Config is embedded (no official 26.2 release yet).
-- **26.1.2 NeoForge**: JEI plugin disabled (JEI jar not available for this exact version).
+- **26.1.2 NeoForge**: 分支已停止维护（2026-08-18）。
+
+## 2026-08-21 全量移植（26.2 → 1.21.11）
+
+以 26.2 源码为基线全量移植（约 8 子系统、~150 文件），mod id 统一为 **`zzzbrbe`**（资源/配置/数据文件直接复用 26.2；玩家 `brbe.toml`/`brbe.pins` 换名失效）。已部署 1.21.11-Fabric，runClient 启动验证通过（主菜单无崩溃、mixin 全部应用成功、RecipeViewerEngine 1458 条目重建成功）。
+
+**移植的功能**：
+- 配置系统重构：`Config`→`BrbeConfig`（`@Config(name="zzzbrbe")`），键位可配置（KeybindingCodec/GuiRegistrar/KeyMappingSyncMixin），新增字段先行就位
+- 拼音搜索（search/Pinyin* + pinyin.txt，中文语言自动开启）
+- 翻页动画 + Ctrl 跳页 + 搜索页码跳转命令（^N^）+ 配方书位置记忆
+- 自研 R/U 查看引擎生态：recipeviewer/（RecipeViewerEngine/Categories）、RecipeViewerOverlay 浮层、PinOverlay（pin 浮层）、render/（PopupGeometry/PopupRenderer）
+- JEI 插件收集代码（jei/plugins）对真实 JEI 27.4.0.22 编译（**未移植** vendored mezz fork；入口有 isModLoaded("jei") 守卫）
+- RBIP 创造标签固定（TabPinManager）、RBIP 增量（rbip$getPage/setPage、renderTooltip 还原）
+- ClientRecipeBookMixin 接 RecipeViewerIndex.rebuildEngine
+
+**已知降级/警告**：
+- **`mixins.brbe-jei.json`（JeiBookmarkOverlayMixin/JeiIngredientListOverlayMixin）target 在 JEI 27 找不到**（mezz.jei.gui.overlay 包路径变化）——1.21.11 既有问题，`hideReiJeiOverlay` 的 JEI 部分不生效，REI 部分正常。
+- RecipeButtonAccessor 的 sprite accessor 未标 static（Mixin 警告，功能正常）。
+
+## 2026-08-21 二轮同步（26.2 ↔ 1.21.11 零碎特性补齐）
+
+第一轮全量移植后仍有零碎特性未同步，本轮回补（已编译验证，未部署/未 runClient）：
+
+**26.2 → 1.21.11**：
+- 翻页音效滑块（`mixins/soundoptions/SoundOptionsScreenMixin`）：1.21.11 无 `OptionInstance.UnitDouble/xmap`，改为直接实现公共接口 `OptionInstance.ValueSet<Double>` + 自建 `AbstractSliderButton`，行为与 26.2 一致（滑块 0–1 ↔ 音量 0–1.5）。已注册进 `mixins.brbe-common.json`
+- `mixins.brbe-common.json` 补注册 4 个已存在但未注册的 accessor（AbstractContainerScreenAccessor / ImageButtonAccessor / OverlayRecipeButtonAccessor / ScreenAccessor）——此前相关代码路径运行时未生效
+- 配置界面提示：`ConfigTipsHelper` 修正 `brbe.gui.tip.*` → `zzzbrbe.gui.tip.*` 并补齐 tip 8/9（Ctrl 跳页 / ^N^ 跳页提示）
+- 翻译键修正：`brbe.gui.togglePotions.brewable`、`brbe.gui.smithable`、`brbe.gui.environmentIncompatible` → `zzzbrbe.*`（lang 文件早已是 zzzbrbe 命名空间，旧键不生效）
+- ghost 配方工具提示支持 `showModName`（GenericGhostRecipe.drawTooltip）
+- `CacheableRecipeDisplayEntry.makeSlotDisplay`：数量 >1 的结果改用 `SlotDisplay.ItemStackSlotDisplay`（1.21.11 构造器收 ItemStack，26.2 收 ItemStackTemplate）
+- instantcraft 点击加 `RecipeViewerIndex.isViewerActive()` 守卫（浮层打开时不触发即时合成）
+- `RecipeBookPageMixin.brbe$closeOverlayOnPageChange` 补上 `RecipeViewerOverlay.close()`（原为空体）
+- `pins/AbstractContainerScreenMixin`：查看浮层激活时跳过二次 overlay 绘制、固定键点击音效、可见性检查、**RBIP 创造标签固定**（TabPinManager + 标签重排，与 26.2 一致）
+- SmithingScreenMixin 接入 `PinOverlayManager.handleMouseClicked`；BrewingStandScreenMixin 渲染末尾接 `PinOverlayManager.render`
+- `BetterRecipeBookJEIPlugin`：`JeiRuntimeBridge.set/clear` + `registerGuiHandlers` 排除区域（查看浮层/弹窗/pin 浮层区域让 JEI 避开）
+- RBIP：`ClientRecipeBookMixin` 补 `SearchRecipeBookCategory.CRAFTING` 排除 + 熔炉配方去重（去掉调试日志）；`RecipeBookIsPain` 补固定创造标签置顶排序（withCreativeTabs / withFurnaceCreativeTabs）
+- `overlay_pin.png` 更新为 26.2 新版（主资源 + unique_dark 资源包）
+
+**1.21.11 → 26.2**：
+- `CollectionPipeline` 改用 `hasPartialMaterialsEvenIfStale` / `isPartiallyCraftableEvenIfStale`（分代推进后不误过滤）
+- RBIP `ClientRecipeBookMixin` 补 `RecipeBookIsPainExtendedConfig.enabled()` 守卫
+- 清理调试日志：GenericGhostRecipe（保留 showModName 功能）、incompletecrafting/RecipeButtonMixin 的 [BRBE-DIAG] 日志块
 
 ## Deployment
 
