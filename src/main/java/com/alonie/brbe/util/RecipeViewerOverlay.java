@@ -1583,10 +1583,12 @@ public final class RecipeViewerOverlay {
 
         // Mark partially-craftable recipes (always against the inventory, so
         // the viewer is unaffected by the "only when carrying" toggle) and
-        // snapshot the marks against the tagger's generation advances.
+        // snapshot the marks against the tagger's generation advances.  The
+        // marks are based on the player's REAL inventory: screen-container
+        // slots / carried may be virtual (creative tabs, grids).
         if (ownerScreen != null) {
-            PartialCraftingUtil.prepareForViewer(collection, ownerScreen.getMenu().slots,
-                    ownerScreen.getMenu().getCarried());
+            PartialCraftingUtil.prepareForViewer(collection,
+                    PartialCraftingUtil.realInventorySlots(), ItemStack.EMPTY);
         }
         RecipeViewerIndex.snapshotPartials(collection);
 
@@ -1732,8 +1734,8 @@ public final class RecipeViewerOverlay {
         StackedItemContents stacked = new StackedItemContents();
         PartialCraftingUtil.fillSearchSpaceStackedContents(stacked);
         RecipeCollection subset = RecipeViewerIndex.toCollection(pageEntries, stacked);
-        PartialCraftingUtil.prepareForViewer(subset, screen.getMenu().slots,
-                screen.getMenu().getCarried());
+        PartialCraftingUtil.prepareForViewer(subset,
+                PartialCraftingUtil.realInventorySlots(), ItemStack.EMPTY);
         RecipeViewerIndex.snapshotPartials(subset);
 
         boolean paged = viewerPageCount > 1;

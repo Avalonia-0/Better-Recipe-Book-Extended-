@@ -17,7 +17,6 @@ import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.player.StackedItemContents;
-import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.FurnaceRecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
@@ -97,7 +96,11 @@ public final class PinOverlay {
         RecipeCollection collection = RecipeViewerOverlay.capturedOverlayCollection();
         if (collection == null) {
             StackedItemContents stacked = new StackedItemContents();
-            PartialCraftingUtil.fillSearchSpaceStackedContents(stacked);
+            mc.player.getInventory().fillStackedContents(stacked);
+            ItemStack offhand = PartialCraftingUtil.offhandStack();
+            if (!offhand.isEmpty()) {
+                stacked.accountSimpleStack(offhand);
+            }
             collection = RecipeViewerIndex.toCollection(List.of(entry), stacked);
         }
         OverlayRecipeComponent component = new OverlayRecipeComponent(
@@ -352,18 +355,23 @@ public final class PinOverlay {
      *  unaffected. */
     void refreshRecipeState(Minecraft mc) {
         if (mc.player == null || mc.level == null) return;
+        // Search space = the player's REAL inventory (+ offhand): screen
+        // container slots and the carried stack may be virtual (creative tabs,
+        // grids) and must not count as materials.
         StackedItemContents stacked = new StackedItemContents();
-        PartialCraftingUtil.fillSearchSpaceStackedContents(stacked);
+        mc.player.getInventory().fillStackedContents(stacked);
+        ItemStack offhand = PartialCraftingUtil.offhandStack();
+        if (!offhand.isEmpty()) {
+            stacked.accountSimpleStack(offhand);
+        }
         // selectRecipes rebuilds the craftable set (dropping stale partial
         // injections from a previous prepareForViewer pass).
         collection.selectRecipes(stacked, display -> true);
-        AbstractContainerMenu menu = mc.player.containerMenu;
-        if (menu != null) {
-            // The tagger only marks a collection once per generation; force a
-            // re-evaluation so the partial state follows the new search space.
-            PartialCraftingUtil.forceReevaluate(collection);
-            PartialCraftingUtil.prepareForViewer(collection, menu.slots, menu.getCarried());
-        }
+        // The tagger only marks a collection once per generation; force a
+        // re-evaluation so the partial state follows the new search space.
+        PartialCraftingUtil.forceReevaluate(collection);
+        PartialCraftingUtil.prepareForViewer(
+                collection, PartialCraftingUtil.realInventorySlots(), ItemStack.EMPTY);
         RecipeViewerIndex.snapshotPartials(collection);
     }
 
