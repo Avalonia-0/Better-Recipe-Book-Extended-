@@ -9,21 +9,16 @@ import com.alonie.brbe.pinoverlay.PinOverlay;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
-import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.resources.Identifier;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Renders a recipe's enlarged popup UI.  An adapted synthetic (mod) recipe
@@ -38,101 +33,6 @@ import java.util.Map;
 public final class PopupRenderer {
 
     private PopupRenderer() {}
-
-    /** 缺失材料/结果的红色遮罩色（与原整块 partial 红罩同色）。 */
-    private static final int MISSING_MASK_COLOR = 0x60FF3333;
-    /** JEI {@code RecipeIngredientRole} 序号：0=INPUT（材料）、1=OUTPUT（结果）。
-     *  仅用于区分合成配方的材料/结果槽位，避免依赖 JEI API。 */
-    private static final int ROLE_INPUT = 0;
-    private static final int ROLE_OUTPUT = 1;
-
-    /** 扣减检索空间内某物品的拥有数量；返回该槽位是否"材料已满足"
-     *  （与合成台幽灵槽一致：同种材料多个槽位按渲染顺序依次扣减）。 */
-    private static boolean consumeOwned(Map<Item, Integer> remaining, ItemStack stack) {
-        if (remaining == null || stack == null || stack.isEmpty()) return false;
-        int have = remaining.getOrDefault(stack.getItem(), 0);
-        if (have <= 0) return false;
-        remaining.put(stack.getItem(), have - 1);
-        return true;
-    }
-
-    /** 整块红色遮罩挖掉已拥有物品的槽位格后绘制：界面本体仍先覆盖红罩，
-     *  已拥有材料所占据的一小格（16×16 槽位判定区域）不超出物品区域地露出。 */
-    private static void maskWithHoles(GuiGraphicsExtractor gui, int x1, int y1, int x2, int y2,
-                                      List<int[]> holes) {
-        List<int[]> rects = new ArrayList<>();
-        rects.add(new int[]{x1, y1, x2, y2});
-        for (int[] hole : holes) {
-            List<int[]> next = new ArrayList<>();
-            for (int[] r : rects) {
-                if (hole[2] <= r[0] || hole[0] >= r[2] || hole[3] <= r[1] || hole[1] >= r[3]) {
-                    next.add(r);
-                    continue;
-                }
-                if (hole[1] > r[1]) next.add(new int[]{r[0], r[1], r[2], hole[1]});   // 上
-                if (hole[3] < r[3]) next.add(new int[]{r[0], hole[3], r[2], r[3]});   // 下
-                if (hole[0] > r[0]) next.add(new int[]{r[0], Math.max(r[1], hole[1]), hole[0], Math.min(r[3], hole[3])}); // 左
-                if (hole[2] < r[2]) next.add(new int[]{hole[2], Math.max(r[1], hole[1]), r[2], Math.min(r[3], hole[3])}); // 右
-            }
-            rects = next;
-        }
-        for (int[] r : rects) {
-            gui.fill(r[0], r[1], r[2], r[3], MISSING_MASK_COLOR);
-        }
-    }
-
-    /** 收集"已拥有材料"的槽位格（16×16，屏幕坐标），供 {@link #maskWithHoles}
-     *  挖洞。只处理材料槽（synthetic 的 INPUT / 固定对的 input / 熔炉
-     *  ingredient / crafting 格位）；结果槽不参与。 */
-    private static void collectOwnedSlots(RecipeDisplayId id, RecipeDisplayEntry entry,
-                                          int mode, List<?> slots, int selIdx,
-                                          int x, int y, List<int[]> holes) {
-        Map<Item, Integer> remaining = new HashMap<>(PartialCraftingUtil.searchSpaceCounts());
-        if (RecipeViewerEngine.isSynthetic(id)) {
-            RecipeViewerEngine.RecipeLayout layout = RecipeViewerEngine.getLayout(id);
-            if (layout == null || layout.slots().isEmpty()) return;
-            List<PopupGeometry.UnadaptedSlot> fitted = PopupGeometry.slotFitPositions(layout);
-            for (PopupGeometry.UnadaptedSlot slot : fitted) {
-                if (slot.role() != ROLE_INPUT) continue;
-                ItemStack stack = slot.stacks().get(selIdx % slot.stacks().size());
-                if (consumeOwned(remaining, stack)) {
-                    holes.add(new int[]{Math.round(x + slot.x()) - 8, Math.round(y + slot.y()) - 8,
-                            Math.round(x + slot.x()) + 8, Math.round(y + slot.y()) + 8});
-                }
-            }
-        } else if (mode == PinOverlay.MODE_STONECUTTING || mode == PinOverlay.MODE_SMITHING) {
-            ItemStack first;
-            if (mode == PinOverlay.MODE_STONECUTTING) {
-                var display = RecipeViewerIndex.asStonecutter(entry);
-                first = display == null ? ItemStack.EMPTY
-                        : select(RecipeViewerIndex.resolveSlotDisplay(display.input()), selIdx);
-            } else {
-                var display = RecipeViewerIndex.asSmithing(entry);
-                first = display == null ? ItemStack.EMPTY
-                        : select(RecipeViewerIndex.resolveSlotDisplay(display.base()), selIdx);
-            }
-            if (consumeOwned(remaining, first)) {
-                holes.add(new int[]{x + 2, y + 2, x + 18, y + 18});
-            }
-        } else if (mode == PinOverlay.MODE_FURNACE) {
-            var display = RecipeViewerIndex.asFurnace(entry);
-            ItemStack ingredient = display == null ? ItemStack.EMPTY
-                    : select(RecipeViewerIndex.resolveSlotDisplay(display.ingredient()), selIdx);
-            if (consumeOwned(remaining, ingredient)) {
-                holes.add(new int[]{x + 2, y + 2, x + 18, y + 18});
-            }
-        } else if (!(BetterRecipeBook.config.alternativeRecipes.onHover)) {
-            for (Object rawPos : slots) {
-                OverlayRecipeButtonPosAccessor pos = (OverlayRecipeButtonPosAccessor) rawPos;
-                ItemStack ingredient = pos.brbe$selectIngredient(selIdx);
-                if (consumeOwned(remaining, ingredient)) {
-                    int hx = x + 2 + pos.brbe$getX();
-                    int hy = y + 2 + pos.brbe$getY();
-                    holes.add(new int[]{hx, hy, hx + 16, hy + 16});
-                }
-            }
-        }
-    }
 
     /** Render the recipe as a full popup: the adapted-synthetic JEI UI, or the
      *  vanilla hover-scaled recipe over the button sprite.
@@ -188,11 +88,8 @@ public final class PopupRenderer {
                 ? BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(craftable || partial, true)
                 : sprites.get(craftable || partial, false);
         new ButtonBackdrop.Sprite(sprite).render(gui, x, y, w, h);
-        // 界面本体先盖整块红罩，再挖掉已拥有材料的槽位格。
-        if (partial || !craftable) {
-            List<int[]> holes = new ArrayList<>();
-            collectOwnedSlots(id, entry, mode, slots, selIdx, x, y, holes);
-            maskWithHoles(gui, x + 1, y + 1, x + w - 1, y + h - 1, holes);
+        if (partial) {
+            gui.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x60FF3333);
         }
         renderSlotItems(gui, id, entry, mode, slots, selIdx, x, y, w, h, false);
     }
@@ -211,11 +108,8 @@ public final class PopupRenderer {
         }
         ButtonBackdrop backdrop = resolveBackdrop(id, mode, craftable, partial, hover);
         backdrop.render(gui, x, y, w, h);
-        // 界面本体先盖整块红罩（synthetic 自带背景时抑制），再挖掉已拥有材料的槽位格。
-        if ((partial || !craftable) && !backdrop.suppressesPartialOverlay()) {
-            List<int[]> holes = new ArrayList<>();
-            collectOwnedSlots(id, entry, mode, slots, selIdx, x, y, holes);
-            maskWithHoles(gui, x + 1, y + 1, x + w - 1, y + h - 1, holes);
+        if (partial && !backdrop.suppressesPartialOverlay()) {
+            gui.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x60FF3333);
         }
         renderSlotItems(gui, id, entry, mode, slots, selIdx, x, y, w, h, hover);
         if (hover) {
