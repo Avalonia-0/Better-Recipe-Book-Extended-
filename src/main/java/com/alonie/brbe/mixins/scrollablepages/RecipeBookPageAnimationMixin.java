@@ -296,10 +296,6 @@ public abstract class RecipeBookPageAnimationMixin {
         if (mouseX >= effX && mouseX < effX + effW && mouseY >= y && mouseY < y + 25) {
             this.brbe$animHovered = snap;
         }
-        if ((k + wrapped * 20) % 25 == 0) {
-            BetterRecipeBook.LOGGER.info("[BRBE-SQ] page={} k={} x={} effX={} effW={} edgeRight={} y={}",
-                    wrapped, k, x, effX, effW, effX + effW, y);
-        }
         // 格子背景 blit（宽度横向压缩）
         RecipeButtonAccessor acc = (RecipeButtonAccessor) (Object) snap;
         RecipeCollection c = snap.getCollection();
