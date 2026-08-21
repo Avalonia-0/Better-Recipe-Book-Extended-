@@ -1511,19 +1511,6 @@ public final class RecipeViewerOverlay {
         if (currentCategory.isFuelCategory()) {
             computeFuelBoxSize();
         } else {
-            // The query target itself is a workstation without a recipe-book
-            // system (e.g. BetterEnd's end stone smelter): its whole usage
-            // query is hidden — the objects belong to a station the player
-            // cannot browse through a recipe book.  The external viewer is not
-            // consulted either.
-            if (viewUsage && BetterRecipeBook.config.hideNoRecipeBookStationObjects
-                    && currentCategory.appliesToStation(target)
-                    && !RecipeViewerEngine.isRecipeBookStation(target)) {
-                if (RecipeViewerIndex.isViewerActive()) {
-                    close();
-                }
-                return false;
-            }
             hits = filterByRecipeBookStations(currentCategory.query(target, viewUsage));
             if (hits.isEmpty()) {
                 if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
@@ -1734,6 +1721,18 @@ public final class RecipeViewerOverlay {
             currentCategory = category;
             rebuildFuel(targetIsFuel ? List.of(queryTarget) : fuel.allFuelItems());
         } else {
+            // The "hide objects of workstations without a recipe book" toggle
+            // cuts the station-category connection for an illegal station: a
+            // usage query opened from such a station (e.g. BetterEnd's end
+            // stone smelter) must not surface its recipes through this tab.
+            // The fuel category is exempt and never reaches this branch.
+            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+                    && queryUsage
+                    && queryTarget != null && !queryTarget.isEmpty()
+                    && category.appliesToStation(queryTarget)
+                    && !RecipeViewerEngine.isRecipeBookStation(queryTarget)) {
+                return;
+            }
             List<RecipeDisplayEntry> hits = filterByRecipeBookStations(category.query(queryTarget, queryUsage));
             if (hits.isEmpty()) return;
             currentCategory = category;
