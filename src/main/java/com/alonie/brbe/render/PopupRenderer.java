@@ -9,16 +9,20 @@ import com.alonie.brbe.pinoverlay.PinOverlay;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Renders a recipe's enlarged popup UI.  An adapted synthetic (mod) recipe
@@ -33,6 +37,28 @@ import java.util.List;
 public final class PopupRenderer {
 
     private PopupRenderer() {}
+
+    /** 缺失材料/结果的红色遮罩色（与原整块 partial 红罩同色）。 */
+    private static final int MISSING_MASK_COLOR = 0x60FF3333;
+    /** JEI {@code RecipeIngredientRole} 序号：0=INPUT（材料）、1=OUTPUT（结果）。
+     *  仅用于区分合成配方的材料/结果槽位，避免依赖 JEI API。 */
+    private static final int ROLE_INPUT = 0;
+    private static final int ROLE_OUTPUT = 1;
+
+    /** 扣减检索空间内某物品的拥有数量；返回该槽位是否"材料已满足"
+     *  （与合成台幽灵槽一致：同种材料多个槽位按渲染顺序依次扣减）。 */
+    private static boolean consumeOwned(Map<Item, Integer> remaining, ItemStack stack) {
+        if (remaining == null || stack == null || stack.isEmpty()) return false;
+        int have = remaining.getOrDefault(stack.getItem(), 0);
+        if (have <= 0) return false;
+        remaining.put(stack.getItem(), have - 1);
+        return true;
+    }
+
+    /** 缺失材料/结果的红色遮罩（16×16，槽位左上角；在图标下方绘制）。 */
+    private static void maskSlot(GuiGraphicsExtractor gui, int sx, int sy) {
+        gui.fill(sx, sy, sx + 16, sy + 16, MISSING_MASK_COLOR);
+    }
 
     /** Render the recipe as a full popup: the adapted-synthetic JEI UI, or the
      *  vanilla hover-scaled recipe over the button sprite.
@@ -88,10 +114,8 @@ public final class PopupRenderer {
                 ? BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(craftable || partial, true)
                 : sprites.get(craftable || partial, false);
         new ButtonBackdrop.Sprite(sprite).render(gui, x, y, w, h);
-        if (partial) {
-            gui.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x60FF3333);
-        }
-        renderSlotItems(gui, id, entry, mode, slots, selIdx, x, y, w, h, false);
+        renderSlotItems(gui, id, entry, mode, slots, selIdx, x, y, w, h, false,
+                partial || !craftable);
     }
 
     private static void renderVanillaPopup(GuiGraphicsExtractor gui,
@@ -108,10 +132,8 @@ public final class PopupRenderer {
         }
         ButtonBackdrop backdrop = resolveBackdrop(id, mode, craftable, partial, hover);
         backdrop.render(gui, x, y, w, h);
-        if (partial && !backdrop.suppressesPartialOverlay()) {
-            gui.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x60FF3333);
-        }
-        renderSlotItems(gui, id, entry, mode, slots, selIdx, x, y, w, h, hover);
+        renderSlotItems(gui, id, entry, mode, slots, selIdx, x, y, w, h, hover,
+                partial || !craftable);
         if (hover) {
             gui.pose().popMatrix();
         }
@@ -138,16 +160,23 @@ public final class PopupRenderer {
     private static void renderSlotItems(GuiGraphicsExtractor gui,
                                         RecipeDisplayId id, RecipeDisplayEntry entry,
                                         int mode, List<?> slots, int selIdx,
-                                        int x, int y, int w, int h, boolean hover) {
+                                        int x, int y, int w, int h, boolean hover,
+                                        boolean markMissing) {
+        // 残缺/不可合成状态下按槽位标记缺失材料：拥有（按渲染顺序扣减）的槽位
+        // 不画红罩，缺失材料与结果槽画红罩——与合成台幽灵物品一致。
+        Map<Item, Integer> remaining = markMissing
+                ? new HashMap<>(PartialCraftingUtil.searchSpaceCounts()) : null;
         gui.pose().pushMatrix();
         if (RecipeViewerEngine.isSynthetic(id)) {
-            renderSynthetic(gui, id, entry, selIdx, x, y, hover);
+            renderSynthetic(gui, id, entry, selIdx, x, y, hover, markMissing, remaining);
         } else if (mode == PinOverlay.MODE_STONECUTTING) {
-            renderFixedPair(gui, entry, PinOverlay.MODE_STONECUTTING, selIdx, x, y, hover);
+            renderFixedPair(gui, entry, PinOverlay.MODE_STONECUTTING, selIdx, x, y, hover,
+                    markMissing, remaining);
         } else if (mode == PinOverlay.MODE_SMITHING) {
-            renderFixedPair(gui, entry, PinOverlay.MODE_SMITHING, selIdx, x, y, hover);
+            renderFixedPair(gui, entry, PinOverlay.MODE_SMITHING, selIdx, x, y, hover,
+                    markMissing, remaining);
         } else if (mode == PinOverlay.MODE_FURNACE) {
-            renderFurnace(gui, entry, selIdx, x, y, hover);
+            renderFurnace(gui, entry, selIdx, x, y, hover, markMissing, remaining);
         } else if (BetterRecipeBook.config.alternativeRecipes.onHover && !hover) {
             // The product shown on the button cycles through every result
             // variant (like the smithing category), so multi-product recipes
@@ -161,9 +190,13 @@ public final class PopupRenderer {
                 OverlayRecipeButtonPosAccessor pos = (OverlayRecipeButtonPosAccessor) rawPos;
                 gui.pose().pushMatrix();
                 gui.pose().translate(pos.brbe$getX(), pos.brbe$getY());
+                ItemStack ingredient = pos.brbe$selectIngredient(selIdx);
+                if (markMissing && !consumeOwned(remaining, ingredient)) {
+                    maskSlot(gui, 0, 0);
+                }
                 gui.pose().scale(0.375f, 0.375f);
                 gui.pose().translate(-8.0F, -8.0F);
-                gui.item(pos.brbe$selectIngredient(selIdx), 0, 0);
+                gui.item(ingredient, 0, 0);
                 gui.pose().popMatrix();
             }
         }
@@ -173,7 +206,8 @@ public final class PopupRenderer {
     /** Stonecutter / smithing: input (base) top-left at (2,2), result
      *  bottom-right at (12,7), scaled 0.6; "result only" when not hovered. */
     private static void renderFixedPair(GuiGraphicsExtractor gui, RecipeDisplayEntry entry,
-                                        int mode, int selIdx, int x, int y, boolean hover) {
+                                        int mode, int selIdx, int x, int y, boolean hover,
+                                        boolean markMissing, Map<Item, Integer> remaining) {
         boolean onHover = BetterRecipeBook.config.alternativeRecipes.onHover;
         ItemStack first;
         ItemStack second;
@@ -193,14 +227,21 @@ public final class PopupRenderer {
         if (onHover && !hover) {
             gui.item(second, x + 4, y + 4);
         } else {
+            if (markMissing && !consumeOwned(remaining, first)) {
+                maskSlot(gui, x + 2, y + 2);
+            }
             scaledItem(gui, first, x + 2, y + 2);
+            if (markMissing) {
+                maskSlot(gui, x + 12, y + 7);
+            }
             scaledItem(gui, second, x + 12, y + 7);
         }
     }
 
     /** Furnace: ingredient top-left, flame bottom-left, result right half. */
     private static void renderFurnace(GuiGraphicsExtractor gui, RecipeDisplayEntry entry,
-                                      int selIdx, int x, int y, boolean hover) {
+                                      int selIdx, int x, int y, boolean hover,
+                                      boolean markMissing, Map<Item, Integer> remaining) {
         boolean onHover = BetterRecipeBook.config.alternativeRecipes.onHover;
         var display = RecipeViewerIndex.asFurnace(entry);
         ItemStack ingredient = display == null ? ItemStack.EMPTY
@@ -210,9 +251,15 @@ public final class PopupRenderer {
         if (onHover && !hover) {
             gui.item(result, x + 4, y + 4);
         } else {
+            if (markMissing && !consumeOwned(remaining, ingredient)) {
+                maskSlot(gui, x + 2, y + 2);
+            }
             scaledItem(gui, ingredient, x + 2, y + 2);
             ClientCompat.blitSprite(gui, BRBTextures.FURNACE_FIRE_SPRITE, x + 4, y + 15, 6, 6);
             if (hover) {
+                if (markMissing) {
+                    maskSlot(gui, x + 12, y + 7);
+                }
                 scaledItem(gui, result, x + 12, y + 7);
             }
         }
@@ -231,7 +278,8 @@ public final class PopupRenderer {
      *  otherwise its fitted native layout slots. */
     private static void renderSynthetic(GuiGraphicsExtractor gui, RecipeDisplayId id,
                                         RecipeDisplayEntry entry, int selIdx,
-                                        int x, int y, boolean hover) {
+                                        int x, int y, boolean hover,
+                                        boolean markMissing, Map<Item, Integer> remaining) {
         if (BetterRecipeBook.config.alternativeRecipes.onHover && !hover) {
             gui.item(select(resultVariants(entry), selIdx), x + 4, y + 4);
             return;
@@ -247,9 +295,15 @@ public final class PopupRenderer {
         for (PopupGeometry.UnadaptedSlot slot : slots) {
             gui.pose().pushMatrix();
             gui.pose().translate(x + slot.x(), y + slot.y());
+            ItemStack stack = slot.stacks().get(selIdx % slot.stacks().size());
+            boolean input = slot.role() == ROLE_INPUT;
+            if (markMissing && (input ? !consumeOwned(remaining, stack) : slot.role() == ROLE_OUTPUT)) {
+                // 16×16 红罩居中于图标中心。
+                gui.fill(-8, -8, 8, 8, MISSING_MASK_COLOR);
+            }
             gui.pose().scale(0.45f, 0.45f);
             gui.pose().translate(-8.0F, -8.0F);
-            gui.item(slot.stacks().get(selIdx % slot.stacks().size()), 0, 0);
+            gui.item(stack, 0, 0);
             gui.pose().popMatrix();
         }
     }
