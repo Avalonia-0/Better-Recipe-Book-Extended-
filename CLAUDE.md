@@ -191,4 +191,4 @@ Each hider owns its own state (snapshot, guard flags). Adding a new HUD mod only
 
 **2026-08-21 深夜（二）：pin/viewer 配方状态基于真实物品栏**——`PartialCraftingUtil.realInventorySlots()` 替代屏幕容器槽位（创造模式虚拟物品不再算材料），涉及 `PinOverlayManager.refreshRecipeStates`、`PinOverlay.create/refreshRecipeState`、`RecipeViewerOverlay` 两处 `prepareForViewer`。与 1.21.11 同步。
 - **常规检索空间统一**（2026-08-21，与 1.21.11 同步）：`PartialCraftingUtil.searchSpaceSlots()` 为配方状态判定唯一槽位来源（真实物品栏 + 合成网格，排除结果栏），carried 参数计入、offhand 内部计入；craftable 走 `fillSearchSpaceStackedContents`。配方书/pin/viewer/幽灵浮层/诊断全部统一。
-- **预览/pin 红罩按槽位**（2026-08-21，与 1.21.11 同步）：残缺/不可合成状态下，预览与 pin 界面不再整块红罩，改为按槽位标记——材料槽按渲染顺序扣减 `PartialCraftingUtil.searchSpaceCounts()`（拥有材料不画红罩，与合成台幽灵槽一致），缺失材料与结果槽画 `0x60FF3333`。`PopupGeometry.UnadaptedSlot` 携带 JEI role 序号（0=INPUT/1=OUTPUT）。
+- **预览/pin 残缺红罩整块挖洞**（2026-08-21，与 1.21.11 同步）：残缺/不可合成状态下界面本体先盖整块红罩（`0x60FF3333`），`maskWithHoles` 矩形挖洞把已拥有材料的槽位格（16×16，按渲染顺序扣减 `PartialCraftingUtil.searchSpaceCounts()`）露出；`PopupGeometry.UnadaptedSlot` 携带 JEI role 序号（0=INPUT/1=OUTPUT）。
