@@ -118,34 +118,6 @@ public final class PartialCraftingUtil {
         return slots;
     }
 
-    private static long lastSearchSpaceCountsHash = Long.MIN_VALUE;
-    private static Map<Item, Integer> lastSearchSpaceCounts = Map.of();
-
-    /** 常规检索空间内各物品的拥有总数量（items+armor+合成网格+carried+offhand，
-     *  结果栏除外）。供渲染期按物品扣减（与合成台幽灵槽一致：同种材料多个槽位
-     *  按渲染顺序依次扣减，数量不足的槽位视为缺失）。按槽位哈希缓存：同一帧内
-     *  多次调用只重算一次。 */
-    public static Map<Item, Integer> searchSpaceCounts() {
-        Minecraft mc = Minecraft.getInstance();
-        ItemStack carried = (mc.player != null && mc.player.containerMenu != null)
-                ? mc.player.containerMenu.getCarried() : ItemStack.EMPTY;
-        NonNullList<Slot> slots = searchSpaceSlots();
-        long h = slotHash(slots, carried);
-        if (h != lastSearchSpaceCountsHash) {
-            Map<Item, Integer> counts = new HashMap<>();
-            for (Slot slot : slots) {
-                ItemStack stack = slot.getItem();
-                if (!stack.isEmpty()) counts.merge(stack.getItem(), stack.getCount(), Integer::sum);
-            }
-            if (!carried.isEmpty()) counts.merge(carried.getItem(), carried.getCount(), Integer::sum);
-            ItemStack offhand = offhandStack();
-            if (!offhand.isEmpty()) counts.merge(offhand.getItem(), offhand.getCount(), Integer::sum);
-            lastSearchSpaceCountsHash = h;
-            lastSearchSpaceCounts = counts;
-        }
-        return lastSearchSpaceCounts;
-    }
-
     /** Fill the search space's stacked contents (for craftability): the player's
      *  inventory plus the offhand slot plus the open crafting menu's craft grid —
      *  mirroring the recipe book's own search space. */

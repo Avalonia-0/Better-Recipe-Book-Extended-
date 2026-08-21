@@ -244,10 +244,8 @@ public final class PopupGeometry {
     }
 
     /** One non-empty slot of an unadapted synthetic recipe, at its fitted
-     *  button-relative position (icon centre, un-zoomed).  {@code role} is the
-     *  JEI {@code RecipeIngredientRole} ordinal (0=INPUT, 1=OUTPUT), used to
-     *  decide the missing-material red mask. */
-    public record UnadaptedSlot(float x, float y, int role, List<ItemStack> stacks) {}
+     *  button-relative position (icon centre, un-zoomed). */
+    public record UnadaptedSlot(float x, float y, List<ItemStack> stacks) {}
 
     /** The button-relative slot positions of an unadapted synthetic recipe,
      *  fit into the button's 22x22 inner area — the exact geometry used when
@@ -272,7 +270,7 @@ public final class PopupGeometry {
         for (RecipeViewerEngine.RecipeSlotLayout slot : layout.slots()) {
             if (slot.stacks().isEmpty()) continue;
             out.add(new UnadaptedSlot(1f + offX + (slot.x() - minX) * fit,
-                    1f + offY + (slot.y() - minY) * fit, slot.role(), slot.stacks()));
+                    1f + offY + (slot.y() - minY) * fit, slot.stacks()));
         }
         return out;
     }
@@ -288,7 +286,7 @@ public final class PopupGeometry {
         float scale = Math.min(24f / bg.width(), 24f / bg.height()) * BACKGROUND_FIT;
         for (RecipeViewerEngine.RecipeSlotLayout slot : layout.slots()) {
             if (slot.stacks().isEmpty()) continue;
-            out.add(new UnadaptedSlot(slot.x() * scale, slot.y() * scale, slot.role(), slot.stacks()));
+            out.add(new UnadaptedSlot(slot.x() * scale, slot.y() * scale, slot.stacks()));
         }
         return out;
     }
