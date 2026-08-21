@@ -6,6 +6,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.core.NonNullList;
 import net.minecraft.util.context.ContextMap;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.entity.player.StackedItemContents;
 import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.inventory.Slot;
@@ -66,6 +67,25 @@ public final class PartialCraftingUtil {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return ItemStack.EMPTY;
         return mc.player.getInventory().getItem(net.minecraft.world.entity.player.Inventory.SLOT_OFFHAND);
+    }
+
+    /** 玩家真实物品栏槽位列表（items + armor，不含 offhand——offhand 由
+     *  {@link #offhandStack()} 在各方法内单独计入；不含屏幕容器槽位、合成网格与
+     *  carried）。pin 与 viewer 的配方状态必须基于真实物品栏：创造模式物品栏的
+     *  容器槽位（合成网格）与 carried 可能来自创造标签（虚拟物品），会被错误地
+     *  当作可用材料。 */
+    public static NonNullList<Slot> realInventorySlots() {
+        NonNullList<Slot> slots = NonNullList.create();
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return slots;
+        Inventory inv = mc.player.getInventory();
+        for (int i = 0; i < Inventory.INVENTORY_SIZE; i++) {
+            slots.add(new Slot(inv, i, 0, 0));
+        }
+        for (int i = Inventory.SLOT_BODY_ARMOR; i < Inventory.SLOT_OFFHAND; i++) {
+            slots.add(new Slot(inv, i, 0, 0));
+        }
+        return slots;
     }
 
     /** Fill the search space's stacked contents (for craftability): the player's
