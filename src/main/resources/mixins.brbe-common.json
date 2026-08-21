@@ -21,6 +21,7 @@
     "accessors.IMEPreeditOverlayAccessor",
     "accessors.CreativeModeTabsAccessor",
     "accessors.GhostSlotsAccessor",
+    "accessors.GuiGraphicsExtractorAccessor",
     "accessors.GenericRecipePageAccessor",
     "accessors.HolderReferenceAccessor",
     "accessors.ImageButtonAccessor",
@@ -68,6 +69,7 @@
     "unlockrecipes.RecipeButtonMixin",
     "localcache.ClientRecipeBookMixin",
     "recipeviewer.AbstractContainerScreenMixin",
+    "recipeviewer.CreativeModeInventoryScreenMixin",
     "recipeviewer.AbstractRecipeBookScreenMixin",
     "recipeviewer.KeyboardHandlerMixin",
     "recipeviewer.OverlayRecipeComponentMixin",
@@ -77,7 +79,8 @@
     "recipeviewer.ServerGamePacketListenerMixin",
     "recipeviewer.ViewerOverlayTooltipMixin",
     "recipebookposition.RecipeBookComponentMixin",
-    "recipebookposition.GenericRecipeBookComponentMixin"
+    "recipebookposition.GenericRecipeBookComponentMixin",
+    "keybinding.KeyMappingSyncMixin"
   ],
   "injectors": {
     "defaultRequire": 1

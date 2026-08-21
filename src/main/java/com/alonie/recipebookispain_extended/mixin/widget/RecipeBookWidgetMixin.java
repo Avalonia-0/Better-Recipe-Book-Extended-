@@ -37,7 +37,7 @@ import java.util.List;
 
 @Mixin(RecipeBookComponent.class)
 public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
-    @Unique private static final Identifier RBIP_PAGE_BUTTONS = Identifier.fromNamespaceAndPath("brbe", "textures/rbip/recipe_book_buttons.png");
+    @Unique private static final Identifier RBIP_PAGE_BUTTONS = Identifier.fromNamespaceAndPath("zzzbrbe", "textures/rbip/recipe_book_buttons.png");
     @Unique private static final int RBIP_FALLBACK_GROUPS_PER_PAGE = 5;
     @Unique private static final int RBIP_PAGE_BUTTON_WIDTH = 14;
     @Unique private static final int RBIP_PAGE_BUTTON_HEIGHT = 13;
@@ -172,11 +172,14 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         int x = (int) click.x();
         int y = (int) click.y();
         boolean wrap = com.alonie.brbe.BetterRecipeBook.config.scrolling.scrollAround;
+        // Ctrl+左键：直接跳转首页/尾页（与配方区翻页箭头一致）。
+        boolean ctrl = com.alonie.brbe.util.ClientCompat.isControlDown();
 
         if (this.rbip$isInside(x, y, this.rbip$pageControlX, this.rbip$pageControlY, RBIP_PAGE_BUTTON_WIDTH, RBIP_PAGE_BUTTON_HEIGHT)) {
-            int prev = wrap
-                    ? (this.rbip$page - 1 + this.rbip$pageCount) % this.rbip$pageCount
-                    : Math.max(0, this.rbip$page - 1);
+            int prev = ctrl ? 0
+                    : wrap
+                            ? (this.rbip$page - 1 + this.rbip$pageCount) % this.rbip$pageCount
+                            : Math.max(0, this.rbip$page - 1);
             if (prev != this.rbip$page) {
                 this.rbip$page = prev;
                 this.rbip$applyPagination(false);
@@ -184,9 +187,10 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
                 cir.setReturnValue(true);
             }
         } else if (this.rbip$isInside(x, y, this.rbip$pageControlX + 15, this.rbip$pageControlY, RBIP_PAGE_BUTTON_WIDTH, RBIP_PAGE_BUTTON_HEIGHT)) {
-            int next = wrap
-                    ? (this.rbip$page + 1) % this.rbip$pageCount
-                    : Math.min(this.rbip$pageCount - 1, this.rbip$page + 1);
+            int next = ctrl ? this.rbip$pageCount - 1
+                    : wrap
+                            ? (this.rbip$page + 1) % this.rbip$pageCount
+                            : Math.min(this.rbip$pageCount - 1, this.rbip$page + 1);
             if (next != this.rbip$page) {
                 this.rbip$page = next;
                 this.rbip$applyPagination(false);

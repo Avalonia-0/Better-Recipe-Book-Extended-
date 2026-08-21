@@ -2,6 +2,7 @@ package com.alonie.brbe.mixins;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.interfaces.TopLayerOverlayProvider;
+import com.alonie.brbe.pinoverlay.PinOverlayManager;
 import com.alonie.brbe.smithingtable.SmithingRecipeBookComponent;
 import com.alonie.brbe.smithingtable.SmithingRecipeBookPage;
 import com.alonie.brbe.util.ClientCompat;
@@ -96,6 +97,10 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (PinOverlayManager.handleMouseClicked(event, doubleClick, this)) {
+            return true;
+        }
+
         if (this.brbe$clickTopLayerOverlay(event, doubleClick)) {
             return true;
         }
@@ -172,8 +177,8 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
 
         // This screen overrides extractRenderState without delegating to
         // AbstractContainerScreen, so the viewer overlay (hooked on the base
-        // class) must be drawn here explicitly.
-        RecipeViewerOverlay.render(guiGraphics, i, j, f);
+        // class) must be drawn here explicitly, merged with any pin overlays.
+        PinOverlayManager.render(guiGraphics, i, j, f);
     }
 
     @Redirect(method = "extractBackground", require = 0, at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/screens/inventory/CyclingSlotBackground;extractRenderState(Lnet/minecraft/world/inventory/AbstractContainerMenu;Lnet/minecraft/client/gui/GuiGraphicsExtractor;FII)V"))

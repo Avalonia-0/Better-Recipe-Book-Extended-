@@ -161,9 +161,6 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         }
     }
 
-    private static final org.slf4j.Logger LOGGER = org.slf4j.LoggerFactory.getLogger(RecipeButtonMixin.class);
-    private static boolean partialDiagLogged = false;
-
     @Inject(method = "extractWidgetRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fakeItem(Lnet/minecraft/world/item/ItemStack;II)V", shift = At.Shift.BEFORE))
     private void brbe$renderPartialOverlay(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         RecipeDisplayId currentRecipe;
@@ -174,14 +171,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         }
         if (currentRecipe == null) return;
 
-        boolean isPartial = PartialCraftingUtil.isPartiallyCraftable(this.collection, currentRecipe);
-        if (!partialDiagLogged) {
-            partialDiagLogged = true;
-            boolean hasSprite = ClientCompat.hasSpriteResource(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE);
-            LOGGER.warn("[BRBE-DIAG] RecipeButtonMixin.renderPartialOverlay: current={} isPartial={} hasSpriteResource={}",
-                    currentRecipe, isPartial, hasSprite);
-        }
-        if (isPartial) {
+        if (PartialCraftingUtil.isPartiallyCraftable(this.collection, currentRecipe)) {
             // use the red-check sprite from the compat pack when available (covers the vanilla sprite),
             // otherwise fall back to the vanilla sprite + red overlay
             if (ClientCompat.hasSpriteResource(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE)) {

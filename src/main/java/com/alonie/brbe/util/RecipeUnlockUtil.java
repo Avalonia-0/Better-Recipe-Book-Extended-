@@ -35,7 +35,7 @@ import java.util.Set;
  */
 public class RecipeUnlockUtil {
 
-    private static final Logger LOG = LogManager.getLogger("brbe-unlock");
+    private static final Logger LOG = LogManager.getLogger("zzzbrbe-unlock");
 
     /**
      * Server-authoritative unlocked displays, maintained by

@@ -27,4 +27,8 @@ public interface RecipeButtonAccessor {
 
     @Invoker("hasMultipleRecipes")
     boolean brbe$hasMultipleRecipes();
+
+    /** 多配方按钮的结果是否完全相同（原版据此叠加渲染两次图标）。 */
+    @Accessor("allRecipesHaveSameResultDisplay")
+    boolean brbe$allRecipesHaveSameResultDisplay();
 }

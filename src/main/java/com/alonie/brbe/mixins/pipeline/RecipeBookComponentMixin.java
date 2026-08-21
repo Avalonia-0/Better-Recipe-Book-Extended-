@@ -2,14 +2,18 @@ package com.alonie.brbe.mixins.pipeline;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
+import com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor;
 import com.alonie.brbe.search.SearchQuery;
 import com.alonie.brbe.util.CollectionPipeline;
+import com.alonie.brbe.util.RecipeBookPositionMemory;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
+import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
+import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
@@ -47,6 +51,10 @@ public abstract class RecipeBookComponentMixin {
 
     @Shadow protected EditBox searchBox;
 
+    @SuppressWarnings("rawtypes")
+    @Shadow
+    protected RecipeBookMenu menu;
+
     @Unique
     private String brbe$savedSearchText;
 
@@ -56,7 +64,10 @@ public abstract class RecipeBookComponentMixin {
     // ---- Search text save / restore ----
 
     /**
-     * 右键点击搜索框时清空搜索文字并刷新。
+     * 右键点击搜索框时清空搜索文字、取消聚焦并刷新。
+     *
+     * <p>刷新用非重置模式（{@code resetPageNumber=false}）：清空搜索不把页码
+     * 打回第 1 页；随后恢复该标签搜索前的浏览页码（"保存浏览记录"功能）。</p>
      */
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void brbe$rightClickClearSearch(MouseButtonEvent event, boolean doubled,
@@ -64,9 +75,31 @@ public abstract class RecipeBookComponentMixin {
         if (event.button() != 1 || searchBox == null) return;
         if (!searchBox.isMouseOver(event.x(), event.y())) return;
         searchBox.setValue("");
-        searchBox.setFocused(true);
-        ((RecipeBookComponentAccessor) this).updateCollectionsInvoker(true, false);
+        searchBox.setFocused(false);
+        ((RecipeBookComponentAccessor) this).updateCollectionsInvoker(false, false);
+        brbe$restorePageAfterSearchClear();
         cir.setReturnValue(true);
+    }
+
+    /**
+     * 搜索词清空后恢复该标签搜索前的浏览页码：页码来自记忆中的 basePage
+     * （空搜索状态下持续更新的页码），钳制到当前列表范围。
+     */
+    @Unique
+    private void brbe$restorePageAfterSearchClear() {
+        if (!BetterRecipeBook.config.saveRecipeBookPosition) return;
+        RecipeBookComponentAccessor acc = (RecipeBookComponentAccessor) this;
+        RecipeBookTabButton tab = acc.getSelectedTab();
+        if (tab == null) return;
+        int tabIndex = acc.getTabButtons().indexOf(tab);
+        if (tabIndex < 0) return;
+        RecipeBookPositionMemory.Pos pos = RecipeBookPositionMemory.load(bookKey(), tabIndex);
+        if (pos == null) return;
+        RecipeBookPage page = acc.getRecipeBookPage();
+        RecipeBookPageAccessor pageAcc = (RecipeBookPageAccessor) page;
+        int max = Math.max(0, pageAcc.getTotalPages() - 1);
+        pageAcc.setCurrentPage(Math.min(pos.basePage(), max));
+        pageAcc.updateButtonsForPageInvoker();
     }
 
     /**
@@ -179,5 +212,12 @@ public abstract class RecipeBookComponentMixin {
         // the craftable set so they survive the vanilla filter.  The pipeline
         // is responsible only for sorting, not filtering.
         page.updateCollections(list, resetPageNumber, isFiltering);
+    }
+
+    @Unique
+    private String bookKey() {
+        String type = menu != null ? menu.getRecipeBookType().name() : "";
+        String screen = menu != null ? menu.getClass().getSimpleName() : "";
+        return "vanilla:" + type + ":" + screen;
     }
 }

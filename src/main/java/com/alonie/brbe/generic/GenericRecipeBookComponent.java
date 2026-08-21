@@ -5,7 +5,9 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.api.BRBBookSettings;
 import com.alonie.brbe.compat.ItemViewCompat;
+import com.alonie.brbe.mixins.accessors.GenericRecipePageAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
+import com.alonie.brbe.util.RecipeBookPositionMemory;
 import com.alonie.brbe.interfaces.IPinningComponent;
 import com.alonie.brbe.interfaces.ISettingsButton;
 import com.alonie.brbe.search.SearchCache;
@@ -238,11 +240,16 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             return true;
         }
 
-        if (ClientCompat.matches(BetterRecipeBook.PIN_MAPPING, i, j, k) && true) {
+        if (ClientCompat.matchesPinKey(i, j, k)) {
             for (GenericRecipeButton<C, R, M> resultButton : this.recipesPage.buttons) {
                 if (resultButton.isHoveredOrFocused()) {
                     BetterRecipeBook.pinnedRecipeManager.addOrRemoveFavourite(resultButton.getCollection());
                     this.updateCollections(false);
+                    // 固定/取消固定配方：播放点击音效。
+                    if (this.minecraft != null && this.minecraft.getSoundManager() != null) {
+                        net.minecraft.client.gui.components.AbstractWidget
+                                .playButtonClickSound(this.minecraft.getSoundManager());
+                    }
                     return true;
                 }
             }
@@ -252,10 +259,10 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         // Key matching delegates to each viewer's own configured key bindings.
         if (ItemViewCompat.isLoaded()) {
             // ── 1. Recipe buttons ──────────────────────────────────────
-            if (this.recipesPage.hoveredButton != null) {
-                R hoveredRecipe = this.recipesPage.hoveredButton.getCurrentDisplayedRecipe();
+            if (this.recipesPage.hoveredButton != null && this.recipesPage.hoveredRecipe != null) {
+                R hoveredRecipe = this.recipesPage.hoveredRecipe;
                 if (hoveredRecipe != null) {
-                    ItemStack hoveredStack = hoveredRecipe.getResult(registryAccess, this.recipesPage.hoveredButton.category);
+                    ItemStack hoveredStack = hoveredRecipe.getResult(registryAccess, this.recipesPage.hoveredCategory);
                     if (ItemViewCompat.matchesShowRecipe(i, j)) {
                         return ItemViewCompat.openRecipeView(hoveredStack);
                     }
@@ -319,9 +326,48 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         String string = this.searchBox.getValue().toLowerCase(Locale.ROOT);
         this.pirateSpeechForThePeople(string);
         if (!string.equals(this.lastSearch)) {
+            // 首次输入搜索词（空 → 非空）：回到第 1 页，从结果开头看
+            boolean searchStarted = !string.isEmpty() && this.lastSearch.isEmpty();
+            // 清空搜索（非空 → 空）：恢复搜索前浏览的页码
+            boolean searchCleared = string.isEmpty() && !this.lastSearch.isEmpty();
             this.updateCollections(false);
             this.lastSearch = string;
+            if (BetterRecipeBook.config.saveRecipeBookPosition) {
+                if (searchCleared) {
+                    this.restoreBrowsingPageAfterSearchClear();
+                } else if (searchStarted) {
+                    this.resetPageToFirst();
+                }
+            }
         }
+    }
+
+    /**
+     * 首次输入搜索词后回到第 1 页：搜索从结果开头看，
+     * 搜索前的位置由 basePage 记忆，清空搜索时再恢复。
+     */
+    private void resetPageToFirst() {
+        if (this.recipesPage == null) return;
+        ((GenericRecipePageAccessor) this.recipesPage).setCurrentPage(0);
+        this.recipesPage.resetVisualPosition();
+        this.recipesPage.updateButtonsForPage();
+    }
+
+    /**
+     * 搜索词清空后恢复清空前的浏览页码：页码来自该标签记忆中的 basePage
+     * （空搜索状态下持续更新的页码），钳制到当前列表范围。
+     */
+    private void restoreBrowsingPageAfterSearchClear() {
+        if (this.selectedTab == null || this.recipesPage == null) return;
+        int tabIndex = this.tabButtons.indexOf(this.selectedTab);
+        if (tabIndex < 0) return;
+        RecipeBookPositionMemory.Pos pos = RecipeBookPositionMemory.load(
+                this.getRecipeBookType().Identifier.toString(), tabIndex);
+        if (pos == null) return;
+        int max = Math.max(0, ((GenericRecipePageAccessor) this.recipesPage).getTotalPages() - 1);
+        ((GenericRecipePageAccessor) this.recipesPage).setCurrentPage(Math.min(pos.basePage(), max));
+        this.recipesPage.resetVisualPosition();
+        this.recipesPage.updateButtonsForPage();
     }
 
     /**
@@ -465,9 +511,15 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         }
 
         if (button == 1 && this.searchBox.isMouseOver(mouseX, mouseY)) {
+            boolean hadSearch = !this.searchBox.getValue().isEmpty();
             searchBox.setValue("");
-            searchBox.setFocused(true);
-            this.updateCollections(true);
+            searchBox.setFocused(false);
+            // 非重置刷新：清空搜索不把页码打回第 1 页（与输入搜索时保留页码一致）
+            this.updateCollections(false);
+            // 搜索词清空：恢复清空前的浏览页码（"保存浏览记录"功能）
+            if (hadSearch && BetterRecipeBook.config.saveRecipeBookPosition) {
+                this.restoreBrowsingPageAfterSearchClear();
+            }
             return true;
         }
 

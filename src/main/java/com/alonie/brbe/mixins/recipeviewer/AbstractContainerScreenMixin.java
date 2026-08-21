@@ -2,6 +2,7 @@ package com.alonie.brbe.mixins.recipeviewer;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.cache.RecipeViewerIndex;
+import com.alonie.brbe.pinoverlay.PinOverlayManager;
 import com.alonie.brbe.util.RecipeViewerOverlay;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -38,22 +39,57 @@ public abstract class AbstractContainerScreenMixin {
     private void brbe$viewerMouseClicked(MouseButtonEvent event, boolean doubleClick,
                                          CallbackInfoReturnable<Boolean> cir) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+        if (PinOverlayManager.handleMouseClicked(event, doubleClick, screen)) {
+            cir.setReturnValue(true);
+            return;
+        }
         if (RecipeViewerOverlay.mouseClicked(event, doubleClick, screen)) {
             cir.setReturnValue(true);
         }
+        // Pins are passive windows: without the query viewer a click outside a
+        // pin falls through to the container (item movement works normally).
     }
 
     @Inject(method = "extractRenderState", at = @At("RETURN"))
     private void brbe$viewerRender(GuiGraphicsExtractor gui, int mouseX, int mouseY,
                                    float delta, CallbackInfo ci) {
-        RecipeViewerOverlay.render(gui, mouseX, mouseY, delta);
+        // The creative inventory draws its own tab strip AFTER super, so the
+        // viewer would sit under the tabs; CreativeModeInventoryScreenMixin
+        // re-hosts the render at the creative method's RETURN instead.
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+        if (screen instanceof net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen) {
+            return;
+        }
+        PinOverlayManager.render(gui, mouseX, mouseY, delta);
     }
 
-    /** Close the viewer when its host screen is closed (setScreen away / E). */
+    /** Close the viewer when its host screen closes.  Pins outlive the screen:
+     *  they hide with it and reappear on the next container screen. */
     @Inject(method = "removed", at = @At("HEAD"))
     private void brbe$viewerOnScreenRemoved(CallbackInfo ci) {
         AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
         RecipeViewerOverlay.onScreenClosed(screen);
+    }
+
+    /** Drag a pressed pin overlay (Screen has no mouseDragged; every container
+     *  screen inherits this one from AbstractContainerScreen). */
+    @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
+    private void brbe$pinMouseDragged(MouseButtonEvent event, double dx, double dy,
+                                      CallbackInfoReturnable<Boolean> cir) {
+        if (PinOverlayManager.handleMouseDragged(event, dx, dy)) {
+            cir.setReturnValue(true);
+        }
+    }
+
+    /** Release ends a pin press: a release that never moved is a click that
+     *  inherits the recipe button's click (placing the recipe); otherwise the
+     *  drag ends. */
+    @Inject(method = "mouseReleased", at = @At("HEAD"), cancellable = true)
+    private void brbe$pinMouseReleased(MouseButtonEvent event, CallbackInfoReturnable<Boolean> cir) {
+        AbstractContainerScreen<?> screen = (AbstractContainerScreen<?>) (Object) this;
+        if (PinOverlayManager.handleMouseReleased(event, screen)) {
+            cir.setReturnValue(true);
+        }
     }
 
     /** Scroll over the paged viewer overlay flips its page. */
@@ -67,10 +103,9 @@ public abstract class AbstractContainerScreenMixin {
     }
 
     /**
-     * Suppresses the container-slot item tooltip while a BRBE R/U viewer overlay is
-     * open.  The viewer is a transient recipe browser; showing inventory item
-     * tooltips underneath it is distracting, so they are hidden until the viewer
-     * closes (ESC or an outside-click dismisses it, clearing viewerActive).
+     * Suppresses the container-slot item tooltip while a BRBE R/U viewer overlay
+     * is open.  Pins alone do not suppress it — they are passive windows and
+     * the inventory tooltips underneath them show normally.
      */
     @Inject(method = "extractTooltip", at = @At("HEAD"), cancellable = true)
     private void brbe$suppressSlotTooltipWhileViewer(GuiGraphicsExtractor gui, int mouseX, int mouseY,

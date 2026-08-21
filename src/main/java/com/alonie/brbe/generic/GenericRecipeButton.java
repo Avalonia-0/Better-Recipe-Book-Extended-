@@ -101,8 +101,12 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         if (list.isEmpty()) {
             return null;
         }
-
-        return list.get(currentIndex);
+        if (this.currentIndex >= list.size()) {
+            // 动画挤压路径（renderSquashed）可能在 showCollection 换集合后仍带着上一个
+            // 集合的 currentIndex 直接取数；按当前列表长度取模兜底，避免越界崩溃。
+            this.currentIndex = this.currentIndex % list.size();
+        }
+        return list.get(this.currentIndex);
     }
 
     /**
@@ -218,8 +222,15 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
     }
 
     public List<Component> getTooltipText() {
+        return getTooltipText(getCurrentDisplayedRecipe(), this.category);
+    }
+
+    /**
+     * 由指定配方与类别构建 tooltip。动画中两页共用按钮、内容会被下一页覆盖，
+     * 悬停瞬间须捕获配方后调用本重载，避免读到错页内容。
+     */
+    public List<Component> getTooltipText(R recipe, BRBBookCategories.Category category) {
         List<Component> list = Lists.newArrayList();
-        R recipe = getCurrentDisplayedRecipe();
         if (recipe == null) {
             return list;
         }

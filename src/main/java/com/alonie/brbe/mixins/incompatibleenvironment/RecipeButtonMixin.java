@@ -42,7 +42,7 @@ public abstract class RecipeButtonMixin {
 
         if (IncompatibleCraftingUtil.checkIncompatible(this.collection, currentRecipe)) {
             tooltip.add(Component.empty());
-            tooltip.add(Component.translatable("brbe.gui.environmentIncompatible")
+            tooltip.add(Component.translatable("zzzbrbe.gui.environmentIncompatible")
                     .withStyle(ChatFormatting.RED));
         }
     }

@@ -23,19 +23,37 @@ public final class JsonPinStore implements PinStore {
     private static final Gson GSON = new Gson();
     private static final Type SET_TYPE = new TypeToken<HashSet<Identifier>>() {}.getType();
 
+    /** New home (same directory level as the query pins / tab pins). */
     private final Path path;
+    /** Legacy pre-rename location ({@code zzzbrbe.pins}), read once for migration. */
+    private final Path legacyPath;
 
     public JsonPinStore(Path gameDir) {
-        this.path = gameDir.resolve("brbe.pins");
+        this.path = gameDir.resolve("zzzbrbe.pins.json");
+        this.legacyPath = gameDir.resolve("zzzbrbe.pins");
     }
 
     @Override
     public Set<Identifier> load() {
-        if (!Files.exists(path)) {
-            return new HashSet<>();
+        if (Files.exists(path)) {
+            return readFrom(path);
         }
+        if (Files.exists(legacyPath)) {
+            // Migration: the recipe-book pins moved to zzzbrbe.pins.json to sit
+            // next to the query/tab pin files; read the legacy file and write
+            // the new one (async) so the old file stops being authoritative.
+            Set<Identifier> legacy = readFrom(legacyPath);
+            if (!legacy.isEmpty()) {
+                save(legacy);
+            }
+            return legacy;
+        }
+        return new HashSet<>();
+    }
+
+    private static Set<Identifier> readFrom(Path file) {
         try {
-            String json = Files.readString(path, StandardCharsets.UTF_8);
+            String json = Files.readString(file, StandardCharsets.UTF_8);
             Set<Identifier> result = GSON.fromJson(json, SET_TYPE);
             return result != null ? result : new HashSet<>();
         } catch (IOException e) {

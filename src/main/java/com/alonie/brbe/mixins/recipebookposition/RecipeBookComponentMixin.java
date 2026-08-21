@@ -6,6 +6,7 @@ import com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor;
 import com.alonie.recipebookispain_extended.access.RecipeBookScrollAccess;
 import com.alonie.brbe.util.RecipeBookPositionMemory;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
@@ -23,6 +24,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * to the vanilla {@link RecipeBookComponent} (crafting table / furnace / smoker /
  * blast furnace screens).  Keyed by the container's recipe book type + menu
  * class so each screen kind keeps its own position.
+ *
+ * <p>每个标签页单独保存自己的页码（{@link RecipeBookPositionMemory} 以标签为子键）：
+ * 切换到其他标签再切回来，会恢复该标签上一次的页码；重新打开配方书则恢复最近
+ * 激活的标签及其页码。搜索词保持全局共享，切换标签不会改动搜索框内容。</p>
  */
 @Mixin(RecipeBookComponent.class)
 public abstract class RecipeBookComponentMixin {
@@ -30,6 +35,9 @@ public abstract class RecipeBookComponentMixin {
     @SuppressWarnings("rawtypes")
     @Shadow
     protected RecipeBookMenu menu;
+
+    @Shadow
+    private String lastSearch;
 
     /** Remember the current tab + page + search whenever the book is visible. */
     @Inject(method = "extractRenderState", at = @At("TAIL"))
@@ -56,13 +64,15 @@ public abstract class RecipeBookComponentMixin {
     private void brbe$restorePosition(CallbackInfo ci) {
         RecipeBookComponent<?> self = (RecipeBookComponent<?>) (Object) this;
         if (!BetterRecipeBook.config.saveRecipeBookPosition) return;
-        RecipeBookPositionMemory.Pos pos = RecipeBookPositionMemory.load(bookKey());
+        int tabIndex = RecipeBookPositionMemory.activeTabIndex(bookKey());
+        if (tabIndex < 0) return;
+        RecipeBookPositionMemory.Pos pos = RecipeBookPositionMemory.load(bookKey(), tabIndex);
         if (pos == null) return;
         RecipeBookComponentAccessor acc = (RecipeBookComponentAccessor) self;
 
         java.util.List<RecipeBookTabButton> tabs = acc.getTabButtons();
         if (tabs.isEmpty()) return;
-        int index = Math.min(Math.max(pos.tabIndex(), 0), tabs.size() - 1);
+        int index = Math.min(Math.max(tabIndex, 0), tabs.size() - 1);
         RecipeBookTabButton target = tabs.get(index);
         if (target == null) return;
 
@@ -93,6 +103,83 @@ public abstract class RecipeBookComponentMixin {
         int max = Math.max(0, pageAcc.getTotalPages() - 1);
         pageAcc.setCurrentPage(Math.min(pos.page(), max));
         pageAcc.updateButtonsForPageInvoker();
+    }
+
+    /**
+     * 切换标签时恢复目标标签自己记住的页码（及 RBIP 创造标签滚动页）。
+     * 注入 {@code onTabButtonPress} 尾部：此时 {@code updateCollections(true)}
+     * 已用新标签重建列表，totalPages 已定稿，直接钳制并设置页码即可。
+     */
+    @Inject(method = "onTabButtonPress", at = @At("TAIL"))
+    private void brbe$restoreTabPosition(Button button, CallbackInfo ci) {
+        RecipeBookComponent<?> self = (RecipeBookComponent<?>) (Object) this;
+        if (!BetterRecipeBook.config.saveRecipeBookPosition) return;
+        if (button == null) return;
+        RecipeBookComponentAccessor acc = (RecipeBookComponentAccessor) self;
+        int tabIndex = acc.getTabButtons().indexOf(button);
+        if (tabIndex < 0) return;
+        RecipeBookPositionMemory.Pos pos = RecipeBookPositionMemory.load(bookKey(), tabIndex);
+        if (pos == null) return;
+        // RBIP creative-tab paging: restore the remembered tab page too.
+        if (self instanceof RecipeBookScrollAccess sa && pos.tabPage() >= 0) {
+            sa.rbip$setPage(pos.tabPage());
+        }
+        RecipeBookPage page = acc.getRecipeBookPage();
+        RecipeBookPageAccessor pageAcc = (RecipeBookPageAccessor) page;
+        int max = Math.max(0, pageAcc.getTotalPages() - 1);
+        pageAcc.setCurrentPage(Math.min(pos.page(), max));
+        pageAcc.updateButtonsForPageInvoker();
+    }
+
+    /**
+     * 搜索栏变化时的页码策略（"保存浏览记录"功能）：
+     * <ul>
+     *   <li><b>首次输入搜索词</b>（空 → 非空）：回到第 1 页，从结果开头看；</li>
+     *   <li><b>清空搜索</b>（非空 → 空）：恢复搜索前浏览的页码（basePage）；</li>
+     *   <li>搜索词继续修改（非空 → 非空）：保持原版行为，不干预。</li>
+     * </ul>
+     *
+     * <p>HEAD 捕获 {@code lastSearch}（上一次处理的搜索词）而非搜索框当前值：
+     * 退格键逐字删除时，最后一次按键进入方法时搜索框已是空值，只有
+     * {@code lastSearch} 还保留着删除前的词，能可靠判定"刚被清空"
+     * （同帧内输入+清空同样覆盖）。</p>
+     */
+    @Unique
+    private String brbe$lastSearchAtHead;
+
+    @Inject(method = "checkSearchStringUpdate", at = @At("HEAD"))
+    private void brbe$captureSearchText(CallbackInfo ci) {
+        this.brbe$lastSearchAtHead = this.lastSearch;
+    }
+
+    @Inject(method = "checkSearchStringUpdate", at = @At("TAIL"))
+    private void brbe$handleSearchChange(CallbackInfo ci) {
+        RecipeBookComponent<?> self = (RecipeBookComponent<?>) (Object) this;
+        if (!BetterRecipeBook.config.saveRecipeBookPosition) return;
+        RecipeBookComponentAccessor acc = (RecipeBookComponentAccessor) self;
+        String now = acc.getSearchBox() != null ? acc.getSearchBox().getValue() : "";
+        String old = this.brbe$lastSearchAtHead;
+        if (now.isEmpty()) {
+            // 清空搜索：恢复搜索前浏览的页码（仅当搜索词确实从非空变为空）
+            if (old == null || old.isEmpty()) return;
+            RecipeBookTabButton tab = acc.getSelectedTab();
+            if (tab == null) return;
+            int tabIndex = acc.getTabButtons().indexOf(tab);
+            if (tabIndex < 0) return;
+            RecipeBookPositionMemory.Pos pos = RecipeBookPositionMemory.load(bookKey(), tabIndex);
+            if (pos == null) return;
+            RecipeBookPage page = acc.getRecipeBookPage();
+            RecipeBookPageAccessor pageAcc = (RecipeBookPageAccessor) page;
+            int max = Math.max(0, pageAcc.getTotalPages() - 1);
+            pageAcc.setCurrentPage(Math.min(pos.basePage(), max));
+            pageAcc.updateButtonsForPageInvoker();
+        } else if (old == null || old.isEmpty()) {
+            // 首次输入搜索词：回到第 1 页，从结果开头看
+            RecipeBookPage page = acc.getRecipeBookPage();
+            RecipeBookPageAccessor pageAcc = (RecipeBookPageAccessor) page;
+            pageAcc.setCurrentPage(0);
+            pageAcc.updateButtonsForPageInvoker();
+        }
     }
 
     @Unique

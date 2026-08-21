@@ -6,6 +6,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.core.NonNullList;
 import net.minecraft.util.context.ContextMap;
+import net.minecraft.world.entity.player.StackedItemContents;
+import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -57,6 +59,39 @@ public final class PartialCraftingUtil {
         tagger.beginFiltering(active);
     }
 
+    /** The player's offhand stack, or EMPTY.  The offhand counts as part of the
+     *  regular search space (vanilla {@code Inventory.fillStackedContents} only
+     *  covers the main item list, and container menus have no offhand slot). */
+    public static ItemStack offhandStack() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return ItemStack.EMPTY;
+        return mc.player.getInventory().getItem(net.minecraft.world.entity.player.Inventory.SLOT_OFFHAND);
+    }
+
+    /** Fill the search space's stacked contents (for craftability): the player's
+     *  inventory plus the offhand slot plus the open crafting menu's craft grid —
+     *  mirroring the recipe book's own search space. */
+    public static void fillSearchSpaceStackedContents(StackedItemContents stacked) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null) return;
+        mc.player.getInventory().fillStackedContents(stacked);
+        ItemStack offhand = offhandStack();
+        if (!offhand.isEmpty()) {
+            stacked.accountSimpleStack(offhand);
+        }
+        if (mc.player.containerMenu instanceof RecipeBookMenu rbm) {
+            rbm.fillCraftSlotsStackedContents(stacked);
+        }
+    }
+
+    /** Clear the collection's "checked in the current generation" mark so the
+     *  next {@link #markPartialMaterials} call re-evaluates it.  Used by the
+     *  pin overlays' live state refresh; every other collection is untouched. */
+    public static void forceReevaluate(RecipeCollection collection) {
+        if (collection == null) return;
+        tagger.clearAll(collection);
+    }
+
     public static boolean wasCheckedForPartialMaterials(RecipeCollection collection) {
         if (!enabled()) return false;
         return tagger.wasChecked(collection);
@@ -86,6 +121,10 @@ public final class PartialCraftingUtil {
         if (carried != null && !carried.isEmpty()) {
             counts.merge(carried.getItem(), carried.getCount(), Integer::sum);
         }
+        ItemStack offhand = offhandStack();
+        if (!offhand.isEmpty()) {
+            counts.merge(offhand.getItem(), offhand.getCount(), Integer::sum);
+        }
         markPartialMaterials(collection, inventoryItems, counts, markItems);
         if (hasPartialMaterials(collection)) {
             RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
@@ -106,6 +145,7 @@ public final class PartialCraftingUtil {
     /**
      * 包含鼠标拿起物品（carried）的哈希。拿起/放下物品会改变哈希，
      * 从而触发配方书重新标记（否则 cache 跳过导致标记不更新）。
+     * 副手槽位同样纳入：副手变化也触发重新标记。
      */
     public static long slotHash(NonNullList<Slot> slots, ItemStack carried) {
         long h = 1;
@@ -119,6 +159,11 @@ public final class PartialCraftingUtil {
         if (carried != null && !carried.isEmpty()) {
             h = 31 * h + (long)carried.getItem().hashCode();
             h = 31 * h + carried.getCount();
+        }
+        ItemStack offhand = offhandStack();
+        if (!offhand.isEmpty()) {
+            h = 31 * h + (long)offhand.getItem().hashCode();
+            h = 31 * h + offhand.getCount();
         }
         return h;
     }
@@ -139,7 +184,7 @@ public final class PartialCraftingUtil {
     }
 
     /**
-     * 包含鼠标拿起物品（carried）的库存类型集。
+     * 包含鼠标拿起物品（carried）的库存类型集。副手槽位也计入常规检索空间。
      */
     public static java.util.Set<Item> hashInventory(NonNullList<Slot> slots, int excludeIndex, ItemStack carried) {
         java.util.Set<Item> inventoryItems = new java.util.HashSet<>();
@@ -152,6 +197,10 @@ public final class PartialCraftingUtil {
         }
         if (carried != null && !carried.isEmpty()) {
             inventoryItems.add(carried.getItem());
+        }
+        ItemStack offhand = offhandStack();
+        if (!offhand.isEmpty()) {
+            inventoryItems.add(offhand.getItem());
         }
         return inventoryItems;
     }
@@ -179,6 +228,17 @@ public final class PartialCraftingUtil {
     public static boolean markPartialMaterials(RecipeCollection collection, java.util.Set<Item> inventoryItems,
                                                java.util.Map<Item, Integer> inventoryCounts,
                                                java.util.Set<Item> matchItems) {
+        return markPartialMaterials(collection, inventoryItems, inventoryCounts, matchItems, false);
+    }
+
+    /**
+     * {@code twoByTwoInventory}：当前是否为 2×2 生存背包网格。仅当为 true 且
+     * showAllRecipesInSurvival 关闭时才跳过 3×3 配方；工作台（3×3 网格）不受影响。
+     */
+    public static boolean markPartialMaterials(RecipeCollection collection, java.util.Set<Item> inventoryItems,
+                                               java.util.Map<Item, Integer> inventoryCounts,
+                                               java.util.Set<Item> matchItems,
+                                               boolean twoByTwoInventory) {
         if (!enabled()) return false;
         if (tagger.wasChecked(collection)) return tagger.hasAnyTag(collection);
         tagger.markAsChecked(collection);
@@ -190,9 +250,13 @@ public final class PartialCraftingUtil {
             }
 
             // 3×3 配方：2×2 生存网格放不下。
-            // 材料齐全（类型+数量都够）→ 不标 partial（网格问题，由 incompatible 警告处理）。
-            // 材料不足（缺类型或缺数量）→ 标 partial（确实缺材料）。
+            // showAllRecipesInSurvival 关闭时，仅 2×2 背包网格不显示 3×3 配方——
+            // 不标 partial，否则会被注入 craftable 而残留显示（出现空气占位按钮）；
+            // 工作台（3×3 网格）的 3×3 残缺配方照常标记。
             if (needsLargerGrid(recipe.display())) {
+                if (twoByTwoInventory && !BetterRecipeBook.config.showAllRecipesInSurvival) continue;
+                // 材料齐全（类型+数量都够）→ 不标 partial（网格问题，由 incompatible 警告处理）。
+                // 材料不足（缺类型或缺数量）→ 标 partial（确实缺材料）。
                 boolean complete = inventoryCounts != null
                         ? hasAllIngredients(recipe, inventoryItems, inventoryCounts)
                         : hasAllIngredients(recipe, inventoryItems);
@@ -420,10 +484,23 @@ public final class PartialCraftingUtil {
      */
     public static void elevateFullyCraftableWithCarried(RecipeCollection collection, java.util.Set<Item> inventoryItems,
                                                         java.util.Map<Item, Integer> inventoryCounts) {
+        elevateFullyCraftableWithCarried(collection, inventoryItems, inventoryCounts, false);
+    }
+
+    /**
+     * {@code twoByTwoInventory}：当前是否为 2×2 生存背包网格。仅当为 true 且
+     * showAllRecipesInSurvival 关闭时才跳过 3×3 配方的提升；工作台（3×3 网格）不受影响。
+     */
+    public static void elevateFullyCraftableWithCarried(RecipeCollection collection, java.util.Set<Item> inventoryItems,
+                                                        java.util.Map<Item, Integer> inventoryCounts,
+                                                        boolean twoByTwoInventory) {
         RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
         for (RecipeDisplayEntry entry : collection.getRecipes()) {
             RecipeDisplayId id = entry.id();
             if (collection.isCraftable(id)) continue;
+            // showAllRecipesInSurvival 关闭时，仅 2×2 背包网格不提升 3×3 配方；
+            // 工作台（3×3 网格）的 3×3 配方照常提升。
+            if (twoByTwoInventory && !BetterRecipeBook.config.showAllRecipesInSurvival && needsLargerGrid(entry.display())) continue;
             boolean complete = inventoryCounts != null
                     ? hasAllIngredients(entry, inventoryItems, inventoryCounts)
                     : hasAllIngredients(entry, inventoryItems);

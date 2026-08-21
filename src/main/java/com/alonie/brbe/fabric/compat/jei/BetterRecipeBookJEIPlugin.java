@@ -2,20 +2,28 @@ package com.alonie.brbe.fabric.compat.jei;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.compat.jei.JeiCompat;
+import com.alonie.brbe.jei.plugins.engine.JeiRuntimeBridge;
+import com.alonie.brbe.pinoverlay.PinOverlayManager;
+import com.alonie.brbe.util.RecipeViewerOverlay;
 import com.mojang.blaze3d.platform.InputConstants;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.VanillaTypes;
+import mezz.jei.api.gui.handlers.IGlobalGuiHandler;
 import mezz.jei.api.ingredients.ITypedIngredient;
 import mezz.jei.api.recipe.IFocus;
 import mezz.jei.api.recipe.IFocusFactory;
 import mezz.jei.api.recipe.RecipeIngredientRole;
+import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.runtime.IJeiKeyMappings;
 import mezz.jei.api.runtime.IJeiRuntime;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,6 +43,11 @@ public final class BetterRecipeBookJEIPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
+        // Expose JEI's recipe manager so the synthetic recipe renderer can
+        // delegate the full JEI recipe UI to JEI itself.
+        JeiRuntimeBridge.set(jeiRuntime.getRecipeManager());
+        BetterRecipeBook.LOGGER.info("[BRBE-JEI] JEI runtime available; delegating synthetic recipe rendering to JEI");
+
         IJeiKeyMappings km = jeiRuntime.getKeyMappings();
 
         JeiCompat.setHandler(new JeiCompat.JeiHandler() {
@@ -64,7 +77,28 @@ public final class BetterRecipeBookJEIPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeUnavailable() {
+        JeiRuntimeBridge.clear();
         JeiCompat.setHandler(null);
+    }
+
+    @Override
+    public void registerGuiHandlers(IGuiHandlerRegistration registration) {
+        // When the BRBE R/U viewer is open, tell JEI to keep its ingredient
+        // list and recipe area out of the viewer's on-screen region.
+        registration.addGlobalGuiHandler(new IGlobalGuiHandler() {
+            @Override
+            public Collection<Rect2i> getGuiExtraAreas() {
+                List<Rect2i> areas = new ArrayList<>();
+                Rect2i area = RecipeViewerOverlay.exclusionArea();
+                if (area != null) areas.add(area);
+                // The open hover popup's region (its hit volume = texture
+                // bounds) keeps JEI out of the exact rect the popup owns.
+                Rect2i popup = RecipeViewerOverlay.popupExclusionArea();
+                if (popup != null) areas.add(popup);
+                areas.addAll(PinOverlayManager.exclusionAreas());
+                return areas;
+            }
+        });
     }
 
     private static boolean open(IJeiRuntime jeiRuntime, RecipeIngredientRole role, ItemStack stack) {

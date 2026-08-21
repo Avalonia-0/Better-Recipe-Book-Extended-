@@ -170,8 +170,8 @@ public final class RecipeViewerIndex {
 
     /** Built-in workstation registry: vanilla stations only.  Mod stations
      *  (e.g. the Farmer's Delight skillet) are supplied by the companion
-     *  {@code brbe-jei-plugins} mod scanning each mod's JEI plugin, or appended
-     *  manually via {@code config/brbe_workstations.json} (see
+     *  {@code zzzbrbe-jei-plugins} mod scanning each mod's JEI plugin, or appended
+     *  manually via {@code config/zzzbrbe_workstations.json} (see
      *  {@link #workstations()}).  Recognition is self-contained — no runtime
      *  JEI data. */
     private static final List<Workstation> BUILTIN_WORKSTATIONS = List.of(
@@ -192,8 +192,8 @@ public final class RecipeViewerIndex {
                     List.of(Identifier.withDefaultNamespace("smithing_table"))));
 
     /** Effective registry: built-ins plus any stations appended from
-     *  {@code config/brbe_workstations.json} or registered programmatically
-     *  (the {@code brbe-jei-plugins} companion mod).  Built lazily on first
+     *  {@code config/zzzbrbe_workstations.json} or registered programmatically
+     *  (the {@code zzzbrbe-jei-plugins} companion mod).  Built lazily on first
      *  query so the config file is read only after the client is up. */
     private static volatile List<Workstation> WORKSTATIONS;
 
@@ -228,7 +228,7 @@ public final class RecipeViewerIndex {
         return List.copyOf(out);
     }
 
-    /** JSON DTO for {@code config/brbe_workstations.json}. */
+    /** JSON DTO for {@code config/zzzbrbe_workstations.json}. */
     private static final class WorkstationFile {
         List<StationEntry> workstations = List.of();
     }
@@ -241,7 +241,7 @@ public final class RecipeViewerIndex {
     }
 
     /** Workstations appended by the modpack author, from
-     *  {@code config/brbe_workstations.json}; empty when absent/invalid.
+     *  {@code config/zzzbrbe_workstations.json}; empty when absent/invalid.
      *  Format:
      *  <pre>
      *  { "workstations": [ {
@@ -258,7 +258,7 @@ public final class RecipeViewerIndex {
             Minecraft mc = Minecraft.getInstance();
             if (mc == null || mc.gameDirectory == null) return List.of();
             Path file = mc.gameDirectory.toPath().resolve("config")
-                    .resolve("brbe_workstations.json");
+                    .resolve("zzzbrbe_workstations.json");
             if (!Files.exists(file)) return List.of();
             String json = Files.readString(file, StandardCharsets.UTF_8);
             WorkstationFile cfg = new Gson().fromJson(json, WorkstationFile.class);
@@ -270,7 +270,7 @@ public final class RecipeViewerIndex {
             }
             return out;
         } catch (Exception e) {
-            BetterRecipeBook.LOGGER.warn("[BRBE] Failed to read config/brbe_workstations.json: {}", e.toString());
+            BetterRecipeBook.LOGGER.warn("[BRBE] Failed to read config/zzzbrbe_workstations.json: {}", e.toString());
             return List.of();
         }
     }
@@ -281,7 +281,7 @@ public final class RecipeViewerIndex {
         try {
             family = Family.valueOf(entry.family == null ? "" : entry.family.toUpperCase());
         } catch (IllegalArgumentException e) {
-            BetterRecipeBook.LOGGER.warn("[BRBE] brbe_workstations.json: unknown family '{}'", entry.family);
+            BetterRecipeBook.LOGGER.warn("[BRBE] zzzbrbe_workstations.json: unknown family '{}'", entry.family);
             return null;
         }
         List<String> prefixes = new ArrayList<>();
@@ -300,19 +300,19 @@ public final class RecipeViewerIndex {
                             : Identifier.withDefaultNamespace(parts[0]);
                     items.add(id);
                 } catch (Exception e) {
-                    BetterRecipeBook.LOGGER.warn("[BRBE] brbe_workstations.json: bad item id '{}'", item);
+                    BetterRecipeBook.LOGGER.warn("[BRBE] zzzbrbe_workstations.json: bad item id '{}'", item);
                 }
             }
         }
         if (prefixes.isEmpty() || items.isEmpty()) {
-            BetterRecipeBook.LOGGER.warn("[BRBE] brbe_workstations.json: entry needs non-empty categoryPrefixes and items, skipping");
+            BetterRecipeBook.LOGGER.warn("[BRBE] zzzbrbe_workstations.json: entry needs non-empty categoryPrefixes and items, skipping");
             return null;
         }
         return new Workstation(family, entry.typeId == null ? "" : entry.typeId, prefixes, items);
     }
 
     /** Public station descriptor accepted by {@link #registerExternalWorkstations},
-     *  used by the companion {@code brbe-jei-plugins} mod to inject stations
+     *  used by the companion {@code zzzbrbe-jei-plugins} mod to inject stations
      *  collected from mod JEI plugins.  Mirrors the config file format:
      *  {@code family} is one of FURNACE/CRAFTING/STONECUTTING/SMITHING
      *  (case-insensitive); {@code items} entries may omit the namespace. */

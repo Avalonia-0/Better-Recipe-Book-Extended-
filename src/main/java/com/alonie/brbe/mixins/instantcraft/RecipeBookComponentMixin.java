@@ -30,8 +30,8 @@ public abstract class RecipeBookComponentMixin {
     @Shadow public abstract boolean isVisible();
 
     @Unique protected StateSwitchingButton brbe$instantCraftButton;
-    @Unique private static final Component TOGGLE_INSTANT_CRAFT_ON_TEXT = Component.translatable("brbe.gui.instantCraft.on");
-    @Unique private static final Component TOGGLE_INSTANT_CRAFT_OFF_TEXT = Component.translatable("brbe.gui.instantCraft.off");
+    @Unique private static final Component TOGGLE_INSTANT_CRAFT_ON_TEXT = Component.translatable("zzzbrbe.gui.instantCraft.on");
+    @Unique private static final Component TOGGLE_INSTANT_CRAFT_OFF_TEXT = Component.translatable("zzzbrbe.gui.instantCraft.off");
 
     @Unique
     private boolean brbe$shouldSkip() {

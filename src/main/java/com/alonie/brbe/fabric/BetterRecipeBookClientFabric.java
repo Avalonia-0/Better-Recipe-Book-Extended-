@@ -3,11 +3,14 @@ package com.alonie.brbe.fabric;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.fabric.PlatformPotionUtilImpl;
 import com.alonie.brbe.compat.OverlayHider;
+import com.alonie.brbe.config.KeybindingGuiRegistrar;
+import com.alonie.brbe.config.PinyinSearchGuiRegistrar;
 import com.alonie.brbe.impl.hud.JeiHudHider;
 import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -17,7 +20,6 @@ import net.fabricmc.fabric.api.resource.v1.pack.PackActivationType;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.resources.Identifier;
 
@@ -30,10 +32,29 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        // Register key mappings (previously in common via Architectury)
+        // Register key mappings (previously in common via Architectury).
+        // 固定键与查询键的原版绑定与 Cloth Config 键位条目双向同步
+        // （KeyMapping.setKey 写回配置，Cloth 保存时写回 KeyMapping）。
         KeyMappingHelper.registerKeyMapping(BetterRecipeBook.PIN_MAPPING);
         KeyMappingHelper.registerKeyMapping(BetterRecipeBook.RECIPE_VIEW_MAPPING);
         KeyMappingHelper.registerKeyMapping(BetterRecipeBook.USAGE_VIEW_MAPPING);
+
+        // 拼音搜索：中文语言（zh_*）默认开启（用户仍可手动关闭）；
+        // 非中文语言强制关闭（配置界面同时隐藏该选项，见 PinyinSearchGuiRegistrar）。
+        // 注：entrypoint 阶段 Minecraft.options 尚为 null，须延迟到 CLIENT_STARTED
+        // （客户端初始化完成、仅触发一次）。
+        ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+            if (BetterRecipeBook.config == null || BetterRecipeBook.configHolder == null) return;
+            String languageCode = client.options.languageCode;
+            boolean chinese = languageCode != null && languageCode.startsWith("zh");
+            if (chinese && !BetterRecipeBook.config.pinyinSearch) {
+                BetterRecipeBook.config.pinyinSearch = true;
+                BetterRecipeBook.configHolder.save();
+            } else if (!chinese && BetterRecipeBook.config.pinyinSearch) {
+                BetterRecipeBook.config.pinyinSearch = false;
+                BetterRecipeBook.configHolder.save();
+            }
+        });
 
         // Register platform-specific providers
         PlatformPotionUtilImpl.init();
@@ -49,6 +70,8 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         // Register optional compat handlers
         com.alonie.brbe.fabric.compat.rei.ReiCompatHandler.register();
         ModMenuReflectiveBridge.register();
+        KeybindingGuiRegistrar.register();
+        PinyinSearchGuiRegistrar.register();
 
         // Register HUD hiders (JEI + REI overlay control)
         OverlayHider.register(new JeiHudHider());
@@ -74,8 +97,8 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
         // Register built-in resource pack (Unique Dark filter textures)
         ResourceLoader.registerBuiltinPack(
-                Identifier.fromNamespaceAndPath("brbe", "brbe_unique_dark"),
-                FabricLoader.getInstance().getModContainer("brbe").orElseThrow(),
+                Identifier.fromNamespaceAndPath("zzzbrbe", "zzzbrbe_unique_dark"),
+                FabricLoader.getInstance().getModContainer("zzzbrbe").orElseThrow(),
                 Component.literal("Unique Dark Lite ").append(Component.literal("✕").withStyle(ChatFormatting.YELLOW)).append(Component.literal(" BRBE")),
                 PackActivationType.NORMAL);
     }

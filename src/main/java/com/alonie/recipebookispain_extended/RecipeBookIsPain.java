@@ -3,6 +3,7 @@ package com.alonie.recipebookispain_extended;
 import com.google.common.collect.BiMap;
 import com.google.common.collect.HashBiMap;
 import com.alonie.brbe.mixins.accessors.CreativeModeTabsAccessor;
+import com.alonie.brbe.pin.TabPinManager;
 import com.alonie.recipebookispain_extended.access.ItemAccess;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -264,7 +265,16 @@ public class RecipeBookIsPain {
                 .findFirst()
                 .ifPresent(expandedTabs::add);
 
+        // 固定的创造标签排在最前（首页、搜索标签之下，按 pin 顺序），其余按自然顺序。
+        List<CreativeModeTab> pinned = TabPinManager.pinnedTabs();
+        for (CreativeModeTab tab : pinned) {
+            if (!MIRRORED_ITEM_GROUPS.contains(tab)) continue;
+            Optional.ofNullable(toRecipeBookGroup(tab))
+                    .map(group -> new RecipeBookComponent.TabInfo(tab.getIconItem(), Optional.empty(), group))
+                    .ifPresent(expandedTabs::add);
+        }
         for (CreativeModeTab tab : MIRRORED_ITEM_GROUPS) {
+            if (pinned.contains(tab)) continue;
             Optional.ofNullable(toRecipeBookGroup(tab))
                     .map(group -> new RecipeBookComponent.TabInfo(tab.getIconItem(), Optional.empty(), group))
                     .ifPresent(expandedTabs::add);
@@ -318,7 +328,17 @@ public class RecipeBookIsPain {
 
         // Always filter by active tabs — only show tabs that have recipes.
         // The paginateTabButtons hook also enforces this as a safety net.
+        // 固定的创造标签排在最前（搜索标签之下，按 pin 顺序），其余按自然顺序。
+        List<CreativeModeTab> pinned = TabPinManager.pinnedTabs();
+        for (CreativeModeTab tab : pinned) {
+            if (!activeTabs.contains(tab) || !MIRRORED_ITEM_GROUPS.contains(tab)) continue;
+            ExtendedRecipeBookCategory group = groupMap.inverse().get(tab);
+            if (group != null) {
+                expandedTabs.add(new RecipeBookComponent.TabInfo(tab.getIconItem(), Optional.empty(), group));
+            }
+        }
         for (CreativeModeTab tab : MIRRORED_ITEM_GROUPS) {
+            if (pinned.contains(tab)) continue;
             if (!activeTabs.contains(tab)) continue;
             ExtendedRecipeBookCategory group = groupMap.inverse().get(tab);
             if (group != null) {

@@ -61,7 +61,7 @@ src/main/java/com/alonie/brbe/
   loaders/                            ←   PotionLoader (registers potion recipes from data packs)
 
 src/main/resources/
-  fabric.mod.json                     ←   mod metadata (entrypoints, mixins, jars-in-jar)
+  fabric.mod.json                     ←   mod metadata (entrypoints, mixins)
   mixins.brbe.json                    ←   platform mixins (FabricPotionBrewingAccessor)
   mixins.brbe-common.json             ←   all cross-cutting BRBE mixins
   mixins.brbe-common-compat.json      ←   conditional compat mixins
@@ -100,21 +100,18 @@ Potion brewing is platform-dependent (`PotionBrewing.Mix` is package-private). F
 
 ## Build commands
 
-### jei-plugins（先构建，再构建本目录）
+### JEI 插件收集代码（已并入本目录，无需外部工程）
 
-> **`jei-plugins` 是独立 git 分支/worktree**（`/home/avalonia/data/dev/mc_mods/BetterRecipeBook/jei-plugins/`，`settings.gradle` 只 `include("common","jei-plugins")`），不在本目录的 `settings.gradle` 中。fabric 主 jar 通过 jar-in-jar（`META-INF/jars/`）跨目录引用它的构建产物——**必须先构建 `../jei-plugins`**：
+原独立工程 `jei-plugins/`（独立 git 分支/worktree）已并入本目录源码树，直接编译，**不再需要先构建任何外部工程**：
+
+- `src/main/java/com/alonie/brbe/jei/` —— 插件收集逻辑（`plugins/` `engine/` `loader/` `stub/`），入口 `BrbeJeiPluginsClientFabric`
+- `src/main/java/mezz/jei/api/` —— vendored JEI API fork（默认 jar 内嵌，`fabric.mod.json` 声明 `breaks: jei`）
+- `jeiJar` variant 排除 `mezz/**`、依赖真实 JEI（`depends: jei`）
 
 ```bash
-# 1) 构建 jei-plugins 独立工程
-cd /home/avalonia/data/dev/mc_mods/BetterRecipeBook/jei-plugins
-JAVA_HOME=/usr/lib/jvm/java-25-openjdk sh gradlew :jei-plugins:build -x test -x check
-
-# 2) 再构建本目录主 mod（fabric jar 嵌入上面产物）
-cd /home/avalonia/data/dev/mc_mods/BetterRecipeBook/26.2
-JAVA_HOME=/usr/lib/jvm/java-25-openjdk sh gradlew build
+./gradlew build        # 默认构建：内嵌 vendored mezz.jei.api
+./gradlew jeiJar       # JEI 变体：排除 mezz/**，运行时依赖真实 JEI
 ```
-
-> ⚠️ jei-plugins 未先构建会导致 fabric jar 打包失败或缺嵌套子 mod。
 
 ### 常规构建
 
@@ -128,7 +125,7 @@ JAVA_HOME=/usr/lib/jvm/java-25-openjdk sh gradlew build
 ./gradlew cleanLoomCache && rm -rf .gradle && ./gradlew build
 
 # Deploy (build JAR → copy to test instance)
-cp build/libs/brbe-ava-fabric-26.2-2.3.jar /home/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/
+cp build/libs/brbe-ava-fabric-26.2-2.3-beta.3.jar /home/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/
 ```
 
 Test instance path rule: `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSION}-{MOD_LOADER}/mods/` (`MOD_LOADER` capitalized: `Fabric`). 构建完必须部署；部署前将实例内同版本 JAR 备份为 `*.jar.bak.YYYYMMDD`。
@@ -150,6 +147,7 @@ Test instance path rule: `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSIO
 | `scrolling.enabled` | Confine scroll to recipe book area | `MouseScrollHandler` + `scrollablepages/RecipeBookPageMixin` |
 | `pageFlipVolume` | Page-flip sound volume slider added to vanilla Sound Options screen (0.0–1.0, default 1.0 = vanilla). Value in `brbe.toml`, not options.txt | `soundoptions/SoundOptionsScreenMixin` + `scrollablepages/RecipeBookPageMixin` |
 | `newRecipes` | Badge/indicator for newly unlocked recipes | `NewRecipes` config class |
+| `pinyinSearch` | 拼音搜索：搜索栏输入拼音匹配中文物品名（如 `mutou`→木头）。默认关；游戏语言为中文时每次启动自动开启。数据为打包的 Unihan 字表（`assets/zzzbrbe/search/pinyin.txt`），算法移植自 REI（MIT） | `search/TextArgument` + `search/PinyinMatcher`；启动自动开启在 `fabric/BetterRecipeBookClientFabric` 的 `ClientLifecycleEvents.CLIENT_STARTED`（entrypoint 阶段 `options` 为 null） |
 
 ## RBIP (Recipe Book is Pain) module
 
@@ -175,8 +173,18 @@ Each hider owns its own state (snapshot, guard flags). Adding a new HUD mod only
 ## Important gotchas
 
 - **26.1+ is unobfuscated** — Mojang official mappings are the final names, no remap needed. The build uses `net.fabricmc.fabric-loom` 1.17.18 (`LoomNoRemapGradlePlugin`). Intermediary-based mods (like ModMenu) cannot be directly included as compile dependencies. ModMenuFabric integration is done reflectively via `ModMenuReflectiveBridge`.
-- **JEI is not yet available for 26.2** — JEI-related mixins still compile but the jar dependency is commented out.
+- **JEI 已可用（vendored fork）**：默认 jar 内嵌 `mezz.jei.api` fork（`breaks: jei`）；`jeiJar` variant 用 `libs/jei-26.2-fabric-30.24.0.165.jar` 编译、运行时依赖真实 JEI（`depends: jei`）。**REI 仍不可用**（26.2 无 REI jar，`mixins.brbe-rei-common.json` 注册但无运行时实现）。
 - **Cloth Config for 26.2 is bundled as a separate mod** (not jar-in-jar). The config registration is wrapped in try-catch; if Cloth Config is absent, the mod still runs with default values.
 - **No test suite.** Validation is manual via `runClient` tasks or deploying to a test instance.
 - **Pinned recipes are stored in a JSON file** (`brbe.pins` in the game directory), not in NBT or config.
 - **BrewingRecipeBookComponent and SmithingRecipeBookComponent** are concrete implementations that sit alongside (not as subclasses of) GenericRecipeBookComponent — they share some interfaces but have their own rendering and event handling.
+
+## 2026-08-21 二轮同步（26.2 ↔ 1.21.11）
+
+与 1.21.11 分支的零碎特性互相同步（编译验证通过）：
+
+- `CollectionPipeline` 改用 `hasPartialMaterialsEvenIfStale` / `isPartiallyCraftableEvenIfStale`（分代推进后不误过滤部分可合成集合）
+- RBIP `ClientRecipeBookMixin` 补 `RecipeBookIsPainExtendedConfig.enabled()` 守卫
+- 清理调试日志：`GenericGhostRecipe`（保留 `showModName` 功能）、`incompletecrafting/RecipeButtonMixin` 的 [BRBE-DIAG] 日志块
+- 删除无引用死代码：`config/Config.java`（配置已统一到 `BrbeConfig`）、`book/`（RecipeBook 门面从未接线）
+- `mixins.brbe.json` 移除非法尾逗号

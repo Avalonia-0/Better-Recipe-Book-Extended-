@@ -1,5 +1,6 @@
 package com.alonie.brbe.mixins.recipeviewer;
 
+import com.alonie.brbe.pinoverlay.PinOverlayManager;
 import com.alonie.brbe.util.RecipeViewerOverlay;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.client.KeyboardHandler;
@@ -55,7 +56,8 @@ public abstract class KeyboardHandlerMixin {
             // OS key-repeat of a key we already consumed this hold.
             return;
         }
-        if (RecipeViewerOverlay.keyPressed(event, containerScreen)) {
+        if (RecipeViewerOverlay.keyPressed(event, containerScreen)
+                || PinOverlayManager.handleKeyPressed(event, containerScreen)) {
             brbe$activeKeyCode = keyCode;
             ci.cancel();
         }

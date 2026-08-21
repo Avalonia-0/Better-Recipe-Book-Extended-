@@ -12,23 +12,40 @@ import me.shedaniel.autoconfig.annotation.ConfigEntry;
  * same package — same structure as the 1.21.1 branch.  Only
  * {@code RecipeBookIsPain} is nested here (matches 1.21.1's {@code Config}).</p>
  */
-@Config(name = "brbe")
+@Config(name = "zzzbrbe")
 public class BrbeConfig implements ConfigData {
 
     // -- 配方书设置（general 标签）--------------------------------------------
+
+    /** 拼音搜索：在搜索栏输入拼音匹配中文物品名。仅中文语言（zh_*）下显示配置项并默认开启；其他语言强制关闭。 */
+    @ConfigEntry.Gui.Tooltip
+    public boolean pinyinSearch = false;
 
     /** 保存配方书上一次的浏览记录（标签 + 页码），下次打开恢复。 */
     @ConfigEntry.Gui.Tooltip
     public boolean saveRecipeBookPosition = true;
 
     @ConfigEntry.Gui.Tooltip
-    public boolean recipeViewerEnabled = true;
-
-    @ConfigEntry.Gui.Tooltip
     public boolean showModName = false;
 
     @ConfigEntry.Gui.TransitiveObject
     public Scrolling scrolling = new Scrolling();
+
+    /** 「固定」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 F。 */
+    @ConfigEntry.Gui.Tooltip
+    public String pinKey = KeybindingCodec.PIN_DEFAULT_RAW;
+
+    @ConfigEntry.Gui.Tooltip
+    @ConfigEntry.Gui.PrefixText
+    public boolean recipeViewerEnabled = true;
+
+    /** 「查询合成」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 R。 */
+    @ConfigEntry.Gui.Tooltip
+    public String recipeViewKey = KeybindingCodec.recipeViewDefaultRaw();
+
+    /** 「查询用途」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 U。 */
+    @ConfigEntry.Gui.Tooltip
+    public String usageViewKey = KeybindingCodec.usageViewDefaultRaw();
 
     @ConfigEntry.Gui.TransitiveObject
     public RecipeBookIsPain rbip = new RecipeBookIsPain();

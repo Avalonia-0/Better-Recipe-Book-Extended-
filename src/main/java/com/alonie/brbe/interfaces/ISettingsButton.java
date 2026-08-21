@@ -14,7 +14,7 @@ import net.minecraft.network.chat.MutableComponent;
 import org.jetbrains.annotations.Nullable;
 
 public interface ISettingsButton {
-    MutableComponent OPEN_SETTINGS_TOOLTIP = Component.translatable("brbe.gui.settings.open");
+    MutableComponent OPEN_SETTINGS_TOOLTIP = Component.translatable("zzzbrbe.gui.settings.open");
 
 
     default ImageButton createSettingsButton(int i, int j) {

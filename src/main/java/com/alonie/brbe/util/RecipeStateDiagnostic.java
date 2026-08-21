@@ -1,7 +1,9 @@
 package com.alonie.brbe.util;
 
+import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.screens.inventory.InventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.core.NonNullList;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -49,7 +51,7 @@ import java.util.*;
  */
 public final class RecipeStateDiagnostic {
 
-    private static final Logger LOG = LogManager.getLogger("brbe-diag");
+    private static final Logger LOG = LogManager.getLogger("zzzbrbe-diag");
     private static long lastDiagnosticSlotHash;
 
     private RecipeStateDiagnostic() {}
@@ -125,19 +127,26 @@ public final class RecipeStateDiagnostic {
                 boolean ok;
 
                 if (needsGrid) {
-                    // 3×3 配方：2×2 生存网格放不下。
-                    // 材料齐全 → 不标 partial（网格问题，incompatible 警告处理）
-                    // 部分材料在库存 → 应标 partial（确实缺材料）
-                    // 无材料在库存 → 不标 partial（不是"缺部分材料"）
-                    ok = switch (predicted) {
-                        case PARTIAL -> isPartial;
-                        default -> !isPartial;
-                    };
-                    label = switch (predicted) {
-                        case CRAFTABLE -> "3×3配方(网格决定, 材料齐全)";
-                        case PARTIAL -> "3×3配方(材料不足, " + (isPartial ? "已标partial" : "未标partial") + ")";
-                        default -> "3×3配方(无材料在库存)";
-                    };
+                    // 3×3 配方：2×2 生存网格放不下（工作台是 3×3 网格，3×3 配方可正常放置）。
+                    if (mc.gui.screen() instanceof InventoryScreen
+                            && !BetterRecipeBook.config.showAllRecipesInSurvival) {
+                        // showAll 关闭的 2×2 背包网格：3×3 完全不应出现
+                        ok = !inCraftable && !isPartial;
+                        label = "3×3配方(showAll关闭, 2×2网格, 不应出现)";
+                    } else {
+                        // 材料齐全 → 不标 partial（网格问题，incompatible 警告处理）
+                        // 部分材料在库存 → 应标 partial（确实缺材料）
+                        // 无材料在库存 → 不标 partial（不是"缺部分材料"）
+                        ok = switch (predicted) {
+                            case PARTIAL -> isPartial;
+                            default -> !isPartial;
+                        };
+                        label = switch (predicted) {
+                            case CRAFTABLE -> "3×3配方(网格决定, 材料齐全)";
+                            case PARTIAL -> "3×3配方(材料不足, " + (isPartial ? "已标partial" : "未标partial") + ")";
+                            default -> "3×3配方(无材料在库存)";
+                        };
+                    }
                 } else {
                     // 2×2 网格可容纳配方：预测必须与标记一致
                     switch (predicted) {

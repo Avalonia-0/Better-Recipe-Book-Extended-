@@ -28,9 +28,9 @@ public final class ConfigTipsHelper {
     static {
         // 默认：实用功能页面顶部"提示：xxx"功能 tips 轮循行
         registerCarousel(ConfigTipCarousel.builder()
-                .category(Component.translatable("text.autoconfig.brbe.category.default"))
-                .prefix(Component.translatable("brbe.gui.tip.prefix"))
-                .tipKeys(List.of("brbe.gui.tip.1", "brbe.gui.tip.2", "brbe.gui.tip.3", "brbe.gui.tip.4", "brbe.gui.tip.5", "brbe.gui.tip.6", "brbe.gui.tip.7", "brbe.gui.tip.8", "brbe.gui.tip.9"))
+                .category(Component.translatable("text.autoconfig.zzzbrbe.category.default"))
+                .prefix(Component.translatable("zzzbrbe.gui.tip.prefix"))
+                .tipKeys(List.of("zzzbrbe.gui.tip.1", "zzzbrbe.gui.tip.2", "zzzbrbe.gui.tip.3", "zzzbrbe.gui.tip.4", "zzzbrbe.gui.tip.5", "zzzbrbe.gui.tip.6", "zzzbrbe.gui.tip.7", "zzzbrbe.gui.tip.8", "zzzbrbe.gui.tip.9"))
                 .build());
     }
 

@@ -19,7 +19,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  * {@code SoundOptionsScreen} 遍历 {@code SoundSource.values()} 生成。
  * 这里把滑块追加到 {@code getAllSoundOptionsExceptMaster()} 返回的数组，
  * 使其进入「其他声音」两列布局，样式与原生音量源一致。
- * 值落到 {@code brbe.toml}（{@code pageFlipVolume}），不污染 options.txt。</p>
+ * 值落到 {@code zzzbrbe.toml}（{@code pageFlipVolume}），不污染 options.txt。</p>
  *
  * <p>注意：不要用 {@code @Shadow} 访问 {@code OptionsSubScreen.list}
  * （父类字段，Mixin 0.8.7 的 shadow 只认目标类自身的字段，会导致
@@ -37,7 +37,7 @@ public abstract class SoundOptionsScreenMixin {
         OptionInstance<?>[] result = Arrays.copyOf(original, original.length + 1);
         // 范围 0–150%（UnitDouble 是 0–1 滑块，xmap 线性放大到 0–1.5）。
         result[original.length] = new OptionInstance<>(
-                "soundCategory.brbe_page_flip",
+                "soundCategory.zzzbrbe_page_flip",
                 OptionInstance.noTooltip(),
                 SoundOptionsScreenMixin::brbe$percentValueOrOffLabel,
                 OptionInstance.UnitDouble.INSTANCE.xmap(v -> v * 1.5, v -> v / 1.5),

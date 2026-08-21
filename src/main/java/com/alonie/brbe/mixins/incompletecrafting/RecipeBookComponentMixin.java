@@ -242,21 +242,27 @@ public abstract class RecipeBookComponentMixin {
         if (!carried.isEmpty()) {
             inventoryCounts.merge(carried.getItem(), carried.getCount(), Integer::sum);
         }
+        // 副手槽位计入常规检索空间（hashInventory 已含类型，这里补数量）。
+        ItemStack offhand = PartialCraftingUtil.offhandStack();
+        if (!offhand.isEmpty()) {
+            inventoryCounts.merge(offhand.getItem(), offhand.getCount(), Integer::sum);
+        }
 
         for (RecipeCollection collection : collections) {
-            PartialCraftingUtil.markPartialMaterials(collection, inventoryItems, inventoryCounts, markItems);
+            PartialCraftingUtil.markPartialMaterials(collection, inventoryItems, inventoryCounts, markItems, onInventoryScreen);
         }
 
         // ── Carried-as-special-slot: when holding an item, elevate ALL
-        // material-complete recipes (slots + carried) so picking up an item
-        // never changes the recipe book.  Vanilla isCraftable ignores carried,
-        // so a recipe whose material moved to the hand would otherwise drop
-        // to partial/uncraftable.  MUST run BEFORE the partial injection below:
+        // material-complete recipes (slots + carried + offhand) so picking up
+        // an item (or moving it to the offhand) never changes the recipe book.
+        // Vanilla isCraftable ignores carried and the offhand, so a recipe
+        // whose material moved to the hand/offhand would otherwise drop to
+        // partial/uncraftable.  MUST run BEFORE the partial injection below:
         // once a partial recipe is injected into the craftable set,
         // isCraftable() becomes true and the elevation would skip it.
-        if (!carried.isEmpty()) {
+        if (!carried.isEmpty() || !offhand.isEmpty()) {
             for (RecipeCollection collection : collections) {
-                PartialCraftingUtil.elevateFullyCraftableWithCarried(collection, inventoryItems, inventoryCounts);
+                PartialCraftingUtil.elevateFullyCraftableWithCarried(collection, inventoryItems, inventoryCounts, onInventoryScreen);
             }
         }
 

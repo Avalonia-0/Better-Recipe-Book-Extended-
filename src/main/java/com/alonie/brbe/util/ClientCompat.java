@@ -1,7 +1,11 @@
 package com.alonie.brbe.util;
 
+import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.config.KeybindingCodec;
 import com.mojang.blaze3d.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.InputConstants;
+import me.shedaniel.clothconfig2.api.Modifier;
+import me.shedaniel.clothconfig2.api.ModifierKeyCode;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.server.packs.resources.Resource;
 import org.slf4j.Logger;
@@ -71,6 +75,28 @@ public final class ClientCompat {
                 || InputConstants.isKeyDown(minecraft.getWindow(), InputConstants.KEY_RSHIFT);
     }
 
+    /**
+     * Matches the "pin" (固定) key binding — shared by the recipe-book
+     * pinning, the query-object pin overlay and the RBIP tab pinning.  The
+     * vanilla KeyMapping is the single source; the Cloth Config entry and
+     * the config string are kept in sync with it. */
+    public static boolean matchesPinKey(int keyCode, int scanCode, int modifiers) {
+        return matches(BetterRecipeBook.PIN_MAPPING, keyCode, scanCode, modifiers);
+    }
+
+    private static boolean matchesBinding(ModifierKeyCode binding, int keyCode, int modifiers) {
+        if (binding == null || binding.isUnknown()) return false;
+        if (binding.getKeyCode().getType() != InputConstants.Type.KEYSYM) return false;
+        if (binding.getKeyCode().getValue() != keyCode) return false;
+        Modifier modifier = binding.getModifier();
+        boolean needCtrl = modifier.hasControl();
+        boolean hasCtrl = (modifiers & InputConstants.MOD_CONTROL) != 0;
+        if (needCtrl != hasCtrl) return false;
+        if (modifier.hasShift() && (modifiers & InputConstants.MOD_SHIFT) == 0) return false;
+        if (modifier.hasAlt() && (modifiers & InputConstants.MOD_ALT) == 0) return false;
+        return true;
+    }
+
     public static void blitSprite(GuiGraphicsExtractor gui, Identifier sprite, int x, int y, int width, int height) {
         gui.blitSprite(GUI_TEXTURED, sprite, x, y, width, height);
     }
@@ -108,7 +134,7 @@ public final class ClientCompat {
             LOGGER.warn("[BRBE-DIAG] hasSpriteResource: sprite={} fileId={} stackSize={} packs={}",
                     spriteId, fileId, stack.size(), packs);
             // Control: a sprite shipped in the mod's OWN assets (not the built-in pack)
-            Identifier pinFile = Identifier.fromNamespaceAndPath("brbe", "textures/gui/sprites/recipe_book/pin.png");
+            Identifier pinFile = Identifier.fromNamespaceAndPath("zzzbrbe", "textures/gui/sprites/recipe_book/pin.png");
             java.util.List<Resource> pinStack = minecraft.getResourceManager().getResourceStack(pinFile);
             java.util.List<String> pinPacks = new java.util.ArrayList<>();
             for (Resource r : pinStack) pinPacks.add(r.sourcePackId());

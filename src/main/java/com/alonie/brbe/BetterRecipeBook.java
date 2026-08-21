@@ -7,6 +7,7 @@ import com.alonie.brbe.config.BrbeConfig;
 import com.alonie.brbe.config.ConfigEventBus;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.pin.JsonPinStore;
+import com.alonie.brbe.pin.TabPinManager;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.cache.VanillaRecipeCache;
@@ -22,7 +23,7 @@ import org.apache.logging.log4j.Logger;
 
 public class BetterRecipeBook {
 
-    public static final String MOD_ID = "brbe";
+    public static final String MOD_ID = "zzzbrbe";
 
     public static int queuedScroll;
     public static boolean isFilteringNone;
@@ -39,21 +40,21 @@ public class BetterRecipeBook {
     );
 
     public static final KeyMapping PIN_MAPPING = new KeyMapping(
-            "key.brbe.pin",
+            "key.zzzbrbe.pin",
             InputConstants.Type.KEYSYM,
             InputConstants.KEY_F,
             KEY_CATEGORY
     );
 
     public static final KeyMapping RECIPE_VIEW_MAPPING = new KeyMapping(
-            "key.brbe.recipeView",
+            "key.zzzbrbe.recipeView",
             InputConstants.Type.KEYSYM,
             InputConstants.KEY_R,
             KEY_CATEGORY
     );
 
     public static final KeyMapping USAGE_VIEW_MAPPING = new KeyMapping(
-            "key.brbe.usageView",
+            "key.zzzbrbe.usageView",
             InputConstants.Type.KEYSYM,
             InputConstants.KEY_U,
             KEY_CATEGORY
@@ -139,6 +140,8 @@ public class BetterRecipeBook {
             if (mc != null) {
                 JsonPinStore pinStore = new JsonPinStore(mc.gameDirectory.toPath());
                 pinnedRecipeManager.setStore(pinStore);
+                // RBIP 标签固定存储与查询对象 pin / 配方书 pin 同一目录（gameDir）。
+                TabPinManager.init(mc.gameDirectory.toPath());
             }
 
             // Load pins

@@ -93,7 +93,9 @@ public final class CollectionPipeline {
             }
 
             RecipeCollectionAccessor source = (RecipeCollectionAccessor) collection;
-            boolean restrictToCraftableOrPartial = PartialCraftingUtil.hasPartialMaterials(collection)
+            // EvenIfStale：分代感知的 hasPartialMaterials 在分代推进后未重新标记时会
+            // 返回 false，导致部分可合成集合被错误过滤（管线可能在标记之前运行）。
+            boolean restrictToCraftableOrPartial = PartialCraftingUtil.hasPartialMaterialsEvenIfStale(collection)
                     || collection.hasCraftable();
             boolean addedAny = false;
 
@@ -103,7 +105,7 @@ public final class CollectionPipeline {
                 }
 
                 boolean isCraftable = source.brbe$getCraftable().contains(recipe.id());
-                boolean isPartial = PartialCraftingUtil.isPartiallyCraftable(collection, recipe.id());
+                boolean isPartial = PartialCraftingUtil.isPartiallyCraftableEvenIfStale(collection, recipe.id());
                 if (restrictToCraftableOrPartial && !isCraftable && !isPartial) {
                     continue;
                 }

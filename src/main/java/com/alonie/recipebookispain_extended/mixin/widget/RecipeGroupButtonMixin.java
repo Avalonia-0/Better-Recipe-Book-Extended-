@@ -1,5 +1,6 @@
 package com.alonie.recipebookispain_extended.mixin.widget;
 
+import com.alonie.brbe.pin.TabPinManager;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
@@ -13,6 +14,7 @@ import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.crafting.ExtendedRecipeBookCategory;
 import net.minecraft.resources.Identifier;
@@ -30,10 +32,10 @@ public abstract class RecipeGroupButtonMixin extends ImageButton implements Reci
     @Unique private static final int RBIP_TAB_HEIGHT = 27;
     @Unique private static final int RBIP_ROTATED_TAB_WIDTH = 27;
     @Unique private static final int RBIP_ROTATED_TAB_HEIGHT = 35;
-    @Unique private static final Identifier RBIP_BOTTOM_TAB = Identifier.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab.png");
-    @Unique private static final Identifier RBIP_BOTTOM_TAB_SELECTED = Identifier.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab_selected.png");
-    @Unique private static final Identifier RBIP_TOP_TAB = Identifier.fromNamespaceAndPath("brbe", "textures/rbip/top_tab.png");
-    @Unique private static final Identifier RBIP_TOP_TAB_SELECTED = Identifier.fromNamespaceAndPath("brbe", "textures/rbip/top_tab_selected.png");
+    @Unique private static final Identifier RBIP_BOTTOM_TAB = Identifier.fromNamespaceAndPath("zzzbrbe", "textures/rbip/bottom_tab.png");
+    @Unique private static final Identifier RBIP_BOTTOM_TAB_SELECTED = Identifier.fromNamespaceAndPath("zzzbrbe", "textures/rbip/bottom_tab_selected.png");
+    @Unique private static final Identifier RBIP_TOP_TAB = Identifier.fromNamespaceAndPath("zzzbrbe", "textures/rbip/top_tab.png");
+    @Unique private static final Identifier RBIP_TOP_TAB_SELECTED = Identifier.fromNamespaceAndPath("zzzbrbe", "textures/rbip/top_tab_selected.png");
 
     @Unique private RecipeGroupButtonPlacement rbip$placement = RecipeGroupButtonPlacement.NORMAL;
 
@@ -101,6 +103,23 @@ public abstract class RecipeGroupButtonMixin extends ImageButton implements Reci
                 ci.cancel();
             }
         }
+    }
+
+    /** 固定标签标记：固定了的创造标签在左上角画 pin 图标（最上层，图标之后，
+     *  32x32 与配方按钮的 pin 一致，图形悬出标签顶边）。仅左侧正常朝向的标签绘制；
+     *  上下旋转条带上的标签坐标是旋转锚点，不适用。注入目标必须是
+     *  RecipeBookTabButton 自身声明的方法（extractIcon）——继承自 AbstractWidget
+     *  的 extractWidgetRenderState 不会被本版本 Mixin 解析（与
+     *  RecipeBookTabHoverMixin 的 @Shadow 字段问题同类）。 */
+    @Inject(at = @At("RETURN"), method = "extractIcon")
+    private void rbip$drawPinMarker(GuiGraphicsExtractor context, CallbackInfo ci) {
+        if (this.rbip$placement != RecipeGroupButtonPlacement.NORMAL) return;
+        CreativeModeTab group = RecipeBookIsPain.toItemGroup(this.getCategory());
+        if (group == null) return;
+        Identifier tabId = BuiltInRegistries.CREATIVE_MODE_TAB.getKey(group);
+        if (tabId == null || !TabPinManager.isPinned(tabId)) return;
+        ClientCompat.blitSprite(context, BRBTextures.RECIPE_BOOK_PIN_SPRITE,
+                this.getX() - 4, this.getY() - 4, 32, 32);
     }
 
     @Unique

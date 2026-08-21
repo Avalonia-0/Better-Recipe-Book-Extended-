@@ -24,6 +24,9 @@ public interface RecipeBookComponentAccessor {
     @Accessor("tabButtons")
     List<RecipeBookTabButton> getTabButtons();
 
+    @Accessor("tabInfos")
+    List<RecipeBookComponent.TabInfo> getTabInfos();
+
     @Accessor("selectedTab")
     RecipeBookTabButton getSelectedTab();
 
@@ -75,6 +78,13 @@ public interface RecipeBookComponentAccessor {
     @Invoker("tryPlaceRecipe")
     boolean tryPlaceRecipeInvoker(RecipeCollection collection, RecipeDisplayId id,
                                   boolean hasShiftDown);
+
+    /** Vanilla refuses the first placement of a not-fully-craftable recipe
+     *  ({@code !isCraftable && id != lastPlacedRecipe}); the viewer primes this
+     *  field so a first click on a partial recipe places its available
+     *  materials (the ghost flow) exactly like vanilla's repeat click. */
+    @Accessor("lastPlacedRecipe")
+    void setLastPlacedRecipe(RecipeDisplayId id);
 
     @Accessor("lastRecipe")
     void setLastRecipe(RecipeDisplayId lastRecipe);

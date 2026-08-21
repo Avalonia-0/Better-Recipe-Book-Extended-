@@ -43,8 +43,9 @@ public final class RecipeViewerEngine {
     }
 
     /** One slot of a mod recipe's native layout: its position (relative to the
-     *  recipe layout) and the item stacks it holds. */
-    public record RecipeSlotLayout(int x, int y, List<ItemStack> stacks) {}
+     *  recipe layout), its JEI {@code RecipeIngredientRole} ordinal and the item
+     *  stacks it holds. */
+    public record RecipeSlotLayout(int x, int y, int role, List<ItemStack> stacks) {}
 
     /** A mod recipe's background texture (its JEI category's background), as
      *  declared via {@code IGuiHelper.createDrawable/drawableBuilder}.  The

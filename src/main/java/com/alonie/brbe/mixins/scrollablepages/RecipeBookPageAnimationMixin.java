@@ -1,14 +1,17 @@
 package com.alonie.brbe.mixins.scrollablepages;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.generic.pins.PinnableRecipeCollection;
 import com.alonie.brbe.mixins.accessors.RecipeButtonAccessor;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.PageAnimationEdges;
+import com.alonie.brbe.util.PageFlipDirection;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.RecipeBookPageAnimBridge;
 import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
@@ -42,7 +45,7 @@ import java.util.List;
  * （{@code brbe$snapshotButtons}）动态渲染视觉当前页与下一页，scissor 只包住
  * 按钮网格区（不影响页码、箭头、替代配方弹层）。非动画路径完全放行原版。</p>
  *
- * <p>受 {@code brbe.toml} 的 {@code pageAnimation.pageAnimationEnabled}（开关）
+ * <p>受 {@code zzzbrbe.toml} 的 {@code pageAnimation.pageAnimationEnabled}（开关）
  * 与 {@code pageAnimationDuration}（时长，秒）控制。</p>
  */
 @Mixin(RecipeBookPage.class)
@@ -55,9 +58,15 @@ public abstract class RecipeBookPageAnimationMixin {
     /** 追逐模式下每页响应时长（秒），独立于配置时长，保证连点滑动连贯。 */
     private static final float CHASE_PAGE_DURATION = 0.25F;
     private static final float SNAP_THRESHOLD = 0.002F;
+    /** 单次翻页预计总时长上限：超过 2×配置时长则跳过中间页压缩追逐。 */
+    private static final float MAX_ANIM_MULTIPLIER = 2.0F;
+    /** 最后一页指数减速所占时长（×配置时长）。 */
+    private static final float FINAL_DECEL_MULTIPLIER = 1.0F;
 
     @Shadow
     private int currentPage;
+    @Shadow
+    private int totalPages;
     @Shadow
     private List<RecipeButton> buttons;
     @Shadow
@@ -66,15 +75,31 @@ public abstract class RecipeBookPageAnimationMixin {
     private boolean isFiltering;
     @Shadow
     private Minecraft minecraft;
+    @Shadow
+    private RecipeButton hoveredButton;
 
     @Unique
     private final List<RecipeButton> brbe$snapshotButtons = new ArrayList<>(20);
+    /** 动画期间已固定配方按钮的 (x, y) 收集（每按钮一次渲染清空），网格 scissor
+     *  关闭后统一绘制 pin 图标，避免超出配方区的悬出部分被裁剪。 */
+    @Unique
+    private final List<int[]> brbe$animPinIcons = new ArrayList<>(4);
+    /** 动画期间光标命中的 snapshot 按钮，渲染末尾覆盖 hoveredButton 驱动 tooltip。 */
+    @Unique
+    private RecipeButton brbe$animHovered;
     @Unique
     private boolean brbe$animActive;
     @Unique
     private boolean brbe$animChase;
     @Unique
+    private boolean brbe$animBackward;
+    @Unique
     private float brbe$visualPage;
+    @Unique
+    private float brbe$travelTarget;
+    /** 压缩追逐时的每帧预算页速（页/秒），翻页时按跨度与预算时长折算。 */
+    @Unique
+    private float brbe$animBulkSpeed;
     @Unique
     private int brbe$frameCounter;
     @Unique
@@ -102,6 +127,7 @@ public abstract class RecipeBookPageAnimationMixin {
     private void brbe$resetOnReinit(Minecraft minecraft, int parentLeft, int parentTop, CallbackInfo ci) {
         this.brbe$animActive = false;
         this.brbe$animChase = false;
+        this.brbe$animBackward = false;
         this.brbe$visualPage = this.currentPage;
         this.brbe$lastFlipFrame = -100;
         this.brbe$frameCounter = 0;
@@ -120,15 +146,31 @@ public abstract class RecipeBookPageAnimationMixin {
         if (this.currentPage == this.brbe$lastRenderedPage) {
             return;
         }
-        if (Math.abs(this.currentPage - this.brbe$lastRenderedPage) != 1 || !userFlip) {
-            // 跨多页跳转（快速连滚）或非用户翻页（恢复浏览记录/配方刷新）：
-            // 直接切换，不启动滑动动画
+        if (!userFlip) {
+            // 非用户翻页（恢复浏览记录/配方刷新）：直接切换，不启动滑动动画
             this.brbe$animActive = false;
             this.brbe$animChase = false;
             this.brbe$visualPage = this.currentPage;
             this.brbe$lastRenderedPage = this.currentPage;
             return;
         }
+        // 用户翻页（相邻或跨多页均动画）：决定方向并计算旅行目标（允许越界表达绕回），
+        // 由追逐机制滑过全部中间页，渲染时页索引取模。
+        this.brbe$animBackward = PageFlipDirection.backward(
+                Math.round(this.brbe$visualPage), this.currentPage, this.totalPages,
+                BetterRecipeBook.config != null && BetterRecipeBook.config.scrolling.scrollAround);
+        this.brbe$travelTarget = this.currentPage;
+        if (this.brbe$animBackward) {
+            if (this.brbe$travelTarget > this.brbe$visualPage) {
+                this.brbe$travelTarget -= this.totalPages;
+            }
+        } else {
+            if (this.brbe$travelTarget < this.brbe$visualPage) {
+                this.brbe$travelTarget += this.totalPages;
+            }
+        }
+        // 压缩追逐预算：按跨度与预算时长折算每帧最小页速（跳过中间页），小跨度时自然速度更快、不受影响
+        this.brbe$animBulkSpeed = Math.abs(this.brbe$travelTarget - this.brbe$visualPage) / brbe$bulkBudgetSeconds();
         // 首次动画记录按钮基准位置；打断时保持原基准（此刻按钮可能处于滑动中途）
         if (!this.brbe$animActive) {
             this.brbe$baseX = new int[this.buttons.size()];
@@ -152,11 +194,12 @@ public abstract class RecipeBookPageAnimationMixin {
         this.brbe$scissorLeft = i;
         this.brbe$scissorTop = j;
         this.brbe$frameCounter++;
+        this.brbe$animHovered = null;
         if (!this.brbe$animActive) {
             return;
         }
         float deltaS = f / TICKS_PER_SECOND;
-        float remaining = this.currentPage - this.brbe$visualPage;
+        float remaining = this.brbe$travelTarget - this.brbe$visualPage;
         float absd = Math.abs(remaining);
         if (absd < SNAP_THRESHOLD) {
             this.brbe$visualPage = this.currentPage;
@@ -170,7 +213,19 @@ public abstract class RecipeBookPageAnimationMixin {
         float fraction = 1.0F - (float) Math.exp(-base * deltaS);
         float cap = 0.45F + (float) Math.sqrt(absd) * 0.12F;
         float move = Math.min(Math.min(absd * fraction, cap), absd);
+        // 跳过中间页压缩追逐：大跨度跳转时按预算时长折算每帧最小页距，
+        // 仅在预计总时长超过 2×配置时长时压过自然速度；末页（absd<1）交还指数减速
+        float bulkMove = Math.min(this.brbe$animBulkSpeed * deltaS, absd - 1.0F);
+        move = Math.max(move, bulkMove);
         this.brbe$visualPage += Math.signum(remaining) * move;
+    }
+
+    @Inject(method = "extractRenderState", at = @At("RETURN"))
+    private void brbe$tooltipFollowSnapshot(GuiGraphicsExtractor gui, int i, int j, int k, int l, float f, CallbackInfo ci) {
+        if (this.brbe$animActive) {
+            // 动画期间 tooltip 跟随光标命中的 snapshot（视觉内容）；无命中则清空避免错页
+            this.hoveredButton = this.brbe$animHovered;
+        }
     }
 
     @Redirect(method = "extractRenderState",
@@ -196,17 +251,24 @@ public abstract class RecipeBookPageAnimationMixin {
         int basePage = (int) Math.floor(this.brbe$visualPage);
         float frac = this.brbe$visualPage - basePage;
         RecipeButton snap = this.brbe$snapshotButtons.get(k);
+        this.brbe$animPinIcons.clear();
         gui.enableScissor(this.brbe$scissorLeft + 11, this.brbe$scissorTop + 31, this.brbe$scissorLeft + 136, this.brbe$scissorTop + 156);
         // 视觉当前页滑出（挤压离场）
         brbe$renderVisualSquashed(snap, k, basePage, this.brbe$baseX[k] + Math.round(-frac * PAGE_SLIDE_DISTANCE), this.brbe$baseY[k], gui, x, y, f);
         // 下一页滑入（挤压入场）
         brbe$renderVisualSquashed(snap, k, basePage + 1, this.brbe$baseX[k] + Math.round((1.0F - frac) * PAGE_SLIDE_DISTANCE), this.brbe$baseY[k], gui, x, y, f);
         gui.disableScissor();
+        // 已固定配方的 pin 图标绘制在网格 scissor 之外（与静态路径相同的裁剪
+        // 状态）：超出配方区的悬出部分不被裁剪。
+        for (int[] p : this.brbe$animPinIcons) {
+            ClientCompat.blitSprite(gui, BRBTextures.RECIPE_BOOK_PIN_SPRITE, p[0] - 4, p[1] - 4, 32, 32);
+        }
     }
 
     @Unique
     private void brbe$renderVisualSquashed(RecipeButton snap, int k, int page, int x, int y, GuiGraphicsExtractor gui, int mouseX, int mouseY, float f) {
-        int idx = page * 20 + k;
+        int wrapped = brbe$wrapPage(page);
+        int idx = wrapped * 20 + k;
         if (idx >= this.recipeCollections.size()) {
             snap.visible = false;
             return;
@@ -230,9 +292,13 @@ public abstract class RecipeBookPageAnimationMixin {
             snap.visible = false;
             return;
         }
-        if ((k + page * 20) % 25 == 0) {
+        // 动画期间 tooltip 跟随移动配方：记录光标命中的 snapshot 按钮（可见有效区内）
+        if (mouseX >= effX && mouseX < effX + effW && mouseY >= y && mouseY < y + 25) {
+            this.brbe$animHovered = snap;
+        }
+        if ((k + wrapped * 20) % 25 == 0) {
             BetterRecipeBook.LOGGER.info("[BRBE-SQ] page={} k={} x={} effX={} effW={} edgeRight={} y={}",
-                    page, k, x, effX, effW, effX + effW, y);
+                    wrapped, k, x, effX, effW, effX + effW, y);
         }
         // 格子背景 blit（宽度横向压缩）
         RecipeButtonAccessor acc = (RecipeButtonAccessor) (Object) snap;
@@ -268,7 +334,7 @@ public abstract class RecipeBookPageAnimationMixin {
             }
             gui.disableScissor();
             // 图标（边界线前渲染，边界线将盖住经过的图标）
-            gui.fakeItem(snap.getDisplayStack(), x + 4, y + 4);
+            brbe$renderItemIcon(snap, gui, x, y);
             // 移动方向的前方边缘盖住后方边缘：配方左移（左端被边界压扁）时左边界
             // 最后渲染（在上层），右移时右边界在上层。
             boolean movingLeft = x < effX;
@@ -301,9 +367,42 @@ public abstract class RecipeBookPageAnimationMixin {
                 }
             }
             if (effW > 20) {
-                gui.fakeItem(snap.getDisplayStack(), effX + 4, y + 4);
+                brbe$renderItemIcon(snap, gui, effX, y);
             }
         }
+        // 已固定配方：收集 pin 图标位置（最上层，等同原版 RecipeButtonMixin 的
+        // RETURN 注入）。动画路径完全不调用 RecipeButton.extractRenderState
+        // （快照按钮是手工渲染），原注入不会运行，且快照按钮的 getX/getY 是陈旧值。
+        // 仅收集不绘制：绘制推迟到网格 scissor 关闭之后，pin 超出配方区的悬出部分
+        // 才不被裁剪。
+        if (BetterRecipeBook.pinnedRecipeManager.has(PinnableRecipeCollection.of(c))) {
+            this.brbe$animPinIcons.add(new int[] { effX, y });
+        }
+    }
+
+    /**
+     * 渲染配方图标。多配方且结果完全相同的组（替代配方）复刻原版叠加双渲染：
+     * {@code item} 在偏移 5、{@code fakeItem} 在偏移 3，形成叠置效果。
+     */
+    @Unique
+    private void brbe$renderItemIcon(RecipeButton snap, GuiGraphicsExtractor gui, int baseX, int baseY) {
+        ItemStack stack = snap.getDisplayStack();
+        RecipeButtonAccessor acc = (RecipeButtonAccessor) (Object) snap;
+        int offset = 4;
+        if (acc.brbe$hasMultipleRecipes() && acc.brbe$allRecipesHaveSameResultDisplay()) {
+            gui.item(stack, baseX + offset + 1, baseY + offset + 1, 0);
+            offset = 3;
+        }
+        gui.fakeItem(stack, baseX + offset, baseY + offset);
+    }
+
+    @Unique
+    private int brbe$wrapPage(int page) {
+        int total = this.totalPages;
+        if (total <= 1) {
+            return 0;
+        }
+        return ((page % total) + total) % total;
     }
 
     @Unique
@@ -318,4 +417,12 @@ public abstract class RecipeBookPageAnimationMixin {
         }
         return 0.1F;
     }
+
+    /** 大跨度跳转的"跳过中间页"预算时长（秒）：2×配置时长扣除末页指数减速。 */
+    @Unique
+    private float brbe$bulkBudgetSeconds() {
+        float duration = brbe$animationDuration();
+        return Math.max(0.05F, (MAX_ANIM_MULTIPLIER - FINAL_DECEL_MULTIPLIER) * duration);
+    }
 }
+

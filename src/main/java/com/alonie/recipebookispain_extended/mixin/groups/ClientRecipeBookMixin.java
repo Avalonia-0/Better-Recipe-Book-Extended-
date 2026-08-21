@@ -2,6 +2,7 @@ package com.alonie.recipebookispain_extended.mixin.groups;
 
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain.FurnaceVariant;
+import com.alonie.recipebookispain_extended.RecipeBookIsPainExtendedConfig;
 import com.alonie.recipebookispain_extended.access.ItemAccess;
 import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
@@ -68,12 +69,14 @@ public class ClientRecipeBookMixin {
      */
     @Inject(at = @At("HEAD"), method = "rebuildCollections")
     private void rbip$preRefreshPolymerCache(CallbackInfo ci) {
+        if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         RecipeBookIsPain.buildNamespaceCache();
         RecipeBookIsPain.applyNamespaceOverrides();
     }
 
     @Inject(at = @At("TAIL"), method = "rebuildCollections")
     private void rbip$refreshCreativeGroups(CallbackInfo ci) {
+        if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         RecipeBookIsPain.ensureInitialized();
         if (RecipeBookIsPain.RECIPE_BOOK_GROUP_TO_ITEM_GROUP.isEmpty()) return;
 

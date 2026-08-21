@@ -1,6 +1,7 @@
 package com.alonie.brbe.util;
 
 import com.alonie.brbe.cache.VanillaRecipeCache;
+import com.ava.test.TestRecipes;
 import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
@@ -50,6 +51,8 @@ public final class RecipeBookState {
         if (VanillaRecipeCache.hasEntries()) {
             VanillaRecipeCache.detectAndInject(book, known);
         }
+        // Phase 1.5: JVM-gated test recipes (-Dava.test.recipes=N)
+        TestRecipes.injectInto(known);
     }
 
     /**

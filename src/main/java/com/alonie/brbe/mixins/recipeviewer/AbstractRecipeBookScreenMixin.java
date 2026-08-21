@@ -1,5 +1,6 @@
 package com.alonie.brbe.mixins.recipeviewer;
 
+import com.alonie.brbe.pinoverlay.PinOverlayManager;
 import com.alonie.brbe.util.RecipeViewerOverlay;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen;
@@ -35,6 +36,10 @@ public abstract class AbstractRecipeBookScreenMixin {
     private void brbe$viewerMouseClicked(MouseButtonEvent event, boolean doubleClick,
                                          CallbackInfoReturnable<Boolean> cir) {
         AbstractRecipeBookScreen<?> screen = (AbstractRecipeBookScreen<?>) (Object) this;
+        if (PinOverlayManager.handleMouseClicked(event, doubleClick, screen)) {
+            cir.setReturnValue(true);
+            return;
+        }
         if (RecipeViewerOverlay.mouseClicked(event, doubleClick, screen)) {
             cir.setReturnValue(true);
         }
@@ -43,6 +48,6 @@ public abstract class AbstractRecipeBookScreenMixin {
     @Inject(method = "extractRenderState", at = @At("RETURN"))
     private void brbe$viewerRender(GuiGraphicsExtractor gui, int mouseX, int mouseY,
                                    float delta, CallbackInfo ci) {
-        RecipeViewerOverlay.render(gui, mouseX, mouseY, delta);
+        PinOverlayManager.render(gui, mouseX, mouseY, delta);
     }
 }
