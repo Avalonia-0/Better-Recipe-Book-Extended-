@@ -1,5 +1,7 @@
 package com.alonie.brbe.recipeviewer;
 
+import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
 
@@ -73,7 +75,18 @@ public final class RecipeViewerCategories {
                                                   AbstractContainerMenu menu) {
         if (usage) {
             for (RecipeViewerCategory category : all()) {
-                if (category.appliesToStation(target)) return category;
+                if (!category.appliesToStation(target)) continue;
+                // The "hide objects of workstations without a recipe book"
+                // toggle cuts the workstation-category connection of an
+                // illegal station: the fuel category is exempt (a fuel-burning
+                // station still shows the fuel it can take), and a legal
+                // (recipe-book-backed) station keeps its categories.
+                if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+                        && !category.isFuelCategory()
+                        && !RecipeViewerEngine.isRecipeBookStation(target)) {
+                    continue;
+                }
+                return category;
             }
         }
         RecipeViewerCategory best = null;
