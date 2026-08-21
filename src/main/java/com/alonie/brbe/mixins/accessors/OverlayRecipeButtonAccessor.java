@@ -10,7 +10,10 @@ import java.util.List;
 @Mixin(targets = "net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent$OverlayRecipeButton")
 public interface OverlayRecipeButtonAccessor {
 
-    @Accessor("this$0")
+    // 1.21.11 是 remap 构建：内部类指向外类的合成字段 this$0 经映射后名为
+    // field_3113（26.2 no-remap 下仍是 this$0）。用 @Accessor("this$0")
+    // 会在 mixin 应用期抛 InvalidAccessorException，导致 R/U 查看浮层无法打开。
+    @Accessor("field_3113")
     OverlayRecipeComponent brbe$getOuterComponent();
 
     @Accessor("recipe")

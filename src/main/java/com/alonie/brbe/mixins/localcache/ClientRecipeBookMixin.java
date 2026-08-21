@@ -53,7 +53,6 @@ public abstract class ClientRecipeBookMixin {
     private void brbe$postRebuildEndCycle(CallbackInfo ci) {
         com.alonie.brbe.BetterRecipeBook.LOGGER.info(
                 "[BRBE-CACHE] rebuild RETURN — known={}", known.size());
-        VanillaRecipeCache.dumpAllKnown(known);
         RecipeBookState.endCycle();
         RecipeViewerIndex.rebuildEngine();
     }
