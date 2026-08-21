@@ -42,7 +42,6 @@ public class BrbeConfig implements ConfigData {
     /** 隐藏无配方书工作站所属的查询对象：开启后，查询结果中所有工作站都没有配方书体系的
      *  对象被隐藏；若对象还包含有配方书体系的工作站则保留对象本身，仅 tooltip 隐藏非法
      *  工作站图标。默认关闭。 */
-    @ConfigEntry.Gui.PrefixText
     public boolean hideNoRecipeBookStationObjects = false;
 
     /** 「查询合成」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 R。 */
