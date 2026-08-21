@@ -166,3 +166,4 @@ cp fabric/build/libs/brbe-ava-fabric-*.jar /home/avalonia/data/MinecraftLib/vers
 cp neoforge/build/libs/brbe-ava-neoforge-*.jar /home/avalonia/data/MinecraftLib/versions/1.21.11-NeoForge/mods/
 ```
 构建完必须部署；部署前将实例内同版本 JAR 备份为 `*.jar.bak.YYYYMMDD`，再覆盖旧版本产物。
+- **pin/viewer 配方状态基于真实物品栏**（2026-08-21，两分支同步）：`PartialCraftingUtil.realInventorySlots()`（items+armor；offhand 由 `offhandStack()` 单独计入）替代屏幕容器槽位。`PinOverlayManager.refreshRecipeStates` 哈希、`PinOverlay.create/refreshRecipeState`（craftable 判定 + partial 标记）、`RecipeViewerOverlay` 两处 `prepareForViewer` 均改用真实物品栏——创造模式物品栏的合成网格与 carried 可能来自创造标签（虚拟物品），不再被当作材料。
