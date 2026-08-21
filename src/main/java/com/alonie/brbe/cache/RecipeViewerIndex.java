@@ -61,6 +61,17 @@ public final class RecipeViewerIndex {
         RecipeViewerEngine.clearVanilla();
         Map<String, List<RecipeViewerEngine.IndexedRecipe>> grouped = new LinkedHashMap<>();
         Map<String, List<ItemStack>> stationItems = new LinkedHashMap<>();
+        // Every workstation's block items keyed by its type id.  Built-in and
+        // external stations sharing a type (e.g. the blast furnace and a mod
+        // smelter both serving minecraft:blasting) all contribute their items,
+        // so a usage query on any of them returns the whole type (JEI
+        // semantics).  Collected independently of the entry loop below: an
+        // entry only ever falls into one type, but a type can be served by
+        // several workstation registrations.
+        for (Workstation station : workstations()) {
+            stationItems.computeIfAbsent(station.typeId(), k -> new ArrayList<>())
+                    .addAll(java.util.Arrays.asList(station.fallbackIcons()));
+        }
         for (RecipeDisplayEntry entry : knownEntries()) {
             String path = categoryPath(entry);
             for (Workstation station : workstations()) {
@@ -68,8 +79,6 @@ public final class RecipeViewerIndex {
                 String uid = station.typeId();
                 grouped.computeIfAbsent(uid, k -> new ArrayList<>())
                         .add(new RecipeViewerEngine.IndexedRecipe(entry, inputStacks(entry), outputStacks(entry)));
-                stationItems.computeIfAbsent(uid, k -> new ArrayList<>())
-                        .addAll(java.util.Arrays.asList(station.fallbackIcons()));
                 break;
             }
         }
@@ -176,7 +185,8 @@ public final class RecipeViewerIndex {
      *  JEI data. */
     private static final List<Workstation> BUILTIN_WORKSTATIONS = List.of(
             new Workstation(Family.CRAFTING, "minecraft:crafting", List.of("crafting_"),
-                    List.of(Identifier.withDefaultNamespace("crafting_table"))),
+                    List.of(Identifier.withDefaultNamespace("crafting_table"),
+                            Identifier.withDefaultNamespace("crafter"))),
             new Workstation(Family.FURNACE, "minecraft:smelting", List.of("furnace_"),
                     List.of(Identifier.withDefaultNamespace("furnace"))),
             new Workstation(Family.FURNACE, "minecraft:blasting", List.of("blast_furnace_"),
@@ -458,16 +468,6 @@ public final class RecipeViewerIndex {
         return ticks;
     }
 
-    /** Workstation item icons for a furnace-type station, indexed like
-     *  {@link #furnaceStationTicks}: {furnace, blast furnace, smoker,
-     *  campfire + soul campfire}.  Drawn from the station's own block items
-     *  (self-owned registry — no runtime JEI data). */
-    public static ItemStack[] stationIcons(int stationIndex) {
-        Workstation station = furnaceWorkstation(stationIndex);
-        if (station == null) return new ItemStack[0];
-        return station.fallbackIcons();
-    }
-
     /** Workstation item icons — one representative per workstation — that can
      *  produce {@code entry}, including mod workstations from the external
      *  registry.  Empty when no workstation matches. */
@@ -493,18 +493,6 @@ public final class RecipeViewerIndex {
             }
         }
         return icons;
-    }
-
-    /** The {@code index}-th furnace-family workstation (furnace, blast furnace,
-     *  smoker, campfire). */
-    private static Workstation furnaceWorkstation(int index) {
-        int i = 0;
-        for (Workstation station : workstations()) {
-            if (station.family() != Family.FURNACE) continue;
-            if (i == index) return station;
-            i++;
-        }
-        return null;
     }
 
     /** Recipe-book category path of {@code entry} (e.g. "furnace_food"), or

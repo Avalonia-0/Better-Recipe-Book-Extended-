@@ -36,13 +36,14 @@ import java.util.concurrent.CompletableFuture;
  * Registry of every open pin overlay, plus the merged z-order rendering and the
  * input routing.  Pins are orthogonal to the query viewer ({@code isViewerActive}
  * stays untouched): they stack by opening order against the viewer via a shared
- * monotonic z sequence, and Esc closes only the top-most layer.
+ * monotonic z sequence, and Esc closes only the query viewer — never a pin.
  *
  * <p>Creating: pressing the configured preview key (default A) over a
  * query-viewer recipe button pins it.  Pressing it again over an open pin
- * closes it; Esc closes only the top-most layer.  Dragging moves a pin
- * (RESIZE_ALL cursor); a press that never moved is a click and inherits the
- * recipe button's click (placing the recipe when the station matches).</p>
+ * closes it; Esc closes only the query viewer (pins stay open).  Dragging
+ * moves a pin (RESIZE_ALL cursor); a press that never moved is a click and
+ * inherits the recipe button's click (placing the recipe when the station
+ * matches).</p>
  *
  * <p>Pins are <b>passive windows</b>: while the query viewer is closed they do
  * not block the container behind them (clicks fall through, container tooltips
@@ -59,7 +60,7 @@ public final class PinOverlayManager {
 
     /** Press state: the pin pressed down.  Pressing captures it for dragging;
      *  a release without movement is a click (place recipe); the configured
-     *  preview key or Esc closes it. */
+     *  preview key closes it. */
     private static PinOverlay pressPin;
     private static double grabDX;
     private static double grabDY;
@@ -339,24 +340,14 @@ public final class PinOverlayManager {
         return true;
     }
 
-    /** Esc closes only the top-most layer: a pin if the top-most pin opened
-     *  after the query viewer, else the query viewer itself.  Returns false when
-     *  there is nothing to close. */
+    /** Esc closes only the query viewer — never a pin overlay.  A pin is
+     *  dismissed with the preview key (pressing it again over the pin) or by
+     *  closing the host screen; Esc keeps pins open so a stray Esc does not
+     *  destroy the pinned layout.  Returns false when there is nothing to
+     *  close. */
     public static boolean handleEscape() {
-        PinOverlay top = topmostPin();
-        int pinZ = top == null ? -1 : top.z();
-        int qz = RecipeViewerOverlay.isActive() ? RecipeViewerOverlay.viewerZ() : -1;
-        if (pinZ < 0 && qz < 0) return false;
-        if (pinZ >= qz) {
-            pins.remove(top);
-            if (pressPin == top) {
-                pressPin = null;
-                dragMoved = false;
-            }
-            save();
-        } else {
-            RecipeViewerOverlay.close();
-        }
+        if (!RecipeViewerOverlay.isActive()) return false;
+        RecipeViewerOverlay.close();
         return true;
     }
 
@@ -422,14 +413,6 @@ public final class PinOverlayManager {
                 // a broken state refresh must not break the pin rendering
             }
         }
-    }
-
-    private static PinOverlay topmostPin() {
-        PinOverlay best = null;
-        for (PinOverlay pin : pins) {
-            if (best == null || pin.z() > best.z()) best = pin;
-        }
-        return best;
     }
 
     /** Bring {@code pin} to the top of the z-order (system-window behaviour). */
