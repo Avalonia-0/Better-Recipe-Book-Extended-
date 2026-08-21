@@ -44,13 +44,36 @@ public final class RecipeViewerIndex {
 
     private RecipeViewerIndex() {}
 
-    /** The recipe book's known display entries, or empty if unavailable. */
-    private static List<RecipeDisplayEntry> knownEntries() {
+    /** The recipe book's known display entries, or empty if unavailable.  The
+     *  known set is the server-synced <b>unlocked</b> subset of the recipe
+     *  book — the authoritative "recipe book data" for every recipe-book
+     *  backed category (vanilla and mod alike). */
+    public static List<RecipeDisplayEntry> knownEntries() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return List.of();
         Map<RecipeDisplayId, RecipeDisplayEntry> known =
                 ((ClientRecipeBookAccessor) mc.player.getRecipeBook()).brbe$getKnown();
         return known == null ? List.of() : List.copyOf(known.values());
+    }
+
+    /** The crafting-station item of {@code entry}'s display (e.g. the
+     *  cooking pot for a Farmer's Delight cooking recipe), or empty when the
+     *  display declares none (crafting-table recipes use the empty slot
+     *  display).  This is the bridge that ties a recipe-book category to its
+     *  JEI recipe type: a station block registered as that type's catalyst. */
+    public static ItemStack resolveCraftingStation(RecipeDisplayEntry entry) {
+        if (entry == null) return ItemStack.EMPTY;
+        try {
+            List<ItemStack> stations = resolveSlotDisplay(entry.display().craftingStation());
+            if (stations != null) {
+                for (ItemStack station : stations) {
+                    if (station != null && !station.isEmpty()) return station;
+                }
+            }
+        } catch (Exception e) {
+            // unresolvable crafting station — no station
+        }
+        return ItemStack.EMPTY;
     }
 
     /** Rebuild the query engine's indices from the vanilla known set — one type
@@ -96,25 +119,6 @@ public final class RecipeViewerIndex {
      *  known set. */
     public static RecipeViewerEngine.IndexedRecipe toIndexed(RecipeDisplayEntry entry) {
         return new RecipeViewerEngine.IndexedRecipe(entry, inputStacks(entry), outputStacks(entry));
-    }
-
-    /** Known display entries whose recipe-book category id is {@code categoryId}
-     *  (e.g. {@code "farmersdelight:cooking_meals"}).  The known set is the
-     *  server-synced <b>unlocked</b> subset of the recipe book, so this is the
-     *  "unlocked recipes of one recipe-book category" view — the data source
-     *  for JEI plugin recipe types that are backed by a mod recipe book. */
-    public static List<RecipeDisplayEntry> knownEntriesForCategory(String categoryId) {
-        if (categoryId == null) return List.of();
-        List<RecipeDisplayEntry> out = new ArrayList<>();
-        for (RecipeDisplayEntry entry : knownEntries()) {
-            try {
-                Identifier key = BuiltInRegistries.RECIPE_BOOK_CATEGORY.getKey(entry.category());
-                if (key != null && categoryId.equals(key.toString())) out.add(entry);
-            } catch (Exception e) {
-                // unresolvable category — skip
-            }
-        }
-        return out;
     }
 
     /** Output item stacks of {@code entry} (its results). */
