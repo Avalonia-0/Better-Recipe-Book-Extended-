@@ -70,7 +70,7 @@
   "text.autoconfig.zzzbrbe.option.enableBook.@Tooltip": "關閉後隱藏配方書。",
   "zzzbrbe.gui.tip.prefix": "提示：",
   "zzzbrbe.gui.tip.1": "你可以右鍵搜尋欄來清除已輸入文字。",
-  "zzzbrbe.gui.tip.2": "你可以按下F鍵（預設）將滑鼠指向的配方固定於首頁。",
+  "zzzbrbe.gui.tip.2": "你可以按下A鍵（預設）將滑鼠指向的配方固定於首頁。",
   "zzzbrbe.gui.tip.3": "殘缺配方就是物品欄存在其部分材料且不可合成的配方。",
   "zzzbrbe.gui.tip.4": "搭配物品管理器使用也挺不錯的，你可以在配方書中查詢配方的合成與用途（快捷鍵跟隨對應物品管理器）。還可以在“介面”中隱藏物品管理器的介面。",
   "zzzbrbe.gui.tip.5": "創造模式標籤功能來自Recipe Book is Pain模組！",

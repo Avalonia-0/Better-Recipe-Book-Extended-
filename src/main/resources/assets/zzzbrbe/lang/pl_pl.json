@@ -68,7 +68,7 @@
   "text.autoconfig.zzzbrbe.option.enableBook.@Tooltip": "Po wyłączeniu książka receptur zostanie ukryta.",
   "zzzbrbe.gui.tip.prefix": "Wskazówka: ",
   "zzzbrbe.gui.tip.1": "Możesz kliknąć prawym przyciskiem pasek wyszukiwania, aby wyczyścić tekst.",
-  "zzzbrbe.gui.tip.2": "Naciśnij F (domyślnie), aby przypiąć wskazany przepis na pierwszej stronie.",
+  "zzzbrbe.gui.tip.2": "Naciśnij A (domyślnie), aby przypiąć wskazany przepis na pierwszej stronie.",
   "zzzbrbe.gui.tip.3": "Niekompletne przepisy to takie, które mają część materiałów w ekwipunku, ale nie można ich wytworzyć.",
   "zzzbrbe.gui.tip.4": "Używanie z menadżerem przedmiotów też jest świetne — możesz sprawdzać receptury i ich zastosowania w księdze receptur (skróty zależą od menadżera przedmiotów). Możesz też ukryć interfejs menadżera przedmiotów w \"Interfejs\".",
   "zzzbrbe.gui.tip.5": "Funkcja zakładek w trybie kreatywnym pochodzi z moda Recipe Book is Pain!",
