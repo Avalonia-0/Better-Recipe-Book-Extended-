@@ -397,15 +397,17 @@ public final class PinOverlayManager {
     /** Refresh every pin's recipe state (craftable / partial) when the search
      *  space changed since the last render — like the recipe book's
      *  updateCollections, so pins keep showing whether the recipe is craftable
-     *  / partially craftable with the current inventory (+ offhand).  The hash
-     *  is over the player's REAL inventory: screen-container slots and the
-     *  carried stack may be virtual (creative tabs, grids) and must not count
-     *  as materials. */
+     *  / partially craftable with the current inventory (+ offhand + carried).
+     *  The hash is over the regular search space
+     *  ({@code PartialCraftingUtil.searchSpaceSlots()}: real inventory + craft
+     *  grid, result slot excluded) plus the carried stack. */
     private static void refreshRecipeStates() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
+        ItemStack carried = mc.player.containerMenu != null
+                ? mc.player.containerMenu.getCarried() : ItemStack.EMPTY;
         long hash = PartialCraftingUtil.slotHash(
-                PartialCraftingUtil.realInventorySlots(), ItemStack.EMPTY);
+                PartialCraftingUtil.searchSpaceSlots(), carried);
         if (pins.isEmpty()) {
             lastSearchSpaceHash = hash;
             return;

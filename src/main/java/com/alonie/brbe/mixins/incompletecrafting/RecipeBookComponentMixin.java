@@ -160,8 +160,10 @@ public abstract class RecipeBookComponentMixin {
 
         // ── Slot cache: skip when inventory unchanged ──
         // 鼠标拿起物（carried）也算作物品栏一部分，纳入哈希以触发重标记。
+        // 常规检索空间统一走 PartialCraftingUtil.searchSpaceSlots()（真实物品栏
+        // + 合成网格，排除结果栏）。
         net.minecraft.world.item.ItemStack carried = this.menu.getCarried();
-        long slotHash = PartialCraftingUtil.slotHash(this.menu.slots, carried);
+        long slotHash = PartialCraftingUtil.slotHash(PartialCraftingUtil.searchSpaceSlots(), carried);
         boolean inventoryChanged = (slotHash != this.brbe$lastSlotHash);
         // Config changes also force a full re-marking pass.
         // Consumed here (inside the normal tick→updateCollections path)
@@ -222,7 +224,7 @@ public abstract class RecipeBookComponentMixin {
         }
 
         PartialCraftingUtil.beginFilteringUpdate(true);
-        java.util.Set<net.minecraft.world.item.Item> inventoryItems = PartialCraftingUtil.hashInventory(this.menu.slots, -1, carried);
+        java.util.Set<net.minecraft.world.item.Item> inventoryItems = PartialCraftingUtil.hashInventory(PartialCraftingUtil.searchSpaceSlots(), -1, carried);
         // partialOnlyWhenCarrying：残缺配方只在拿起物品时显示，且只显示与
         // carried 相关的配方 → 匹配集仅含 carried 类型（carried 为空则空集，
         // 完全不标 partial）。
@@ -232,8 +234,9 @@ public abstract class RecipeBookComponentMixin {
                 : inventoryItems;
         // Item → 总数量。数量感知的材料齐全判定（3×3）需要它区分
         // "类型齐全但数量不足"（铁斧 3 铁锭 2 木棍，库存各 1 → 材料不足）。
+        // 槽位统一走常规检索空间（含网格、排除结果栏）。
         java.util.Map<net.minecraft.world.item.Item, Integer> inventoryCounts = new java.util.HashMap<>();
-        for (net.minecraft.world.inventory.Slot slot : this.menu.slots) {
+        for (net.minecraft.world.inventory.Slot slot : PartialCraftingUtil.searchSpaceSlots()) {
             ItemStack stack = slot.getItem();
             if (!stack.isEmpty()) {
                 inventoryCounts.merge(stack.getItem(), stack.getCount(), Integer::sum);
@@ -340,7 +343,8 @@ public abstract class RecipeBookComponentMixin {
     /** 诊断：每次物品栏刷新后检查配方状态一致性。 */
     @Inject(method = "updateCollections", at = @At("TAIL"))
     private void brbe$diagnostic(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
-        com.alonie.brbe.util.RecipeStateDiagnostic.run(brbe$lastProcessedCollections, menu.slots, this.menu.getCarried());
+        com.alonie.brbe.util.RecipeStateDiagnostic.run(brbe$lastProcessedCollections,
+                PartialCraftingUtil.searchSpaceSlots(), this.menu.getCarried());
     }
 
     /**
@@ -349,7 +353,7 @@ public abstract class RecipeBookComponentMixin {
      */
     @Inject(method = "renderGhostRecipe", at = @At("HEAD"))
     private void brbe$preparePartialGhostOverlay(GuiGraphics graphics, boolean isResultSlotBig, CallbackInfo ci) {
-        PartialGhostOverlayUtil.prepare(this.lastRecipe, this.lastRecipeCollection, this.menu.slots, this.menu.getCarried(), this.ghostSlots);
+        PartialGhostOverlayUtil.prepare(this.lastRecipe, this.lastRecipeCollection, PartialCraftingUtil.searchSpaceSlots(), this.menu.getCarried(), this.ghostSlots);
     }
 
 }

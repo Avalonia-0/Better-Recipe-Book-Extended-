@@ -95,12 +95,9 @@ public final class PinOverlay {
         // instead of recomputing it against a fresh single-recipe collection.
         RecipeCollection collection = RecipeViewerOverlay.capturedOverlayCollection();
         if (collection == null) {
+            // craftable 判定统一走常规检索空间（真实物品栏 + 合成网格 + offhand）。
             StackedItemContents stacked = new StackedItemContents();
-            mc.player.getInventory().fillStackedContents(stacked);
-            ItemStack offhand = PartialCraftingUtil.offhandStack();
-            if (!offhand.isEmpty()) {
-                stacked.accountSimpleStack(offhand);
-            }
+            PartialCraftingUtil.fillSearchSpaceStackedContents(stacked);
             collection = RecipeViewerIndex.toCollection(List.of(entry), stacked);
         }
         OverlayRecipeComponent component = new OverlayRecipeComponent(
@@ -355,23 +352,21 @@ public final class PinOverlay {
      *  unaffected. */
     void refreshRecipeState(Minecraft mc) {
         if (mc.player == null || mc.level == null) return;
-        // Search space = the player's REAL inventory (+ offhand): screen
-        // container slots and the carried stack may be virtual (creative tabs,
-        // grids) and must not count as materials.
+        // 常规检索空间统一走 PartialCraftingUtil：craftable 判定用
+        // fillSearchSpaceStackedContents（真实物品栏 + 合成网格 + offhand），
+        // partial 标记用 searchSpaceSlots()（网格含、结果栏排除）+ carried。
         StackedItemContents stacked = new StackedItemContents();
-        mc.player.getInventory().fillStackedContents(stacked);
-        ItemStack offhand = PartialCraftingUtil.offhandStack();
-        if (!offhand.isEmpty()) {
-            stacked.accountSimpleStack(offhand);
-        }
+        PartialCraftingUtil.fillSearchSpaceStackedContents(stacked);
         // selectRecipes rebuilds the craftable set (dropping stale partial
         // injections from a previous prepareForViewer pass).
         collection.selectRecipes(stacked, display -> true);
         // The tagger only marks a collection once per generation; force a
         // re-evaluation so the partial state follows the new search space.
         PartialCraftingUtil.forceReevaluate(collection);
+        ItemStack carried = mc.player.containerMenu != null
+                ? mc.player.containerMenu.getCarried() : ItemStack.EMPTY;
         PartialCraftingUtil.prepareForViewer(
-                collection, PartialCraftingUtil.realInventorySlots(), ItemStack.EMPTY);
+                collection, PartialCraftingUtil.searchSpaceSlots(), carried);
         RecipeViewerIndex.snapshotPartials(collection);
     }
 
