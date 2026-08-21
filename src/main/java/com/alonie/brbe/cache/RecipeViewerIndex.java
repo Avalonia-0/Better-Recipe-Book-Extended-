@@ -506,14 +506,20 @@ public final class RecipeViewerIndex {
         return workstationsIconsForPath(categoryPath(entry));
     }
 
-    /** Every workstation item of the vanilla recipe-book types (built-in plus
-     *  config/external registrations — e.g. the blast furnace and BetterEnd's
-     *  end stone smelter both serving {@code minecraft:blasting}).  These all
-     *  count as recipe-book-backed workstations. */
+    /** Vanilla recipe-book workstation items: only the built-in vanilla
+     *  stations (minecraft namespace — furnace family, crafting table, crafter,
+     *  stonecutter, smithing table, campfires).  Mod stations registered under
+     *  a vanilla type (e.g. BetterEnd's end stone smelter under
+     *  {@code minecraft:blasting}, Farmer's Delight's skillet under campfire)
+     *  are NOT recipe-book workstations: they have no recipe book of their own,
+     *  even though their recipes live in a vanilla recipe-book category. */
     public static List<ItemStack> vanillaWorkstationItems() {
         List<ItemStack> out = new ArrayList<>();
         for (Workstation station : workstations()) {
-            out.addAll(java.util.Arrays.asList(station.fallbackIcons()));
+            for (ItemStack icon : station.fallbackIcons()) {
+                Identifier id = BuiltInRegistries.ITEM.getKey(icon.getItem());
+                if (id != null && "minecraft".equals(id.getNamespace())) out.add(icon);
+            }
         }
         return out;
     }
