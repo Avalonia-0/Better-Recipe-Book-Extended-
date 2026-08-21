@@ -42,7 +42,7 @@ public class BetterRecipeBook {
     public static final KeyMapping PIN_MAPPING = new KeyMapping(
             "key.zzzbrbe.pin",
             InputConstants.Type.KEYSYM,
-            InputConstants.KEY_F,
+            InputConstants.KEY_A,
             KEY_CATEGORY
     );
 

@@ -452,10 +452,6 @@ public final class PinOverlayManager {
         PinOverlay pin = PinOverlay.create(entry, mode, z, mx, my);
         if (pin != null) {
             pins.add(pin);
-            // Created under the cursor by the hotkey: no tooltip until the
-            // cursor leaves the pin once (the query object's tooltip must not
-            // flash at the cursor the moment the pin appears).
-            pin.disarmTooltip();
             save();
         }
     }

@@ -251,12 +251,15 @@ public final class RecipeViewerOverlay {
     public static boolean mouseClicked(MouseButtonEvent event, boolean doubleClick,
                                        AbstractContainerScreen<?> screen) {
         if (!isActive()) return false;
-        // The popup layer is modal: a click inside it never reaches the buttons
-        // or the container behind it, and instead inherits the hovered button's
-        // click (placing the recipe).
-        if (RecipePopupLayer.contains(event.x(), event.y())) {
-            AbstractWidget popupBtn = RecipePopupLayer.button();
-            if (popupBtn instanceof OverlayRecipeButtonAccessor oba) {
+        // The popup layer is a hard modal: while it is open, every click is
+        // claimed by it — inside the popup it inherits the hovered button's
+        // full click (placing the recipe, left button only), outside it is
+        // swallowed so nothing underneath (other buttons, the container) ever
+        // receives it.
+        if (RecipePopupLayer.isActive()) {
+            if (RecipePopupLayer.contains(event.x(), event.y())
+                    && event.button() == 0
+                    && RecipePopupLayer.button() instanceof OverlayRecipeButtonAccessor oba) {
                 placeRecipe(event, screen, oba.brbe$getRecipe(),
                         oba.brbe$getOuterComponent().getRecipeCollection());
             }
@@ -374,6 +377,11 @@ public final class RecipeViewerOverlay {
         if (PinOverlayManager.handleMouseScrolled(mouseX, mouseY, vertical)) {
             return true;
         }
+        // The hard-modal popup swallows the scroll too (a page flip would
+        // rebuild the buttons and destroy the open popup).
+        if (RecipePopupLayer.isActive()) {
+            return true;
+        }
         // Category-tab strip first: folded categories page with the wheel.
         if (mouseScrolledTabs(mouseX, mouseY, vertical)) {
             return true;
@@ -403,7 +411,9 @@ public final class RecipeViewerOverlay {
             }
             return true;
         }
-        return false;
+        // The open viewer is a modal layer: while it is up, the scroll goes
+        // nowhere else (nothing underneath may page or scroll).
+        return isActive();
     }
 
     /** Whether the cursor is over the box or the page-button strip above it. */
@@ -1409,6 +1419,9 @@ public final class RecipeViewerOverlay {
      *  does not cancel this sanctioned close. */
     public static void close() {
         if (!isActive() && !overlay.isVisible()) return;
+        // Close the popup layer too: its active flag must not keep blocking
+        // button hover / clicks on the next screen.
+        RecipePopupLayer.close();
         RecipeViewerIndex.setViewerActive(false);
         RecipeViewerIndex.clearViewerPartials(currentCollection);
         currentCollection = null;

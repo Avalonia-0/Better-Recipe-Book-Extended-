@@ -61,10 +61,8 @@ public final class PinOverlay {
     private int z;
     private int cx;
     private int cy;
-    /** Whether the pin may show its hover tooltip.  A pin created by the pin
-     *  hotkey starts disarmed so the query object's tooltip does not flash at
-     *  the cursor the moment the pin appears; it re-arms once the cursor
-     *  leaves the pin. */
+    /** Whether the pin may show its hover tooltip (always true; the pin shows
+     *  its tooltip as soon as the cursor is over it). */
     private boolean tooltipArmed = true;
     /** Cloned button (renders the full recipe layout at the frozen zoom). */
     private final AbstractWidget button;
@@ -208,11 +206,6 @@ public final class PinOverlay {
     /** Whether the pin may show its hover tooltip (see {@link #tooltipArmed}). */
     boolean tooltipArmed() {
         return tooltipArmed;
-    }
-
-    /** Suppress the pin's hover tooltip until the cursor leaves the pin. */
-    void disarmTooltip() {
-        tooltipArmed = false;
     }
 
     /** Re-enable the pin's hover tooltip (called while the cursor is not over

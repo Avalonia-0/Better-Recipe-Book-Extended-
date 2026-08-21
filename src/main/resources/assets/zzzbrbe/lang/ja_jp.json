@@ -68,7 +68,7 @@
   "text.autoconfig.zzzbrbe.option.enableBook.@Tooltip": "オフにするとレシピ本が非表示になります。",
   "zzzbrbe.gui.tip.prefix": "ヒント：",
   "zzzbrbe.gui.tip.1": "検索バーを右クリックすると入力した文字を消せます。",
-  "zzzbrbe.gui.tip.2": "Fキー（デフォルト）でカーソルのレシピを先頭ページに固定できます。",
+  "zzzbrbe.gui.tip.2": "Aキー（デフォルト）でカーソルのレシピを先頭ページに固定できます。",
   "zzzbrbe.gui.tip.3": "不完全レシピとは、インベントリに一部の材料があるが作れないレシピです。",
   "zzzbrbe.gui.tip.4": "アイテムマネージャーと併用するのもおすすめです。レシピ本でレシピの合成と用途を調べられます（ショートカットはアイテムマネージャーに準拠）。また「UI」でアイテムマネージャーの表示を非表示にできます。",
   "zzzbrbe.gui.tip.5": "クリエイティブモードのタブ機能は Recipe Book is Pain のMODから来ています！",

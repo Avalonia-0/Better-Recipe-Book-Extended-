@@ -74,7 +74,7 @@
   "text.autoconfig.zzzbrbe.option.enableBook.@Tooltip": "The recipe book is hidden when disabled.",
   "zzzbrbe.gui.tip.prefix": "Tip: ",
   "zzzbrbe.gui.tip.1": "You can right-click the search bar to clear its text.",
-  "zzzbrbe.gui.tip.2": "Press F (default) to pin the recipe under your cursor to the front page.",
+  "zzzbrbe.gui.tip.2": "Press A (default) to pin the recipe under your cursor to the front page.",
   "zzzbrbe.gui.tip.3": "Incomplete recipes are those that have some materials in your inventory but cannot be crafted.",
   "zzzbrbe.gui.tip.4": "Using it with an item manager is also great — you can look up how to craft recipes and their uses in the recipe book (hotkeys follow your item manager). You can also hide the item manager's interface in \"UI\".",
   "zzzbrbe.gui.tip.5": "The creative mode tab feature comes from the Recipe Book is Pain mod!",
