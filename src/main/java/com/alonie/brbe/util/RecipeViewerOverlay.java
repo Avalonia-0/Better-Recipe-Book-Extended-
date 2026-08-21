@@ -1511,6 +1511,19 @@ public final class RecipeViewerOverlay {
         if (currentCategory.isFuelCategory()) {
             computeFuelBoxSize();
         } else {
+            // The query target itself is a workstation without a recipe-book
+            // system (e.g. BetterEnd's end stone smelter): its whole usage
+            // query is hidden — the objects belong to a station the player
+            // cannot browse through a recipe book.  The external viewer is not
+            // consulted either.
+            if (viewUsage && BetterRecipeBook.config.hideNoRecipeBookStationObjects
+                    && currentCategory.appliesToStation(target)
+                    && !RecipeViewerEngine.isRecipeBookStation(target)) {
+                if (RecipeViewerIndex.isViewerActive()) {
+                    close();
+                }
+                return false;
+            }
             hits = filterByRecipeBookStations(currentCategory.query(target, viewUsage));
             if (hits.isEmpty()) {
                 if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
