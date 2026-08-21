@@ -10,6 +10,7 @@
   "text.autoconfig.zzzbrbe.option.saveRecipeBookPosition": "保存配方书浏览记录",
   "text.autoconfig.zzzbrbe.option.saveRecipeBookPosition.@Tooltip": "每个标签页独立记忆自己的页码：切换到其他标签再切回来会回到原来的页面，重新打开配方书亦然。输入搜索词时从第 1 页开始浏览结果，清空搜索后回到搜索前浏览的页码。退出游戏将丢失。",
   "text.autoconfig.zzzbrbe.option.recipeViewerEnabled": "启用BRBE的查询功能",
+  "text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects": "隐藏无配方书工作站所属的对象",
   "text.autoconfig.zzzbrbe.option.recipeViewerEnabled.@PrefixText": "§e查询合成/用途",
   "text.autoconfig.zzzbrbe.option.recipeViewerEnabled.@Tooltip": "鼠标悬停在物品或者配方书的配方上，按下 R/U（默认）查询合成配方和作为材料时的配方。\n需要使用物品管理器的查询功能时需要关闭此功能或者调整快捷键。",
   "text.autoconfig.zzzbrbe.option.pinKey": "固定",

@@ -1300,6 +1300,21 @@ public final class RecipeViewerOverlay {
             return List.of();
         }
         List<ItemStack> icons = category.stationIconsFor(entry);
+        if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+            // Hide the icons of workstations without a recipe-book system on
+            // the tooltip; the object itself survives because it has at least
+            // one legitimate workstation (the filter guarantees it).
+            List<ItemStack> filtered = new ArrayList<>();
+            for (ItemStack icon : icons) {
+                if (RecipeViewerEngine.isRecipeBookStation(icon)) filtered.add(icon);
+            }
+            if (filtered.isEmpty()) {
+                // The legitimate workstation is not one the category registered
+                // (e.g. the display declares it) — omit the icon row entirely.
+                return List.of();
+            }
+            icons = filtered;
+        }
         if (icons.isEmpty()) {
             icons = List.of(category.icon());
         }
@@ -1484,14 +1499,25 @@ public final class RecipeViewerOverlay {
             if (RecipeViewerIndex.isViewerActive()) {
                 close();
             }
+            // The "hide objects of workstations without a recipe book" mode
+            // suppresses the JEI fallback too: nothing BRBE can judge may
+            // leak through the external viewer.
+            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+                return false;
+            }
             return fallbackToViewer(target, viewUsage);
         }
         List<RecipeDisplayEntry> hits = null;
         if (currentCategory.isFuelCategory()) {
             computeFuelBoxSize();
         } else {
-            hits = currentCategory.query(target, viewUsage);
+            hits = filterByRecipeBookStations(currentCategory.query(target, viewUsage));
             if (hits.isEmpty()) {
+                if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+                    // Every hit was hidden by the filter: the viewer stays
+                    // closed and the external viewer is not consulted either.
+                    return false;
+                }
                 return fallbackToViewer(target, viewUsage);
             }
             computeBoxSize(hits);
@@ -1695,13 +1721,57 @@ public final class RecipeViewerOverlay {
             currentCategory = category;
             rebuildFuel(targetIsFuel ? List.of(queryTarget) : fuel.allFuelItems());
         } else {
-            List<RecipeDisplayEntry> hits = category.query(queryTarget, queryUsage);
+            List<RecipeDisplayEntry> hits = filterByRecipeBookStations(category.query(queryTarget, queryUsage));
             if (hits.isEmpty()) return;
             currentCategory = category;
             rebuildWithHits(hits);
         }
         clampBoxX();
         repaginateToSelected();
+    }
+
+    /** Filter a query's hits by the "hide objects of workstations without a
+     *  recipe book" toggle: objects whose <b>every</b> workstation lacks a
+     *  recipe-book system are dropped.  Objects that also have a legitimate
+     *  (recipe-book-backed) workstation survive — their tooltip icons are
+     *  filtered separately.  No-op when the toggle is off. */
+    private static List<RecipeDisplayEntry> filterByRecipeBookStations(List<RecipeDisplayEntry> hits) {
+        if (!BetterRecipeBook.config.hideNoRecipeBookStationObjects) return hits;
+        if (hits == null || hits.isEmpty()) return hits;
+        List<RecipeDisplayEntry> out = new ArrayList<>();
+        for (RecipeDisplayEntry entry : hits) {
+            if (hasRecipeBookStation(entry)) out.add(entry);
+        }
+        return out;
+    }
+
+    /** Whether {@code entry} has at least one recipe-book-backed workstation:
+     *  its display's declared crafting station, or any station its category
+     *  registered.  Built-in categories (furnace / crafting / stonecutting /
+     *  smithing / fuel) are themselves recipe-book systems, so their objects
+     *  always qualify. */
+    private static boolean hasRecipeBookStation(RecipeDisplayEntry entry) {
+        if (entry == null) return false;
+        if (currentCategory != null && isBuiltinCategory(currentCategory)) return true;
+        RecipeViewerCategory category = currentCategory != null ? currentCategory : categoryFor(entry);
+        if (category != null) {
+            for (ItemStack station : category.stationIconsFor(entry)) {
+                if (RecipeViewerEngine.isRecipeBookStation(station)) return true;
+            }
+        }
+        ItemStack declared = RecipeViewerIndex.resolveCraftingStation(entry);
+        return !declared.isEmpty() && RecipeViewerEngine.isRecipeBookStation(declared);
+    }
+
+    /** Whether {@code category} is one of the built-in vanilla categories,
+     *  which map to vanilla recipe-book types and therefore count as
+     *  recipe-book systems themselves. */
+    private static boolean isBuiltinCategory(RecipeViewerCategory category) {
+        if (category == null) return false;
+        return switch (category.id()) {
+            case "furnace", "crafting", "stonecutting", "smithing", "fuel" -> true;
+            default -> false;
+        };
     }
 
     /** Re-clamp boxX so a box widened by a category switch stays on screen. */

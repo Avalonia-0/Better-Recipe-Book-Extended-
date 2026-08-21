@@ -227,6 +227,17 @@ public final class PluginRecipeIndexer {
                     uid, e.getValue().size());
         }
 
+        // Rebuild the recipe-book-backed workstation set: the vanilla types
+        // (including external registrations, e.g. BetterEnd's end stone smelter
+        // under minecraft:blasting) plus every recipe-book-driven mod type's
+        // stations.  The "hide objects of workstations without a recipe book"
+        // filter consults this set.
+        List<ItemStack> bookStations = new ArrayList<>(RecipeViewerIndex.vanillaWorkstationItems());
+        for (Map.Entry<String, List<RecipeViewerEngine.IndexedRecipe>> e : bookDriven.entrySet()) {
+            bookStations.addAll(stationsFor(Identifier.parse(e.getKey()), catalysts));
+        }
+        RecipeViewerEngine.setRecipeBookStationItems(bookStations);
+
         // Types with a recipe-book category but no recipe-book UI (e.g. bclib
         // registers a RecipeBookCategory while its anvils/alloying furnace have
         // no recipe book) keep the original JEI full-collection path — a

@@ -8,6 +8,7 @@ import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -162,6 +163,34 @@ public final class RecipeViewerEngine {
      *  by {@code RecipeViewerIndex.rebuildEngine}, not by the plugin collector). */
     public static boolean isVanillaType(String uid) {
         return uid != null && VANILLA_TYPES.contains(uid);
+    }
+
+    /** Workstation items of recipe-book-backed recipe types: the vanilla types
+     *  (furnace, crafting table, …) plus mod types driven by their recipe book
+     *  (e.g. Farmer's Delight's cooking pot).  Rebuilt by the plugin collector
+     *  after each collection.  Used by the "hide objects of workstations
+     *  without a recipe book" filter. */
+    private static final Set<Item> RECIPE_BOOK_STATION_ITEMS = new HashSet<>();
+
+    /** Replace the recipe-book-backed workstation set.  Called by the JEI
+     *  plugin collector with every workstation of the vanilla types plus every
+     *  workstation of recipe-book-driven mod types. */
+    public static void setRecipeBookStationItems(java.util.Collection<ItemStack> stations) {
+        RECIPE_BOOK_STATION_ITEMS.clear();
+        if (stations != null) {
+            for (ItemStack station : stations) {
+                if (station != null && !station.isEmpty()) {
+                    RECIPE_BOOK_STATION_ITEMS.add(station.getItem());
+                }
+            }
+        }
+    }
+
+    /** Whether {@code station} belongs to a recipe-book-backed recipe type
+     *  (vanilla recipe book or a mod type driven by its recipe book). */
+    public static boolean isRecipeBookStation(ItemStack station) {
+        return station != null && !station.isEmpty()
+                && RECIPE_BOOK_STATION_ITEMS.contains(station.getItem());
     }
 
     /** Register a callback run after each vanilla recipe-book rebuild (i.e. after

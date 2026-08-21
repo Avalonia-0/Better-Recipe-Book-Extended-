@@ -82,5 +82,6 @@
   "text.autoconfig.zzzbrbe.option.recipeViewKey": "レシピ照会",
   "text.autoconfig.zzzbrbe.option.recipeViewKey.@Tooltip": "そのアイテムを産物とするレシピを照会します。",
   "text.autoconfig.zzzbrbe.option.usageViewKey": "用途照会",
-  "text.autoconfig.zzzbrbe.option.usageViewKey.@Tooltip": "そのアイテムを材料・作業台として使用するレシピを照会します。"
+  "text.autoconfig.zzzbrbe.option.usageViewKey.@Tooltip": "そのアイテムを材料・作業台として使用するレシピを照会します。",
+  "text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects": "レシピブックの無い作業台の対象を隠す"
 }

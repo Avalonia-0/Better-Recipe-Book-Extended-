@@ -82,5 +82,6 @@
   "text.autoconfig.zzzbrbe.option.recipeViewKey": "Wyszukaj przepisy",
   "text.autoconfig.zzzbrbe.option.recipeViewKey.@Tooltip": "Pokazuje przepisy, których produktem jest ten przedmiot.",
   "text.autoconfig.zzzbrbe.option.usageViewKey": "Wyszukaj zastosowania",
-  "text.autoconfig.zzzbrbe.option.usageViewKey.@Tooltip": "Pokazuje przepisy, w których ten przedmiot jest materiałem lub stacją."
+  "text.autoconfig.zzzbrbe.option.usageViewKey.@Tooltip": "Pokazuje przepisy, w których ten przedmiot jest materiałem lub stacją.",
+  "text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects": "Ukryj obiekty stacji bez księgi przepisów"
 }

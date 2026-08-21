@@ -506,6 +506,18 @@ public final class RecipeViewerIndex {
         return workstationsIconsForPath(categoryPath(entry));
     }
 
+    /** Every workstation item of the vanilla recipe-book types (built-in plus
+     *  config/external registrations — e.g. the blast furnace and BetterEnd's
+     *  end stone smelter both serving {@code minecraft:blasting}).  These all
+     *  count as recipe-book-backed workstations. */
+    public static List<ItemStack> vanillaWorkstationItems() {
+        List<ItemStack> out = new ArrayList<>();
+        for (Workstation station : workstations()) {
+            out.addAll(java.util.Arrays.asList(station.fallbackIcons()));
+        }
+        return out;
+    }
+
     /** Workstation icons for one furnace subcategory prefix (e.g.
      *  {@code "furnace_"}, {@code "blast_furnace_"}, {@code "campfire"}). */
     public static List<ItemStack> workstationsIconsForPrefix(String categoryPrefix) {
