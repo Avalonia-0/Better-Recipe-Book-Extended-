@@ -145,6 +145,10 @@ Cloth Config provides the configuration GUI. It's `implementation`+`include` (bu
 - RBIP `ClientRecipeBookMixin` 补 `RecipeBookIsPainExtendedConfig.enabled()` 守卫
 - 清理调试日志：GenericGhostRecipe（保留 showModName 功能）、incompletecrafting/RecipeButtonMixin 的 [BRBE-DIAG] 日志块
 
+**2026-08-21 晚间修复（R/U 查询功能）**：
+- `OverlayRecipeButtonAccessor` 的 `@Accessor("this$0")` 在本分支（remap 构建）找不到字段——1.21.11 映射后该合成字段名为 **`field_3113`**（26.2 no-remap 保持 `this$0`），此前导致查看浮层每次打开都抛 `InvalidAccessorException`，R/U 查询完全不可用。已改为 `@Accessor("field_3113")`。⚠️ 修改任何 `@Accessor`/`@Invoker` 的成员名时，须用 `javap -p` 核对 1.21.11 named jar 中的实际字段/方法名（合成成员保留 `field_XXXX`/`method_XXXXX` intermediary 名）。
+- 清理调试日志：[BRBE-SQ] 每帧刷屏（RecipeBookPageAnimationMixin）、[BRBE-DUMP] 每次重建 1458 行全量转储（localcache ClientRecipeBookMixin 的 `dumpAllKnown` 调用）。
+
 ## Deployment
 
 Test instances at `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSION}-{MOD_LOADER}/mods/` (`MOD_LOADER` capitalized: `Fabric`/`NeoForge`). Deploy pattern:
