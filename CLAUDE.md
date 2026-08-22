@@ -112,12 +112,12 @@ Cloth Config provides the configuration GUI. It's `implementation`+`include` (bu
 - 拼音搜索（search/Pinyin* + pinyin.txt，中文语言自动开启）
 - 翻页动画 + Ctrl 跳页 + 搜索页码跳转命令（^N^）+ 配方书位置记忆
 - 自研 R/U 查看引擎生态：recipeviewer/（RecipeViewerEngine/Categories）、RecipeViewerOverlay 浮层、PinOverlay（pin 浮层）、render/（PopupGeometry/PopupRenderer）
-- JEI 插件收集代码（jei/plugins）对真实 JEI 27.4.0.22 编译（**未移植** vendored mezz fork；入口有 isModLoaded("jei") 守卫）
+- JEI 插件收集代码（jei/plugins）：**已内嵌 vendored mezz.jei.api fork**（2026-08-22，见下方"内嵌 vendored mezz fork"小节），入口无 isModLoaded("jei") 守卫
 - RBIP 创造标签固定（TabPinManager）、RBIP 增量（rbip$getPage/setPage、renderTooltip 还原）
 - ClientRecipeBookMixin 接 RecipeViewerIndex.rebuildEngine
 
 **已知降级/警告**：
-- **`mixins.brbe-jei.json`（JeiBookmarkOverlayMixin/JeiIngredientListOverlayMixin）target 在 JEI 27 找不到**（mezz.jei.gui.overlay 包路径变化）——1.21.11 既有问题，`hideReiJeiOverlay` 的 JEI 部分不生效，REI 部分正常。
+- **`mixins.brbe-jei.json`（JeiBookmarkOverlayMixin/JeiIngredientListOverlayMixin）target 在 JEI 27 找不到**（旧实现无 `remap=false`，字符串 target 在 remap 构建下无法命中）——1.21.11 既有问题，`hideReiJeiOverlay` 的 JEI 部分不生效，REI 部分正常。26.2 侧已用 `remap=false` 字符串 target 的 `mixins/hideoverlay/` 版（IngredientListOverlayMixin/BookmarkOverlayMixin）替代，1.21.11 尚未同步（待用户确认）。
 - RecipeButtonAccessor 的 sprite accessor 未标 static（Mixin 警告，功能正常）。
 
 ## 2026-08-21 二轮同步（26.2 ↔ 1.21.11 零碎特性补齐）
@@ -170,6 +170,16 @@ Cloth Config provides the configuration GUI. It's `implementation`+`include` (bu
 - **无配方书体系的工作站按原路径显示**（2026-08-22 修正）：曾加"零解锁隐藏"（RecipeBookCategory namespace 级判定），实机发现 **bclib 注册了 RecipeBookCategory（AlloyingRecipe 返回 ALLOYING_CATEGORY）但无配方书 UI** → bclib anvils/alloying、betterend infusion 全部被误隐藏。已移除该逻辑：**RecipeBookCategory 注册 ≠ 有配方书体系**；唯一权威信号是 known 本身（bclib anvils 的条目从不进 known）。无配方书类型走 JEI 全量原路径；配方书驱动（known 归属）在解锁后覆盖引擎数据
 - 已知环境问题（未修）：26.2 实例 FD `registerRecipes` 的 recipes 为空（fabric 配方同步晚于收集时机），JEI 全量路径对 mod type 全部 0 可索引——配方书驱动路径不受影响
 - `RecipeViewerIndex` 新增 public `knownEntries()` / `resolveCraftingStation(RecipeDisplayEntry)` / `toIndexed(RecipeDisplayEntry)`；`RecipeViewerEngine` 新增 `isVanillaType(String)`
+
+## 2026-08-22 内嵌 vendored mezz fork（对齐 26.2）
+
+1.21.11 插件收集代码不再依赖外部 JEI jar 编译：从 JEI 27.4.0.22（neoforge 版，Mojang 映射）反编译出 `src/main/java/mezz/`（提交 c1532fef）：
+- 结构对齐 26.2 fork：`mezz/jei/api/**`（135 接口/常量）+ 4 个实现类（`common/gui/elements/DrawableAnimated`、`DrawableResource`、`common/util/TickTimer`、`library/gui/elements/DrawableBuilder`）
+- 修复 CFR 反编译瑕疵：泛型 `Class<T>` → `Class<? extends T>`（IIngredientType/IRecipeHolderType/RecipeType）、`IRecipeRegistration.addItemStackInfo` 去多余强转、`IJeiFuelingRecipe`/`IJeiCompostingRecipe` 去 javax.annotation 注解（无 ABI 影响）
+- 保留 3 个未引用 API 类（ModIds/RecipeTypes/IJeiConfigListValueSerializer，26.2 fork 同样保留）
+- `BrbeJeiPluginsClientFabric` 移除 `isModLoaded("jei")` 守卫（fork 内嵌后无 NoClassDefFoundError 风险）；`BrbeJeiPlugins` 里 `SyntheticRecipeRenderers.register` 的守卫**保留**（与 26.2 一致，真实 JEI 存在才委托渲染）
+- fabric.mod.json 无 `breaks: jei`（与真实 JEI 共存，实测机制同 26.2）
+- ⚠️ 编译兜底：`JeiBookmarkOverlayMixin`/`JeiIngredientListOverlayMixin`（mixins.brbe-jei.json，已知失效）import 的 `mezz.jei.gui.elements.IconButton` 不在 fork 内，编译期仍从 `libs/` JEI jar 兜底；运行时安全（真实 JEI 在→jar 提供该类且 mixin 因 target 失效不加载；真实 JEI 不在→mixin 不加载）。彻底移除需同步 26.2 的 hideoverlay 字符串 target mixin（待用户确认）
 
 ## Deployment
 
