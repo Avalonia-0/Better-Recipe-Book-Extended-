@@ -1,0 +1,84 @@
+/*
+ * Decompiled with CFR 0.152.
+ * 
+ * Could not load the following classes:
+ *  net.minecraft.resources.Identifier
+ */
+package mezz.jei.library.gui.elements;
+
+import mezz.jei.api.gui.ITickTimer;
+import mezz.jei.api.gui.drawable.IDrawableAnimated;
+import mezz.jei.api.gui.drawable.IDrawableBuilder;
+import mezz.jei.api.gui.drawable.IDrawableStatic;
+import mezz.jei.common.gui.elements.DrawableAnimated;
+import mezz.jei.common.gui.elements.DrawableResource;
+import mezz.jei.common.util.ErrorUtil;
+import net.minecraft.resources.Identifier;
+
+public class DrawableBuilder
+implements IDrawableBuilder {
+    private final Identifier id;
+    private int u;
+    private int v;
+    private int width;
+    private int height;
+    private int textureWidth = 256;
+    private int textureHeight = 256;
+    private int paddingTop = 0;
+    private int paddingBottom = 0;
+    private int paddingLeft = 0;
+    private int paddingRight = 0;
+
+    public DrawableBuilder(Identifier id, int u, int v, int width, int height) {
+        ErrorUtil.checkNotNull(id, "id");
+        this.u = u;
+        this.v = v;
+        this.width = width;
+        this.height = height;
+        this.id = id;
+    }
+
+    @Override
+    public IDrawableBuilder setTextureSize(int width, int height) {
+        this.textureWidth = width;
+        this.textureHeight = height;
+        return this;
+    }
+
+    @Override
+    public IDrawableBuilder addPadding(int paddingTop, int paddingBottom, int paddingLeft, int paddingRight) {
+        this.paddingTop = paddingTop;
+        this.paddingBottom = paddingBottom;
+        this.paddingLeft = paddingLeft;
+        this.paddingRight = paddingRight;
+        return this;
+    }
+
+    @Override
+    public IDrawableBuilder trim(int trimTop, int trimBottom, int trimLeft, int trimRight) {
+        this.u += trimLeft;
+        this.v += trimTop;
+        this.width -= trimLeft + trimRight;
+        this.height -= trimTop + trimBottom;
+        return this;
+    }
+
+    @Override
+    public IDrawableStatic build() {
+        return new DrawableResource(this.id, this.u, this.v, this.width, this.height, this.paddingTop, this.paddingBottom, this.paddingLeft, this.paddingRight, this.textureWidth, this.textureHeight);
+    }
+
+    @Override
+    public IDrawableAnimated buildAnimated(int ticksPerCycle, IDrawableAnimated.StartDirection startDirection, boolean inverted) {
+        ErrorUtil.checkNotNull(startDirection, "startDirection");
+        IDrawableStatic drawable = this.build();
+        return new DrawableAnimated(drawable, ticksPerCycle, startDirection, inverted);
+    }
+
+    @Override
+    public IDrawableAnimated buildAnimated(ITickTimer tickTimer, IDrawableAnimated.StartDirection startDirection) {
+        IDrawableStatic drawable = this.build();
+        return new DrawableAnimated(drawable, tickTimer, startDirection);
+    }
+}
+
