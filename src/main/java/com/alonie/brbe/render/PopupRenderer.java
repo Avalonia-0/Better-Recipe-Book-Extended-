@@ -125,11 +125,7 @@ public final class PopupRenderer {
     private static ButtonBackdrop resolveBackdrop(RecipeDisplayId id, int mode,
                                                   boolean craftable, boolean partial, boolean hover) {
         RecipeViewerEngine.RecipeLayout layout = RecipeViewerEngine.getLayout(id);
-        // The JEI background texture only lines up with the native slot
-        // positions painted by the companion renderer; without a registered
-        // renderer (no real JEI) fall back to the uniform vanilla sprite.
-        if (hover && SyntheticRecipeRenderers.get() != SyntheticRecipeRenderer.NONE
-                && layout != null && layout.background() != null) {
+        if (hover && layout != null && layout.background() != null) {
             RecipeViewerEngine.RecipeBackground bg = layout.background();
             return new ButtonBackdrop.Texture(bg.texture(), bg.u(), bg.v(), bg.width(), bg.height(),
                     bg.textureWidth(), bg.textureHeight());
@@ -146,8 +142,7 @@ public final class PopupRenderer {
                                         int mode, List<?> slots, int selIdx,
                                         int x, int y, int w, int h, boolean hover) {
         gui.pose().pushMatrix();
-        if (SyntheticRecipeRenderers.get() != SyntheticRecipeRenderer.NONE
-                && RecipeViewerEngine.getLayout(id) != null) {
+        if (RecipeViewerEngine.getLayout(id) != null) {
             renderSynthetic(gui, id, entry, selIdx, x, y, hover);
         } else if (mode == PinOverlay.MODE_STONECUTTING) {
             renderFixedPair(gui, entry, PinOverlay.MODE_STONECUTTING, selIdx, x, y, hover);
