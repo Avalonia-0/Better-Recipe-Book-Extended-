@@ -105,7 +105,7 @@ Potion brewing is platform-dependent (`PotionBrewing.Mix` is package-private). F
 原独立工程 `jei-plugins/`（独立 git 分支/worktree）已并入本目录源码树，直接编译，**不再需要先构建任何外部工程**：
 
 - `src/main/java/com/alonie/brbe/jei/` —— 插件收集逻辑（`plugins/` `engine/` `loader/` `stub/`），入口 `BrbeJeiPluginsClientFabric`
-- `src/main/java/mezz/jei/api/` —— vendored JEI API fork（主 jar 内嵌，`fabric.mod.json` 声明 `breaks: jei`）；运行时若真实 JEI 存在则直接依赖它
+- `src/main/java/mezz/jei/api/` —— vendored JEI API fork（主 jar 内嵌，`fabric.mod.json` 无 `breaks: jei`，与真实 JEI 共存）；运行时若真实 JEI 存在则直接依赖它
 
 ```bash
 ./gradlew build        # 默认构建：内嵌 vendored mezz.jei.api
@@ -171,7 +171,7 @@ Each hider owns its own state (snapshot, guard flags). Adding a new HUD mod only
 ## Important gotchas
 
 - **26.1+ is unobfuscated** — Mojang official mappings are the final names, no remap needed. The build uses `net.fabricmc.fabric-loom` 1.17.18 (`LoomNoRemapGradlePlugin`). Intermediary-based mods (like ModMenu) cannot be directly included as compile dependencies. ModMenuFabric integration is done reflectively via `ModMenuReflectiveBridge`.
-- **JEI 已可用（vendored fork）**：主 jar 内嵌 `mezz.jei.api` fork（`breaks: jei`），运行时若真实 JEI 存在则直接依赖它（只维护默认构建，jeiJar 变体已移除）。`libs/jei-26.2-fabric-30.24.0.165.jar` 仍作编译期依赖。**REI 仍不可用**（26.2 无 REI jar，`mixins.brbe-rei-common.json` 注册但无运行时实现）。
+- **JEI 已可用（vendored fork）**：主 jar 内嵌 `mezz.jei.api` fork（无 `breaks: jei`，与真实 JEI 共存），运行时若真实 JEI 存在则直接依赖它（只维护默认构建，jeiJar 变体已移除）。`libs/jei-26.2-fabric-30.24.0.165.jar` 仍作编译期依赖。**REI 仍不可用**（26.2 无 REI jar，`mixins.brbe-rei-common.json` 注册但无运行时实现）。
 - **Cloth Config for 26.2 is bundled as a separate mod** (not jar-in-jar). The config registration is wrapped in try-catch; if Cloth Config is absent, the mod still runs with default values.
 - **No test suite.** Validation is manual via `runClient` tasks or deploying to a test instance.
 - **Pinned recipes are stored in a JSON file** (`brbe.pins` in the game directory), not in NBT or config.
