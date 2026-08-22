@@ -84,6 +84,18 @@ public final class DataOnlyIngredientAcceptor implements IIngredientAcceptor<Dat
     }
 
     @Override
+    public <I> DataOnlyIngredientAcceptor add(IIngredientType<I> ingredientType, net.minecraft.world.item.crafting.display.SlotDisplay slotDisplay) {
+        collector.addSlotDisplay(slotDisplay);
+        return this;
+    }
+
+    @Override
+    public <I> DataOnlyIngredientAcceptor add(IIngredientType<I> ingredientType, net.minecraft.world.item.crafting.Ingredient ingredient) {
+        collector.addIngredient(ingredient);
+        return this;
+    }
+
+    @Override
     public <I> DataOnlyIngredientAcceptor add(IIngredientType<I> ingredientType, I ingredient) {
         collector.addTyped(ingredientType, ingredient);
         return this;
@@ -131,4 +143,8 @@ public final class DataOnlyIngredientAcceptor implements IIngredientAcceptor<Dat
         return this;
     }
 
+    @Override
+    public net.minecraft.util.context.ContextMap getContextMap() {
+        return null;
+    }
 }

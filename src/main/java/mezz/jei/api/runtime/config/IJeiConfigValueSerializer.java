@@ -1,27 +1,83 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package mezz.jei.api.runtime.config;
+
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
+/**
+ * Serialization and validation helper for JEI config values.
+ * Get an instance from {@link IJeiConfigValue#getSerializer()}
+ *
+ * Note that if this value is a {@link List}
+ * it should implement {@link IJeiConfigListValueSerializer} as well.
+ *
+ * @since 12.1.1
+ */
+@ApiStatus.NonExtendable
 public interface IJeiConfigValueSerializer<T> {
-    public String serialize(T var1);
+	/**
+	 * Serialize the config value to a string.
+	 *
+	 * @since 12.1.1
+	 */
+	String serialize(T value);
 
-    public IDeserializeResult<T> deserialize(String var1);
+	/**
+	 * Deserialize the config value from a string.
+	 *
+	 * @since 12.1.1
+	 */
+	IDeserializeResult<T> deserialize(String string);
 
-    public boolean isValid(T var1);
+	/**
+	 * Check if a given value is valid for this config value.
+	 *
+	 * @since 12.1.1
+	 */
+	boolean isValid(T value);
 
-    public Optional<Collection<T>> getAllValidValues();
+	/**
+	 * If this config value only has a limited number of valid values,
+	 * this returns them all.
+	 *
+	 * If there are many or unlimited valid values, this will return
+	 * {@link Optional#empty()}
+	 *
+	 * @since 12.1.1
+	 */
+	Optional<Collection<T>> getAllValidValues();
 
-    public String getValidValuesDescription();
+	/**
+	 * Get the description of what values are valid for this config value.
+	 *
+	 * @since 12.1.1
+	 */
+	String getValidValuesDescription();
 
-    public static interface IDeserializeResult<T> {
-        public Optional<T> getResult();
+	/**
+	 * The result of {@link #deserialize}.
+	 * If deserialization is successful, {@link #getResult()} will return a value.
+	 * Otherwise, a list of errors can be fetched from {@link #getErrors()}.
+	 *
+	 * @since 12.1.1
+	 */
+	interface IDeserializeResult<T> {
+		/**
+		 * The successful deserialization result,
+		 * or {@link Optional#empty()} if deserialzation failed.
+		 *
+		 * @since 12.1.1
+		 */
+		Optional<T> getResult();
 
-        public List<String> getErrors();
-    }
+		/**
+		 * A list of errors during deserialization, if it failed.
+		 * On successful deserialization this will be an empty list.
+		 *
+		 * @since 12.1.1
+		 */
+		List<String> getErrors();
+	}
 }
-

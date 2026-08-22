@@ -1,46 +1,119 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.client.gui.GuiGraphics
- *  net.minecraft.client.renderer.Rect2i
- *  net.minecraft.network.chat.Component
- *  org.jetbrains.annotations.ApiStatus$NonExtendable
- */
 package mezz.jei.api.gui.ingredient;
 
-import java.util.List;
 import mezz.jei.api.gui.builder.IIngredientAcceptor;
+import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
+import mezz.jei.api.gui.builder.IRecipeSlotBuilder;
 import mezz.jei.api.gui.builder.ITooltipBuilder;
-import mezz.jei.api.gui.ingredient.IRecipeSlotView;
+import mezz.jei.api.recipe.IRecipeManager;
+import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
 import org.jetbrains.annotations.ApiStatus;
 
+import java.util.List;
+
+/**
+ * A drawable recipe slot, useful if you need to make JEI draw a slot somewhere.
+ *
+ * Created from a {@link IRecipeSlotBuilder}, usually from {@link IRecipeLayoutBuilder#addSlot},
+ * using the {@link IRecipeLayoutBuilder} given to mod plugins in {@link IRecipeCategory#setRecipe}.
+ *
+ * You can also create one for other purposes with {@link IRecipeManager#createRecipeSlotDrawable}.
+ *
+ * @since 11.5.0
+ */
 @ApiStatus.NonExtendable
-public interface IRecipeSlotDrawable
-extends IRecipeSlotView {
-    public void draw(GuiGraphics var1);
+public interface IRecipeSlotDrawable extends IRecipeSlotView {
+	/**
+	 * Draws the recipe slot relative to the pose stack.
+	 *
+	 * @since 11.5.0
+	 * @deprecated use {@link #draw(GuiGraphics, boolean)}
+	 */
+	@Deprecated(since = "27.8.0", forRemoval = true)
+	void draw(GuiGraphics guiGraphics);
 
-    public void drawHoverOverlays(GuiGraphics var1);
+	/**
+	 * Draws the recipe slot relative to the pose stack.
+	 *
+	 * @since 27.8.0
+	 */
+	void draw(GuiGraphics guiGraphics, boolean hovered);
 
-    @Deprecated(since="21.1.0", forRemoval=true)
-    public List<Component> getTooltip();
+	/**
+	 * Draws the recipe slot overlays, called when the mouse is hovering over this recipe slot.
+	 *
+	 * @since 11.5.0
+	 * @deprecated use {@link #draw(GuiGraphics, boolean)}
+	 */
+	@Deprecated(since = "27.8.0", forRemoval = true)
+	void drawHoverOverlays(GuiGraphics guiGraphics);
 
-    @Deprecated(since="21.1.0", forRemoval=true)
-    public void getTooltip(ITooltipBuilder var1);
+	/**
+	 * Get the plain tooltip for this recipe slot.
+	 *
+	 * @since 11.5.0
+	 * @deprecated use {@link #drawTooltip}
+	 */
+	@Deprecated(since = "21.1.0", forRemoval = true)
+	List<Component> getTooltip();
 
-    public void drawTooltip(GuiGraphics var1, int var2, int var3);
+	/**
+	 * Get the rich tooltip for this recipe slot.
+	 *
+	 * @since 19.5.4
+	 * @deprecated use {@link #drawTooltip}
+	 */
+	@Deprecated(since = "21.1.0", forRemoval = true)
+	void getTooltip(ITooltipBuilder tooltipBuilder);
 
-    public boolean isMouseOver(double var1, double var3);
+	/**
+	 * Draw the tooltip for this recipe slot at the given mouse position.
+	 *
+	 * @since 21.1.0
+	 */
+	void drawTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY);
 
-    public void setPosition(int var1, int var2);
+	/**
+	 * Return true if the mouse is over the slot.
+	 *
+	 * @param mouseX relative to its parent element.
+	 * @param mouseY relative to its parent element.
+	 *
+	 * @since 19.6.0
+	 */
+	boolean isMouseOver(double mouseX, double mouseY);
 
-    public IIngredientAcceptor<?> createDisplayOverrides();
+	/**
+	 * Move this slot to the given position.
+	 * @param x the new x coordinate, relative to its parent element.
+	 * @param y the new y coordinate, relative to its parent element.
+	 *
+	 * @since 19.6.0
+	 */
+	void setPosition(int x, int y);
 
-    public void clearDisplayOverrides();
+	/**
+	 * Overrides the currently displayed ingredients.
+	 * Set this from {@link IRecipeCategory#onDisplayedIngredientsUpdate} when the currently displayed ingredients change.
+	 *
+	 * @since 19.8.3
+	 */
+	IIngredientAcceptor<?> createDisplayOverrides();
 
-    public Rect2i getAreaIncludingBackground();
+	/**
+	 * Removes any display overrides that were set with {@link #createDisplayOverrides()}.
+	 *
+	 * @since 19.8.3
+	 */
+	void clearDisplayOverrides();
+
+	/**
+	 * Get the area that this recipe slot draws on, including the area covered by its background texture.
+	 * Useful for laying out other recipe elements relative to the slot.
+	 *
+	 * @since 19.19.3
+	 */
+	Rect2i getAreaIncludingBackground();
 }
-

@@ -1,32 +1,60 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.jetbrains.annotations.Unmodifiable
- */
 package mezz.jei.api.gui.ingredient;
+
+import mezz.jei.api.gui.builder.IRecipeSlotBuilder;
+import mezz.jei.api.recipe.RecipeIngredientRole;
+import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import mezz.jei.api.gui.ingredient.IRecipeSlotDrawable;
-import mezz.jei.api.recipe.RecipeIngredientRole;
-import org.jetbrains.annotations.Unmodifiable;
 
+/**
+ * Represents all the drawn ingredients in slots that are part of a recipe.
+ *
+ * This view is meant as a source of information for drawing, positioning, and tooltips.
+ *
+ * @see IRecipeSlotsView for a view with less access to drawable properties of the slots.
+ *
+ * @since 19.19.3
+ */
+@ApiStatus.NonExtendable
 public interface IRecipeSlotDrawablesView {
-    public @Unmodifiable List<IRecipeSlotDrawable> getSlots();
+	/**
+	 * Get all slots for a recipe.
+	 *
+	 * @since 19.19.3
+	 */
+	@Unmodifiable
+	List<IRecipeSlotDrawable> getSlots();
 
-    default public List<IRecipeSlotDrawable> getSlots(RecipeIngredientRole role) {
-        ArrayList<IRecipeSlotDrawable> list = new ArrayList<IRecipeSlotDrawable>();
-        for (IRecipeSlotDrawable slotView : this.getSlots()) {
-            if (slotView.getRole() != role) continue;
-            list.add(slotView);
-        }
-        return list;
-    }
+	/**
+	 * Get the list of slots for the given {@link RecipeIngredientRole} for a recipe.
+	 *
+	 * @since 19.19.3
+	 */
+	default List<IRecipeSlotDrawable> getSlots(RecipeIngredientRole role) {
+		List<IRecipeSlotDrawable> list = new ArrayList<>();
+		for (IRecipeSlotDrawable slotView : getSlots()) {
+			if (slotView.getRole() == role) {
+				list.add(slotView);
+			}
+		}
+		return list;
+	}
 
-    default public Optional<IRecipeSlotDrawable> findSlotByName(String slotName) {
-        return this.getSlots().stream().filter(slot -> slot.getSlotName().map(slotName::equals).orElse(false)).findFirst();
-    }
+	/**
+	 * Get a recipe slot by its name set with {@link IRecipeSlotBuilder#setSlotName(String)}.
+	 *
+	 * @since 19.19.3
+	 */
+	default Optional<IRecipeSlotDrawable> findSlotByName(String slotName) {
+		return getSlots().stream()
+			.filter(slot ->
+				slot.getSlotName()
+					.map(slotName::equals)
+					.orElse(false)
+			)
+			.findFirst();
+	}
 }
-

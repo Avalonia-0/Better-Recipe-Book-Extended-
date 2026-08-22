@@ -1,15 +1,28 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.world.item.crafting.SmithingRecipe
- */
 package mezz.jei.api.recipe.category.extensions.vanilla.smithing;
 
-import mezz.jei.api.recipe.category.extensions.vanilla.smithing.ISmithingCategoryExtension;
+import mezz.jei.api.registration.IVanillaCategoryExtensionRegistration;
 import net.minecraft.world.item.crafting.SmithingRecipe;
+import org.jetbrains.annotations.ApiStatus;
 
+/**
+ * Allows extending the vanilla smithing recipe category,
+ * to support custom recipes classes that cannot be handled by default.
+ *
+ * Get the instance from {@link IVanillaCategoryExtensionRegistration#getSmithingCategory()}
+ *
+ * @since 19.5.0
+ */
+@ApiStatus.NonExtendable
 public interface IExtendableSmithingRecipeCategory {
-    public <R extends SmithingRecipe> void addExtension(Class<? extends R> var1, ISmithingCategoryExtension<R> var2);
+	/**
+	 * Add an extension that handles a subset of the recipes in the recipe category.
+	 *
+	 * @param recipeClass  the subset class of crafting recipes to handle
+	 * @param extension    an extension for handling these recipes
+	 * @since 19.5.0
+	 */
+	<R extends SmithingRecipe> void addExtension(
+		Class<? extends R> recipeClass,
+		ISmithingCategoryExtension<R> extension
+	);
 }
-

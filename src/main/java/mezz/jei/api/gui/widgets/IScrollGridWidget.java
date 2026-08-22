@@ -1,18 +1,22 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.client.gui.navigation.ScreenRectangle
- */
 package mezz.jei.api.gui.widgets;
 
 import mezz.jei.api.gui.placement.IPlaceable;
-import mezz.jei.api.gui.widgets.ISlottedRecipeWidget;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
+import org.jetbrains.annotations.ApiStatus;
 
-public interface IScrollGridWidget
-extends ISlottedRecipeWidget,
-IPlaceable<IScrollGridWidget> {
-    public ScreenRectangle getScreenRectangle();
+/**
+ * A scrolling area for ingredients with a scrollbar.
+ * Modeled after the vanilla creative menu.
+ *
+ * Create one with {@link IRecipeExtrasBuilder#addScrollGridWidget}.
+ * @since 19.19.3
+ */
+@ApiStatus.NonExtendable
+public interface IScrollGridWidget extends ISlottedRecipeWidget, IPlaceable<IScrollGridWidget> {
+	/**
+	 * Get the position and size of this widget, relative to its parent element.
+	 *
+	 * @since 19.19.3
+	 */
+	ScreenRectangle getScreenRectangle();
 }
-

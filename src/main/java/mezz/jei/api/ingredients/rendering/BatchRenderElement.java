@@ -1,8 +1,15 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package mezz.jei.api.ingredients.rendering;
 
-public record BatchRenderElement<T>(T ingredient, int x, int y) {
-}
+import mezz.jei.api.ingredients.IIngredientRenderer;
+import net.minecraft.client.gui.GuiGraphics;
 
+import java.util.List;
+
+/**
+ * A single ingredient to render in a batch render operation.
+ *
+ * @see IIngredientRenderer#renderBatch(GuiGraphics, List)
+ *
+ * @since 19.14.0
+ */
+public record BatchRenderElement<T>(T ingredient, int x, int y) {}

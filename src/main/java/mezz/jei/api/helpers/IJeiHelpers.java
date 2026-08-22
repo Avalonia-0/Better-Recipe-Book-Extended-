@@ -1,51 +1,116 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.resources.Identifier
- */
 package mezz.jei.api.helpers;
 
-import java.util.Optional;
-import java.util.stream.Stream;
-import mezz.jei.api.helpers.ICodecHelper;
-import mezz.jei.api.helpers.IColorHelper;
-import mezz.jei.api.helpers.IGuiHelper;
-import mezz.jei.api.helpers.IModIdHelper;
-import mezz.jei.api.helpers.IPlatformFluidHelper;
-import mezz.jei.api.helpers.IStackHelper;
+import com.mojang.serialization.Codec;
+import mezz.jei.api.IModPlugin;
 import mezz.jei.api.recipe.IFocusFactory;
 import mezz.jei.api.recipe.types.IRecipeType;
 import mezz.jei.api.recipe.vanilla.IVanillaRecipeFactory;
 import mezz.jei.api.runtime.IIngredientManager;
 import mezz.jei.api.runtime.IIngredientVisibility;
 import net.minecraft.resources.Identifier;
+import org.jetbrains.annotations.ApiStatus;
 
+import java.util.Optional;
+import java.util.stream.Stream;
+
+/**
+ * {@link IJeiHelpers} provides helpers and tools for addon mods.
+ * <p>
+ * An instance is passed to your {@link IModPlugin}'s registration methods.
+ */
+@ApiStatus.NonExtendable
 public interface IJeiHelpers {
-    public IGuiHelper getGuiHelper();
+	/**
+	 * Helps with the implementation of GUIs.
+	 */
+	IGuiHelper getGuiHelper();
 
-    public IStackHelper getStackHelper();
+	/**
+	 * Helps with getting itemStacks from recipes.
+	 */
+	IStackHelper getStackHelper();
 
-    public IModIdHelper getModIdHelper();
+	/**
+	 * Helps with getting the mod name from a mod ID.
+	 */
+	IModIdHelper getModIdHelper();
 
-    public IFocusFactory getFocusFactory();
+	/**
+	 * Helps with creating focuses.
+	 *
+	 * @since 9.4.0
+	 */
+	IFocusFactory getFocusFactory();
 
-    public IColorHelper getColorHelper();
+	/**
+	 * Helps with getting colors of ingredients.
+	 *
+	 * @since 11.5.0
+	 */
+	IColorHelper getColorHelper();
 
-    public IPlatformFluidHelper<?> getPlatformFluidHelper();
+	/**
+	 * Helps with handling fluid ingredients on multiple mod loader platforms.
+	 *
+	 * @since 10.1.0
+	 */
+	IPlatformFluidHelper<?> getPlatformFluidHelper();
 
-    public <T> Optional<IRecipeType<T>> getRecipeType(Identifier var1, Class<? extends T> var2);
+	/**
+	 * Get the registered recipe type for the given unique id.
+	 * <p>
+	 * This is useful for integrating with other mods that do not share their
+	 * recipe types directly from their API.
+	 *
+	 * @see IRecipeType#getUid()
+	 * @since 19.11.0
+	 */
+	<T> Optional<IRecipeType<T>> getRecipeType(Identifier uid, Class<? extends T> recipeClass);
 
-    public Optional<IRecipeType<?>> getRecipeType(Identifier var1);
+	/**
+	 * Get the registered recipe type for the given unique id.
+	 * <p>
+	 * This is useful for integrating with other mods that do not share their
+	 * recipe types directly from their API.
+	 *
+	 * @see IRecipeType#getUid()
+	 * @since 11.4.0
+	 */
+	Optional<IRecipeType<?>> getRecipeType(Identifier uid);
 
-    public Stream<IRecipeType<?>> getAllRecipeTypes();
+	/**
+	 * Get all registered recipe types.
+	 *
+	 * @since 15.1.0
+	 */
+	Stream<IRecipeType<?>> getAllRecipeTypes();
 
-    public IIngredientManager getIngredientManager();
+	/**
+	 * The ingredient manager, with information about all registered ingredients.
+	 *
+	 * @since 11.5.0
+	 */
+	IIngredientManager getIngredientManager();
 
-    public ICodecHelper getCodecHelper();
+	/**
+	 * Helps with implementing various {@link Codec}s.
+	 *
+	 * @since 19.9.0
+	 */
+	ICodecHelper getCodecHelper();
 
-    public IVanillaRecipeFactory getVanillaRecipeFactory();
+	/**
+	 * The {@link IVanillaRecipeFactory} allows creation of vanilla recipes.
+	 *
+	 * @since 19.15.0
+	 */
+	IVanillaRecipeFactory getVanillaRecipeFactory();
 
-    public IIngredientVisibility getIngredientVisibility();
+	/**
+	 * The {@link IIngredientVisibility} allows mod plugins to do advanced filtering of
+	 * ingredients based on what is visible in JEI.
+	 *
+	 * @since 19.18.4
+	 */
+	IIngredientVisibility getIngredientVisibility();
 }
-

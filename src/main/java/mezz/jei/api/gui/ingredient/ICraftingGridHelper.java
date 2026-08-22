@@ -1,53 +1,122 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  com.mojang.datafixers.util.Pair
- *  net.minecraft.world.item.ItemStack
- *  net.minecraft.world.item.crafting.Ingredient
- *  net.minecraft.world.item.crafting.display.SlotDisplay
- *  org.jspecify.annotations.Nullable
- */
 package mezz.jei.api.gui.ingredient;
 
 import com.mojang.datafixers.util.Pair;
-import java.util.List;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.builder.IRecipeSlotBuilder;
+import mezz.jei.api.gui.widgets.IRecipeExtrasBuilder;
 import mezz.jei.api.ingredients.IIngredientType;
+import mezz.jei.api.recipe.IFocusGroup;
+import mezz.jei.api.recipe.category.extensions.vanilla.crafting.ICraftingCategoryExtension;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
 import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.ApiStatus;
 
+import java.util.List;
+
+/**
+ * Helps set crafting-grid-style layouts.
+ * This places smaller recipes in the grid in a consistent way.
+ *
+ * This is passed to plugins that implement
+ * {@link ICraftingCategoryExtension#createRecipeExtras(Object, IRecipeExtrasBuilder, ICraftingGridHelper, IFocusGroup)}
+ * to help them override the default behavior.
+ */
+@ApiStatus.NonExtendable
 public interface ICraftingGridHelper {
-    public List<IRecipeSlotBuilder> createAndSetNamedIngredients(IRecipeLayoutBuilder var1, List<Pair<String, Ingredient>> var2, int var3, int var4);
+	/**
+	 * Create and place input ingredients onto the crafting grid in a consistent way.
+	 * For shapeless recipes, use a width and height of 0.
+	 *
+	 * @since 19.16.2
+	 */
+	List<IRecipeSlotBuilder> createAndSetNamedIngredients(IRecipeLayoutBuilder builder, List<Pair<String, Ingredient>> namedIngredients, int width, int height);
 
-    public void createAndSetIngredients(IRecipeLayoutBuilder var1, List<Ingredient> var2, int var3, int var4);
+	/**
+	 * Create and place input ingredients onto the crafting grid in a consistent way.
+	 * For shapeless recipes, use a width and height of 0.
+	 *
+	 * @since 19.16.2
+	 */
+	void createAndSetIngredients(IRecipeLayoutBuilder builder, List<Ingredient> ingredients, int width, int height);
 
-    public void createAndSetIngredientsFromDisplays(IRecipeLayoutBuilder var1, List<SlotDisplay> var2, int var3, int var4);
+	/**
+	 * Create and place input ingredients onto the crafting grid in a consistent way.
+	 * For shapeless recipes, use a width and height of 0.
+	 *
+	 * @since 20.0.0
+	 */
+	void createAndSetIngredientsFromDisplays(IRecipeLayoutBuilder builder, List<SlotDisplay> displays, int width, int height);
 
-    default public List<IRecipeSlotBuilder> createAndSetNamedInputs(IRecipeLayoutBuilder builder, List<@Nullable Pair<String, List<@Nullable ItemStack>>> namedInputs, int width, int height) {
-        return this.createAndSetNamedInputs(builder, VanillaTypes.ITEM_STACK, namedInputs, width, height);
-    }
+	/**
+	 * Create and place input ingredients onto the crafting grid in a consistent way.
+	 * For shapeless recipes, use a width and height of 0.
+	 *
+	 * @since 19.16.3
+	 */
+	default List<IRecipeSlotBuilder> createAndSetNamedInputs(IRecipeLayoutBuilder builder, List<@Nullable Pair<String, List<@Nullable ItemStack>>> namedInputs, int width, int height) {
+		return createAndSetNamedInputs(builder, VanillaTypes.ITEM_STACK, namedInputs, width, height);
+	}
 
-    public <T> List<IRecipeSlotBuilder> createAndSetNamedInputs(IRecipeLayoutBuilder var1, IIngredientType<T> var2, List<@Nullable Pair<String, List<@Nullable T>>> var3, int var4, int var5);
+	/**
+	 * Create and place input ingredients onto the crafting grid in a consistent way.
+	 * For shapeless recipes, use a width and height of 0.
+	 *
+	 * @since 19.16.3
+	 */
+	<T> List<IRecipeSlotBuilder> createAndSetNamedInputs(IRecipeLayoutBuilder builder, IIngredientType<T> ingredientType, List<@Nullable Pair<String, List<@Nullable T>>> namedInputs, int width, int height);
 
-    default public List<IRecipeSlotBuilder> createAndSetInputs(IRecipeLayoutBuilder builder, List<@Nullable List<@Nullable ItemStack>> inputs, int width, int height) {
-        return this.createAndSetInputs(builder, VanillaTypes.ITEM_STACK, inputs, width, height);
-    }
+	/**
+	 * Create and place input ingredients onto the crafting grid in a consistent way.
+	 * For shapeless recipes, use a width and height of 0.
+	 *
+	 * @see #createAndSetInputs(IRecipeLayoutBuilder, IIngredientType, List, int, int) to set other ingredient types.
+	 * @since 11.1.1
+	 */
+	default List<IRecipeSlotBuilder> createAndSetInputs(IRecipeLayoutBuilder builder, List<@Nullable List<@Nullable ItemStack>> inputs, int width, int height) {
+		return createAndSetInputs(builder, VanillaTypes.ITEM_STACK, inputs, width, height);
+	}
 
-    public <T> List<IRecipeSlotBuilder> createAndSetInputs(IRecipeLayoutBuilder var1, IIngredientType<T> var2, List<@Nullable List<@Nullable T>> var3, int var4, int var5);
+	/**
+	 * Create and place input ingredients onto the crafting grid in a consistent way.
+	 * For shapeless recipes, use a width and height of 0.
+	 *
+	 * @since 11.0.2
+	 */
+	<T> List<IRecipeSlotBuilder> createAndSetInputs(IRecipeLayoutBuilder builder, IIngredientType<T> ingredientType, List<@Nullable List<@Nullable T>> inputs, int width, int height);
 
-    public <T> void setInputs(List<IRecipeSlotBuilder> var1, IIngredientType<T> var2, List<@Nullable List<@Nullable T>> var3, int var4, int var5);
+	/**
+	 * Place input ingredients onto the slot builders in a consistent way.
+	 * For shapeless recipes, use a width and height of 0.
+	 *
+	 * @since 9.3.2
+	 */
+	<T> void setInputs(List<IRecipeSlotBuilder> slotBuilders, IIngredientType<T> ingredientType, List<@Nullable List<@Nullable T>> inputs, int width, int height);
 
-    default public IRecipeSlotBuilder createAndSetOutputs(IRecipeLayoutBuilder builder, @Nullable List<@Nullable ItemStack> outputs) {
-        return this.createAndSetOutputs(builder, VanillaTypes.ITEM_STACK, outputs);
-    }
+	/**
+	 * Place output ItemStacks at the right location.
+	 *
+	 * @see #createAndSetOutputs(IRecipeLayoutBuilder, IIngredientType, List) to set other ingredient types.
+	 * @since 11.1.1
+	 */
+	default IRecipeSlotBuilder createAndSetOutputs(IRecipeLayoutBuilder builder, @Nullable List<@Nullable ItemStack> outputs) {
+		return createAndSetOutputs(builder, VanillaTypes.ITEM_STACK, outputs);
+	}
 
-    public IRecipeSlotBuilder createAndSetOutputs(IRecipeLayoutBuilder var1, SlotDisplay var2);
+	/**
+	 * Place output SlotDisplay at the right location.
+	 *
+	 * @see #createAndSetOutputs(IRecipeLayoutBuilder, IIngredientType, List) to set other ingredient types.
+	 * @since 20.0.0
+	 */
+	IRecipeSlotBuilder createAndSetOutputs(IRecipeLayoutBuilder builder, SlotDisplay outputs);
 
-    public <T> IRecipeSlotBuilder createAndSetOutputs(IRecipeLayoutBuilder var1, IIngredientType<T> var2, @Nullable List<@Nullable T> var3);
+	/**
+	 * Place output ingredients at the right location.
+	 *
+	 * @since 11.0.2
+	 */
+	<T> IRecipeSlotBuilder createAndSetOutputs(IRecipeLayoutBuilder builder, IIngredientType<T> ingredientType, @Nullable List<@Nullable T> outputs);
 }
-

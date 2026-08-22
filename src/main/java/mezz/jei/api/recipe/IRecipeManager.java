@@ -1,67 +1,251 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.resources.Identifier
- */
 package mezz.jei.api.recipe;
+
+import mezz.jei.api.constants.RecipeTypes;
+import mezz.jei.api.gui.IRecipeLayoutDrawable;
+import mezz.jei.api.gui.buttons.IIconButtonController;
+import mezz.jei.api.gui.drawable.IScalableDrawable;
+import mezz.jei.api.gui.ingredient.IRecipeSlotDrawable;
+import mezz.jei.api.ingredients.IIngredientSupplier;
+import mezz.jei.api.ingredients.ITypedIngredient;
+import mezz.jei.api.recipe.advanced.IRecipeButtonControllerFactory;
+import mezz.jei.api.recipe.category.IRecipeCategory;
+import mezz.jei.api.recipe.types.IRecipeType;
+import mezz.jei.api.registration.IAdvancedRegistration;
+import mezz.jei.api.runtime.IJeiRuntime;
+import net.minecraft.resources.Identifier;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
-import mezz.jei.api.gui.IRecipeLayoutDrawable;
-import mezz.jei.api.gui.drawable.IScalableDrawable;
-import mezz.jei.api.gui.ingredient.IRecipeSlotDrawable;
-import mezz.jei.api.ingredients.IIngredientSupplier;
-import mezz.jei.api.ingredients.ITypedIngredient;
-import mezz.jei.api.recipe.ICraftingStationLookup;
-import mezz.jei.api.recipe.IFocusGroup;
-import mezz.jei.api.recipe.IRecipeCatalystLookup;
-import mezz.jei.api.recipe.IRecipeCategoriesLookup;
-import mezz.jei.api.recipe.IRecipeLookup;
-import mezz.jei.api.recipe.RecipeIngredientRole;
-import mezz.jei.api.recipe.advanced.IRecipeButtonControllerFactory;
-import mezz.jei.api.recipe.category.IRecipeCategory;
-import mezz.jei.api.recipe.types.IRecipeType;
-import net.minecraft.resources.Identifier;
 
+/**
+ * The {@link IRecipeManager} offers several functions for retrieving and handling recipes.
+ * Get the instance from {@link IJeiRuntime#getRecipeManager()}.
+ */
+@ApiStatus.NonExtendable
 public interface IRecipeManager {
-    public <R> IRecipeLookup<R> createRecipeLookup(IRecipeType<R> var1);
+	/**
+	 * Create a recipe lookup for the given recipe type.
+	 *
+	 * {@link IRecipeLookup} is a helper class that lets you choose
+	 * the results you want, and then get them.
+	 *
+	 * @since 9.5.0
+	 */
+	<R> IRecipeLookup<R> createRecipeLookup(IRecipeType<R> recipeType);
 
-    public IRecipeCategoriesLookup createRecipeCategoryLookup();
+	/**
+	 * Create a recipe category lookup for the given recipe type.
+	 *
+	 * {@link IRecipeCategoriesLookup} is a helper class that lets you choose
+	 * the results you want, and then get them.
+	 *
+	 * @since 9.5.0
+	 */
+	IRecipeCategoriesLookup createRecipeCategoryLookup();
 
-    public <T> IRecipeCategory<T> getRecipeCategory(IRecipeType<T> var1);
+	/**
+	 * Get a recipe category for the given recipe type.
+	 *
+	 * For more complex queries, use {@link #createRecipeCategoryLookup()}
+	 *
+	 * @since 19.1.0
+	 */
+	<T> IRecipeCategory<T> getRecipeCategory(IRecipeType<T> recipeType);
 
-    @Deprecated(forRemoval=true, since="20.0.0")
-    public IRecipeCatalystLookup createRecipeCatalystLookup(IRecipeType<?> var1);
+	/**
+	 * Create a recipe catalyst lookup for the given recipe type.
+	 *
+	 * {@link mezz.jei.api.recipe.IRecipeCatalystLookup} is a helper class that lets you choose
+	 * the results you want, and then get them.
+	 *
+	 * @since 9.5.0
+	 * @deprecated use {@link #createCraftingStationLookup(IRecipeType)}
+	 */
+	@SuppressWarnings("removal")
+	@Deprecated(forRemoval = true, since = "20.0.0")
+	mezz.jei.api.recipe.IRecipeCatalystLookup createRecipeCatalystLookup(IRecipeType<?> recipeType);
 
-    public ICraftingStationLookup createCraftingStationLookup(IRecipeType<?> var1);
+	/**
+	 * Create a crafting station lookup for the given recipe type.
+	 *
+	 * {@link ICraftingStationLookup} is a helper class that lets you choose
+	 * the results you want, and then get them.
+	 *
+	 * @since 20.0.0
+	 */
+	ICraftingStationLookup createCraftingStationLookup(IRecipeType<?> recipeType);
 
-    public <T> void hideRecipes(IRecipeType<T> var1, Collection<T> var2);
+	/**
+	 * Hides recipes so that they will not be displayed.
+	 * This can be used by mods that create recipe progression.
+	 *
+	 * @param recipeType the recipe type for this recipe.
+	 * @param recipes    the recipes to hide.
+	 *
+	 * @see #unhideRecipes(IRecipeType, Collection)
+	 * @see RecipeTypes for all the built-in recipe types that are added by JEI.
+	 *
+	 * @since 9.5.0
+	 */
+	<T> void hideRecipes(IRecipeType<T> recipeType, Collection<T> recipes);
 
-    public <T> void unhideRecipes(IRecipeType<T> var1, Collection<T> var2);
+	/**
+	 * Unhides recipes that were hidden by {@link #hideRecipes(IRecipeType, Collection)}
+	 * This can be used by mods that create recipe progression.
+	 *
+	 * @param recipeType the recipe type for this recipe.
+	 * @param recipes    the recipes to unhide.
+	 *
+	 * @see #hideRecipes(IRecipeType, Collection)
+	 * @see RecipeTypes for all the built-in recipe types that are added by JEI.
+	 *
+	 * @since 9.5.0
+	 */
+	<T> void unhideRecipes(IRecipeType<T> recipeType, Collection<T> recipes);
 
-    public <T> void addRecipes(IRecipeType<T> var1, List<T> var2);
+	/**
+	 * Add new recipes while the game is running.
+	 *
+	 * @see RecipeTypes for all the built-in recipe types that are added by JEI.
+	 *
+	 * @since 9.5.0
+	 */
+	<T> void addRecipes(IRecipeType<T> recipeType, List<T> recipes);
 
-    public void hideRecipeCategory(IRecipeType<?> var1);
+	/**
+	 * Hide an entire recipe category of recipes from JEI.
+	 * This can be used by mods that create recipe progression.
+	 *
+	 * @param recipeType the unique ID for the recipe category
+	 * @see #unhideRecipeCategory(IRecipeType)
+	 *
+	 * @since 9.5.0
+	 */
+	void hideRecipeCategory(IRecipeType<?> recipeType);
 
-    public void unhideRecipeCategory(IRecipeType<?> var1);
+	/**
+	 * Unhides a recipe category that was hidden by {@link #hideRecipeCategory(IRecipeType)}.
+	 * This can be used by mods that create recipe progression.
+	 *
+	 * @param recipeType the unique ID for the recipe category
+	 * @see #hideRecipeCategory(IRecipeType)
+	 *
+	 * @since 9.5.0
+	 */
+	void unhideRecipeCategory(IRecipeType<?> recipeType);
 
-    public <T> IRecipeLayoutDrawable<T> createRecipeLayoutDrawableOrShowError(IRecipeCategory<T> var1, T var2, IFocusGroup var3);
+	/**
+	 * Returns a drawable recipe layout, for addons that want to draw the layouts somewhere.
+	 * If there is something wrong and the recipe layout crashes, this will display an error recipe instead.
+	 *
+	 * @param recipeCategory the recipe category that the recipe belongs to
+	 * @param recipe         the specific recipe to draw.
+	 * @param focusGroup     the focuses of the recipe layout.
+	 *
+	 * @since 19.19.6
+	 */
+	<T> IRecipeLayoutDrawable<T> createRecipeLayoutDrawableOrShowError(
+		IRecipeCategory<T> recipeCategory,
+		T recipe,
+		IFocusGroup focusGroup
+	);
 
-    public <T> Optional<IRecipeLayoutDrawable<T>> createRecipeLayoutDrawable(IRecipeCategory<T> var1, T var2, IFocusGroup var3);
+	/**
+	 * Returns a drawable recipe layout, for addons that want to draw the layouts somewhere.
+	 *
+	 * @param recipeCategory the recipe category that the recipe belongs to
+	 * @param recipe         the specific recipe to draw.
+	 * @param focusGroup     the focuses of the recipe layout.
+	 *
+	 * @since 11.5.0
+	 */
+	<T> Optional<IRecipeLayoutDrawable<T>> createRecipeLayoutDrawable(
+		IRecipeCategory<T> recipeCategory,
+		T recipe,
+		IFocusGroup focusGroup
+	);
 
-    public <T> Optional<IRecipeLayoutDrawable<T>> createRecipeLayoutDrawable(IRecipeCategory<T> var1, T var2, IFocusGroup var3, IScalableDrawable var4, int var5);
+	/**
+	 * Returns a drawable recipe layout, for addons that want to draw the layouts somewhere.
+	 * Use a custom background to draw behind the recipe.
+	 *
+	 * @param recipeCategory the recipe category that the recipe belongs to
+	 * @param recipe         the specific recipe to draw.
+	 * @param focusGroup     the focuses of the recipe layout.
+	 * @param background     the background image to draw behind the recipe layout.
+	 * @param borderSize     the number of pixels that the background should extend beyond the recipe layout on all sides
+	 *
+	 * @since 19.4.0
+	 */
+	<T> Optional<IRecipeLayoutDrawable<T>> createRecipeLayoutDrawable(
+			IRecipeCategory<T> recipeCategory,
+			T recipe,
+			IFocusGroup focusGroup,
+			IScalableDrawable background,
+			int borderSize
+	);
 
-    public IRecipeSlotDrawable createRecipeSlotDrawable(RecipeIngredientRole var1, List<Optional<ITypedIngredient<?>>> var2, Set<Integer> var3, int var4);
+	/**
+	 * Returns a drawable recipe slot, for addons that want to draw the slots somewhere.
+	 *
+	 * @param role                  the recipe ingredient role of this slot
+	 * @param ingredients           a non-null list of optional ingredients for the slot
+	 * @param focusedIngredients    indexes of the focused ingredients in "ingredients"
+	 * @param ingredientCycleOffset the starting index for cycling the list of ingredients when rendering.
+	 * @since 19.19.1
+	 */
+	IRecipeSlotDrawable createRecipeSlotDrawable(
+		RecipeIngredientRole role,
+		List<Optional<ITypedIngredient<?>>> ingredients,
+		Set<Integer> focusedIngredients,
+		int ingredientCycleOffset
+	);
 
-    public <T> IIngredientSupplier getRecipeIngredients(IRecipeCategory<T> var1, T var2);
+	/**
+	 * Get the ingredients for a given recipe.
+	 * @since 19.9.0
+	 */
+	<T> IIngredientSupplier getRecipeIngredients(IRecipeCategory<T> recipeCategory, T recipe);
 
-    public <T> Optional<IRecipeType<T>> getRecipeType(Identifier var1, Class<? extends T> var2);
+	/**
+	 * Get the registered recipe type for the given unique id.
+	 * <p>
+	 * This is useful for integrating with other mods that do not share their
+	 * recipe types directly from their API.
+	 *
+	 * @see IRecipeType#getUid()
+	 * @since 19.11.0
+	 */
+	<T> Optional<IRecipeType<T>> getRecipeType(Identifier recipeUid, Class<? extends T> recipeClass);
 
-    public Optional<IRecipeType<?>> getRecipeType(Identifier var1);
+	/**
+	 * Get the registered recipe type for the given unique id.
+	 * <p>
+	 * This is useful for integrating with other mods that do not share their
+	 * recipe types directly from their API.
+	 *
+	 * @see IRecipeType#getUid()
+	 * @since 11.2.3
+	 */
+	Optional<IRecipeType<?>> getRecipeType(Identifier recipeUid);
 
-    public List<IRecipeButtonControllerFactory> getRecipeButtonControllerFactories();
+	/**
+	 * Returns the registered {@link IRecipeButtonControllerFactory} instances.
+	 *
+	 * <p>
+	 * This list contains the factories that were previously registered via
+	 * {@link IAdvancedRegistration#addRecipeButtonFactory(IRecipeButtonControllerFactory)}.
+	 * </p>
+	 *
+	 * <p>
+	 * The returned factories are used to create additional
+	 * {@link IIconButtonController} instances for buttons next to recipe layouts.
+	 * </p>
+	 *
+	 * @since 27.2.0
+	 */
+	List<IRecipeButtonControllerFactory> getRecipeButtonControllerFactories();
 }
-

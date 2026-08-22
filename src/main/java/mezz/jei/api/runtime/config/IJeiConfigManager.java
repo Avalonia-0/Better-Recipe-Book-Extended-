@@ -1,16 +1,27 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.jetbrains.annotations.Unmodifiable
- */
 package mezz.jei.api.runtime.config;
 
-import java.util.Collection;
-import mezz.jei.api.runtime.config.IJeiConfigFile;
+import mezz.jei.api.runtime.IJeiRuntime;
 import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.ApiStatus;
 
+import java.util.Collection;
+
+/**
+ * Gives access to JEI's config files.
+ * Useful for mods that let users change configs in-game.
+ *
+ * Get an instance from {@link IJeiRuntime#getConfigManager()}
+ *
+ * @since 12.1.0
+ */
+@ApiStatus.NonExtendable
 public interface IJeiConfigManager {
-    public @Unmodifiable Collection<IJeiConfigFile> getConfigFiles();
+	/**
+	 * @return all of JEI's config files.
+	 * @see IJeiConfigFile
+	 *
+	 * @since 12.1.0
+	 */
+	@Unmodifiable
+	Collection<IJeiConfigFile> getConfigFiles();
 }
-

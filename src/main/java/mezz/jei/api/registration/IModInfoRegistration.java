@@ -1,16 +1,38 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package mezz.jei.api.registration;
+
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collection;
 import java.util.Set;
 
+/**
+ * Register additional mod info to help JEI understand your mod better.
+ *
+ * @since 17.1.0
+ */
+@ApiStatus.NonExtendable
 public interface IModInfoRegistration {
-    public void addModAliases(String var1, Collection<String> var2);
+	/**
+	 * Register alternative mod names, used for searching for a mod by a different name.
+	 *
+	 * For example "Just Enough Items" can register an alias "JEI" to help make searching for it easier.
+	 *
+	 * @param modId The modId to register aliases for
+	 * @param aliases The aliases to register
+	 * @since 17.1.0
+	 */
+	void addModAliases(String modId, Collection<String> aliases);
 
-    default public void addModAliases(String modId, String ... aliases) {
-        this.addModAliases(modId, Set.of(aliases));
-    }
+	/**
+	 * Register alternative mod names, used for searching for a mod by a different name.
+	 *
+	 * For example "Just Enough Items" can register an alias "JEI" to help make searching for it easier.
+	 *
+	 * @param modId The modId to register aliases for
+	 * @param aliases The aliases to register
+	 * @since 17.1.0
+	 */
+	default void addModAliases(String modId, String... aliases) {
+		addModAliases(modId, Set.of(aliases));
+	}
 }
-

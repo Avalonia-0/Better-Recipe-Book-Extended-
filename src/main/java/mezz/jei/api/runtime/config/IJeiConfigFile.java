@@ -1,19 +1,39 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.jetbrains.annotations.Unmodifiable
- */
 package mezz.jei.api.runtime.config;
+
+import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.nio.file.Path;
 import java.util.List;
-import mezz.jei.api.runtime.config.IJeiConfigCategory;
-import org.jetbrains.annotations.Unmodifiable;
 
+/**
+ * Represents one Config file used by JEI.
+ *
+ * Config files contain one or more {@link IJeiConfigCategory},
+ * and each category has one or more {@link IJeiConfigValue}.
+ *
+ * @since 12.1.0
+ */
+@ApiStatus.NonExtendable
 public interface IJeiConfigFile {
-    public Path getPath();
+	/**
+	 * Get the path of this config file.
+	 * Used for differentiating between config files.
+	 *
+	 * Note that config values will read from this file automatically,
+	 * and updating config values will save the file automatically,
+	 * so you should not read or write this file yourself.
+	 *
+	 * @since 12.1.0
+	 */
+	Path getPath();
 
-    public @Unmodifiable List<? extends IJeiConfigCategory> getCategories();
+	/**
+	 * Get all the categories in this file.
+	 * Each category contains values that can be read or edited.
+	 *
+	 * @since 12.1.0
+	 */
+	@Unmodifiable
+	List<? extends IJeiConfigCategory> getCategories();
 }
-

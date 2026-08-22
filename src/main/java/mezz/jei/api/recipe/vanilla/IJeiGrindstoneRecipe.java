@@ -1,33 +1,73 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.resources.Identifier
- *  net.minecraft.world.item.ItemStack
- *  org.jetbrains.annotations.Unmodifiable
- *  org.jspecify.annotations.Nullable
- */
 package mezz.jei.api.recipe.vanilla;
 
-import java.util.List;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
-import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.ApiStatus;
 
+import java.util.List;
+
+/**
+ * There is no vanilla registry of Grindstone Recipes,
+ * so JEI creates these Grindstone recipes to use internally.
+ *
+ * Create your own with {@link IVanillaRecipeFactory#createGrindstoneRecipe}
+ * @since 23.1.0
+ */
+@ApiStatus.NonExtendable
 public interface IJeiGrindstoneRecipe {
-    public @Unmodifiable List<ItemStack> getTopInputs();
+	/**
+	 * Get the inputs that go into the top slot of the Grindstone.
+	 *
+	 * @since 23.1.0
+	 */
+	@Unmodifiable
+	List<ItemStack> getTopInputs();
 
-    public @Unmodifiable List<ItemStack> getBottomInputs();
+	/**
+	 * Get the inputs that go into the bottom slot of the Grindstone.
+	 *
+	 * @since 23.1.0
+	 */
+	@Unmodifiable
+	List<ItemStack> getBottomInputs();
 
-    public @Unmodifiable List<ItemStack> getOutputs();
+	/**
+	 * Get the outputs of the Grindstone recipe.
+	 *
+	 * @since 23.1.0
+	 */
+	@Unmodifiable
+	List<ItemStack> getOutputs();
 
-    public int getMinXpReward();
+	/**
+	 * The minimum XP that a player can receive.
+	 *
+	 * @since 23.1.0
+	 */
+	int getMinXpReward();
 
-    public int getMaxXpReward();
+	/**
+	 * The maximum XP that a player can receive.
+	 *
+	 * @since 23.1.0
+	 */
+	int getMaxXpReward();
 
-    public @Nullable Identifier getUid();
+	/**
+	 * Unique ID for this recipe.
+	 *
+	 * @since 23.1.0
+	 */
+	@Nullable
+	Identifier getUid();
 
-    public @Unmodifiable boolean isOutputRenderOnly();
+	/**
+	 * Make the output render only, to avoid displaying unnecessary crafting recipes when looking up outputs.
+	 *
+	 * @since 23.1.0
+	 */
+	@Unmodifiable
+	boolean isOutputRenderOnly();
 }
-

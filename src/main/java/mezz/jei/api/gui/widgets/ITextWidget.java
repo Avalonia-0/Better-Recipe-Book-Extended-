@@ -1,28 +1,68 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.client.gui.Font
- */
 package mezz.jei.api.gui.widgets;
 
 import mezz.jei.api.gui.placement.HorizontalAlignment;
 import mezz.jei.api.gui.placement.IPlaceable;
 import mezz.jei.api.gui.placement.VerticalAlignment;
 import net.minecraft.client.gui.Font;
+import org.jetbrains.annotations.ApiStatus;
 
-public interface ITextWidget
-extends IPlaceable<ITextWidget> {
-    public ITextWidget setFont(Font var1);
+/**
+ * An interface to allow configuration of a text widget.
+ *
+ * Add text to your recipe layout using {@link IRecipeExtrasBuilder#addText},
+ * then configure it using this interface.
+ *
+ * By default, text is aligned to the top left, and uses the minecraft client font.
+ *
+ * @since 19.19.0
+ */
+@ApiStatus.NonExtendable
+public interface ITextWidget extends IPlaceable<ITextWidget> {
+	/**
+	 * Set the font used by this text widget when drawing text.
+	 * Defaults to the minecraft client font.
+	 *
+	 * @since 19.19.0
+	 */
+	ITextWidget setFont(Font font);
 
-    public ITextWidget setColor(int var1);
+	/**
+	 * Set the color used by this text widget when drawing text.
+	 * Defaults to JEI's text widget color, which is black (0xFF000000) by default.
+	 *
+	 * @since 19.19.0
+	 */
+	ITextWidget setColor(int color);
 
-    public ITextWidget setLineSpacing(int var1);
+	/**
+	 * Set the space in between lines of text, in pixels.
+	 * Defaults to 2.
+	 *
+	 * @since 19.19.0
+	 */
+	ITextWidget setLineSpacing(int spacing);
 
-    public ITextWidget setShadow(boolean var1);
+	/**
+	 * Set if the text should be drawn with a shadow.
+	 * Defaults to false.
+	 *
+	 * @since 19.19.0
+	 */
+	ITextWidget setShadow(boolean shadow);
 
-    public ITextWidget setTextAlignment(HorizontalAlignment var1);
+	/**
+	 * Set the horizontal alignment of the text within the {@link #getWidth()} area.
+	 * The default setting is {@link HorizontalAlignment#LEFT}.
+	 *
+	 * @since 19.19.1
+	 */
+	ITextWidget setTextAlignment(HorizontalAlignment horizontalAlignment);
 
-    public ITextWidget setTextAlignment(VerticalAlignment var1);
+	/**
+	 * Set the vertical alignment of the text within the {@link #getHeight()} area.
+	 * The default setting is {@link VerticalAlignment#TOP}.
+	 *
+	 * @since 19.19.1
+	 */
+	ITextWidget setTextAlignment(VerticalAlignment verticalAlignment);
 }
-

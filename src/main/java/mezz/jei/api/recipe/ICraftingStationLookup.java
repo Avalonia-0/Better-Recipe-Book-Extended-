@@ -1,26 +1,51 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.world.item.ItemStack
- */
 package mezz.jei.api.recipe;
 
-import java.util.stream.Stream;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.ingredients.ITypedIngredient;
+import mezz.jei.api.recipe.types.IRecipeType;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.ApiStatus;
 
+import java.util.stream.Stream;
+
+/**
+ * This is a helper class for looking up crafting stations.
+ * Create one with {@link IRecipeManager#createCraftingStationLookup(IRecipeType)},
+ * then set its properties and call {@link #get()} to get the results.
+ *
+ * @since 20.0.0
+ */
+@ApiStatus.NonExtendable
 public interface ICraftingStationLookup {
-    public ICraftingStationLookup includeHidden();
+	/**
+	 * By default, hidden results are not returned.
+	 * Calling this will make this lookup include hidden crafting stations.
+	 *
+	 * @since 20.0.0
+	 */
+	ICraftingStationLookup includeHidden();
 
-    public Stream<ITypedIngredient<?>> get();
+	/**
+	 * Get the crafting station results for this lookup.
+	 *
+	 * @since 20.0.0
+	 */
+	Stream<ITypedIngredient<?>> get();
 
-    public <S> Stream<S> get(IIngredientType<S> var1);
+	/**
+	 * Get the crafting station results of the given type for this lookup.
+	 *
+	 * @since 20.0.0
+	 */
+	<S> Stream<S> get(IIngredientType<S> ingredientType);
 
-    default public Stream<ItemStack> getItemStack() {
-        return this.get(VanillaTypes.ITEM_STACK);
-    }
+	/**
+	 * Get the ItemStack crafting station results for this lookup.
+	 *
+	 * @since 20.0.0
+	 */
+	default Stream<ItemStack> getItemStack() {
+		return get(VanillaTypes.ITEM_STACK);
+	}
 }
-

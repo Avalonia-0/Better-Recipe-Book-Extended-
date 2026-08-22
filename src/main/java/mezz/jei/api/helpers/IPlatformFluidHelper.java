@@ -1,25 +1,39 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.core.Holder
- *  net.minecraft.core.component.DataComponentPatch
- *  net.minecraft.world.level.material.Fluid
- */
 package mezz.jei.api.helpers;
 
 import mezz.jei.api.ingredients.IIngredientTypeWithSubtypes;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.world.level.material.Fluid;
+import org.jetbrains.annotations.ApiStatus;
 
+/**
+ * Helper for mods that want to handle Fluid ingredients across multiple mod loader platforms.
+ * @param <T> the type of Fluid ingredient for the current platform.
+ * @since 10.1.0
+ */
+@ApiStatus.NonExtendable
 public interface IPlatformFluidHelper<T> {
-    public IIngredientTypeWithSubtypes<Fluid, T> getFluidIngredientType();
+	/**
+	 * Returns the type of Fluid ingredients on the current platform.
+	 * @since 10.1.0
+	 */
+	IIngredientTypeWithSubtypes<Fluid, T> getFluidIngredientType();
 
-    public T create(Holder<Fluid> var1, long var2, DataComponentPatch var4);
+	/**
+	 * Creates a new fluid ingredient for the current platform.
+	 * @since 18.0.0
+	 */
+	T create(Holder<Fluid> fluid, long amount, DataComponentPatch components);
 
-    public T create(Holder<Fluid> var1, long var2);
+	/**
+	 * Creates a new fluid ingredient for the current platform.
+	 * @since 18.0.0
+	 */
+	T create(Holder<Fluid> fluid, long amount);
 
-    public long bucketVolume();
+	/**
+	 * Returns amount of Fluid in one bucket on the current platform.
+	 * @since 10.1.0
+	 */
+	long bucketVolume();
 }
-

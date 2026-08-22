@@ -1,26 +1,11 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.network.chat.Component
- *  net.minecraft.world.inventory.AbstractContainerMenu
- *  net.minecraft.world.inventory.MenuType
- *  net.minecraft.world.item.crafting.CraftingRecipe
- *  net.minecraft.world.item.crafting.RecipeHolder
- *  net.minecraft.world.item.crafting.display.SlotDisplay
- *  org.jspecify.annotations.Nullable
- */
 package mezz.jei.api.recipe.transfer;
 
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
+import mezz.jei.api.gui.ingredient.ICraftingGridHelper;
 import mezz.jei.api.gui.ingredient.IRecipeSlotView;
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
-import mezz.jei.api.recipe.transfer.IRecipeTransferError;
-import mezz.jei.api.recipe.transfer.IRecipeTransferHandler;
-import mezz.jei.api.recipe.transfer.IRecipeTransferInfo;
+import mezz.jei.api.recipe.transfer.IRecipeTransferError.Type;
 import mezz.jei.api.recipe.types.IRecipeType;
+import mezz.jei.api.registration.IRecipeTransferRegistration;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
@@ -28,22 +13,95 @@ import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
 import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.ApiStatus;
 
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Helper functions for implementing an {@link IRecipeTransferHandler}.
+ * Get an instance from {@link IRecipeTransferRegistration#getTransferHelper()}.
+ */
+@ApiStatus.NonExtendable
 public interface IRecipeTransferHandlerHelper {
-    public IRecipeTransferError createInternalError();
+	/**
+	 * Create an error with {@link Type#INTERNAL}.
+	 * It is recommended that you also log a message to the console.
+	 */
+	IRecipeTransferError createInternalError();
 
-    public IRecipeTransferError createUserErrorWithTooltip(Component var1);
+	/**
+	 * Create an error with type {@link Type#USER_FACING} that shows a tooltip.
+	 *
+	 * @param tooltipMessage the message to show on the tooltip for the recipe transfer button.
+	 * @since 7.6.4
+	 */
+	IRecipeTransferError createUserErrorWithTooltip(Component tooltipMessage);
 
-    public IRecipeTransferError createUserErrorForMissingSlots(Component var1, Collection<IRecipeSlotView> var2);
+	/**
+	 * Create an error with type {@link Type#USER_FACING} that shows a tooltip and highlights missing item slots.
+	 *
+	 * @param tooltipMessage   the message to show on the tooltip for the recipe transfer button.
+	 * @param missingItemSlots the slot indexes for items that are missing. Must not be empty.
+	 *
+	 * @since 9.3.0
+	 */
+	IRecipeTransferError createUserErrorForMissingSlots(Component tooltipMessage, Collection<IRecipeSlotView> missingItemSlots);
 
-    public <C extends AbstractContainerMenu, R> IRecipeTransferInfo<C, R> createBasicRecipeTransferInfo(Class<? extends C> var1, @Nullable MenuType<C> var2, IRecipeType<R> var3, int var4, int var5, int var6, int var7);
+	/**
+	 * Helper to create a basic recipe transfer info, that works the same as the ones created by
+	 * {@link IRecipeTransferRegistration#addRecipeTransferHandler}
+	 *
+	 * This is useful for implementing your own recipe transfer logic that slightly tweaks the basic logic.
+	 *
+	 * @see #createUnregisteredRecipeTransferHandler(IRecipeTransferInfo)
+	 *
+	 * @since 11.3.0
+	 */
+	<C extends AbstractContainerMenu, R> IRecipeTransferInfo<C, R> createBasicRecipeTransferInfo(
+		Class<? extends C> containerClass,
+		@Nullable MenuType<C> menuType,
+		IRecipeType<R> recipeType,
+		int recipeSlotStart,
+		int recipeSlotCount,
+		int inventorySlotStart,
+		int inventorySlotCount
+	);
 
-    public <C extends AbstractContainerMenu, R> IRecipeTransferHandler<C, R> createUnregisteredRecipeTransferHandler(IRecipeTransferInfo<C, R> var1);
+	/**
+	 * Create an unregistered recipe transfer handler that uses JEI's default transfer logic.
+	 * This is useful for implementing your own recipe transfer logic that slightly tweaks the default logic.
+	 *
+	 * @since 11.3.0
+	 */
+	<C extends AbstractContainerMenu, R> IRecipeTransferHandler<C, R> createUnregisteredRecipeTransferHandler(IRecipeTransferInfo<C, R> recipeTransferInfo);
 
-    public IRecipeSlotsView createRecipeSlotsView(List<IRecipeSlotView> var1);
+	/**
+	 * Create a recipe slots view from a list of slot views.
+	 * This is useful for altering the slot results from other recipe transfer handlers.
+	 *
+	 * @since 11.3.0
+	 */
+	IRecipeSlotsView createRecipeSlotsView(List<IRecipeSlotView> slotViews);
 
-    public boolean recipeTransferHasServerSupport();
+	/**
+	 * @return true if JEI is currently present on the server and supports recipe transfer.
+	 *
+	 * @since 11.3.0
+	 */
+	boolean recipeTransferHasServerSupport();
 
-    public Map<Integer, SlotDisplay> getGuiSlotIndexToIngredientMap(RecipeHolder<CraftingRecipe> var1);
+	/**
+	 * Get the original ingredients from a crafting recipe, indexed by the original gui slots and
+	 * not the {@link IRecipeSlotsView} indexes JEI uses.
+	 * Used to help with optimizing crafting recipe transfer and for displaying errors.
+	 *
+	 * These indexes do not always match because JEI places smaller recipes into the 3x3 crafting grid
+	 * so that they are centered horizontally, and some will be aligned to the bottom. (i.e. slab recipes).
+	 * This logic is controlled by {@link ICraftingGridHelper}.
+	 *
+	 * @since 20.0.0
+	 */
+	Map<Integer, SlotDisplay> getGuiSlotIndexToIngredientMap(RecipeHolder<CraftingRecipe> recipeHolder);
 }
-

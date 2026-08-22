@@ -100,6 +100,18 @@ public final class DataOnlySlotBuilder implements IRecipeSlotBuilder {
     }
 
     @Override
+    public <I> IRecipeSlotBuilder add(IIngredientType<I> ingredientType, net.minecraft.world.item.crafting.display.SlotDisplay slotDisplay) {
+        collector.addSlotDisplay(slotDisplay);
+        return this;
+    }
+
+    @Override
+    public <I> IRecipeSlotBuilder add(IIngredientType<I> ingredientType, net.minecraft.world.item.crafting.Ingredient ingredient) {
+        collector.addIngredient(ingredient);
+        return this;
+    }
+
+    @Override
     public <I> IRecipeSlotBuilder add(IIngredientType<I> ingredientType, I ingredient) {
         collector.addTyped(ingredientType, ingredient);
         return this;
@@ -175,12 +187,22 @@ public final class DataOnlySlotBuilder implements IRecipeSlotBuilder {
     }
 
     @Override
+    public net.minecraft.util.context.ContextMap getContextMap() {
+        return null;
+    }
+
+    @Override
     public IRecipeSlotBuilder setOverlay(IDrawable overlay, int xOffset, int yOffset) {
         return this;
     }
 
     @Override
     public IRecipeSlotBuilder setFluidRenderer(long capacity, boolean showCapacity, int width, int height) {
+        return this;
+    }
+
+    @Override
+    public IRecipeSlotBuilder setFluidRenderer(long capacity, boolean showCapacity, int width, int height, mezz.jei.api.gui.drawable.TilingDirection tilingDirection) {
         return this;
     }
 

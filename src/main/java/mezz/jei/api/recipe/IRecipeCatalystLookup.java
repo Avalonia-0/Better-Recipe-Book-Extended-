@@ -1,27 +1,54 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.world.item.ItemStack
- */
 package mezz.jei.api.recipe;
 
-import java.util.stream.Stream;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.ingredients.ITypedIngredient;
+import mezz.jei.api.recipe.types.IRecipeType;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.ApiStatus;
 
-@Deprecated(forRemoval=true, since="20.0.0")
+import java.util.stream.Stream;
+
+/**
+ * This is a helper class for looking up recipe catalysts.
+ * Create one with {@link IRecipeManager#createRecipeCatalystLookup(IRecipeType)},
+ * then set its properties and call {@link #get()} to get the results.
+ *
+ * @since 9.5.0
+ * @deprecated use {@link ICraftingStationLookup}
+ */
+@SuppressWarnings({"removal", "DeprecatedIsStillUsed"})
+@Deprecated(forRemoval = true, since = "20.0.0")
+@ApiStatus.NonExtendable
 public interface IRecipeCatalystLookup {
-    public IRecipeCatalystLookup includeHidden();
+	/**
+	 * By default, hidden results are not returned.
+	 * Calling this will make this lookup include hidden recipe catalysts.
+	 *
+	 * @since 9.5.0
+	 */
+	IRecipeCatalystLookup includeHidden();
 
-    public Stream<ITypedIngredient<?>> get();
+	/**
+	 * Get the recipe catalyst results for this lookup.
+	 *
+	 * @since 9.5.0
+	 */
+	Stream<ITypedIngredient<?>> get();
 
-    public <S> Stream<S> get(IIngredientType<S> var1);
+	/**
+	 * Get the recipe catalyst results of the given type for this lookup.
+	 *
+	 * @since 9.5.0
+	 */
+	<S> Stream<S> get(IIngredientType<S> ingredientType);
 
-    default public Stream<ItemStack> getItemStack() {
-        return this.get(VanillaTypes.ITEM_STACK);
-    }
+	/**
+	 * Get the ItemStack recipe catalyst results for this lookup.
+	 *
+	 * @since 11.1.1
+	 */
+	default Stream<ItemStack> getItemStack() {
+		return get(VanillaTypes.ITEM_STACK);
+	}
 }
-

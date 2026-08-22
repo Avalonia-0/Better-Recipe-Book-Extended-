@@ -1,27 +1,57 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.resources.Identifier
- *  net.minecraft.world.item.ItemStack
- *  org.jetbrains.annotations.Unmodifiable
- */
 package mezz.jei.api.recipe.vanilla;
 
-import java.util.List;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.ApiStatus;
 
+import java.util.List;
+
+/**
+ * The vanilla and modded brewing recipes are not suitable for JEI
+ * because they do not expose their inputs and outputs,
+ * so JEI creates these recipes to use internally.
+ *
+ * Create your own with {@link IVanillaRecipeFactory#createBrewingRecipe}
+ */
+@ApiStatus.NonExtendable
 public interface IJeiBrewingRecipe {
-    public @Unmodifiable List<ItemStack> getPotionInputs();
+	/**
+	 * Get the input potion, that is used to create a new one.
+	 * Normally this will be one potion, but a list will display several in rotation.
+	 * Each of the 3 brewing slots will always display the same potion.
+	 *
+	 * @since 9.5.0
+	 */
+	@Unmodifiable
+	List<ItemStack> getPotionInputs();
 
-    public @Unmodifiable List<ItemStack> getIngredients();
+	/**
+	 * Get the ingredients added to a potion to create a new one.
+	 * Normally this will be one ingredient, but a list will display several in rotation.
+	 *
+	 * @since 9.5.0
+	 */
+	@Unmodifiable
+	List<ItemStack> getIngredients();
 
-    public ItemStack getPotionOutput();
+	/**
+	 * Get the potion result from this recipe.
+	 *
+	 * @since 9.5.0
+	 */
+	ItemStack getPotionOutput();
 
-    public int getBrewingSteps();
+	/**
+	 * @return the number of steps to brew the potion, starting at 0 for the water bottle.
+	 * If the number of steps is unknown because there is no path found back to the water bottle,
+	 * then this will return {@link Integer#MAX_VALUE}.
+	 */
+	int getBrewingSteps();
 
-    public Identifier getUid();
+	/**
+	 * Unique ID for this recipe.
+	 * @since 19.1.0
+	 */
+	Identifier getUid();
 }
-

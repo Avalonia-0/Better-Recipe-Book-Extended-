@@ -1,24 +1,10 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.core.component.DataComponentPatch
- *  net.minecraft.world.item.ItemStack
- *  net.minecraft.world.item.crafting.Ingredient
- *  net.minecraft.world.item.crafting.display.SlotDisplay
- *  net.minecraft.world.level.ItemLike
- *  net.minecraft.world.level.material.Fluid
- *  org.jetbrains.annotations.ApiStatus$NonExtendable
- *  org.jspecify.annotations.Nullable
- */
 package mezz.jei.api.gui.builder;
 
-import java.util.List;
-import java.util.Optional;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.ingredients.ITypedIngredient;
 import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
@@ -27,82 +13,266 @@ import net.minecraft.world.level.material.Fluid;
 import org.jetbrains.annotations.ApiStatus;
 import org.jspecify.annotations.Nullable;
 
+import java.util.List;
+import java.util.Optional;
+
+/**
+ * A chainable interface that accepts typed ingredients.
+ * Has convenience functions to make adding ingredients easier.
+ *
+ * @see IRecipeLayoutBuilder
+ * @see IRecipeSlotBuilder
+ *
+ * @since 9.3.0
+ */
 @ApiStatus.NonExtendable
 public interface IIngredientAcceptor<THIS extends IIngredientAcceptor<THIS>> {
-    public THIS add(SlotDisplay var1);
+	/**
+	 * Add a slot display that contains {@link ItemStack}s.
+	 *
+	 * @since 20.0.0
+	 */
+	default THIS add(SlotDisplay slotDisplay) {
+		return add(VanillaTypes.ITEM_STACK, slotDisplay);
+	}
 
-    default public THIS add(ItemStack itemStack) {
-        return this.add(VanillaTypes.ITEM_STACK, itemStack);
-    }
+	/**
+	 * Add a slot display that contains the specified type of ingredients.
+	 *
+	 * @since 27.5.0
+	 */
+	<I> THIS add(IIngredientType<I> ingredientType, SlotDisplay slotDisplay);
 
-    default public THIS add(ItemLike itemLike) {
-        return this.add(VanillaTypes.ITEM_STACK, itemLike.asItem().getDefaultInstance());
-    }
+	/**
+	 * Add one {@link ItemStack}.
+	 *
+	 * @since 20.0.0
+	 */
+	default THIS add(ItemStack itemStack) {
+		return add(VanillaTypes.ITEM_STACK, itemStack);
+	}
 
-    public THIS add(Fluid var1);
+	/**
+	 * Add one {@link ItemLike}.
+	 *
+	 * @since 20.0.0
+	 */
+	default THIS add(ItemLike itemLike) {
+		return add(VanillaTypes.ITEM_STACK, itemLike.asItem().getDefaultInstance());
+	}
 
-    public THIS add(Fluid var1, long var2);
+	/**
+	 * Convenience helper to add one Fluid ingredient with the default amount (one bucket).
+	 *
+	 * To add multiple Fluid ingredients, you can call this multiple times.
+	 *
+	 * @see #add(Fluid, long) to add a Fluid with an amount.
+	 * @see #add(Fluid, long, DataComponentPatch) to add a Fluid with a {@link DataComponentPatch}.
+	 * @since 20.0.0
+	 */
+	THIS add(Fluid fluid);
 
-    public THIS add(Fluid var1, long var2, DataComponentPatch var4);
+	/**
+	 * Convenience helper to add one Fluid ingredient.
+	 *
+	 * To add multiple Fluid ingredients, you can call this multiple times.
+	 *
+	 * @see #add(Fluid, long) to add a Fluid with the default amount.
+	 * @see #add(Fluid, long, DataComponentPatch) to add a Fluid with a {@link DataComponentPatch}.
+	 * @since 20.0.0
+	 */
+	THIS add(Fluid fluid, long amount);
 
-    public THIS add(Ingredient var1);
+	/**
+	 * Convenience helper to add one Fluid ingredient with a {@link DataComponentPatch}.
+	 *
+	 * To add multiple Fluid ingredients, you can call this multiple times.
+	 *
+	 * @see #add(Fluid, long) to add a Fluid with the default amount.
+	 * @see #add(Fluid, long) to add a Fluid without a {@link DataComponentPatch}.
+	 * @since 20.0.0
+	 */
+	THIS add(Fluid fluid, long amount, DataComponentPatch component);
 
-    default public <I> THIS add(ITypedIngredient<I> typedIngredient) {
-        return this.add(typedIngredient.getType(), typedIngredient.getIngredient());
-    }
+	/**
+	 * Convenience function to add an ordered list of ingredients from an {@link Ingredient}.
+	 *
+	 * @since 20.0.0
+	 */
+	THIS add(Ingredient ingredient);
 
-    public <I> THIS add(IIngredientType<I> var1, I var2);
+	/**
+	 * Add an Ingredient that contains the specified type of ingredients.
+	 *
+	 * @since 27.5.0
+	 */
+	<I> THIS add(IIngredientType<I> ingredientType, Ingredient ingredient);
 
-    public <I> THIS addIngredients(IIngredientType<I> var1, List<@Nullable I> var2);
+	/**
+	 * Add one typed ingredient.
+	 *
+	 * @since 20.0.0
+	 */
+	default <I> THIS add(ITypedIngredient<I> typedIngredient) {
+		return add(typedIngredient.getType(), typedIngredient.getIngredient());
+	}
 
-    public THIS addIngredientsUnsafe(List<?> var1);
+	/**
+	 * Add one ingredient with a custom {@link IIngredientType}.
+	 *
+	 * @since 20.0.0
+	 */
+	<I> THIS add(IIngredientType<I> ingredientType, I ingredient);
 
-    public THIS addTypedIngredients(List<ITypedIngredient<?>> var1);
+	/**
+	 * Add an ordered list of ingredients.
+	 *
+	 * @since 9.3.0
+	 */
+	<I> THIS addIngredients(IIngredientType<I> ingredientType, List<@Nullable I> ingredients);
 
-    public THIS addOptionalTypedIngredients(List<Optional<ITypedIngredient<?>>> var1);
+	/**
+	 * Add an ordered list of ingredients.
+	 * The type of ingredients can be mixed, as long as they are all valid ingredient types.
+	 * Prefer using {@link #addIngredients(IIngredientType, List)} for type safety.
+	 *
+	 * @since 9.3.0
+	 */
+	THIS addIngredientsUnsafe(List<?> ingredients);
 
-    default public THIS addItemStacks(List<ItemStack> itemStacks) {
-        return this.addIngredients(VanillaTypes.ITEM_STACK, itemStacks);
-    }
+	/**
+	 * Convenience function to add an ordered non-null list of typed ingredients.
+	 *
+	 * @param ingredients a non-null list of ingredients for the slot
+	 *
+	 * @since 19.6.0
+	 */
+	THIS addTypedIngredients(List<ITypedIngredient<?>> ingredients);
 
-    @Deprecated(forRemoval=true, since="20.0.0")
-    default public <I> THIS addIngredient(IIngredientType<I> ingredientType, I ingredient) {
-        return this.add(ingredientType, ingredient);
-    }
+	/**
+	 * Convenience function to add an ordered non-null list of typed ingredients.
+	 * {@link Optional#empty()} ingredients will be shown as blank in the rotation.
+	 *
+	 * @param ingredients a non-null list of optional ingredients for the slot
+	 *
+	 * @since 19.6.0
+	 */
+	THIS addOptionalTypedIngredients(List<Optional<ITypedIngredient<?>>> ingredients);
 
-    @Deprecated(forRemoval=true, since="20.0.0")
-    default public THIS addIngredients(Ingredient ingredient) {
-        return this.add(ingredient);
-    }
+	/**
+	 * Convenience function to add an order list of {@link ItemStack}.
+	 *
+	 * @since 9.3.0
+	 */
+	default THIS addItemStacks(List<ItemStack> itemStacks) {
+		return addIngredients(VanillaTypes.ITEM_STACK, itemStacks);
+	}
 
-    @Deprecated(forRemoval=true, since="20.0.0")
-    default public <I> THIS addTypedIngredient(ITypedIngredient<I> typedIngredient) {
-        return this.add(typedIngredient);
-    }
+	/**
+	 * @return the current context for resolving recipe displays.
+	 *
+	 * @since 27.13.0
+	 * @apiNote Use this when resolving {@link SlotDisplay}s directly.
+	 * If you add {@link SlotDisplay}s to this acceptor, JEI will resolve them with this context.
+	 */
+	ContextMap getContextMap();
 
-    @Deprecated(forRemoval=true, since="20.0.0")
-    default public THIS addItemStack(ItemStack itemStack) {
-        return this.add(itemStack);
-    }
+	/**
+	 * Add one ingredient.
+	 *
+	 * @since 9.3.0
+	 * @deprecated use {@link #add(IIngredientType, Object)}
+	 */
+	@Deprecated(forRemoval = true, since = "20.0.0")
+	default <I> THIS addIngredient(IIngredientType<I> ingredientType, I ingredient) {
+		return add(ingredientType, ingredient);
+	}
 
-    @Deprecated(forRemoval=true, since="20.0.0")
-    default public THIS addItemLike(ItemLike itemLike) {
-        return this.add(itemLike);
-    }
+	/**
+	 * Convenience function to add an ordered list of ingredients from an {@link Ingredient}.
+	 *
+	 * @since 9.3.0
+	 * @deprecated use {@link #add(Ingredient)}
+	 */
+	@Deprecated(forRemoval = true, since = "20.0.0")
+	default THIS addIngredients(Ingredient ingredient) {
+		return add(ingredient);
+	}
 
-    @Deprecated(forRemoval=true, since="20.0.0")
-    default public THIS addFluidStack(Fluid fluid) {
-        return this.add(fluid);
-    }
+	/**
+	 * Add one typed ingredient.
+	 *
+	 * @since 19.6.0
+	 * @deprecated use {@link #add(ITypedIngredient)}
+	 */
+	@Deprecated(forRemoval = true, since = "20.0.0")
+	default <I> THIS addTypedIngredient(ITypedIngredient<I> typedIngredient) {
+		return add(typedIngredient);
+	}
 
-    @Deprecated(forRemoval=true, since="20.0.0")
-    default public THIS addFluidStack(Fluid fluid, long amount) {
-        return this.add(fluid, amount);
-    }
+	/**
+	 * Convenience function to add one {@link ItemStack}.
+	 *
+	 * @since 9.3.0
+	 * @deprecated use {@link #add(ItemStack)}
+	 */
+	@Deprecated(forRemoval = true, since = "20.0.0")
+	default THIS addItemStack(ItemStack itemStack) {
+		return add(itemStack);
+	}
 
-    @Deprecated(forRemoval=true, since="20.0.0")
-    default public THIS addFluidStack(Fluid fluid, long amount, DataComponentPatch component) {
-        return this.add(fluid, amount, component);
-    }
+	/**
+	 * Convenience function to add one {@link ItemLike}.
+	 *
+	 * @since 19.18.1
+	 * @deprecated use {@link #add(ItemLike)}
+	 */
+	@Deprecated(forRemoval = true, since = "20.0.0")
+	default THIS addItemLike(ItemLike itemLike) {
+		return add(itemLike);
+	}
+
+	/**
+	 * Convenience helper to add one Fluid ingredient with the default amount (one bucket).
+	 *
+	 * To add multiple Fluid ingredients, you can call this multiple times.
+	 *
+	 * @see #add(Fluid, long) to add a Fluid with an amount.
+	 * @see #add(Fluid, long, DataComponentPatch) to add a Fluid with a {@link DataComponentPatch}.
+	 * @deprecated use {@link #add(Fluid)}
+	 */
+	@Deprecated(forRemoval = true, since = "20.0.0")
+	default THIS addFluidStack(Fluid fluid) {
+		return add(fluid);
+	}
+
+	/**
+	 * Convenience helper to add one Fluid ingredient.
+	 *
+	 * To add multiple Fluid ingredients, you can call this multiple times.
+	 *
+	 * @see #add(Fluid, long) to add a Fluid with the default amount.
+	 * @see #add(Fluid, long, DataComponentPatch) to add a Fluid with a {@link DataComponentPatch}.
+	 * @since 11.1.0
+	 * @deprecated use {@link #add(ItemLike)}
+	 */
+	@Deprecated(forRemoval = true, since = "20.0.0")
+	default THIS addFluidStack(Fluid fluid, long amount) {
+		return add(fluid, amount);
+	}
+
+	/**
+	 * Convenience helper to add one Fluid ingredient with a {@link DataComponentPatch}.
+	 *
+	 * To add multiple Fluid ingredients, you can call this multiple times.
+	 *
+	 * @see #add(Fluid, long) to add a Fluid with the default amount.
+	 * @see #add(Fluid, long) to add a Fluid without a {@link DataComponentPatch}.
+	 * @since 18.0.0
+	 * @deprecated use {@link #add(ItemLike)}
+	 */
+	@Deprecated(forRemoval = true, since = "20.0.0")
+	default THIS addFluidStack(Fluid fluid, long amount, DataComponentPatch component) {
+		return add(fluid, amount, component);
+	}
 }
-

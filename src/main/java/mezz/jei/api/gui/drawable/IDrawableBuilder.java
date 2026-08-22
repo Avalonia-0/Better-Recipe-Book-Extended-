@@ -1,23 +1,50 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package mezz.jei.api.gui.drawable;
 
 import mezz.jei.api.gui.ITickTimer;
-import mezz.jei.api.gui.drawable.IDrawableAnimated;
-import mezz.jei.api.gui.drawable.IDrawableStatic;
+import mezz.jei.api.helpers.IGuiHelper;
+import net.minecraft.resources.Identifier;
+import org.jetbrains.annotations.ApiStatus;
 
+/**
+ * Builder for creating drawables from a resource location.
+ * Create an instance with {@link IGuiHelper#drawableBuilder(Identifier, int, int, int, int)}
+ */
+@ApiStatus.NonExtendable
 public interface IDrawableBuilder {
-    public IDrawableBuilder setTextureSize(int var1, int var2);
+	/**
+	 * For textures that are not 256x256, specify the size.
+	 */
+	IDrawableBuilder setTextureSize(int width, int height);
 
-    public IDrawableBuilder addPadding(int var1, int var2, int var3, int var4);
+	/**
+	 * Add extra blank space around the texture by adjusting the padding.
+	 */
+	IDrawableBuilder addPadding(int paddingTop, int paddingBottom, int paddingLeft, int paddingRight);
 
-    public IDrawableBuilder trim(int var1, int var2, int var3, int var4);
+	/**
+	 * Remove blank space around the texture by trimming it.
+	 */
+	IDrawableBuilder trim(int trimTop, int trimBottom, int trimLeft, int trimRight);
 
-    public IDrawableStatic build();
+	/**
+	 * Creates a normal, non-animated drawable.
+	 */
+	IDrawableStatic build();
 
-    public IDrawableAnimated buildAnimated(int var1, IDrawableAnimated.StartDirection var2, boolean var3);
+	/**
+	 * Creates an animated texture for a gui, revealing the texture over time.
+	 *
+	 * @param ticksPerCycle  the number of ticks for the animation to run before starting over
+	 * @param startDirection the direction that the animation starts drawing the texture
+	 * @param inverted       when inverted is true, the texture will start fully drawn and be hidden over time
+	 */
+	IDrawableAnimated buildAnimated(int ticksPerCycle, IDrawableAnimated.StartDirection startDirection, boolean inverted);
 
-    public IDrawableAnimated buildAnimated(ITickTimer var1, IDrawableAnimated.StartDirection var2);
+	/**
+	 * Creates an animated texture for a gui, revealing the texture over time.
+	 *
+	 * @param tickTimer      a custom tick timer, used for advanced control over the animation
+	 * @param startDirection the direction that the animation starts drawing the texture
+	 */
+	IDrawableAnimated buildAnimated(ITickTimer tickTimer, IDrawableAnimated.StartDirection startDirection);
 }
-

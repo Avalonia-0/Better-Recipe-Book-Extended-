@@ -1,25 +1,50 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.world.item.ItemStack
- */
 package mezz.jei.api.runtime;
 
-import java.util.List;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.IIngredientType;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.ApiStatus;
 
+import java.util.List;
+
+/**
+ * The {@link IIngredientFilter} is JEI's filter that can be set by players or controlled by mods.
+ * Use this interface to get information from and interact with it.
+ * Get the instance from {@link IJeiRuntime#getIngredientFilter()}.
+ */
+@ApiStatus.NonExtendable
 public interface IIngredientFilter {
-    public void setFilterText(String var1);
+	/**
+	 * Set the search filter string for the ingredient list.
+	 */
+	void setFilterText(String filterText);
 
-    public String getFilterText();
+	/**
+	 * @return the current search filter string for the ingredient list
+	 */
+	String getFilterText();
 
-    default public List<ItemStack> getFilteredItemStacks() {
-        return this.getFilteredIngredients(VanillaTypes.ITEM_STACK);
-    }
+	/**
+	 * @return a list containing all ItemStacks that match the current filter.
+	 *
+	 * @see #getFilteredIngredients(IIngredientType) to get a different type of ingredient, not just ItemStack.
+	 *
+	 * @see	IIngredientManager#getAllTypedIngredients(IIngredientType)
+	 * to get all the ingredients known to JEI, not just ones currently shown by the filter.
+	 *
+	 * @since 11.1.1
+	 */
+	default List<ItemStack> getFilteredItemStacks() {
+		return getFilteredIngredients(VanillaTypes.ITEM_STACK);
+	}
 
-    public <T> List<T> getFilteredIngredients(IIngredientType<T> var1);
+	/**
+	 * @return a list containing all ingredients that match the current filter.
+	 *
+	 * @see #getFilteredItemStacks() to just get ItemStacks, not all types of ingredients.
+	 *
+	 * @see	IIngredientManager#getAllTypedIngredients(IIngredientType)
+	 * to get all the ingredients known to JEI, not just ones currently shown by the filter
+	 */
+	<T> List<T> getFilteredIngredients(IIngredientType<T> ingredientType);
 }
-

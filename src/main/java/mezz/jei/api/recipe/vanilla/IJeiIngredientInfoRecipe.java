@@ -1,20 +1,35 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.network.chat.FormattedText
- *  org.jetbrains.annotations.Unmodifiable
- */
 package mezz.jei.api.recipe.vanilla;
 
-import java.util.List;
 import mezz.jei.api.ingredients.ITypedIngredient;
+import mezz.jei.api.registration.IRecipeRegistration;
 import net.minecraft.network.chat.FormattedText;
 import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.ApiStatus;
 
+import java.util.List;
+
+/**
+ * A recipe in JEI that displays a page of text information about an ingredient.
+ *
+ * Create your own with {@link IRecipeRegistration#addIngredientInfo}.
+ *
+ * @since 9.5.0
+ */
+@ApiStatus.NonExtendable
 public interface IJeiIngredientInfoRecipe {
-    public @Unmodifiable List<ITypedIngredient<?>> getIngredients();
+	/**
+	 * The input ingredients for the recipe.
+	 *
+	 * @since 9.5.0
+	 */
+	@Unmodifiable
+	List<ITypedIngredient<?>> getIngredients();
 
-    public @Unmodifiable List<FormattedText> getDescription();
+	/**
+	 * A short description of the ingredients, broken up across multiple lines of text.
+	 *
+	 * @since 9.5.0
+	 */
+	@Unmodifiable
+	List<FormattedText> getDescription();
 }
-

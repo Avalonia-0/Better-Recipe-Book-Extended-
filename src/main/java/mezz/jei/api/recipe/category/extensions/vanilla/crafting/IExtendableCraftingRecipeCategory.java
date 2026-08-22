@@ -1,15 +1,25 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.world.item.crafting.CraftingRecipe
- */
 package mezz.jei.api.recipe.category.extensions.vanilla.crafting;
 
-import mezz.jei.api.recipe.category.extensions.vanilla.crafting.ICraftingCategoryExtension;
+import mezz.jei.api.registration.IVanillaCategoryExtensionRegistration;
 import net.minecraft.world.item.crafting.CraftingRecipe;
+import org.jetbrains.annotations.ApiStatus;
 
+/**
+ * Allows extending the vanilla crafting recipe category,
+ * to support custom recipes classes that cannot be handled by default.
+ *
+ * Get the instance from {@link IVanillaCategoryExtensionRegistration#getCraftingCategory()}
+ *
+ * @since 16.0.0
+ */
+@ApiStatus.NonExtendable
 public interface IExtendableCraftingRecipeCategory {
-    public <R extends CraftingRecipe> void addExtension(Class<? extends R> var1, ICraftingCategoryExtension<R> var2);
+	/**
+	 * Add an extension that handles a subset of the recipes in the recipe category.
+	 *
+	 * @param recipeClass  the subset class of crafting recipes to handle
+	 * @param extension    an extension for handling these recipes
+	 * @since 16.0.0
+	 */
+	<R extends CraftingRecipe> void addExtension(Class<? extends R> recipeClass, ICraftingCategoryExtension<R> extension);
 }
-

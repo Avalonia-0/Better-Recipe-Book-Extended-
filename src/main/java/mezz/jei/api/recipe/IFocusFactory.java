@@ -1,22 +1,43 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package mezz.jei.api.recipe;
 
-import java.util.Collection;
+import mezz.jei.api.helpers.IJeiHelpers;
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.ingredients.ITypedIngredient;
-import mezz.jei.api.recipe.IFocus;
-import mezz.jei.api.recipe.IFocusGroup;
-import mezz.jei.api.recipe.RecipeIngredientRole;
+import org.jetbrains.annotations.ApiStatus;
 
+import java.util.Collection;
+
+/**
+ * {@link IFocusFactory} helps with creating {@link IFocus} for JEI.
+ * Get an instance from {@link IJeiHelpers#getFocusFactory()}.
+ */
+@ApiStatus.NonExtendable
 public interface IFocusFactory {
-    public <V> IFocus<V> createFocus(RecipeIngredientRole var1, IIngredientType<V> var2, V var3);
+	/**
+	 * Returns a new focus.
+	 *
+	 * @since 9.3.0
+	 */
+	<V> IFocus<V> createFocus(RecipeIngredientRole role, IIngredientType<V> ingredientType, V ingredient);
 
-    public <V> IFocus<V> createFocus(RecipeIngredientRole var1, ITypedIngredient<V> var2);
+	/**
+	 * Returns a new focus.
+	 *
+	 * @since 11.5.0
+	 */
+	<V> IFocus<V> createFocus(RecipeIngredientRole role, ITypedIngredient<V> typedIngredient);
 
-    public IFocusGroup createFocusGroup(Collection<? extends IFocus<?>> var1);
+	/**
+	 * Returns a new focus group.
+	 *
+	 * @since 11.5.0
+	 */
+	IFocusGroup createFocusGroup(Collection<? extends IFocus<?>> focuses);
 
-    public IFocusGroup getEmptyFocusGroup();
+	/**
+	 * Returns an empty focus group.
+	 *
+	 * @since 11.5.0
+	 */
+	IFocusGroup getEmptyFocusGroup();
 }
-

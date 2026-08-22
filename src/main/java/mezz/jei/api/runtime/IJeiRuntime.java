@@ -1,44 +1,98 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package mezz.jei.api.runtime;
 
+import mezz.jei.api.IModPlugin;
 import mezz.jei.api.helpers.IJeiHelpers;
 import mezz.jei.api.recipe.IRecipeManager;
 import mezz.jei.api.recipe.transfer.IRecipeTransferManager;
-import mezz.jei.api.runtime.IBookmarkOverlay;
-import mezz.jei.api.runtime.IEditModeConfig;
-import mezz.jei.api.runtime.IIngredientFilter;
-import mezz.jei.api.runtime.IIngredientListOverlay;
-import mezz.jei.api.runtime.IIngredientManager;
-import mezz.jei.api.runtime.IJeiKeyMappings;
-import mezz.jei.api.runtime.IRecipesGui;
-import mezz.jei.api.runtime.IScreenHelper;
 import mezz.jei.api.runtime.config.IJeiConfigManager;
+import org.jetbrains.annotations.ApiStatus;
 
+/**
+ * Gives access to JEI functions that are available once everything has loaded.
+ * The IJeiRuntime instance is passed to your mod plugin in {@link IModPlugin#onRuntimeAvailable(IJeiRuntime)}.
+ */
+@ApiStatus.NonExtendable
 public interface IJeiRuntime {
-    public IRecipeManager getRecipeManager();
+	/**
+	 * The {@link IRecipeManager} offers several functions for retrieving and handling recipes.
+	 */
+	IRecipeManager getRecipeManager();
 
-    public IRecipesGui getRecipesGui();
+	/**
+	 * The {@link IRecipesGui} is JEI's gui for displaying recipes.
+	 * Use this interface to open the gui and display recipes.
+	 */
+	IRecipesGui getRecipesGui();
 
-    public IIngredientFilter getIngredientFilter();
+	/**
+	 * The {@link IIngredientFilter} is JEI's filter that can be set by players or controlled by mods.
+	 * Use this interface to get information from and interact with it.
+	 */
+	IIngredientFilter getIngredientFilter();
 
-    public IIngredientListOverlay getIngredientListOverlay();
+	/**
+	 * The {@link IIngredientListOverlay} is JEI's gui that displays all the ingredients next to an open container gui.
+	 * Use this interface to get information from and interact with it.
+	 */
+	IIngredientListOverlay getIngredientListOverlay();
 
-    public IBookmarkOverlay getBookmarkOverlay();
+	/**
+	 * The {@link IBookmarkOverlay} is JEI's gui that displays all the bookmarked ingredients next to an open container gui.
+	 * Use this interface to get information from it.
+	 */
+	IBookmarkOverlay getBookmarkOverlay();
 
-    public IJeiHelpers getJeiHelpers();
+	/**
+	 * {@link IJeiHelpers} provides helpers and tools for addon mods.
+	 *
+	 * @since 9.4.2
+	 */
+	IJeiHelpers getJeiHelpers();
 
-    public IIngredientManager getIngredientManager();
+	/**
+	 * The {@link IIngredientManager} has some useful functions related to recipe ingredients.
+	 */
+	IIngredientManager getIngredientManager();
 
-    public IJeiKeyMappings getKeyMappings();
+	/**
+	 * The {@link IJeiKeyMappings} gives access to key mappings used by JEI.
+	 * This can be used by mods that want to use the same keys that players bind for JEI.
+	 *
+	 * @since 11.0.1
+	 */
+	IJeiKeyMappings getKeyMappings();
 
-    public IScreenHelper getScreenHelper();
+	/**
+	 * Get a helper for all runtime Screen functions.
+	 * This is used by JEI's GUI and can be used by other mods that want to use the same information from JEI.
+	 *
+	 * @since 11.5.0
+	 */
+	IScreenHelper getScreenHelper();
 
-    public IRecipeTransferManager getRecipeTransferManager();
+	/**
+	 * Get a manager that holds all the registered recipe transfer handlers.
+	 * This is used by JEI's GUI and can be used by other mods that want to use the same information from JEI.
+	 *
+	 * @since 11.5.0
+	 */
+	IRecipeTransferManager getRecipeTransferManager();
 
-    public IEditModeConfig getEditModeConfig();
+	/**
+	 * Get access to the edit-mode config, which lets users hide ingredients from JEI.
+	 * This is used by JEI's GUI and can be used by other mods that want to use the same information from JEI.
+	 *
+	 * @since 11.5.0
+	 */
+	IEditModeConfig getEditModeConfig();
 
-    public IJeiConfigManager getConfigManager();
+	/**
+	 * Get the config manager, used for displaying or updating JEI's config files.
+	 *
+	 * If you need to get this config manager as soon as it is ready,
+	 * override {@link IModPlugin#onConfigManagerAvailable} instead of waiting for it to be available here.
+	 *
+	 * @since 12.1.0
+	 */
+	IJeiConfigManager getConfigManager();
 }
-

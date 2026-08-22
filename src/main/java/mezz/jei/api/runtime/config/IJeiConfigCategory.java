@@ -1,18 +1,30 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  org.jetbrains.annotations.Unmodifiable
- */
 package mezz.jei.api.runtime.config;
 
-import java.util.Collection;
-import mezz.jei.api.runtime.config.IJeiConfigValue;
 import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.ApiStatus;
 
+import java.util.Collection;
+
+/**
+ * Categories organize {@link IJeiConfigValue}s into groups.
+ * An {@link IJeiConfigFile} can contain one or more categories.
+ *
+ * @since 12.1.0
+ */
+@ApiStatus.NonExtendable
 public interface IJeiConfigCategory {
-    public String getName();
+	/**
+	 * The name of the category.
+	 *
+	 * @since 12.1.0
+	 */
+	String getName();
 
-    public @Unmodifiable Collection<? extends IJeiConfigValue<?>> getConfigValues();
+	/**
+	 * The config values in the category.
+	 *
+	 * @since 12.1.0
+	 */
+	@Unmodifiable
+	Collection<? extends IJeiConfigValue<?>> getConfigValues();
 }
-

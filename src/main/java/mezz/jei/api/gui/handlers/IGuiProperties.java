@@ -1,26 +1,78 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.client.gui.screens.Screen
- */
 package mezz.jei.api.gui.handlers;
 
 import net.minecraft.client.gui.screens.Screen;
 
+/**
+ * Defines the properties of a GUI so that JEI can draw next to it.
+ * Created by {@link IScreenHandler#apply(Screen)}
+ *
+ * @since 4.8.4
+ */
 public interface IGuiProperties {
-    public Class<? extends Screen> screenClass();
+	/**
+	 * The screen class these properties describe.
+	 *
+	 * @since 19.5.1
+	 */
+	Class<? extends Screen> screenClass();
 
-    public int guiLeft();
+	/**
+	 * The left edge of the GUI rectangle in screen coordinates.
+	 *
+	 * @since 19.5.1
+	 */
+	int guiLeft();
 
-    public int guiTop();
+	/**
+	 * The top edge of the GUI rectangle in screen coordinates.
+	 *
+	 * @since 19.5.1
+	 */
+	int guiTop();
 
-    public int guiXSize();
+	/**
+	 * The width of the GUI rectangle.
+	 *
+	 * @since 19.5.1
+	 */
+	int guiXSize();
 
-    public int guiYSize();
+	/**
+	 * The height of the GUI rectangle.
+	 *
+	 * @since 19.5.1
+	 */
+	int guiYSize();
 
-    public int screenWidth();
+	/**
+	 * The width of the screen.
+	 *
+	 * @since 19.5.1
+	 */
+	int screenWidth();
 
-    public int screenHeight();
+	/**
+	 * The height of the screen.
+	 *
+	 * @since 19.5.1
+	 */
+	int screenHeight();
+
+	/**
+	 * The right edge of the GUI rectangle in screen coordinates.
+	 *
+	 * @since 27.12.0
+	 */
+	default int guiRight() {
+		return guiLeft() + guiXSize();
+	}
+
+	/**
+	 * The bottom edge of the GUI rectangle in screen coordinates.
+	 *
+	 * @since 27.12.0
+	 */
+	default int guiBottom() {
+		return guiTop() + guiYSize();
+	}
 }
-

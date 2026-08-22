@@ -1,22 +1,40 @@
-/*
- * Decompiled with CFR 0.152.
- */
 package mezz.jei.api.gui.placement;
 
-import mezz.jei.api.gui.placement.HorizontalAlignment;
-import mezz.jei.api.gui.placement.VerticalAlignment;
+import org.jetbrains.annotations.ApiStatus;
 
+/**
+ * Interface for things that can have their position set, and be aligned vertically and horizontally in an area.
+ *
+ * @since 19.19.1
+ */
+@ApiStatus.NonExtendable
 public interface IPlaceable<THIS extends IPlaceable<THIS>> {
-    public THIS setPosition(int var1, int var2);
+	/**
+	 * Place this element at the given position.
+	 * @since 19.19.1
+	 */
+	THIS setPosition(int xPos, int yPos);
 
-    default public THIS setPosition(int areaX, int areaY, int areaWidth, int areaHeight, HorizontalAlignment horizontalAlignment, VerticalAlignment verticalAlignment) {
-        int x = areaX + horizontalAlignment.getXPos(areaWidth, this.getWidth());
-        int y = areaY + verticalAlignment.getYPos(areaHeight, this.getHeight());
-        return this.setPosition(x, y);
-    }
+	/**
+	 * Place this element inside the given area, with the given alignment.
+	 *
+	 * @since 19.19.1
+	 */
+	default THIS setPosition(int areaX, int areaY, int areaWidth, int areaHeight, HorizontalAlignment horizontalAlignment, VerticalAlignment verticalAlignment) {
+		int x = areaX + horizontalAlignment.getXPos(areaWidth, getWidth());
+		int y = areaY + verticalAlignment.getYPos(areaHeight, getHeight());
+		return setPosition(x, y);
+	}
 
-    public int getWidth();
+	/**
+	 * Get the width of this element.
+	 * @since 19.19.1
+	 */
+	int getWidth();
 
-    public int getHeight();
+	/**
+	 * Get the height of this element.
+	 * @since 19.19.1
+	 */
+	int getHeight();
 }
-

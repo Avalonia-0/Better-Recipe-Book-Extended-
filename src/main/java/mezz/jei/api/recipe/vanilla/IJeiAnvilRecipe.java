@@ -1,27 +1,49 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.resources.Identifier
- *  net.minecraft.world.item.ItemStack
- *  org.jetbrains.annotations.Unmodifiable
- *  org.jspecify.annotations.Nullable
- */
 package mezz.jei.api.recipe.vanilla;
 
-import java.util.List;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
-import org.jetbrains.annotations.Unmodifiable;
 import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.ApiStatus;
 
+import java.util.List;
+
+/**
+ * There is no vanilla registry of Anvil Recipes,
+ * so JEI creates these Anvil recipes to use internally.
+ *
+ * Create your own with {@link IVanillaRecipeFactory#createAnvilRecipe}
+ */
+@ApiStatus.NonExtendable
 public interface IJeiAnvilRecipe {
-    public @Unmodifiable List<ItemStack> getLeftInputs();
+	/**
+	 * Get the inputs that go into the left slot of the Anvil.
+	 *
+	 * @since 9.5.0
+	 */
+	@Unmodifiable
+	List<ItemStack> getLeftInputs();
 
-    public @Unmodifiable List<ItemStack> getRightInputs();
+	/**
+	 * Get the inputs that go into the right slot of the Anvil.
+	 *
+	 * @since 9.5.0
+	 */
+	@Unmodifiable
+	List<ItemStack> getRightInputs();
 
-    public @Unmodifiable List<ItemStack> getOutputs();
+	/**
+	 * Get the outputs of the Anvil recipe.
+	 *
+	 * @since 9.5.0
+	 */
+	@Unmodifiable
+	List<ItemStack> getOutputs();
 
-    public @Nullable Identifier getUid();
+	/**
+	 * Unique ID for this recipe.
+	 * @since 19.1.0
+	 */
+	@Nullable
+	Identifier getUid();
 }
-

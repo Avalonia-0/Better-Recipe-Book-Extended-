@@ -1,14 +1,5 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.network.chat.Component
- *  net.minecraft.world.item.ItemStack
- *  net.minecraft.world.level.ItemLike
- */
 package mezz.jei.api.registration;
 
-import java.util.List;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.helpers.IJeiHelpers;
 import mezz.jei.api.ingredients.IIngredientType;
@@ -16,32 +7,114 @@ import mezz.jei.api.recipe.types.IRecipeType;
 import mezz.jei.api.recipe.vanilla.IVanillaRecipeFactory;
 import mezz.jei.api.runtime.IIngredientManager;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ItemLike;
+import org.jetbrains.annotations.ApiStatus;
 
+import java.util.List;
+
+@ApiStatus.NonExtendable
 public interface IRecipeRegistration {
-    public IJeiHelpers getJeiHelpers();
+	/**
+	 * {@link IJeiHelpers} provides helpers and tools for addon mods.
+	 */
+	IJeiHelpers getJeiHelpers();
 
-    public IIngredientManager getIngredientManager();
+	/**
+	 * The {@link IIngredientManager} has some useful functions related to recipe ingredients.
+	 */
+	IIngredientManager getIngredientManager();
 
-    public IVanillaRecipeFactory getVanillaRecipeFactory();
+	/**
+	 * The {@link IVanillaRecipeFactory} allows creation of vanilla recipes.
+	 */
+	IVanillaRecipeFactory getVanillaRecipeFactory();
 
-    public <T> void addRecipes(IRecipeType<T> var1, List<T> var2);
+	/**
+	 * @return the current context for resolving recipe displays.
+	 *
+	 * @since 27.13.0
+	 */
+	ContextMap getContextMap();
 
-    public <T> void addIngredientInfo(T var1, IIngredientType<T> var2, Component ... var3);
+	/**
+	 * Add the recipes provided by your plugin.
+	 *
+	 * @since 9.5.0
+	 */
+	<T> void addRecipes(IRecipeType<T> recipeType, List<T> recipes);
 
-    public <T> void addIngredientInfo(List<T> var1, IIngredientType<T> var2, Component ... var3);
+	/**
+	 * Add an info page for an ingredient.
+	 * Description pages show in the recipes for an ingredient and tell the player a little bit about it.
+	 *
+	 * @param ingredient            The ingredient to describe
+	 * @param ingredientType        The type of the ingredient
+	 * @param descriptionComponents Text components for info text.
+	 *                              New lines can be added with "\n" or by giving multiple descriptions.
+	 *                              Long lines are wrapped automatically.
+	 *                              Very long entries will span multiple pages automatically.
+	 * @since 7.6.4
+	 */
+	<T> void addIngredientInfo(T ingredient, IIngredientType<T> ingredientType, Component... descriptionComponents);
 
-    default public void addIngredientInfo(ItemLike itemLike, Component ... descriptionComponents) {
-        this.addIngredientInfo(itemLike.asItem().getDefaultInstance(), VanillaTypes.ITEM_STACK, descriptionComponents);
-    }
+	/**
+	 * Add an info page for multiple ingredients together.
+	 * Description pages show in the recipes for an ingredient and tell the player a little bit about it.
+	 *
+	 * @param ingredients           The ingredients to describe
+	 * @param ingredientType        The type of the ingredients
+	 * @param descriptionComponents Text components for info text.
+	 *                              New lines can be added with "\n" or by giving multiple descriptions.
+	 *                              Long lines are wrapped automatically.
+	 *                              Very long entries will span multiple pages automatically.
+	 * @since 7.6.4
+	 */
+	<T> void addIngredientInfo(List<T> ingredients, IIngredientType<T> ingredientType, Component... descriptionComponents);
 
-    default public void addItemStackInfo(ItemStack ingredient, Component ... descriptionComponents) {
-        this.addIngredientInfo(ingredient, VanillaTypes.ITEM_STACK, descriptionComponents);
-    }
+	/**
+	 * Add an info page for an ItemLike.
+	 * Description pages show in the recipes for an ItemStack and tell the player a little about it.
+	 *
+	 * @param itemLike              The ItemLike to describe
+	 * @param descriptionComponents Text components for info text.
+	 *                              New lines can be added with "\n" or by giving multiple descriptions.
+	 *                              Long lines are wrapped automatically.
+	 *                              Very long entries will span multiple pages automatically.
+	 * @since 19.18.3
+	 */
+	default void addIngredientInfo(ItemLike itemLike, Component... descriptionComponents) {
+		addIngredientInfo(itemLike.asItem().getDefaultInstance(), VanillaTypes.ITEM_STACK, descriptionComponents);
+	}
 
-    default public void addItemStackInfo(List<ItemStack> ingredients, Component ... descriptionComponents) {
-        this.addIngredientInfo(ingredients, VanillaTypes.ITEM_STACK, descriptionComponents);
-    }
+	/**
+	 * Add an info page for an ItemStack.
+	 * Description pages show in the recipes for an ItemStack and tell the player a little about it.
+	 *
+	 * @param ingredient            The ItemStack to describe
+	 * @param descriptionComponents Text components for info text.
+	 *                              New lines can be added with "\n" or by giving multiple descriptions.
+	 *                              Long lines are wrapped automatically.
+	 *                              Very long entries will span multiple pages automatically.
+	 * @since 11.1.1
+	 */
+	default void addItemStackInfo(ItemStack ingredient, Component... descriptionComponents) {
+		addIngredientInfo(ingredient, VanillaTypes.ITEM_STACK, descriptionComponents);
+	}
+
+	/**
+	 * Add an info page for multiple ItemStacks together.
+	 * Description pages show in the recipes for an ItemStack and tell the player a little about it.
+	 *
+	 * @param ingredients           The ItemStacks to describe
+	 * @param descriptionComponents Text components for info text.
+	 *                              New lines can be added with "\n" or by giving multiple descriptions.
+	 *                              Long lines are wrapped automatically.
+	 *                              Very long entries will span multiple pages automatically.
+	 * @since 7.6.4
+	 */
+	default void addItemStackInfo(List<ItemStack> ingredients, Component... descriptionComponents) {
+		addIngredientInfo(ingredients, VanillaTypes.ITEM_STACK, descriptionComponents);
+	}
 }
-

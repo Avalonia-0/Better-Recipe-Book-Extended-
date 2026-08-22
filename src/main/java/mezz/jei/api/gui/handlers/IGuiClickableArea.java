@@ -1,46 +1,71 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.client.renderer.Rect2i
- */
 package mezz.jei.api.gui.handlers;
 
-import java.util.Arrays;
-import java.util.List;
 import mezz.jei.api.gui.builder.ITooltipBuilder;
 import mezz.jei.api.recipe.IFocusFactory;
 import mezz.jei.api.recipe.types.IRecipeType;
 import mezz.jei.api.runtime.IRecipesGui;
 import net.minecraft.client.renderer.Rect2i;
 
+import java.util.Arrays;
+import java.util.List;
+
 public interface IGuiClickableArea {
-    public Rect2i getArea();
+	/**
+	 * The hover/click area for this {@link IGuiClickableArea}.
+	 * When hovered, the message from {@link #getTooltip} will be displayed.
+	 * When clicked, {@link #onClick(IFocusFactory, IRecipesGui)} will be called.
+	 *
+	 * Area is in gui-relative coordinates (not absolute Screen coordinates).
+	 */
+	Rect2i getArea();
 
-    default public boolean isTooltipEnabled() {
-        return true;
-    }
+	/**
+	 * Returns whether the area should render a tooltip when hovered over.
+	 * The tooltip can be modified by overriding {@link #getTooltip}.
+	 * This will also disable the default "Show all recipes" message.
+	 *
+	 * @since 11.2.2
+	 */
+	default boolean isTooltipEnabled() {
+		return true;
+	}
 
-    default public void getTooltip(ITooltipBuilder tooltip) {
-    }
+	/**
+	 * Add the tooltip elements to be shown on the tooltip when this area is hovered over.
+	 * Leave it empty to display the default "Show all recipes" message.
+	 *
+	 * @since 19.5.4
+	 */
+	default void getTooltip(ITooltipBuilder tooltip) {
 
-    public void onClick(IFocusFactory var1, IRecipesGui var2);
+	}
 
-    public static IGuiClickableArea createBasic(int xPos, int yPos, int width, int height, IRecipeType<?> ... recipeTypes) {
-        final Rect2i area = new Rect2i(xPos, yPos, width, height);
-        final List<IRecipeType<?>> recipeTypesList = Arrays.asList(recipeTypes);
-        return new IGuiClickableArea(){
+	/**
+	 * Called when the area is clicked.
+	 * This method is passed some parameters to allow plugins to conveniently
+	 * show recipes or recipe categories when their recipe area is clicked.
+	 */
+	void onClick(IFocusFactory focusFactory, IRecipesGui recipesGui);
 
-            @Override
-            public Rect2i getArea() {
-                return area;
-            }
+	/**
+	 * Helper function to create the most basic type of {@link IGuiClickableArea},
+	 * which displays a recipe category on click.
+	 *
+	 * @since 9.5.0
+	 */
+	static IGuiClickableArea createBasic(int xPos, int yPos, int width, int height, IRecipeType<?>... recipeTypes) {
+		Rect2i area = new Rect2i(xPos, yPos, width, height);
+		List<IRecipeType<?>> recipeTypesList = Arrays.asList(recipeTypes);
+		return new IGuiClickableArea() {
+			@Override
+			public Rect2i getArea() {
+				return area;
+			}
 
-            @Override
-            public void onClick(IFocusFactory focusFactory, IRecipesGui recipesGui) {
-                recipesGui.showTypes(recipeTypesList);
-            }
-        };
-    }
+			@Override
+			public void onClick(IFocusFactory focusFactory, IRecipesGui recipesGui) {
+				recipesGui.showTypes(recipeTypesList);
+			}
+		};
+	}
 }
-

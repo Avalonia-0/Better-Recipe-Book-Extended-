@@ -1,56 +1,161 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.network.chat.FormattedText
- */
 package mezz.jei.api.gui.widgets;
 
-import java.util.List;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.ingredient.IRecipeSlotDrawable;
 import mezz.jei.api.gui.ingredient.IRecipeSlotDrawablesView;
 import mezz.jei.api.gui.inputs.IJeiGuiEventListener;
 import mezz.jei.api.gui.inputs.IJeiInputHandler;
 import mezz.jei.api.gui.placement.IPlaceable;
-import mezz.jei.api.gui.widgets.IRecipeWidget;
-import mezz.jei.api.gui.widgets.IScrollBoxWidget;
-import mezz.jei.api.gui.widgets.IScrollGridWidget;
-import mezz.jei.api.gui.widgets.ISlottedRecipeWidget;
-import mezz.jei.api.gui.widgets.ITextWidget;
+import mezz.jei.api.recipe.category.IRecipeCategory;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.network.chat.FormattedText;
+import org.jetbrains.annotations.ApiStatus;
 
+import java.util.List;
+
+/**
+ * Create per-recipe extras like {@link IRecipeWidget} and {@link IJeiInputHandler}.
+ *
+ * These have access to a specific recipe, and will persist as long as a recipe layout is on screen,
+ * so they can be used for caching and displaying recipe-specific
+ * information more easily than from the recipe category directly.
+ *
+ * An instance of this is given to your {@link IRecipeCategory#createRecipeExtras} method.
+ *
+ * @see IRecipeWidget
+ * @see IJeiInputHandler
+ * @see IJeiGuiEventListener
+ *
+ * @since 19.6.0
+ */
+@ApiStatus.NonExtendable
 public interface IRecipeExtrasBuilder {
-    public IRecipeSlotDrawablesView getRecipeSlots();
 
-    public void addDrawable(IDrawable var1, int var2, int var3);
+	/**
+	 * Get the recipe slots that were created in {@link IRecipeCategory#setRecipe}.
+	 *
+	 * @since 19.19.3
+	 */
+	IRecipeSlotDrawablesView getRecipeSlots();
 
-    public IPlaceable<?> addDrawable(IDrawable var1);
+	/**
+	 * Add a {@link IDrawable} for the recipe category at the given position.
+	 *
+	 * @since 19.19.0
+	 */
+	void addDrawable(IDrawable drawable, int xPos, int yPos);
 
-    public void addWidget(IRecipeWidget var1);
+	/**
+	 * Add a {@link IDrawable} for the recipe category, and place it after with {@link IPlaceable} methods.
+	 *
+	 * @since 19.19.1
+	 */
+	IPlaceable<?> addDrawable(IDrawable drawable);
 
-    public void addSlottedWidget(ISlottedRecipeWidget var1, List<IRecipeSlotDrawable> var2);
+	/**
+	 * Add a {@link IRecipeWidget} for the recipe category.
+	 *
+	 * @since 19.7.0
+	 */
+	void addWidget(IRecipeWidget widget);
 
-    public void addInputHandler(IJeiInputHandler var1);
+	/**
+	 * Add a {@link ISlottedRecipeWidget} for the recipe category, and
+	 * mark that the slots are going to be handled by the slotted widget.
+	 *
+	 * @since 19.19.3
+	 */
+	void addSlottedWidget(ISlottedRecipeWidget widget, List<IRecipeSlotDrawable> slots);
 
-    public void addGuiEventListener(IJeiGuiEventListener var1);
+	/**
+	 * Add a {@link IJeiInputHandler} for the recipe category.
+	 *
+	 * @since 19.6.0
+	 */
+	void addInputHandler(IJeiInputHandler inputHandler);
 
-    public IScrollBoxWidget addScrollBoxWidget(int var1, int var2, int var3, int var4);
+	/**
+	 * Add a {@link GuiEventListener} for the recipe category.
+	 *
+	 * @since 19.6.0
+	 */
+	void addGuiEventListener(IJeiGuiEventListener guiEventListener);
 
-    public IScrollGridWidget addScrollGridWidget(List<IRecipeSlotDrawable> var1, int var2, int var3);
+	/**
+	 * Create and add a new scroll box widget.
+	 * Handles displaying drawable contents in a scrolling area with a scrollbar.
+	 *
+	 * Set the contents by using the methods in {@link IScrollBoxWidget}.
+	 *
+	 * @since 19.18.9
+	 */
+	IScrollBoxWidget addScrollBoxWidget(int width, int height, int xPos, int yPos);
 
-    public IPlaceable<?> addRecipeArrow();
+	/**
+	 * Create and add a new scroll grid widget.
+	 * Handles displaying ingredients in a scrolling area with a scrollbar, similar to the vanilla creative menu.
+	 *
+	 * Get slots for this from {@link #getRecipeSlots()}.
+	 *
+	 * You can move the resulting grid by using the {@link IScrollGridWidget}'s {@link IPlaceable} methods.
+	 *
+	 * @since 19.19.3
+	 */
+	IScrollGridWidget addScrollGridWidget(List<IRecipeSlotDrawable> slots, int columns, int visibleRows);
 
-    public IPlaceable<?> addRecipePlusSign();
+	/**
+	 * Add a vanilla-style recipe arrow to the recipe layout.
+	 *
+	 * @since 19.19.1
+	 */
+	IPlaceable<?> addRecipeArrow();
 
-    public IPlaceable<?> addAnimatedRecipeArrow(int var1);
+	/**
+	 * Add a vanilla-style recipe plus sign to the recipe layout.
+	 *
+	 * @since 19.19.1
+	 */
+	IPlaceable<?> addRecipePlusSign();
 
-    public IPlaceable<?> addAnimatedRecipeFlame(int var1);
+	/**
+	 * Add a vanilla-style recipe arrow that fills over time in a loop.
+	 *
+	 * @since 19.19.1
+	 */
+	IPlaceable<?> addAnimatedRecipeArrow(int ticksPerCycle);
 
-    default public ITextWidget addText(FormattedText text, int maxWidth, int maxHeight) {
-        return this.addText(List.of(text), maxWidth, maxHeight);
-    }
+	/**
+	 * Add a vanilla-style recipe flame that empties over time in a loop.
+	 *
+	 * @since 19.19.1
+	 */
+	IPlaceable<?> addAnimatedRecipeFlame(int cookTime);
 
-    public ITextWidget addText(List<FormattedText> var1, int var2, int var3);
+	/**
+	 * Add text to the recipe layout.
+	 *
+	 * Automatically supports text wrapping and truncation of very long lines.
+	 * If text is truncated, it will be displayed with an ellipsis (...) and can be viewed fully with a tooltip.
+	 *
+	 * Text can be vertically and horizontally aligned using the methods in {@link ITextWidget}.
+	 * By default, text is vertically aligned "top" and horizontally aligned "left" inside the area given.
+	 *
+	 * @since 19.19.1
+	 */
+	default ITextWidget addText(FormattedText text, int maxWidth, int maxHeight) {
+		return addText(List.of(text), maxWidth, maxHeight);
+	}
+
+	/**
+	 * Add text to the recipe layout.
+	 *
+	 * Automatically supports text wrapping and truncation of very long lines.
+	 * If text is truncated, it will be displayed with an ellipsis (...) and can be viewed fully with a tooltip.
+	 *
+	 * Text can be vertically and horizontally aligned using the methods in {@link ITextWidget}.
+	 * By default, text is vertically aligned "top" and horizontally aligned "left" inside the area given.
+	 *
+	 * @since 19.19.1
+	 */
+	ITextWidget addText(List<FormattedText> text, int maxWidth, int maxHeight);
 }
-

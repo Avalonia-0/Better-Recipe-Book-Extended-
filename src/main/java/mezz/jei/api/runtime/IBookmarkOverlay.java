@@ -1,26 +1,38 @@
-/*
- * Decompiled with CFR 0.152.
- * 
- * Could not load the following classes:
- *  net.minecraft.world.item.ItemStack
- *  org.jspecify.annotations.Nullable
- */
 package mezz.jei.api.runtime;
 
-import java.util.Optional;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.ingredients.ITypedIngredient;
 import net.minecraft.world.item.ItemStack;
 import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.ApiStatus;
 
+import java.util.Optional;
+
+/**
+ * The {@link IBookmarkOverlay} is JEI's gui that displays all the bookmarked ingredients next to an open container gui.
+ * Use this interface to get information from it.
+ * Get the instance from {@link IJeiRuntime#getBookmarkOverlay()}.
+ */
+@ApiStatus.NonExtendable
 public interface IBookmarkOverlay {
-    public Optional<ITypedIngredient<?>> getIngredientUnderMouse();
+	/**
+	 * @return the ingredient that's currently under the mouse.
+	 * @since 9.3.0
+	 */
+	Optional<ITypedIngredient<?>> getIngredientUnderMouse();
 
-    public <T> @Nullable T getIngredientUnderMouse(IIngredientType<T> var1);
+	/**
+	 * @return the ingredient that's currently under the mouse, or null if there is none.
+	 */
+	@Nullable
+	<T> T getIngredientUnderMouse(IIngredientType<T> ingredientType);
 
-    default public @Nullable ItemStack getItemStackUnderMouse() {
-        return (ItemStack)this.getIngredientUnderMouse(VanillaTypes.ITEM_STACK);
-    }
+	/**
+	 * @return the ingredient that's currently under the mouse, or null if there is none.
+	 */
+	@Nullable
+	default ItemStack getItemStackUnderMouse() {
+		return getIngredientUnderMouse(VanillaTypes.ITEM_STACK);
+	}
 }
-

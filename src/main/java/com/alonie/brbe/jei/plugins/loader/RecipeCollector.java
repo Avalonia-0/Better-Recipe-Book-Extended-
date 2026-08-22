@@ -56,4 +56,9 @@ public final class RecipeCollector implements IRecipeRegistration {
     public <T> void addIngredientInfo(List<T> ingredients, IIngredientType<T> ingredientType, Component... descriptionComponents) {
         // ingredient info pages are not recipes; ignored
     }
+
+    @Override
+    public net.minecraft.util.context.ContextMap getContextMap() {
+        return null;
+    }
 }

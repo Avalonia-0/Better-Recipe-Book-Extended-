@@ -61,6 +61,23 @@ public final class GuiHelperStub implements IGuiHelper {
     }
 
     @Override
+    @SuppressWarnings("deprecation")
+    public mezz.jei.api.gui.drawable.IDrawableStatic createDrawableSprite(net.minecraft.client.renderer.texture.TextureAtlas textureAtlas, net.minecraft.resources.Identifier spriteId) {
+        return EmptyDrawable.INSTANCE;
+    }
+
+    @Override
+    @SuppressWarnings("deprecation")
+    public mezz.jei.api.gui.drawable.IDrawableStatic createDrawableSprite(net.minecraft.client.renderer.texture.TextureAtlas textureAtlas, net.minecraft.resources.Identifier spriteId, int width, int height) {
+        return EmptyDrawable.INSTANCE;
+    }
+
+    @Override
+    public mezz.jei.api.gui.drawable.IScalableDrawable createScalableDrawableSprite(net.minecraft.client.renderer.texture.TextureAtlas textureAtlas, net.minecraft.resources.Identifier spriteId) {
+        return EmptyDrawable.INSTANCE;
+    }
+
+    @Override
     public IDrawableAnimated createAnimatedDrawable(IDrawableStatic drawable, int ticksPerCycle, IDrawableAnimated.StartDirection startDirection, boolean inverted) {
         return EmptyDrawable.INSTANCE;
     }
