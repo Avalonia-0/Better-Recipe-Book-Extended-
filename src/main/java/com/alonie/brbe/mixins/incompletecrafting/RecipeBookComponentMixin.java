@@ -8,6 +8,7 @@ import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.PartialGhostOverlayUtil;
 import com.alonie.brbe.util.RecipeBookState;
+import com.alonie.brbe.util.RecipeStateDiagnostic;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -171,7 +172,23 @@ public abstract class RecipeBookComponentMixin {
         // updateCollections(true,true) from a render hook.
         boolean configChanged = BetterRecipeBook.ctx() != null
                 && BetterRecipeBook.ctx().events().consumeConfigChange();
-        if (!inventoryChanged && !retainIncompatible && !configChanged) {
+        // 配方解锁（crafting → ClientboundRecipeBookAddPacket）触发
+        // ClientRecipeBook.rebuildCollections()，全部 RecipeCollection 对象
+        // 被重建；tagger 的标记以对象身份为键，新对象从未被检查。此时
+        // recipesUpdated() 以 resetPageNumber=false 调 updateCollections，
+        // 物品栏哈希未变 → 上述门槛会走 vanilla removeIf 提前分支，残缺配方
+        // 标记全部丢失（筛选开启时直接消失）。这里扫描列表：存在从未检查的
+        // 集合即强制走完整重标记路径。
+        boolean hasUncheckedCollections = false;
+        if (retainPartial) {
+            for (RecipeCollection collection : collections) {
+                if (!PartialCraftingUtil.wasCheckedForPartialMaterials(collection)) {
+                    hasUncheckedCollections = true;
+                    break;
+                }
+            }
+        }
+        if (!inventoryChanged && !retainIncompatible && !configChanged && !hasUncheckedCollections) {
             return collections.removeIf(predicate);
         }
 
@@ -340,9 +357,10 @@ public abstract class RecipeBookComponentMixin {
         return false;
     }
 
-    /** 诊断：每次物品栏刷新后检查配方状态一致性。 */
+    /** 诊断（默认关闭，-Dbrbe.diagnostics=true 开启）：每次物品栏刷新后检查配方状态一致性。 */
     @Inject(method = "updateCollections", at = @At("TAIL"))
     private void brbe$diagnostic(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
+        if (!RecipeStateDiagnostic.enabled()) return;
         com.alonie.brbe.util.RecipeStateDiagnostic.run(brbe$lastProcessedCollections,
                 PartialCraftingUtil.searchSpaceSlots(), this.menu.getCarried());
     }
