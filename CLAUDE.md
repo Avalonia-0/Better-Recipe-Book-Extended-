@@ -181,6 +181,8 @@ Cloth Config provides the configuration GUI. It's `implementation`+`include` (bu
 - fabric.mod.json 无 `breaks: jei`（与真实 JEI 共存，实测机制同 26.2）
 - hideoverlay JEI mixin 已同步 26.2 写法（f34c5390）：`mixins.brbe-jei.json` 用 `remap=false` 字符串 target 版（IngredientListOverlayMixin/BookmarkOverlayMixin），不再 import `mezz.jei.gui.elements.IconButton`，编译完全不需要 `libs/` JEI jar 兜底
 
+- **fork 自洽性修复（5e20bb7e，2026-08-22）**：无 JEI 时 FD 插件收集失败（registerCategories 里 guiHelper.createDrawable → new DrawableBuilder 构造器调用 fork 外的 `mezz.jei.common.util.ErrorUtil.checkNotNull` → NoClassDefFoundError）。已删除该调用（对齐 26.2 源码整理版）。⚠️ 验证方法（改 fork 后必做）：① fork 产物 ABI 与真实 JEI jar 对比（javap 方法签名集合，155 类 0 差异）；② 全部 fork+BRBE 产物 javap -verbose 提取 `mezz/jei/` 常量池引用，必须 0 处 fork 外引用（否则无 JEI 时 NoClassDefFoundError）
+
 ## Deployment
 
 Test instances at `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSION}-{MOD_LOADER}/mods/` (`MOD_LOADER` capitalized: `Fabric`/`NeoForge`). Deploy pattern:
