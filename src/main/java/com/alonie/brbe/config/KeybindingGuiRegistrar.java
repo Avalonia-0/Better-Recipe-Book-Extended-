@@ -5,6 +5,7 @@ import me.shedaniel.autoconfig.AutoConfigClient;
 import me.shedaniel.autoconfig.gui.registry.GuiRegistry;
 import me.shedaniel.clothconfig2.api.ConfigEntryBuilder;
 import me.shedaniel.clothconfig2.api.ModifierKeyCode;
+import net.minecraft.client.Minecraft;
 import net.minecraft.network.chat.Component;
 
 import java.lang.reflect.Field;
@@ -60,6 +61,10 @@ public final class KeybindingGuiRegistrar {
                                     // 与对应的原版 KeyMapping 同步（两处改同一配置）。
                                     if (kb.keyMapping() != null) {
                                         kb.keyMapping().setKey(mkc.getKeyCode());
+                                        // 立即写入 options.txt：KeyMapping 的值只持久化在
+                                        // options.txt，若不同步，重启时 Options.load 会用旧值
+                                        // 覆盖配置（固定键回退为 F 的根因）。
+                                        Minecraft.getInstance().options.save();
                                     }
                                 } catch (IllegalAccessException e) {
                                     throw new RuntimeException(e);

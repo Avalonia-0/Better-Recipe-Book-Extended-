@@ -3,8 +3,12 @@ package com.alonie.brbe.fabric;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.fabric.PlatformPotionUtilImpl;
 import com.alonie.brbe.compat.OverlayHider;
+import com.alonie.brbe.config.KeybindingCodec;
 import com.alonie.brbe.config.KeybindingGuiRegistrar;
 import com.alonie.brbe.config.PinyinSearchGuiRegistrar;
+import me.shedaniel.clothconfig2.api.ModifierKeyCode;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.client.Minecraft;
 import com.alonie.brbe.impl.hud.JeiHudHider;
 import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.loaders.PotionLoader;
@@ -29,6 +33,29 @@ import java.util.WeakHashMap;
 
 public class BetterRecipeBookClientFabric implements ClientModInitializer {
     private final Set<Screen> registeredScreens = Collections.newSetFromMap(new WeakHashMap<>());
+
+    /** 启动时以配置（brbe.toml）为权威，把固定/查询键同步到原版 KeyMapping 并
+     *  持久化到 options.txt（防 Options.load 旧值覆盖导致的键位回退）。 */
+    private static void syncConfigKeyMappings(Minecraft client) {
+        if (BetterRecipeBook.config == null) return;
+        try {
+            applyConfigKey(BetterRecipeBook.PIN_MAPPING, BetterRecipeBook.config.pinKey);
+            applyConfigKey(BetterRecipeBook.RECIPE_VIEW_MAPPING, BetterRecipeBook.config.recipeViewKey);
+            applyConfigKey(BetterRecipeBook.USAGE_VIEW_MAPPING, BetterRecipeBook.config.usageViewKey);
+            client.options.save();
+        } catch (Throwable ignored) {
+            // 同步失败不影响启动
+        }
+    }
+
+    private static void applyConfigKey(KeyMapping mapping, String raw) {
+        if (mapping == null) return;
+        ModifierKeyCode mkc = KeybindingCodec.decode(raw);
+        if (mkc == null || mkc.isUnknown()) return;
+        // 无条件 setKey：幂等（KeyMappingSyncMixin 会把同值写回配置），
+        // KeyMapping 没有公开的当前键 getter 可做相等性短路。
+        mapping.setKey(mkc.getKeyCode());
+    }
 
     @Override
     public void onInitializeClient() {
@@ -55,6 +82,11 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
                 BetterRecipeBook.config.pinyinSearch = false;
                 BetterRecipeBook.configHolder.save();
             }
+            // 配置键为权威：启动时同步回原版 KeyMapping 并持久化到 options.txt。
+            // Options.load 可能用 options.txt 的旧值（如早期版本保存的 F）覆盖
+            // KeyMapping 并经由 KeyMappingSyncMixin 写回配置——这里以 brbe.toml
+            // 为准收敛，保证固定/查询键重启后不回退。
+            syncConfigKeyMappings(client);
         });
 
         // Register platform-specific providers
