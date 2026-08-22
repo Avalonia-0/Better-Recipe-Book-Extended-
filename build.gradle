@@ -79,27 +79,6 @@ processResources {
 }
 
 // ============================================================
-//  Two jar variants:
-//    - `jar`    (default) = no-JEI build: ships the forked mezz.jei classes
-//                           (fabric.mod.json declares `breaks: jei`)
-//    - `jeiJar`           = JEI build: excludes mezz/** so the real JEI provides
-//                           the mezz.jei API (fabric.mod.json declares `depends: jei`)
-// ============================================================
-tasks.register("jeiJar", Jar) {
-    group = "build"
-    description = "JEI variant: collector only (no forked mezz.jei classes), depends on real JEI"
-    archiveBaseName.set("${archives_base_name}-fabric-${minecraft_version}-jei")
-    from(sourceSets.main.output) {
-        exclude("mezz/**")
-        exclude("fabric.mod.json")
-    }
-    from("src/jei/resources") {
-        include("fabric.mod.json")
-    }
-    dependsOn(processResources)
-}
-
-// ============================================================
 //  cleanLoomCache — nuke all local loom / fabric caches
 // ============================================================
 // Run this when you hit "Namespace mismatch" or other mapping
