@@ -25,9 +25,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * blast furnace screens).  Keyed by the container's recipe book type + menu
  * class so each screen kind keeps its own position.
  *
- * <p>每个标签页单独保存自己的页码（{@link RecipeBookPositionMemory} 以标签为子键）：
- * 切换到其他标签再切回来，会恢复该标签上一次的页码；重新打开配方书则恢复最近
- * 激活的标签及其页码。搜索词保持全局共享，切换标签不会改动搜索框内容。</p>
+ * <p>每个标签页单独保存自己的配方区页码（{@link RecipeBookPositionMemory} 以标签为子键）：
+ * 切换到其他标签再切回来，会恢复该标签上一次的配方区页码；重新打开配方书则恢复最近
+ * 激活的标签、配方区页码及 RBIP 创造标签栏页码。搜索词保持全局共享，切换标签不会改动
+ * 搜索框内容。RBIP 创造标签栏页码只随翻页操作与重开配方书变化，点击标签不会翻页。</p>
  */
 @Mixin(RecipeBookComponent.class)
 public abstract class RecipeBookComponentMixin {
@@ -106,9 +107,14 @@ public abstract class RecipeBookComponentMixin {
     }
 
     /**
-     * 切换标签时恢复目标标签自己记住的页码（及 RBIP 创造标签滚动页）。
+     * 切换标签时恢复目标标签自己记住的配方区页码。
      * 注入 {@code onTabButtonPress} 尾部：此时 {@code updateCollections(true)}
      * 已用新标签重建列表，totalPages 已定稿，直接钳制并设置页码即可。
+     *
+     * <p>注意：<b>不</b>恢复 RBIP 创造标签栏页码。被点击的标签必然在当前页可见，
+     * 恢复它记住的旧页码会把标签栏翻到别页、甚至隐藏刚点击的标签（记忆在标签
+     * 选中期间每帧跟随当前页码，翻页后再点回该标签就会翻走）。标签栏页码只由
+     * 翻页按钮/滚轮（用户意图）与重开配方书（{@link #brbe$restorePosition}）改变。</p>
      */
     @Inject(method = "onTabButtonPress", at = @At("TAIL"))
     private void brbe$restoreTabPosition(Button button, CallbackInfo ci) {
@@ -120,10 +126,8 @@ public abstract class RecipeBookComponentMixin {
         if (tabIndex < 0) return;
         RecipeBookPositionMemory.Pos pos = RecipeBookPositionMemory.load(bookKey(), tabIndex);
         if (pos == null) return;
-        // RBIP creative-tab paging: restore the remembered tab page too.
-        if (self instanceof RecipeBookScrollAccess sa && pos.tabPage() >= 0) {
-            sa.rbip$setPage(pos.tabPage());
-        }
+        // 不恢复 RBIP 创造标签栏页码：原因见方法 javadoc。tabPage 记忆仍保留，
+        // 供重开配方书时（brbe$restorePosition）恢复标签栏页码使用。
         RecipeBookPage page = acc.getRecipeBookPage();
         RecipeBookPageAccessor pageAcc = (RecipeBookPageAccessor) page;
         int max = Math.max(0, pageAcc.getTotalPages() - 1);
