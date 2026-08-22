@@ -31,7 +31,7 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.TransitiveObject
     public Scrolling scrolling = new Scrolling();
 
-    /** 「固定」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 F。 */
+    /** 「固定」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 A。 */
     @ConfigEntry.Gui.Tooltip
     public String pinKey = KeybindingCodec.PIN_DEFAULT_RAW;
 

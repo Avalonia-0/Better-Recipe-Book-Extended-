@@ -12,7 +12,7 @@ import me.shedaniel.clothconfig2.api.ModifierKeyCode;
  */
 public final class KeybindingCodec {
 
-    public static final String PIN_DEFAULT_RAW = "key.keyboard.f";
+    public static final String PIN_DEFAULT_RAW = "key.keyboard.a";
     public static final String RECIPE_VIEW_DEFAULT_RAW = "key.keyboard.r";
     public static final String USAGE_VIEW_DEFAULT_RAW = "key.keyboard.u";
 
@@ -20,7 +20,7 @@ public final class KeybindingCodec {
     }
 
     public static ModifierKeyCode pinDefaultValue() {
-        return ModifierKeyCode.of(InputConstants.getKey("key.keyboard.f"), Modifier.none());
+        return ModifierKeyCode.of(InputConstants.getKey("key.keyboard.a"), Modifier.none());
     }
 
     public static String recipeViewDefaultRaw() {
