@@ -1,5 +1,6 @@
 package com.alonie.brbe.util;
 
+import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.ConfigTipCarousel;
 import me.shedaniel.autoconfig.AutoConfigClient;
 import me.shedaniel.autoconfig.gui.ConfigScreenProvider;
@@ -63,6 +64,7 @@ public final class ConfigTipsHelper {
     }
 
     private static void addCarousels(ConfigBuilder builder) {
+        if (BetterRecipeBook.config.hideConfigTips) return;
         for (ConfigTipCarousel carousel : CAROUSELS) {
             if (!carousel.hasTips()) continue;
             ConfigCategory category = builder.getOrCreateCategory(carousel.categoryTitle());

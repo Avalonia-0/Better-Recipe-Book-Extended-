@@ -83,5 +83,8 @@
   "text.autoconfig.zzzbrbe.option.recipeViewKey.@Tooltip": "Bu eşyayı ürün olarak üreten tarifleri gösterir.",
   "text.autoconfig.zzzbrbe.option.usageViewKey": "Kullanımları Sorgula",
   "text.autoconfig.zzzbrbe.option.usageViewKey.@Tooltip": "Bu eşyayı malzeme veya tezgâh olarak kullanan tarifleri gösterir.",
-  "text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects": "Reçete kitabı olmayan tezgâhların nesnelerini gizle"
+  "text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects": "Reçete kitabı olmayan tezgâhların nesnelerini gizle",
+  "text.autoconfig.zzzbrbe.category.miscellaneous": "Çeşitli",
+  "text.autoconfig.zzzbrbe.option.hideConfigTips": "Yapılandırma İpuçlarını Gizle",
+  "text.autoconfig.zzzbrbe.option.hideConfigTips.@Tooltip": "Yapılandırma ekranı her açıldığında değişen, «Yardımcı Özellikler» sayfasındaki ipucu satırıdır."
 }

@@ -83,5 +83,8 @@
   "text.autoconfig.zzzbrbe.option.recipeViewKey.@Tooltip": "Показывает рецепты, где этот предмет является результатом.",
   "text.autoconfig.zzzbrbe.option.usageViewKey": "Запросить применения",
   "text.autoconfig.zzzbrbe.option.usageViewKey.@Tooltip": "Показывает рецепты, где этот предмет используется как материал или станок.",
-  "text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects": "Скрывать объекты станков без книги рецептов"
+  "text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects": "Скрывать объекты станков без книги рецептов",
+  "text.autoconfig.zzzbrbe.category.miscellaneous": "Разное",
+  "text.autoconfig.zzzbrbe.option.hideConfigTips": "Скрыть подсказки конфигурации",
+  "text.autoconfig.zzzbrbe.option.hideConfigTips.@Tooltip": "Это строка подсказок на странице «Полезные функции», которая меняется при каждом открытии экрана конфигурации."
 }

@@ -96,5 +96,8 @@
   "text.autoconfig.zzzbrbe.option.recipeViewKey.@Tooltip": "查詢該物品作為產物的配方。",
   "text.autoconfig.zzzbrbe.option.usageViewKey": "查詢用途",
   "text.autoconfig.zzzbrbe.option.usageViewKey.@Tooltip": "查詢該物品作為材料、工作站的配方。",
-  "text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects": "隱藏無配方書工作臺所屬的物件"
+  "text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects": "隱藏無配方書工作臺所屬的物件",
+  "text.autoconfig.zzzbrbe.category.miscellaneous": "雜項",
+  "text.autoconfig.zzzbrbe.option.hideConfigTips": "隱藏配置介面的Tips",
+  "text.autoconfig.zzzbrbe.option.hideConfigTips.@Tooltip": "就是「實用功能」頁面那個每次開啟配置介面都會變化的Tips。"
 }
