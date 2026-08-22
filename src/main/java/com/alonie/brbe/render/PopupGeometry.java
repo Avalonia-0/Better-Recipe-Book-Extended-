@@ -65,6 +65,14 @@ public final class PopupGeometry {
         return Math.min(24f / bg.width(), 24f / bg.height()) * CONTENT_ZOOM / 2f;
     }
 
+    /** The fit scale of a recipe layout (same formula as
+     *  {@link #backgroundFitScale}, on the layout's own size — the collected
+     *  background matches the category size, and layouts without a declared
+     *  background still size their panel this way, like the adapted popup). */
+    public static float layoutFitScale(RecipeViewerEngine.RecipeLayout layout) {
+        return Math.min(24f / layout.width(), 24f / layout.height()) * CONTENT_ZOOM / 2f;
+    }
+
     /** One interactive slot in content coordinates: its centre, every variant
      *  stack it cycles through, and its hit radius (content units). */
     public record Slot(float x, float y, List<ItemStack> stacks, float hitRadius) {}
@@ -183,9 +191,7 @@ public final class PopupGeometry {
             // so the JEI-style background texture and slot grid render
             // correctly on the vanilla fallback path too.
             RecipeViewerEngine.RecipeLayout layout = RecipeViewerEngine.getLayout(id);
-            List<UnadaptedSlot> fitted = layout != null && layout.background() != null
-                    ? backgroundFitPositions(layout) : slotFitPositions(layout);
-            for (UnadaptedSlot slot : fitted) {
+            for (UnadaptedSlot slot : backgroundFitPositions(layout)) {
                 out.add(new Slot(slot.x(), slot.y(), slot.stacks(), 5));
             }
             if (out.isEmpty() && entry != null) {
@@ -200,18 +206,12 @@ public final class PopupGeometry {
                     }
                 }
             }
-            // Unadapted synthetic with a declared background texture renders
-            // that texture (button-fit x 1.5) instead of the uniform sprite:
-            // the hit volume is the texture's region, not the scaled button box.
-            if (layout != null && layout.background() != null) {
-                RecipeViewerEngine.RecipeBackground bg = layout.background();
-                float tscale = backgroundFitScale(bg);
-                int bw = Math.round(bg.width() * tscale * fit);
-                int bh = Math.round(bg.height() * tscale * fit);
-                int bx = Math.round(x + (w - bw) / 2f);
-                int by = Math.round(y + (h - bh) / 2f);
-                return new PopupGeometry(bx, by, bw, bh, bx, by, fit, w, h, out);
-            }
+            float tscale = layoutFitScale(layout);
+            int bw = Math.round(layout.width() * tscale * fit);
+            int bh = Math.round(layout.height() * tscale * fit);
+            int bx = Math.round(x + (w - bw) / 2f);
+            int by = Math.round(y + (h - bh) / 2f);
+            return new PopupGeometry(bx, by, bw, bh, bx, by, fit, w, h, out);
         } else if (mode == PinOverlay.MODE_CRAFTING && slots != null && !slots.isEmpty()) {
             // Crafting grid: icons centred at (2+pos.x, 2+pos.y).
             for (Object raw : slots) {
@@ -329,9 +329,8 @@ public final class PopupGeometry {
      *  texture is actually drawn (hovered), which is always true for a popup. */
     public static List<UnadaptedSlot> backgroundFitPositions(RecipeViewerEngine.RecipeLayout layout) {
         List<UnadaptedSlot> out = new ArrayList<>();
-        if (layout == null || layout.background() == null) return out;
-        RecipeViewerEngine.RecipeBackground bg = layout.background();
-        float scale = backgroundFitScale(bg);
+        if (layout == null || layout.slots().isEmpty()) return out;
+        float scale = layoutFitScale(layout);
         for (RecipeViewerEngine.RecipeSlotLayout slot : layout.slots()) {
             if (slot.stacks().isEmpty()) continue;
             out.add(new UnadaptedSlot(slot.x() * scale, slot.y() * scale, slot.stacks()));
