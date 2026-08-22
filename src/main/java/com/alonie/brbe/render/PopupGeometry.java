@@ -55,6 +55,13 @@ public final class PopupGeometry {
      *  {@code ButtonBackdrop.Texture}). */
     private static final float BACKGROUND_FIT = 1.5f;
 
+    /** The button-fit scale of a background texture (min of the axis fits
+     *  against the 24x24 button, x 1.5).  Shared by the geometry (slot fit),
+     *  the texture painter and the slot renderer so they cannot drift. */
+    public static float backgroundFitScale(RecipeViewerEngine.RecipeBackground bg) {
+        return Math.min(24f / bg.width(), 24f / bg.height()) * BACKGROUND_FIT;
+    }
+
     /** One interactive slot in content coordinates: its centre, every variant
      *  stack it cycles through, and its hit radius (content units). */
     public record Slot(float x, float y, List<ItemStack> stacks, float hitRadius) {}
@@ -195,10 +202,12 @@ public final class PopupGeometry {
             // the hit volume is the texture's region, not the scaled button box.
             if (layout != null && layout.background() != null) {
                 RecipeViewerEngine.RecipeBackground bg = layout.background();
-                float tscale = Math.min(24f / bg.width(), 24f / bg.height()) * BACKGROUND_FIT;
+                float tscale = backgroundFitScale(bg);
                 int bw = Math.round(bg.width() * tscale * fit);
                 int bh = Math.round(bg.height() * tscale * fit);
-                return new PopupGeometry(x - 12, y - 12, bw, bh, ox, oy, fit, w, h, out);
+                int bx = Math.round(x + (w - bw) / 2f);
+                int by = Math.round(y + (h - bh) / 2f);
+                return new PopupGeometry(bx, by, bw, bh, bx, by, fit, w, h, out);
             }
         } else if (mode == PinOverlay.MODE_CRAFTING && slots != null && !slots.isEmpty()) {
             // Crafting grid: icons centred at (2+pos.x, 2+pos.y).

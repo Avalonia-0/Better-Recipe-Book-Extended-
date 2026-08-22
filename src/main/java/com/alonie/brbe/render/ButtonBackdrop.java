@@ -60,7 +60,9 @@ public sealed interface ButtonBackdrop {
             float fit = Math.min(w / (float) width, h / (float) height);
             float scale = fit * 1.5f;
             gui.pose().pushMatrix();
-            gui.pose().translate(x, y);
+            // Centre the texture on the BUTTON centre (pose-space offset), so
+            // arbitrary aspect ratios stay centred like the 48x48 vanilla box.
+            gui.pose().translate(x + (w - width * scale) / 2f, y + (h - height * scale) / 2f);
             gui.pose().scale(scale, scale);
             gui.blit(ClientCompat.GUI_TEXTURED, texture, 0, 0,
                     (float) u, (float) v, width, height, textureWidth, textureHeight);

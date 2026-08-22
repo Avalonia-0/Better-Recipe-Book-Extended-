@@ -250,9 +250,18 @@ public final class PopupRenderer {
         List<PopupGeometry.UnadaptedSlot> slots = hover && layout.background() != null
                 ? PopupGeometry.backgroundFitPositions(layout)
                 : PopupGeometry.slotFitPositions(layout);
+        // Background-fitted slots are laid out in the texture's own fit; the
+        // texture is painted centred on the button, so the slots shift by the
+        // same centre offset (pose space: 12 = half of the 24x24 button).
+        float offX = 0f, offY = 0f;
+        if (hover && layout.background() != null) {
+            float tscale = PopupGeometry.backgroundFitScale(layout.background());
+            offX = 12f - layout.background().width() * tscale / 2f;
+            offY = 12f - layout.background().height() * tscale / 2f;
+        }
         for (PopupGeometry.UnadaptedSlot slot : slots) {
             gui.pose().pushMatrix();
-            gui.pose().translate(x + slot.x(), y + slot.y());
+            gui.pose().translate(x + offX + slot.x(), y + offY + slot.y());
             gui.pose().scale(0.45f, 0.45f);
             gui.pose().translate(-8.0F, -8.0F);
             gui.item(slot.stacks().get(selIdx % slot.stacks().size()), 0, 0);
