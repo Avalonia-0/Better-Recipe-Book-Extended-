@@ -664,6 +664,15 @@ public final class RecipeViewerOverlay {
                     && hidden.contains(cat.id())) {
                 continue;
             }
+            // A station category whose connection to the query target is cut
+            // (illegal station, toggle on) must not show a tab either — it
+            // would render but ignore clicks.  The fuel category is exempt.
+            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+                    && !cat.isFuelCategory()
+                    && cat.appliesToStation(queryTarget)
+                    && !RecipeViewerEngine.isRecipeBookStation(queryTarget)) {
+                continue;
+            }
             if (cat.hasContent(queryTarget, queryUsage)) {
                 out.add(cat);
             }
@@ -1134,6 +1143,11 @@ public final class RecipeViewerOverlay {
             Component line = stationTimeLine(stationLabel(i), cookSeconds(ticks[i]),
                     stationStyle(i), stationMatches(i, furnaceStn, blastStn, smokerStn));
             List<ItemStack> icons = RecipeViewerIndex.workstationsIconsForPrefix(stationCategoryPrefix(i));
+            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+                // This tooltip belongs to a smelting recipe (an object): icons
+                // of workstations without a recipe-book system are hidden.
+                icons = filterRecipeBookStations(icons);
+            }
             components.add(new StationLineTooltipComponent(List.of(
                     new StationLineTooltipComponent.Segment(line.getVisualOrderText(), icons, false))));
         }
@@ -1353,10 +1367,7 @@ public final class RecipeViewerOverlay {
             // Hide the icons of workstations without a recipe-book system on
             // the tooltip; the object itself survives because it has at least
             // one legitimate workstation (the filter guarantees it).
-            List<ItemStack> filtered = new ArrayList<>();
-            for (ItemStack icon : icons) {
-                if (RecipeViewerEngine.isRecipeBookStation(icon)) filtered.add(icon);
-            }
+            List<ItemStack> filtered = filterRecipeBookStations(icons);
             if (filtered.isEmpty()) {
                 // The legitimate workstation is not one the category registered
                 // (e.g. the display declares it) — omit the icon row entirely.
@@ -1634,11 +1645,14 @@ public final class RecipeViewerOverlay {
         ownerScreen = screen;
         viewerPage = 0;
         if (currentCategory.isFuelCategory()) {
-            // Usage query of a fuel: show that fuel alone (JEI per-fuel burn
-            // semantics).  A workstation usage query never lands here —
-            // defaultFor picks the furnace category first for furnace-family
-            // workstations, so the fuel tab is reached via switchCategory.
-            rebuildFuel(List.of(queryTarget));
+            // Usage query of a fuel shows that fuel alone (JEI per-fuel burn
+            // semantics); a fuel-burning workstation shows every fuel it can
+            // take.  The fuel category is exempt from the workstation filter,
+            // so an illegal station (e.g. BetterEnd's end stone smelter) lands
+            // here too and must NOT be treated as the fuel itself.
+            FuelRecipeCategory fuel = (FuelRecipeCategory) currentCategory;
+            boolean targetIsFuel = fuel.isFuelItem(queryTarget);
+            rebuildFuel(targetIsFuel ? List.of(queryTarget) : fuel.allFuelItems());
         } else {
             rebuildWithHits(hits);
         }
@@ -1828,6 +1842,17 @@ public final class RecipeViewerOverlay {
         }
         ItemStack declared = RecipeViewerIndex.resolveCraftingStation(entry);
         return !declared.isEmpty() && RecipeViewerEngine.isRecipeBookStation(declared);
+    }
+
+    /** Keep only recipe-book-backed workstation icons (object tooltips when
+     *  the hide toggle is on; the fuel category is exempt and never filtered). */
+    private static List<ItemStack> filterRecipeBookStations(List<ItemStack> icons) {
+        if (icons == null || icons.isEmpty()) return icons;
+        List<ItemStack> out = new ArrayList<>();
+        for (ItemStack icon : icons) {
+            if (RecipeViewerEngine.isRecipeBookStation(icon)) out.add(icon);
+        }
+        return out;
     }
 
     /** Whether {@code category} is one of the built-in vanilla categories,
