@@ -57,6 +57,13 @@ public final class PluginRecipeIndexer {
      *  call {@code category.draw(recipe, ...)} for the full JEI UI. */
     public record RenderEntry(IRecipeCategory<?> category, Object recipe) {}
 
+    /** A JEI full-collection recipe's native render info, kept so recipe-book
+     *  driven entries (which replace the synthetic entries in the engine) can
+     *  be matched back to the mod's complete JEI UI by result. */
+    private record RenderCandidate(RecipeViewerEngine.RecipeLayout layout,
+                                   List<ItemStack> products,
+                                   IRecipeCategory<?> category, Object recipe) {}
+
     /** synthetic id → category + raw recipe, filled during {@link #indexAll}. */
     private static final Map<RecipeDisplayId, RenderEntry> RENDER_ENTRIES = new HashMap<>();
 
@@ -82,6 +89,7 @@ public final class PluginRecipeIndexer {
         List<TypeInfo> typeInfos = new ArrayList<>();
         int typeCount = 0;
         int recipeCount = 0;
+        Map<String, List<RenderCandidate>> renderCandidates = new HashMap<>();
 
         for (Map.Entry<IRecipeType<?>, List<Object>> entry : recipes.entrySet()) {
             IRecipeType<?> recipeType = entry.getKey();
@@ -150,12 +158,16 @@ public final class PluginRecipeIndexer {
                                 SyntheticRecipeDisplayEntryFactory.createForOutput(slots, stations, List.of());
                         RENDER_ENTRIES.put(synthetic.id(), new RenderEntry(category, recipe));
                         RecipeViewerEngine.registerLayout(synthetic.id(), layout);
+                        renderCandidates.computeIfAbsent(uid, k -> new ArrayList<>())
+                                .add(new RenderCandidate(layout, List.of(), category, recipe));
                         indexed.add(new RecipeViewerEngine.IndexedRecipe(synthetic, inputs, List.of(), groupKey));
                     } else {
                         RecipeDisplayEntry synthetic =
                                 SyntheticRecipeDisplayEntryFactory.createForOutput(slots, stations, products);
                         RENDER_ENTRIES.put(synthetic.id(), new RenderEntry(category, recipe));
                         RecipeViewerEngine.registerLayout(synthetic.id(), layout);
+                        renderCandidates.computeIfAbsent(uid, k -> new ArrayList<>())
+                                .add(new RenderCandidate(layout, products, category, recipe));
                         indexed.add(new RecipeViewerEngine.IndexedRecipe(synthetic, inputs, products, groupKey));
                     }
                 } catch (Exception | LinkageError ex) {
@@ -248,6 +260,26 @@ public final class PluginRecipeIndexer {
         RecipeViewerEngine.setRecipeBookStationItems(bookStations);
         BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] recipe-book workstation set: {} items",
                 bookStations.size());
+        // Attach the JEI full-collection native layouts and render entries to
+        // the recipe-book driven entries (matched by result): the popup / pin
+        // rendering then shows the mod's complete JEI UI (native layout +
+        // background texture) instead of the vanilla crafting fallback.
+        for (Map.Entry<String, List<RecipeViewerEngine.IndexedRecipe>> e : bookDriven.entrySet()) {
+            List<RenderCandidate> candidates = renderCandidates.get(e.getKey());
+            if (candidates == null || candidates.isEmpty()) continue;
+            for (RecipeViewerEngine.IndexedRecipe indexed : e.getValue()) {
+                RecipeDisplayId knownId = indexed.entry().id();
+                if (renderEntryFor(knownId) != null) continue;
+                List<ItemStack> results = indexed.outputs();
+                for (RenderCandidate candidate : candidates) {
+                    if (resultsOverlap(results, candidate.products())) {
+                        RecipeViewerEngine.registerLayout(knownId, candidate.layout());
+                        RENDER_ENTRIES.put(knownId, new RenderEntry(candidate.category(), candidate.recipe()));
+                        break;
+                    }
+                }
+            }
+        }
         // Category-tab visibility (categories whose objects are all hidden by
         // the filter) depends on the freshly registered engine data.
         RecipeViewerCategories.markVisibilityDirty();
@@ -350,6 +382,18 @@ public final class PluginRecipeIndexer {
         int ra = find(parent, a);
         int rb = find(parent, b);
         if (ra != rb) parent[ra] = rb;
+    }
+
+    /** Whether the two result lists share at least one item (result match). */
+    private static boolean resultsOverlap(List<ItemStack> a, List<ItemStack> b) {
+        if (a == null || b == null || a.isEmpty() || b.isEmpty()) return false;
+        for (ItemStack sa : a) {
+            if (sa == null || sa.isEmpty()) continue;
+            for (ItemStack sb : b) {
+                if (sb != null && !sb.isEmpty() && sa.getItem() == sb.getItem()) return true;
+            }
+        }
+        return false;
     }
 
     /** The JEI recipe type whose catalysts contain {@code station}, or null.

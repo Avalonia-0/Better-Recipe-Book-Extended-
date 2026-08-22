@@ -118,8 +118,7 @@ public final class PopupGeometry {
      */
     public static PopupGeometry of(RecipeDisplayId id, RecipeDisplayEntry entry, int mode,
                                    List<?> slots, int x, int y, int w, int h) {
-        if (RecipeViewerEngine.isSynthetic(id)
-                && SyntheticRecipeRenderers.get() != SyntheticRecipeRenderer.NONE
+        if (SyntheticRecipeRenderers.get() != SyntheticRecipeRenderer.NONE
                 && SyntheticRecipeRenderers.get().canRender(id)) {
             PopupGeometry adapted = adaptedSynthetic(id, x, y, w, h);
             if (adapted != null) return adapted;
@@ -166,9 +165,10 @@ public final class PopupGeometry {
         float oy = y + h / 2f - h * fit / 2f;
         List<Slot> out = new ArrayList<>();
 
-        if (RecipeViewerEngine.isSynthetic(id)) {
-            // Unadapted synthetic: fitted native slot positions (or the result
-            // icon alone when the recipe has no native layout).
+        if (RecipeViewerEngine.getLayout(id) != null) {
+            // Unadapted synthetic / layout-attached entry: fitted native slot
+            // positions (or the result icon alone when the recipe has no
+            // native layout).
             RecipeViewerEngine.RecipeLayout layout = RecipeViewerEngine.getLayout(id);
             List<UnadaptedSlot> fitted = layout != null && layout.background() != null
                     ? backgroundFitPositions(layout) : slotFitPositions(layout);

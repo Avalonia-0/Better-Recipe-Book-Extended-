@@ -141,7 +141,7 @@ public final class PopupRenderer {
                                         int mode, List<?> slots, int selIdx,
                                         int x, int y, int w, int h, boolean hover) {
         gui.pose().pushMatrix();
-        if (RecipeViewerEngine.isSynthetic(id)) {
+        if (RecipeViewerEngine.getLayout(id) != null) {
             renderSynthetic(gui, id, entry, selIdx, x, y, hover);
         } else if (mode == PinOverlay.MODE_STONECUTTING) {
             renderFixedPair(gui, entry, PinOverlay.MODE_STONECUTTING, selIdx, x, y, hover);
