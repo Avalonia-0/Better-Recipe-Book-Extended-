@@ -12,7 +12,6 @@ import mezz.jei.api.gui.drawable.IDrawableBuilder;
 import mezz.jei.api.gui.drawable.IDrawableStatic;
 import mezz.jei.common.gui.elements.DrawableAnimated;
 import mezz.jei.common.gui.elements.DrawableResource;
-import mezz.jei.common.util.ErrorUtil;
 import net.minecraft.resources.Identifier;
 
 public class DrawableBuilder
@@ -30,7 +29,6 @@ implements IDrawableBuilder {
     private int paddingRight = 0;
 
     public DrawableBuilder(Identifier id, int u, int v, int width, int height) {
-        ErrorUtil.checkNotNull(id, "id");
         this.u = u;
         this.v = v;
         this.width = width;
@@ -70,7 +68,6 @@ implements IDrawableBuilder {
 
     @Override
     public IDrawableAnimated buildAnimated(int ticksPerCycle, IDrawableAnimated.StartDirection startDirection, boolean inverted) {
-        ErrorUtil.checkNotNull(startDirection, "startDirection");
         IDrawableStatic drawable = this.build();
         return new DrawableAnimated(drawable, ticksPerCycle, startDirection, inverted);
     }
