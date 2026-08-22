@@ -18,6 +18,7 @@ import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -153,7 +154,7 @@ public final class PopupRenderer {
             // variant (like the smithing category), so multi-product recipes
             // display all of their products instead of only the first.
             gui.renderItem(select(resultVariants(entry), selIdx), x + 4, y + 4);
-        } else {
+        } else if (mode == PinOverlay.MODE_CRAFTING && slots != null && !slots.isEmpty()) {
             // Crafting: vanilla slot positions (16px icon centred on the
             // translate point), materials cycled like ghost ingredients.
             gui.pose().translate(x + 2, y + 2);
@@ -166,6 +167,10 @@ public final class PopupRenderer {
                 gui.renderItem(pos.brbe$selectIngredient(selIdx), 0, 0);
                 gui.pose().popMatrix();
             }
+        } else {
+            // Displays without vanilla button slots (e.g. Farmer's Delight
+            // cooking recipes) fall back to the generic entry layout.
+            renderGenericCrafting(gui, entry, selIdx, x, y, hover);
         }
         gui.pose().popMatrix();
     }
@@ -271,5 +276,46 @@ public final class PopupRenderer {
             // fall through
         }
         return List.of();
+    }
+
+    /** Generic entry layout for displays without vanilla button slots (e.g.
+     *  Farmer's Delight cooking recipes): the craftingRequirements inputs on a
+     *  3x2 grid plus the result top-right, cycled like ghost ingredients. */
+    private static void renderGenericCrafting(GuiGraphics gui, RecipeDisplayEntry entry,
+                                              int selIdx, int x, int y, boolean hover) {
+        boolean onHover = BetterRecipeBook.config.alternativeRecipes.onHover;
+        if (onHover && !hover) {
+            gui.renderItem(select(resultVariants(entry), selIdx), x + 4, y + 4);
+            return;
+        }
+        if (entry == null) return;
+        try {
+            java.util.Optional<List<net.minecraft.world.item.crafting.Ingredient>> reqs =
+                    entry.craftingRequirements();
+            if (reqs.isPresent()) {
+                List<net.minecraft.world.item.crafting.Ingredient> list = reqs.get();
+                for (int i = 0; i < Math.min(list.size(), 6); i++) {
+                    ItemStack stack = selectIngredient(list.get(i), selIdx);
+                    if (!stack.isEmpty()) {
+                        scaledItem(gui, stack, x + 2 + (i % 3) * 5, y + 2 + (i / 3) * 5);
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+            // one broken ingredient must not blank the whole popup
+        }
+        ItemStack result = select(resultVariants(entry), selIdx);
+        if (!result.isEmpty()) {
+            scaledItem(gui, result, x + 17, y + 2);
+        }
+    }
+
+    /** One material variant of {@code ingredient} for the current cycle. */
+    private static ItemStack selectIngredient(net.minecraft.world.item.crafting.Ingredient ingredient,
+                                              int selIdx) {
+        if (ingredient == null) return ItemStack.EMPTY;
+        List<ItemStack> stacks = new ArrayList<>();
+        ingredient.items().forEach(holder -> stacks.add(new ItemStack(holder.value())));
+        return select(stacks, selIdx);
     }
 }

@@ -197,13 +197,18 @@ public final class PopupGeometry {
                 int bh = Math.round(bg.height() * tscale * fit);
                 return new PopupGeometry(x - 12, y - 12, bw, bh, ox, oy, fit, w, h, out);
             }
-        } else if (mode == PinOverlay.MODE_CRAFTING && slots != null) {
+        } else if (mode == PinOverlay.MODE_CRAFTING && slots != null && !slots.isEmpty()) {
             // Crafting grid: icons centred at (2+pos.x, 2+pos.y).
             for (Object raw : slots) {
                 OverlayRecipeButtonPosAccessor pos = (OverlayRecipeButtonPosAccessor) raw;
                 out.add(new Slot(pos.brbe$getX() + 2, pos.brbe$getY() + 2,
                         pos.brbe$getIngredients(), 5));
             }
+        } else if (mode == PinOverlay.MODE_CRAFTING) {
+            // Displays without vanilla button slots (e.g. Farmer's Delight
+            // cooking recipes): build the hit volume from the generic layout,
+            // matching PopupRenderer's generic crafting rendering.
+            genericCraftingSlots(entry, out);
         } else {
             // Furnace / stonecutter / smithing: fixed input/result positions.
             fixedPairSlots(entry, mode, out);
@@ -213,6 +218,34 @@ public final class PopupGeometry {
         int bx = Math.round(x + (w - bw) / 2f);
         int by = Math.round(y + (h - bh) / 2f);
         return new PopupGeometry(bx, by, bw, bh, ox, oy, fit, w, h, out);
+    }
+
+    /** Generic hit slots for displays without vanilla button slots: the
+     *  craftingRequirements inputs on a 3x2 grid plus the result top-right. */
+    private static void genericCraftingSlots(RecipeDisplayEntry entry, List<Slot> out) {
+        try {
+            if (entry == null) return;
+            java.util.Optional<List<net.minecraft.world.item.crafting.Ingredient>> reqs =
+                    entry.craftingRequirements();
+            if (reqs.isPresent()) {
+                List<net.minecraft.world.item.crafting.Ingredient> list = reqs.get();
+                for (int i = 0; i < Math.min(list.size(), 6); i++) {
+                    net.minecraft.world.item.crafting.Ingredient ing = list.get(i);
+                    List<ItemStack> stacks = new ArrayList<>();
+                    ing.items().forEach(holder -> stacks.add(new ItemStack(holder.value())));
+                    if (!stacks.isEmpty()) {
+                        out.add(new Slot(2 + (i % 3) * 5, 2 + (i / 3) * 5, stacks, 5));
+                    }
+                }
+            }
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level != null) {
+                List<ItemStack> results = entry.resultItems(SlotDisplayContext.fromLevel(mc.level));
+                if (!results.isEmpty()) out.add(new Slot(17, 2, results, 5));
+            }
+        } catch (Exception ignored) {
+            // one broken ingredient must not break the hit volume
+        }
     }
 
     private static void fixedPairSlots(RecipeDisplayEntry entry, int mode, List<Slot> out) {
