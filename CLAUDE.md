@@ -117,7 +117,7 @@ Cloth Config provides the configuration GUI. It's `implementation`+`include` (bu
 - ClientRecipeBookMixin 接 RecipeViewerIndex.rebuildEngine
 
 **已知降级/警告**：
-- **`mixins.brbe-jei.json`（JeiBookmarkOverlayMixin/JeiIngredientListOverlayMixin）target 在 JEI 27 找不到**（旧实现无 `remap=false`，字符串 target 在 remap 构建下无法命中）——1.21.11 既有问题，`hideReiJeiOverlay` 的 JEI 部分不生效，REI 部分正常。26.2 侧已用 `remap=false` 字符串 target 的 `mixins/hideoverlay/` 版（IngredientListOverlayMixin/BookmarkOverlayMixin）替代，1.21.11 尚未同步（待用户确认）。
+- ~~`mixins.brbe-jei.json` target 失效~~ 已修复（2026-08-22，f34c5390）：`hideReiJeiOverlay` 的 JEI 部分改用 26.2 的 `remap=false` 字符串 target 写法（`mixins/hideoverlay/IngredientListOverlayMixin`/`BookmarkOverlayMixin`，drawScreen HEAD cancel），隐藏整个覆盖层（与 26.2 语义一致），零编译依赖；REI 部分正常。
 - RecipeButtonAccessor 的 sprite accessor 未标 static（Mixin 警告，功能正常）。
 
 ## 2026-08-21 二轮同步（26.2 ↔ 1.21.11 零碎特性补齐）
@@ -179,7 +179,7 @@ Cloth Config provides the configuration GUI. It's `implementation`+`include` (bu
 - 保留 3 个未引用 API 类（ModIds/RecipeTypes/IJeiConfigListValueSerializer，26.2 fork 同样保留）
 - `BrbeJeiPluginsClientFabric` 移除 `isModLoaded("jei")` 守卫（fork 内嵌后无 NoClassDefFoundError 风险）；`BrbeJeiPlugins` 里 `SyntheticRecipeRenderers.register` 的守卫**保留**（与 26.2 一致，真实 JEI 存在才委托渲染）
 - fabric.mod.json 无 `breaks: jei`（与真实 JEI 共存，实测机制同 26.2）
-- ⚠️ 编译兜底：`JeiBookmarkOverlayMixin`/`JeiIngredientListOverlayMixin`（mixins.brbe-jei.json，已知失效）import 的 `mezz.jei.gui.elements.IconButton` 不在 fork 内，编译期仍从 `libs/` JEI jar 兜底；运行时安全（真实 JEI 在→jar 提供该类且 mixin 因 target 失效不加载；真实 JEI 不在→mixin 不加载）。彻底移除需同步 26.2 的 hideoverlay 字符串 target mixin（待用户确认）
+- hideoverlay JEI mixin 已同步 26.2 写法（f34c5390）：`mixins.brbe-jei.json` 用 `remap=false` 字符串 target 版（IngredientListOverlayMixin/BookmarkOverlayMixin），不再 import `mezz.jei.gui.elements.IconButton`，编译完全不需要 `libs/` JEI jar 兜底
 
 ## Deployment
 
