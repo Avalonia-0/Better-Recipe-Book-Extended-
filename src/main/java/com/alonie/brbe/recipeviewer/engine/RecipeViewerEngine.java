@@ -172,6 +172,27 @@ public final class RecipeViewerEngine {
      *  without a recipe book" filter. */
     private static final Set<Item> RECIPE_BOOK_STATION_ITEMS = new HashSet<>();
 
+    /** Recipe types ever observed as recipe-book driven (their entries
+     *  appeared in the recipe book's known set during this session).  Once a
+     *  type qualifies it stays qualified for the session: a re-collection that
+     *  happens before the known set is synced (or with zero unlocked entries)
+     *  must not silently drop its workstations from the legal set. */
+    private static final Set<String> RECIPE_BOOK_TYPES = new HashSet<>();
+
+    /** Record a recipe type as recipe-book backed (called when its entries are
+     *  attributed from the known set).  Session-persistent. */
+    public static void registerRecipeBookType(String uid) {
+        if (uid != null) {
+            RECIPE_BOOK_TYPES.add(uid);
+        }
+    }
+
+    /** Whether {@code uid} is a recipe-book-backed type: one of the seven
+     *  vanilla types, or a mod type ever driven by its recipe book. */
+    public static boolean isRecipeBookType(String uid) {
+        return isVanillaType(uid) || RECIPE_BOOK_TYPES.contains(uid);
+    }
+
     /** Replace the recipe-book-backed workstation set.  Called by the JEI
      *  plugin collector with every workstation of the vanilla types plus every
      *  workstation of recipe-book-driven mod types. */

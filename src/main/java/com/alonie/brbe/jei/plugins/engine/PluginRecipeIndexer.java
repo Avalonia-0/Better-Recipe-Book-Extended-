@@ -221,6 +221,11 @@ public final class PluginRecipeIndexer {
                 Component title = category != null ? category.getTitle() : Component.literal(uid);
                 typeInfos.add(new TypeInfo(uid, title, stations));
             }
+            // Session-persistent: once a type is driven by its recipe book it
+            // stays a recipe-book type, so a later re-collection with an
+            // unsynced / empty known set cannot drop its workstations from the
+            // legal set (cooking pot must stay legal even at zero unlocks).
+            RecipeViewerEngine.registerRecipeBookType(uid);
             typeCount++;
             recipeCount += e.getValue().size();
             BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] type {} driven by recipe book: {} unlocked recipes",
@@ -233,10 +238,16 @@ public final class PluginRecipeIndexer {
         // stations.  The "hide objects of workstations without a recipe book"
         // filter consults this set.
         List<ItemStack> bookStations = new ArrayList<>(RecipeViewerIndex.vanillaWorkstationItems());
-        for (Map.Entry<String, List<RecipeViewerEngine.IndexedRecipe>> e : bookDriven.entrySet()) {
-            bookStations.addAll(stationsFor(Identifier.parse(e.getKey()), catalysts));
+        for (Map.Entry<Identifier, Set<Identifier>> c : catalysts.entrySet()) {
+            String uid = c.getKey().toString();
+            if (!RecipeViewerEngine.isRecipeBookType(uid) || c.getValue() == null) continue;
+            for (Identifier itemId : c.getValue()) {
+                BuiltInRegistries.ITEM.getOptional(itemId).ifPresent(item -> bookStations.add(new ItemStack(item)));
+            }
         }
         RecipeViewerEngine.setRecipeBookStationItems(bookStations);
+        BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] recipe-book workstation set: {} items",
+                bookStations.size());
         // Category-tab visibility (categories whose objects are all hidden by
         // the filter) depends on the freshly registered engine data.
         RecipeViewerCategories.markVisibilityDirty();
