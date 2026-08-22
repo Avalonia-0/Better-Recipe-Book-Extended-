@@ -47,11 +47,12 @@ public final class PopupRenderer {
                                             List<?> slots, int selIdx,
                                             int x, int y, int w, int h,
                                             boolean hover, float scale) {
-        // Adapted synthetic: delegate the full JEI UI to the companion renderer,
-        // which receives the fitted content rect from the shared geometry (the
-        // panel, hit volume and JEI exclusion all come from the same geometry).
-        if (RecipeViewerEngine.isSynthetic(id)
-                && SyntheticRecipeRenderers.get() != SyntheticRecipeRenderer.NONE
+        // Adapted entries (synthetic, and recipe-book driven entries matched
+        // back to their JEI layout): delegate the full JEI UI to the companion
+        // renderer, which receives the fitted content rect from the shared
+        // geometry (the panel, hit volume and JEI exclusion all come from the
+        // same geometry).
+        if (SyntheticRecipeRenderers.get() != SyntheticRecipeRenderer.NONE
                 && SyntheticRecipeRenderers.get().canRender(id)) {
             PopupGeometry geometry = PopupGeometry.of(id, entry, mode, slots, x, y, w, h);
             // geometry.of returns the adapted geometry only when the native
