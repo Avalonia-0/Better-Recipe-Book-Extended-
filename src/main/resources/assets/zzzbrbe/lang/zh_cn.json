@@ -100,5 +100,8 @@
   "text.autoconfig.zzzbrbe.option.recipeViewKey.@Tooltip": "查询该物品作为产物的配方。",
   "text.autoconfig.zzzbrbe.option.usageViewKey": "查询用途",
   "text.autoconfig.zzzbrbe.option.usageViewKey.@Tooltip": "查询该物品作为材料、工作站的配方。",
-  "key.zzzbrbe.diagnostic": "Diagnostic Dump"
+  "key.zzzbrbe.diagnostic": "Diagnostic Dump",
+  "text.autoconfig.zzzbrbe.category.miscellaneous": "杂项",
+  "text.autoconfig.zzzbrbe.option.hideConfigTips": "隐藏配置界面的Tips",
+  "text.autoconfig.zzzbrbe.option.hideConfigTips.@Tooltip": "就是“实用功能”页面那个每次打开配置界面都会变化的Tips。"
 }

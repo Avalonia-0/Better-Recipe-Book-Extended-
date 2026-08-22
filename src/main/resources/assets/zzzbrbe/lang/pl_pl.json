@@ -84,5 +84,8 @@
   "text.autoconfig.zzzbrbe.option.usageViewKey": "Wyszukaj zastosowania",
   "text.autoconfig.zzzbrbe.option.usageViewKey.@Tooltip": "Pokazuje przepisy, w których ten przedmiot jest materiałem lub stacją.",
   "key.zzzbrbe.diagnostic": "Diagnostic Dump",
-  "text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects": "Ukryj obiekty stacji bez księgi przepisów"
+  "text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects": "Ukryj obiekty stacji bez księgi przepisów",
+  "text.autoconfig.zzzbrbe.category.miscellaneous": "Różne",
+  "text.autoconfig.zzzbrbe.option.hideConfigTips": "Ukryj wskazówki w konfiguracji",
+  "text.autoconfig.zzzbrbe.option.hideConfigTips.@Tooltip": "Chodzi o linię wskazówek na stronie „Funkcje narzędziowe”, która zmienia się przy każdym otwarciu ekranu konfiguracji."
 }

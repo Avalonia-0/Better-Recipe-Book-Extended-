@@ -131,6 +131,13 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.TransitiveObject
     public AlternativeRecipes alternativeRecipes = new AlternativeRecipes();
 
+    // -- 杂项（miscellaneous 标签）--------------------------------------------
+
+    /** 隐藏配置界面的Tips：打开时隐藏「实用功能」页面顶部的轮循提示行。 */
+    @ConfigEntry.Category("miscellaneous")
+    @ConfigEntry.Gui.Tooltip
+    public boolean hideConfigTips = false;
+
     // -- Inner config class ---------------------------------------------------
 
     public static class PageAnimation {

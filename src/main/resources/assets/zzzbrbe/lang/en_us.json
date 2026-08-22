@@ -100,5 +100,8 @@
   "text.autoconfig.zzzbrbe.option.recipeViewKey.@Tooltip": "Shows the recipes that produce this item.",
   "text.autoconfig.zzzbrbe.option.usageViewKey": "Query Usages",
   "text.autoconfig.zzzbrbe.option.usageViewKey.@Tooltip": "Shows the recipes that use this item as a material or workstation.",
-  "key.zzzbrbe.diagnostic": "Diagnostic Dump"
+  "key.zzzbrbe.diagnostic": "Diagnostic Dump",
+  "text.autoconfig.zzzbrbe.category.miscellaneous": "Miscellaneous",
+  "text.autoconfig.zzzbrbe.option.hideConfigTips": "Hide Configuration Tips",
+  "text.autoconfig.zzzbrbe.option.hideConfigTips.@Tooltip": "The rotating tip line on the \"Utility Features\" page that changes every time the config screen opens."
 }
