@@ -55,12 +55,17 @@ public final class PopupGeometry {
      *  {@code ButtonBackdrop.Texture}). */
     private static final float BACKGROUND_FIT = 1.5f;
 
-    /** The button-fit scale of a background texture (min of the axis fits
-     *  against the 24x24 button, x 1.5).  Shared by the geometry (slot fit),
-     *  the texture painter and the slot renderer so they cannot drift. */
+    /** The fit scale of a background texture (min of the axis fits against the
+     *  24x24 button, x {@code CONTENT_ZOOM/2}) — matches the adapted
+     *  (JEI-present) popup's content zoom, so the standalone JEI-style UI
+     *  renders at the same size as the real JEI UI.  Shared by the geometry
+     *  (slot fit), the texture painter and the slot renderer so they cannot
+     *  drift. */
     public static float backgroundFitScale(RecipeViewerEngine.RecipeBackground bg) {
-        return Math.min(24f / bg.width(), 24f / bg.height()) * BACKGROUND_FIT;
+        return Math.min(24f / bg.width(), 24f / bg.height()) * CONTENT_ZOOM / 2f;
     }
+
+    private static final java.util.Set<RecipeDisplayId> diagIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     /** One interactive slot in content coordinates: its centre, every variant
      *  stack it cycles through, and its hit radius (content units). */
@@ -210,6 +215,10 @@ public final class PopupGeometry {
                 int bh = Math.round(bg.height() * tscale * fit);
                 int bx = Math.round(x + (w - bw) / 2f);
                 int by = Math.round(y + (h - bh) / 2f);
+                if (diagIds.add(id)) {
+                    com.alonie.brbe.BetterRecipeBook.LOGGER.info("[BRBE-DIAG-GEOM] id={} bg={}x{} tscale={} fit={} panel=({},{},{},{}) btn=({},{},{},{})",
+                            id, bg.width(), bg.height(), tscale, fit, bx, by, bw, bh, x, y, w, h);
+                }
                 return new PopupGeometry(bx, by, bw, bh, bx, by, fit, w, h, out);
             }
         } else if (mode == PinOverlay.MODE_CRAFTING && slots != null && !slots.isEmpty()) {
@@ -331,7 +340,7 @@ public final class PopupGeometry {
         List<UnadaptedSlot> out = new ArrayList<>();
         if (layout == null || layout.background() == null) return out;
         RecipeViewerEngine.RecipeBackground bg = layout.background();
-        float scale = Math.min(24f / bg.width(), 24f / bg.height()) * BACKGROUND_FIT;
+        float scale = backgroundFitScale(bg);
         for (RecipeViewerEngine.RecipeSlotLayout slot : layout.slots()) {
             if (slot.stacks().isEmpty()) continue;
             out.add(new UnadaptedSlot(slot.x() * scale, slot.y() * scale, slot.stacks()));

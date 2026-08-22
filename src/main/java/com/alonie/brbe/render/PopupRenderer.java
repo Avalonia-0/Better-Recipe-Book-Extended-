@@ -35,6 +35,8 @@ public final class PopupRenderer {
 
     private PopupRenderer() {}
 
+    private static final java.util.Set<RecipeDisplayId> diagIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
+
     /** Render the recipe as a full popup: the adapted-synthetic JEI UI, or the
      *  vanilla hover-scaled recipe over the button sprite.
      *
@@ -102,6 +104,14 @@ public final class PopupRenderer {
                                            List<?> slots, int selIdx,
                                            int x, int y, int w, int h,
                                            boolean hover, float scale) {
+        if (diagIds.add(id)) {
+            RecipeViewerEngine.RecipeLayout dl = RecipeViewerEngine.getLayout(id);
+            BetterRecipeBook.LOGGER.info("[BRBE-DIAG-POPUP] id={} mode={} hover={} scale={} btn=({},{},{},{}) layout={} layoutSlots={} slots={}",
+                    id, mode, hover, scale, x, y, w, h,
+                    dl == null ? "null" : dl.width() + "x" + dl.height() + " bg=" + (dl.background() == null ? "null" : dl.background().width() + "x" + dl.background().height()),
+                    dl == null ? "null" : dl.slots().size(),
+                    slots == null ? "null" : slots.size());
+        }
         if (hover) {
             gui.pose().pushMatrix();
             gui.pose().translate(x + w / 2f, y + h / 2f);
@@ -238,11 +248,20 @@ public final class PopupRenderer {
     private static void renderSynthetic(GuiGraphics gui, RecipeDisplayId id,
                                         RecipeDisplayEntry entry, int selIdx,
                                         int x, int y, boolean hover) {
+        if (diagIds.add(id)) {
+            BetterRecipeBook.LOGGER.info("[BRBE-DIAG-SYNTH0] id={} onHover={} hover={}",
+                    id, BetterRecipeBook.config.alternativeRecipes.onHover, hover);
+        }
         if (BetterRecipeBook.config.alternativeRecipes.onHover && !hover) {
             gui.renderItem(select(resultVariants(entry), selIdx), x + 4, y + 4);
             return;
         }
         RecipeViewerEngine.RecipeLayout layout = RecipeViewerEngine.getLayout(id);
+        if (diagIds.add(id)) {
+            BetterRecipeBook.LOGGER.info("[BRBE-DIAG-SYNTH1] id={} layout={} layoutSlots={}",
+                    id, layout == null ? "null" : layout.width() + "x" + layout.height(),
+                    layout == null ? -1 : layout.slots().size());
+        }
         if (layout == null || layout.slots().isEmpty()) {
             gui.renderItem(select(resultVariants(entry), selIdx), x + 4, y + 4);
             return;
@@ -258,6 +277,12 @@ public final class PopupRenderer {
             float tscale = PopupGeometry.backgroundFitScale(layout.background());
             offX = 12f - layout.background().width() * tscale / 2f;
             offY = 12f - layout.background().height() * tscale / 2f;
+        }
+        if (diagIds.add(id)) {
+            BetterRecipeBook.LOGGER.info("[BRBE-DIAG-SYNTH] id={} layout={}x{} bg={} slots={} off=({},{}) hover={}",
+                    id, layout.width(), layout.height(),
+                    layout.background() == null ? "null" : layout.background().width() + "x" + layout.background().height(),
+                    slots.size(), offX, offY, hover);
         }
         for (PopupGeometry.UnadaptedSlot slot : slots) {
             gui.pose().pushMatrix();

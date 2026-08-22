@@ -58,7 +58,10 @@ public sealed interface ButtonBackdrop {
             // blit draws the source region 1:1, so the pose is scaled by the fit
             // factor instead of passing scaled draw dimensions.
             float fit = Math.min(w / (float) width, h / (float) height);
-            float scale = fit * 1.5f;
+            // Same zoom as the adapted (JEI-present) popup's content
+            // (PopupGeometry.backgroundFitScale): the standalone JEI-style UI
+            // must match the real JEI UI's size.
+            float scale = fit * PopupGeometry.CONTENT_ZOOM / 2f;
             gui.pose().pushMatrix();
             // Centre the texture on the BUTTON centre (pose-space offset), so
             // arbitrary aspect ratios stay centred like the 48x48 vanilla box.
