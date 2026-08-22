@@ -165,10 +165,14 @@ public final class PopupGeometry {
         float oy = y + h / 2f - h * fit / 2f;
         List<Slot> out = new ArrayList<>();
 
-        if (RecipeViewerEngine.getLayout(id) != null) {
+        if (SyntheticRecipeRenderers.get() != SyntheticRecipeRenderer.NONE
+                && RecipeViewerEngine.getLayout(id) != null) {
             // Unadapted synthetic / layout-attached entry: fitted native slot
             // positions (or the result icon alone when the recipe has no
-            // native layout).
+            // native layout).  Only meaningful while a companion renderer is
+            // registered (real JEI present); without one the layout's native
+            // coordinates do not match the vanilla backdrop and the geometry
+            // would drift from the painted texture.
             RecipeViewerEngine.RecipeLayout layout = RecipeViewerEngine.getLayout(id);
             List<UnadaptedSlot> fitted = layout != null && layout.background() != null
                     ? backgroundFitPositions(layout) : slotFitPositions(layout);
