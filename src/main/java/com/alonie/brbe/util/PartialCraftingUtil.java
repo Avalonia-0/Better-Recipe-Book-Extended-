@@ -24,6 +24,7 @@ import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
+import net.minecraft.world.level.Level;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -32,9 +33,22 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.WeakHashMap;
 
 public final class PartialCraftingUtil {
     private static final RecipeCollectionTagger<RecipeDisplayId> tagger = new RecipeCollectionTagger<>();
+
+    /**
+     * {@link SlotDisplay} → 解析结果的按 Level 记忆化缓存。
+     *
+     * <p>配方原料的 {@code resolveForStacks} 结果不随物品栏变化，而残缺标记在
+     * 每次物品栏刷新时都会对全部配方重新求值——无缓存时每次刷新重复解析约
+     * 2 万次原料槽（新物品拾取 + 开着配方书 = 卡顿）。键用显示树对象身份
+     * （配方重建/重载会产生新对象，天然失效）；Level 卸载后随 WeakHashMap
+     * 回收。</p>
+     */
+    private static final Map<Level, Map<SlotDisplay, List<ItemStack>>> displayResolutionCache =
+            new WeakHashMap<>();
 
     private PartialCraftingUtil() {
     }
@@ -256,6 +270,31 @@ public final class PartialCraftingUtil {
     }
 
     // ---- Marking ----
+
+    /** 清空原料解析缓存（离开世界/重进时调用；同 Level 内注册表固定无需清理）。 */
+    public static void clearDisplayResolutionCache() {
+        displayResolutionCache.clear();
+    }
+
+    /**
+     * 带记忆化的原料槽解析：同一 Level 内 SlotDisplay 树不可变，解析结果可复用。
+     * 失败返回空列表（与调用方原 try-catch 行为一致）。
+     */
+    private static List<ItemStack> resolveDisplayStacks(Level level, SlotDisplay slot, ContextMap context) {
+        Map<SlotDisplay, List<ItemStack>> perLevel =
+                displayResolutionCache.computeIfAbsent(level, k -> new java.util.IdentityHashMap<>());
+        List<ItemStack> cached = perLevel.get(slot);
+        if (cached != null) {
+            return cached;
+        }
+        try {
+            List<ItemStack> resolved = slot.resolveForStacks(context);
+            perLevel.put(slot, resolved);
+            return resolved;
+        } catch (Exception e) {
+            return List.of();
+        }
+    }
 
     public static boolean markPartialMaterials(RecipeCollection collection, NonNullList<Slot> slots) {
         return markPartialMaterials(collection, hashInventory(slots));
@@ -600,7 +639,7 @@ public final class PartialCraftingUtil {
         for (SlotDisplay slot : slotDisplays) {
             List<ItemStack> variants;
             try {
-                variants = slot.resolveForStacks(context);
+                variants = resolveDisplayStacks(mc.level, slot, context);
             } catch (Exception e) {
                 continue;
             }
@@ -675,7 +714,7 @@ public final class PartialCraftingUtil {
 
         ContextMap context = SlotDisplayContext.fromLevel(minecraft.level);
         for (SlotDisplay ingredient : ingredients) {
-            for (ItemStack candidate : ingredient.resolveForStacks(context)) {
+            for (ItemStack candidate : resolveDisplayStacks(minecraft.level, ingredient, context)) {
                 if (candidate.isEmpty()) {
                     continue;
                 }

@@ -51,10 +51,20 @@ import java.util.*;
  */
 public final class RecipeStateDiagnostic {
 
+    /** 诊断默认关闭：这是开发期 QA 工具，每次物品栏刷新会对全部配方做一遍
+     *  独立状态预测（resolveForStacks + WARN 日志），生产路径开启会显著拖慢
+     *  配方书刷新。需要时以 {@code -Dbrbe.diagnostics=true} 启动启用。 */
+    private static final boolean ENABLED = Boolean.getBoolean("brbe.diagnostics");
+
     private static final Logger LOG = LogManager.getLogger("zzzbrbe-diag");
     private static long lastDiagnosticSlotHash;
 
     private RecipeStateDiagnostic() {}
+
+    /** 诊断开关（系统属性 {@code brbe.diagnostics}，默认关）。 */
+    public static boolean enabled() {
+        return ENABLED;
+    }
 
     /** 独立预测的状态 */
     enum PredictedState { CRAFTABLE, PARTIAL, UNCRAFTABLE, UNKNOWN }

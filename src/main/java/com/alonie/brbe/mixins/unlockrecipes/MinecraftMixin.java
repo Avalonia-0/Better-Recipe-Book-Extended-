@@ -2,6 +2,7 @@ package com.alonie.brbe.mixins.unlockrecipes;
 
 import com.alonie.brbe.cache.VanillaRecipeCache;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
+import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.RecipeUnlockUtil;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.Minecraft;
@@ -17,5 +18,6 @@ public class MinecraftMixin {
         RecipeUnlockUtil.restoreRecipes();
         VanillaRecipeCache.clear();
         RecipeViewerEngine.clear();
+        PartialCraftingUtil.clearDisplayResolutionCache();
     }
 }

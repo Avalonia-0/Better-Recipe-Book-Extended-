@@ -80,6 +80,10 @@ public abstract class RecipeBookPageAnimationMixin {
 
     @Unique
     private final List<RecipeButton> brbe$snapshotButtons = new ArrayList<>(20);
+    /** 滑入页（basePage+1）的独立快照池：与滑出页分池，悬停捕获的按钮内容
+     *  不会被另一页的 {@code init} 覆盖，tooltip 始终指向光标下实际渲染的那页。 */
+    @Unique
+    private final List<RecipeButton> brbe$snapshotButtonsIn = new ArrayList<>(20);
     /** 动画期间已固定配方按钮的 (x, y) 收集（每按钮一次渲染清空），网格 scissor
      *  关闭后统一绘制 pin 图标，避免超出配方区的悬出部分被裁剪。 */
     @Unique
@@ -119,6 +123,7 @@ public abstract class RecipeBookPageAnimationMixin {
     private void brbe$initSnapshotButtons(RecipeBookComponent<?> parent, SlotSelectTime slotSelectTime, boolean flag, CallbackInfo ci) {
         for (int i = 0; i < 20; i++) {
             this.brbe$snapshotButtons.add(new RecipeButton(slotSelectTime));
+            this.brbe$snapshotButtonsIn.add(new RecipeButton(slotSelectTime));
         }
     }
 
@@ -251,12 +256,13 @@ public abstract class RecipeBookPageAnimationMixin {
         int basePage = (int) Math.floor(this.brbe$visualPage);
         float frac = this.brbe$visualPage - basePage;
         RecipeButton snap = this.brbe$snapshotButtons.get(k);
+        RecipeButton snapIn = this.brbe$snapshotButtonsIn.get(k);
         this.brbe$animPinIcons.clear();
         gui.enableScissor(this.brbe$scissorLeft + 11, this.brbe$scissorTop + 31, this.brbe$scissorLeft + 136, this.brbe$scissorTop + 156);
         // 视觉当前页滑出（挤压离场）
         brbe$renderVisualSquashed(snap, k, basePage, this.brbe$baseX[k] + Math.round(-frac * PAGE_SLIDE_DISTANCE), this.brbe$baseY[k], gui, x, y, f);
         // 下一页滑入（挤压入场）
-        brbe$renderVisualSquashed(snap, k, basePage + 1, this.brbe$baseX[k] + Math.round((1.0F - frac) * PAGE_SLIDE_DISTANCE), this.brbe$baseY[k], gui, x, y, f);
+        brbe$renderVisualSquashed(snapIn, k, basePage + 1, this.brbe$baseX[k] + Math.round((1.0F - frac) * PAGE_SLIDE_DISTANCE), this.brbe$baseY[k], gui, x, y, f);
         gui.disableScissor();
         // 已固定配方的 pin 图标绘制在网格 scissor 之外（与静态路径相同的裁剪
         // 状态）：超出配方区的悬出部分不被裁剪。
