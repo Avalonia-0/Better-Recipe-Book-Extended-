@@ -55,11 +55,14 @@ public final class PopupGeometry {
      *  {@code ButtonBackdrop.Texture}). */
     private static final float BACKGROUND_FIT = 1.5f;
 
-    /** The button-fit scale of a background texture (min of the axis fits
-     *  against the 24x24 button, x 1.5).  Shared by the geometry (slot fit),
-     *  the texture painter and the slot renderer so they cannot drift. */
+    /** The fit scale of a background texture (min of the axis fits against the
+     *  24x24 button, x {@code CONTENT_ZOOM/2}) — matches the adapted
+     *  (JEI-present) popup's content zoom, so the standalone JEI-style UI
+     *  renders at the same size as the real JEI UI.  Shared by the geometry
+     *  (slot fit), the texture painter and the slot renderer so they cannot
+     *  drift. */
     public static float backgroundFitScale(RecipeViewerEngine.RecipeBackground bg) {
-        return Math.min(24f / bg.width(), 24f / bg.height()) * BACKGROUND_FIT;
+        return Math.min(24f / bg.width(), 24f / bg.height()) * CONTENT_ZOOM / 2f;
     }
 
     /** One interactive slot in content coordinates: its centre, every variant
@@ -328,7 +331,7 @@ public final class PopupGeometry {
         List<UnadaptedSlot> out = new ArrayList<>();
         if (layout == null || layout.background() == null) return out;
         RecipeViewerEngine.RecipeBackground bg = layout.background();
-        float scale = Math.min(24f / bg.width(), 24f / bg.height()) * BACKGROUND_FIT;
+        float scale = backgroundFitScale(bg);
         for (RecipeViewerEngine.RecipeSlotLayout slot : layout.slots()) {
             if (slot.stacks().isEmpty()) continue;
             out.add(new UnadaptedSlot(slot.x() * scale, slot.y() * scale, slot.stacks()));
