@@ -93,6 +93,8 @@ public final class CollectionPipeline {
             }
 
             RecipeCollectionAccessor source = (RecipeCollectionAccessor) collection;
+            // EvenIfStale：分代感知的 hasPartialMaterials 在分代推进后未重新标记时会
+            // 返回 false，导致部分可合成集合被错误过滤（管线可能在标记之前运行）。
             boolean restrictToCraftableOrPartial = PartialCraftingUtil.hasPartialMaterialsEvenIfStale(collection)
                     || collection.hasCraftable();
             boolean addedAny = false;
@@ -220,8 +222,34 @@ public final class CollectionPipeline {
      * queries.  Safe to call regardless of generation state — guarantees
      * consistent sorting even when the tagger generation was incremented
      * without re-marking collections.
+     *
+     * <p>Result is cached per collection identity, keyed by the recipe
+     * crafting index generation.  When the inventory is unchanged
+     * ({@link RecipeCraftingIndex#inventoryUnchanged()}) a collection's
+     * craftable/partial state is identical to the last pass, so the category
+     * is stable — the cache turns the O(recipes-per-collection) evaluation
+     * into an O(1) map lookup.  The cache is naturally invalidated on
+     * collection rebuild (generation bump) and on inventory change
+     * ({@link RecipeCraftingIndex#inventoryChangedVersion}).
      */
+    private static final java.util.Map<RecipeCollection, CachedCategory> CATEGORY_CACHE =
+            new java.util.WeakHashMap<>();
+
+    private static int lastCategoryCacheVersion = Integer.MIN_VALUE;
+
+    private record CachedCategory(CollectionCategory category, int version) {}
+
     private static CollectionCategory categorizeEvenIfStale(RecipeCollection c) {
+        int version = RecipeCraftingIndex.currentVersion();
+        if (version != lastCategoryCacheVersion) {
+            CATEGORY_CACHE.clear();
+            lastCategoryCacheVersion = version;
+        }
+        CachedCategory cached = CATEGORY_CACHE.get(c);
+        if (cached != null && cached.version() == version) {
+            return cached.category();
+        }
+
         boolean truly = false, partial = false;
         for (RecipeDisplayEntry entry : c.getRecipes()) {
             if (PartialCraftingUtil.isPartiallyCraftableEvenIfStale(c, entry.id())) {
@@ -230,9 +258,13 @@ public final class CollectionPipeline {
                 truly = true;
             }
         }
-        if (truly) return CollectionCategory.TRULY_CRAFTABLE;
-        if (partial) return CollectionCategory.PARTIAL;
-        return CollectionCategory.UNASSIGNED;
+        CollectionCategory category;
+        if (truly) category = CollectionCategory.TRULY_CRAFTABLE;
+        else if (partial) category = CollectionCategory.PARTIAL;
+        else category = CollectionCategory.UNASSIGNED;
+
+        CATEGORY_CACHE.put(c, new CachedCategory(category, version));
+        return category;
     }
 
     // ---- Stage 5: Filter toggle ----

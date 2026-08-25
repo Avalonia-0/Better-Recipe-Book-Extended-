@@ -11,14 +11,21 @@ import com.alonie.brbe.jei.plugins.loader.RecipeCategoryCollector;
 import com.alonie.brbe.jei.plugins.loader.RecipeCollector;
 import com.alonie.brbe.jei.plugins.loader.WorkstationExporter;
 import mezz.jei.api.IModPlugin;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.resources.Identifier;
 
 import java.util.List;
 
 /** Orchestration for the companion mod: load every mod's JEI plugin and funnel
  *  its registered categories, workstation catalysts and recipes into the BRBE
- *  main mod's query engine. */
+ *  main mod's query engine.
+ *
+ *  <p>Data source: the plugins themselves, called directly with BRBE's own
+ *  collectors.  The {@link RecipeCollector} falls back to the server-synced
+ *  recipe registries (fabric SynchronizedRecipes / client RecipeManager) for
+ *  types whose plugin registers nothing — mods like betterarcheology/bclib
+ *  gate their JEI recipe source on {@code FabricLoader.isModLoaded("jei")},
+ *  which stays false in headless mode.  This plugin path was verified working
+ *  (identifying 3 / alloying 8 / infusion 49 indexed) in the 19:54 test run. */
 public final class BrbeJeiPlugins {
 
     private BrbeJeiPlugins() {}
@@ -45,16 +52,15 @@ public final class BrbeJeiPlugins {
                 rebuildListenerRegistered = true;
                 RecipeViewerEngine.registerRebuildListener(BrbeJeiPlugins::collectAndInject);
             }
+            RecipeCategoryCollector categoryCollector = new RecipeCategoryCollector();
+            CatalystCollector catalystCollector = new CatalystCollector();
+            RecipeCollector recipeCollector = new RecipeCollector();
+
             List<IModPlugin> plugins = BrbeJeiPluginFinder.findPlugins();
             if (plugins.isEmpty()) {
                 BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] no JEI plugins found");
                 return;
             }
-
-            RecipeCategoryCollector categoryCollector = new RecipeCategoryCollector();
-            CatalystCollector catalystCollector = new CatalystCollector();
-            RecipeCollector recipeCollector = new RecipeCollector();
-
             for (IModPlugin plugin : plugins) {
                 try {
                     Identifier uid = plugin.getPluginUid();
@@ -69,13 +75,11 @@ public final class BrbeJeiPlugins {
             }
 
             WorkstationExporter.export(catalystCollector.collected());
-            // Delegate the full JEI recipe UI to the real JEI runtime.  Without
-            // JEI the renderer stays NONE, so callers (hover popups, pin
-            // overlay) keep their vanilla-style fallback rendering and its hit
-            // geometry.
-            if (FabricLoader.getInstance().isModLoaded("jei")) {
-                SyntheticRecipeRenderers.register(new SyntheticRecipeRendererImpl());
-            }
+            // Delegate the full JEI recipe UI to the real JEI runtime.  The
+            // renderer is registered unconditionally: canRender itself checks
+            // JeiRuntimeBridge.recipeManager(), which is set either by the
+            // real JEI (onRuntimeAvailable) or by the embedded headless core.
+            SyntheticRecipeRenderers.register(new SyntheticRecipeRendererImpl());
             PluginRecipeIndexer.indexAll(categoryCollector.categories(),
                     recipeCollector.recipes(), catalystCollector.collected(),
                     categoryCollector.backgrounds());

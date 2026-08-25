@@ -1,8 +1,10 @@
 package mezz.jei.api.recipe.vanilla;
 
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.Unmodifiable;
 import org.jetbrains.annotations.ApiStatus;
 
+import javax.annotation.Nonnegative;
 import java.util.List;
 
 /**
@@ -17,10 +19,12 @@ public interface IJeiFuelingRecipe {
 	/**
 	 * @return the inputs that act as a fuel
 	 */
-		List<ItemStack> getInputs();
+	@Unmodifiable
+	List<ItemStack> getInputs();
 
 	/**
 	 * @return the fuel's burn time in ticks. Always greater than 0.
 	 */
-		int getBurnTime();
+	@Nonnegative
+	int getBurnTime();
 }

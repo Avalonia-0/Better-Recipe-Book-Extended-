@@ -61,6 +61,42 @@ public abstract class RecipeBookComponentMixin {
     @Unique
     private SearchQuery brbe$parsedQuery;
 
+    // ---- Pipeline output cache ----
+    // When the inventory is unchanged (RecipeCraftingIndex.inventoryUnchanged),
+    // every collection's canCraft/craftable state is identical to the last
+    // pass, so pins order + partial sort produce the same list.  Reusing the
+    // cached list skips the two O(collections) stages (applyPins + partial
+    // sort's categorize) — the dominant cost of every recipe-book open on
+    // large recipe packs.  Invalidated on inventory change, pin set change
+    // (PinnedRecipeManager.version), search query change, config change, or
+    // collection rebuild (RecipeCraftingIndex.generation).
+
+    @Unique
+    private List<RecipeCollection> brbe$cachedPipelinedList;
+
+    @Unique
+    private int brbe$cacheGeneration = -1;
+
+    @Unique
+    private int brbe$cachePinVersion = -1;
+
+    @Unique
+    private boolean brbe$cacheSearchActive;
+
+    @Unique
+    private boolean brbe$cacheConfigKey;
+
+    @Unique
+    private boolean brbe$cacheHasPipelined;
+
+    @Unique
+    private boolean brbe$configKey() {
+        if (BetterRecipeBook.config == null) return false;
+        return BetterRecipeBook.config.partialCraftingEnabled
+                || BetterRecipeBook.config.partialMarkingEnabled
+                || BetterRecipeBook.config.alternativeRecipes.noGrouped;
+    }
+
     // ---- Search text save / restore ----
 
     /**
@@ -178,40 +214,68 @@ public abstract class RecipeBookComponentMixin {
     private void brbe$runPipeline(RecipeBookPage page, List<RecipeCollection> list,
                                    boolean resetPageNumber, boolean isFiltering) {
 
-        // Stage 1: Advanced search filter
-        if (brbe$parsedQuery != null && minecraft.level != null) {
-            list = CollectionPipeline.applySearch(
-                    list, brbe$parsedQuery,
-                    SlotDisplayContext.fromLevel(minecraft.level));
+        // ---- Pipeline output cache ----
+        // Inventory unchanged → canCraft state identical to last pass →
+        // pins order + partial sort produce the same list.  Reuse it.
+        boolean cacheHit = false;
+        if (brbe$cacheHasPipelined
+                && com.alonie.brbe.util.RecipeCraftingIndex.inventoryUnchanged()
+                && brbe$cacheGeneration == com.alonie.brbe.util.RecipeCraftingIndex.generation()
+                && brbe$cachePinVersion == BetterRecipeBook.pinnedRecipeManager.version()
+                && brbe$cacheSearchActive == (brbe$parsedQuery != null)
+                && brbe$cacheConfigKey == brbe$configKey()
+                && !resetPageNumber) {
+            list = brbe$cachedPipelinedList;
+            cacheHit = true;
         }
 
-        // Stage 2: Ungroup split (if noGrouped enabled)
-        list = CollectionPipeline.applyUngroup(list);
-
-        // Stage 3: Pins sort (in-place — moves pinned to front)
-        CollectionPipeline.applyPins(list);
-
-        // Stage 4: Craftable-before-partial sort (pin-aware).
-        //
-        // Two modes (spec §2.10):
-        //   Default mode  (partialCraftingEnabled=false): filter button
-        //     visible — sort only when isFiltering=true.
-        //   Alternative   (partialCraftingEnabled=true):  filter button
-        //     hidden  — always sort (craftable → partial → uncraftable).
-        {
-            boolean filterButtonHidden = BetterRecipeBook.config.partialCraftingEnabled;
-            boolean shouldSort = filterButtonHidden || isFiltering;
-            if (shouldSort) {
-                boolean hasPartialData = BetterRecipeBook.config.partialMarkingEnabled;
-                list = CollectionPipeline.applyPartialSort(list, true, hasPartialData);
+        if (!cacheHit) {
+            // Stage 1: Advanced search filter
+            if (brbe$parsedQuery != null && minecraft.level != null) {
+                list = CollectionPipeline.applySearch(
+                        list, brbe$parsedQuery,
+                        SlotDisplayContext.fromLevel(minecraft.level));
             }
+
+            // Stage 2: Ungroup split (if noGrouped enabled)
+            list = CollectionPipeline.applyUngroup(list);
+
+            // Stage 3: Pins sort (in-place — moves pinned to front)
+            CollectionPipeline.applyPins(list);
+
+            // Stage 4: Craftable-before-partial sort (pin-aware).
+            //
+            // Two modes (spec §2.10):
+            //   Default mode  (partialCraftingEnabled=false): filter button
+            //     visible — sort only when isFiltering=true.
+            //   Alternative   (partialCraftingEnabled=true):  filter button
+            //     hidden  — always sort (craftable → partial → uncraftable).
+            {
+                boolean filterButtonHidden = BetterRecipeBook.config.partialCraftingEnabled;
+                boolean shouldSort = filterButtonHidden || isFiltering;
+                if (shouldSort) {
+                    boolean hasPartialData = BetterRecipeBook.config.partialMarkingEnabled;
+                    list = CollectionPipeline.applyPartialSort(list, true, hasPartialData);
+                }
+            }
+
+            brbe$cachedPipelinedList = list;
+            brbe$cacheGeneration = com.alonie.brbe.util.RecipeCraftingIndex.generation();
+            brbe$cachePinVersion = BetterRecipeBook.pinnedRecipeManager.version();
+            brbe$cacheSearchActive = brbe$parsedQuery != null;
+            brbe$cacheConfigKey = brbe$configKey();
+            brbe$cacheHasPipelined = true;
         }
 
-        // Note: Filter toggle is handled by the incompletecrafting mixin's
-        // removeIf redirect, which injects partially-craftable recipes into
-        // the craftable set so they survive the vanilla filter.  The pipeline
-        // is responsible only for sorting, not filtering.
         page.updateCollections(list, resetPageNumber, isFiltering);
+    }
+
+    @Unique
+    private boolean configKey() {
+        if (BetterRecipeBook.config == null) return false;
+        return BetterRecipeBook.config.partialCraftingEnabled
+                || BetterRecipeBook.config.partialMarkingEnabled
+                || BetterRecipeBook.config.alternativeRecipes.noGrouped;
     }
 
     @Unique

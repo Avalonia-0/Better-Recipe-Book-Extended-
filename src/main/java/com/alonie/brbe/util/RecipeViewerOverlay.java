@@ -3,6 +3,8 @@ package com.alonie.brbe.util;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.cache.RecipeViewerIndex;
 import com.alonie.brbe.compat.ItemViewCompat;
+import com.alonie.brbe.compat.SyntheticRecipeRenderer;
+import com.alonie.brbe.compat.SyntheticRecipeRenderers;
 import com.alonie.brbe.jei.plugins.engine.PluginRecipeViewerCategory;
 import com.alonie.brbe.mixins.accessors.ClientRecipeBookAccessor;
 import com.alonie.brbe.pinoverlay.PinOverlay;
@@ -929,10 +931,23 @@ public final class RecipeViewerOverlay {
     private static AbstractWidget hoveredViewerButton;
 
     /** The item rendered under the cursor inside the popup (its current cycled
-     *  variant), or EMPTY when the cursor is on empty space. */
+     *  variant), or EMPTY when the cursor is on empty space.  For JEI-adapted
+     *  popups the item comes from the live JEI drawable (which drives the
+     *  visible cycling itself), so the tooltip matches the painted variant. */
     public static ItemStack slotStackInPopup(AbstractWidget widget, int mx, int my) {
+        OverlayRecipeButtonAccessor oba = (OverlayRecipeButtonAccessor) widget;
+        RecipeDisplayId id = oba.brbe$getRecipe();
+        PopupGeometry geometry = popupGeometry(widget);
+        SyntheticRecipeRenderer renderer = SyntheticRecipeRenderers.get();
+        if (renderer != SyntheticRecipeRenderer.NONE && renderer.canRender(id)) {
+            ItemStack painted = renderer.itemUnderMouse(id, mx, my,
+                    geometry.ox, geometry.oy, geometry.fit);
+            if (!painted.isEmpty()) {
+                return painted;
+            }
+        }
         int selIdx = ((OverlayRecipeComponentAccessor) overlay).getSlotSelectTime().currentIndex();
-        return popupGeometry(widget).itemAt(mx, my, selIdx);
+        return geometry.itemAt(mx, my, selIdx);
     }
 
     /** Full tooltip for a popup slot's item (item name + source-mod line),
@@ -1827,6 +1842,12 @@ public final class RecipeViewerOverlay {
      *  always qualify. */
     private static boolean hasRecipeBookStation(RecipeDisplayEntry entry) {
         if (entry == null) return false;
+        if (queryUsage
+                && queryTarget != null && !queryTarget.isEmpty()
+                && !RecipeViewerEngine.isRecipeBookStation(queryTarget)
+                && currentCategory != null && currentCategory.appliesToStation(queryTarget)) {
+            return false;
+        }
         if (currentCategory != null && isBuiltinCategory(currentCategory)) return true;
         RecipeViewerCategory category = currentCategory != null ? currentCategory : categoryFor(entry);
         return category != null && entryHasRecipeBookStation(entry, category.stationIconsFor(entry));

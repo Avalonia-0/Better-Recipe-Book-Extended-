@@ -2,6 +2,7 @@ package com.alonie.brbe.fabric;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.fabric.PlatformPotionUtilImpl;
+import com.alonie.brbe.cache.RecipeViewerIndex;
 import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.config.KeybindingCodec;
 import com.alonie.brbe.config.KeybindingGuiRegistrar;
@@ -115,6 +116,10 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            // Coalesce recipe-book rebuilds: a pickup that unlocks several
+            // recipes fires rebuildCollections per recipe; flush the engine
+            // rebuild once per tick with the final known set.
+            RecipeViewerIndex.flushEngineRebuildIfDirty();
             Screen screen = client.screen;
             if (BetterRecipeBook.config.hideReiJeiOverlay && screen != null) {
                 OverlayHider.ensureJeiOverlayHidden();

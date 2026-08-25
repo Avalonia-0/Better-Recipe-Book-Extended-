@@ -24,6 +24,17 @@ import java.util.HashSet;
 
 public class PinnedRecipeManager {
     public HashSet<Identifier> pinned;
+
+    /** Monotonic version incremented whenever the pin set changes.  Used as
+     *  a cheap cache-invalidation signal by the recipe-book pipeline cache
+     *  (pins order must be recomputed after any pin change). */
+    private int version;
+
+    /** Current pin-set version (see {@link #version}). */
+    public int version() {
+        return version;
+    }
+
     private PinStore store;
 
     public void setStore(PinStore store) {
@@ -34,6 +45,7 @@ public class PinnedRecipeManager {
         // Prefer async PinStore when available
         if (store != null) {
             pinned = new HashSet<>(store.load());
+            version++;
             return;
         }
 
@@ -103,11 +115,13 @@ public class PinnedRecipeManager {
 
     public void addOrRemoveFavourite(PinnableRecipeCollection target) {
         if (this.pinned.removeIf(target::has)) {
+            version++;
             this.store();
             return;
         }
 
         this.pinned.addAll(target.identifiers());
+        version++;
         this.store();
     }
 

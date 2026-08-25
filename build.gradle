@@ -65,11 +65,11 @@ dependencies {
 
     modCompileOnly files("libs/modmenu-17.0.0.jar")
 
-    // JEI — compileOnly from libs/ (JEI plugin source). Missing jar → JEI plugin excluded from compile.
-    def jeiJar = file("libs/jei-1.21.11-fabric-27.4.0.22.jar")
-    if (jeiJar.exists()) {
-        modCompileOnly files(jeiJar)
-    }
+    // JEI core is vendored in-tree (src/main/java/mezz/) — no compile-time JEI
+    // jar needed.  The two search libraries are JEI Common's only external
+    // deps (Maven Central), bundled so the embedded core works without JEI.
+    implementation "net.mezzdev:baked-substring-index:0.1.0"
+    implementation "net.mezzdev:suffixtree:1.1.0"
 }
 
 loom {

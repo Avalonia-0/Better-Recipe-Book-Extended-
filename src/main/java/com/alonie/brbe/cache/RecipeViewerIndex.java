@@ -81,6 +81,59 @@ public final class RecipeViewerIndex {
      *  … each its own type so the furnace category can aggregate them with dedup).
      *  Called after the recipe book's known set is (re)populated. */
     public static void rebuildEngine() {
+        // Throttle: rebuildCollections fires repeatedly on item pickup /
+        // progression unlocks (a single pickup can unlock several recipes,
+        // each calling rebuildCollections → rebuildEngine).  Every call would
+        // rebuild the whole engine (iterating every known entry + re-running
+        // the JEI collection).  Coalesce: mark dirty and let the tick-end
+        // flush rebuild once with the final known set.
+        engineDirty = true;
+    }
+
+    /** Rebuild now if a rebuild was requested since the last flush.  Called
+     *  from the client tick-end hook so a burst of rebuildCollections calls
+     *  within one tick collapses into a single full rebuild. */
+    public static void flushEngineRebuildIfDirty() {
+        if (!engineDirty) {
+            return;
+        }
+        engineDirty = false;
+        // Skip when the known set has not actually changed since the last
+        // rebuild (defense in depth against unchanged storms).
+        List<RecipeDisplayEntry> known = knownEntries();
+        int fingerprint = knownFingerprint(known);
+        if (fingerprint == lastRebuildFingerprint && !forceRebuild) {
+            return;
+        }
+        forceRebuild = false;
+        lastRebuildFingerprint = fingerprint;
+        rebuildEngineInternal(known);
+    }
+
+    private static boolean engineDirty;
+
+    /** Force the next rebuildEngine call to run even if the known set is
+     *  unchanged (used by config hot-reload paths). */
+    public static void forceNextRebuild() {
+        forceRebuild = true;
+        engineDirty = true;
+    }
+
+    private static int lastRebuildFingerprint = Integer.MIN_VALUE;
+    private static boolean forceRebuild;
+
+    /** A cheap identity hash of the known set (entry ids in insertion order),
+     *  so unchanged rebuildCollections storms are detected in O(n) without
+     *  hashing the full display data. */
+    private static int knownFingerprint(List<RecipeDisplayEntry> known) {
+        int hash = 0;
+        for (RecipeDisplayEntry entry : known) {
+            hash = hash * 31 + entry.id().index();
+        }
+        return hash;
+    }
+
+    private static void rebuildEngineInternal(List<RecipeDisplayEntry> knownEntries) {
         RecipeViewerEngine.clearVanilla();
         Map<String, List<RecipeViewerEngine.IndexedRecipe>> grouped = new LinkedHashMap<>();
         Map<String, List<ItemStack>> stationItems = new LinkedHashMap<>();
@@ -95,16 +148,24 @@ public final class RecipeViewerIndex {
             stationItems.computeIfAbsent(station.typeId(), k -> new ArrayList<>())
                     .addAll(java.util.Arrays.asList(station.fallbackIcons()));
         }
-        for (RecipeDisplayEntry entry : knownEntries()) {
+        Map<String, Integer> categoryCounts = new java.util.TreeMap<>();
+        int unmatched = 0;
+        for (RecipeDisplayEntry entry : knownEntries) {
             String path = categoryPath(entry);
+            categoryCounts.merge(path.isEmpty() ? "(empty)" : path, 1, Integer::sum);
+            boolean matched = false;
             for (Workstation station : workstations()) {
                 if (!station.matchesPath(path)) continue;
                 String uid = station.typeId();
                 grouped.computeIfAbsent(uid, k -> new ArrayList<>())
                         .add(new RecipeViewerEngine.IndexedRecipe(entry, inputStacks(entry), outputStacks(entry)));
+                matched = true;
                 break;
             }
+            if (!matched) unmatched++;
         }
+        BetterRecipeBook.LOGGER.info("[BRBE] rebuildEngine known-by-category: {} unmatched={}",
+                categoryCounts, unmatched);
         for (Map.Entry<String, List<RecipeViewerEngine.IndexedRecipe>> e : grouped.entrySet()) {
             RecipeViewerEngine.registerType(e.getKey(), e.getValue(), stationItems.get(e.getKey()));
         }
@@ -177,7 +238,8 @@ public final class RecipeViewerIndex {
      */
     private record Workstation(Family family, String typeId,
                                List<String> categoryPrefixes,
-                               List<Identifier> stationItems) {
+                               List<Identifier> stationItems,
+                               boolean recipeBook) {
 
         /** Whether {@code path} is a recipe-book category path of this station.
          *  A prefix ending in "_" matches by prefix ({@code crafting_}/
@@ -217,20 +279,20 @@ public final class RecipeViewerIndex {
     private static final List<Workstation> BUILTIN_WORKSTATIONS = List.of(
             new Workstation(Family.CRAFTING, "minecraft:crafting", List.of("crafting_"),
                     List.of(Identifier.withDefaultNamespace("crafting_table"),
-                            Identifier.withDefaultNamespace("crafter"))),
+                            Identifier.withDefaultNamespace("crafter")), true),
             new Workstation(Family.FURNACE, "minecraft:smelting", List.of("furnace_"),
-                    List.of(Identifier.withDefaultNamespace("furnace"))),
+                    List.of(Identifier.withDefaultNamespace("furnace")), true),
             new Workstation(Family.FURNACE, "minecraft:blasting", List.of("blast_furnace_"),
-                    List.of(Identifier.withDefaultNamespace("blast_furnace"))),
+                    List.of(Identifier.withDefaultNamespace("blast_furnace")), true),
             new Workstation(Family.FURNACE, "minecraft:smoking", List.of("smoker_"),
-                    List.of(Identifier.withDefaultNamespace("smoker"))),
+                    List.of(Identifier.withDefaultNamespace("smoker")), true),
             new Workstation(Family.FURNACE, "minecraft:campfire_cooking", List.of("campfire"),
                     List.of(Identifier.withDefaultNamespace("campfire"),
-                            Identifier.withDefaultNamespace("soul_campfire"))),
+                            Identifier.withDefaultNamespace("soul_campfire")), true),
             new Workstation(Family.STONECUTTING, "minecraft:stonecutting", List.of("stonecutter"),
-                    List.of(Identifier.withDefaultNamespace("stonecutter"))),
+                    List.of(Identifier.withDefaultNamespace("stonecutter")), true),
             new Workstation(Family.SMITHING, "minecraft:smithing", List.of("smithing"),
-                    List.of(Identifier.withDefaultNamespace("smithing_table"))));
+                    List.of(Identifier.withDefaultNamespace("smithing_table")), true));
 
     /** Effective registry: built-ins plus any stations appended from
      *  {@code config/zzzbrbe_workstations.json} or registered programmatically
@@ -349,7 +411,8 @@ public final class RecipeViewerIndex {
             BetterRecipeBook.LOGGER.warn("[BRBE] zzzbrbe_workstations.json: entry needs non-empty categoryPrefixes and items, skipping");
             return null;
         }
-        return new Workstation(family, entry.typeId == null ? "" : entry.typeId, prefixes, items);
+        // Manually configured workstations have no recipe book of their own.
+        return new Workstation(family, entry.typeId == null ? "" : entry.typeId, prefixes, items, false);
     }
 
     /** Public station descriptor accepted by {@link #registerExternalWorkstations},
@@ -426,7 +489,31 @@ public final class RecipeViewerIndex {
             BetterRecipeBook.LOGGER.warn("[BRBE] external workstation: entry needs non-empty categoryPrefixes and items, skipping");
             return null;
         }
-        return new Workstation(family, spec.typeId() == null ? "" : spec.typeId(), prefixes, items);
+        // Recipe-book status of an external (mod) workstation, decided by the
+        // vanilla type it is registered under.  Variant stations that reuse a
+        // vanilla recipe-book screen (e.g. BetterEnd's jadestone furnaces
+        // extend the vanilla furnace and open its recipe book) count as having
+        // a recipe book; stations with a custom screen (e.g. BetterEnd's end
+        // stone smelter, the only external registered under blasting today)
+        // do not.  This is the single source of truth the "hide objects of
+        // workstations without a recipe book" filter reads.
+        boolean recipeBook = externalHasRecipeBook(
+                spec.typeId() == null ? "" : spec.typeId());
+        return new Workstation(family, spec.typeId() == null ? "" : spec.typeId(),
+                prefixes, items, recipeBook);
+    }
+
+    /** Whether an external workstation registered under {@code typeId} opens
+     *  a vanilla recipe-book screen (a variant of that vanilla workstation).
+     *  Blasting is excluded: its only external registration in practice is
+     *  BetterEnd's end stone smelter, which opens a custom screen. */
+    private static boolean externalHasRecipeBook(String typeId) {
+        if (typeId == null || typeId.isEmpty()) return false;
+        return switch (typeId) {
+            case "minecraft:smelting", "minecraft:smoking", "minecraft:campfire_cooking",
+                 "minecraft:stonecutting", "minecraft:smithing", "minecraft:crafting" -> true;
+            default -> false;
+        };
     }
 
     /** The workstation {@code target} is, or null when it is not one
@@ -507,19 +594,16 @@ public final class RecipeViewerIndex {
     }
 
     /** Vanilla recipe-book workstation items: only the built-in vanilla
-     *  stations (minecraft namespace — furnace family, crafting table, crafter,
-     *  stonecutter, smithing table, campfires).  Mod stations registered under
-     *  a vanilla type (e.g. BetterEnd's end stone smelter under
+     *  stations ({@link Workstation#recipeBook()}).  Mod stations registered
+     *  under a vanilla type (e.g. BetterEnd's end stone smelter under
      *  {@code minecraft:blasting}, Farmer's Delight's skillet under campfire)
      *  are NOT recipe-book workstations: they have no recipe book of their own,
      *  even though their recipes live in a vanilla recipe-book category. */
     public static List<ItemStack> vanillaWorkstationItems() {
         List<ItemStack> out = new ArrayList<>();
         for (Workstation station : workstations()) {
-            for (ItemStack icon : station.fallbackIcons()) {
-                Identifier id = BuiltInRegistries.ITEM.getKey(icon.getItem());
-                if (id != null && "minecraft".equals(id.getNamespace())) out.add(icon);
-            }
+            if (!station.recipeBook()) continue;
+            out.addAll(java.util.Arrays.asList(station.fallbackIcons()));
         }
         return out;
     }

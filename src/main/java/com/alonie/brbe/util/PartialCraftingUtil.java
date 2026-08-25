@@ -57,9 +57,20 @@ public final class PartialCraftingUtil {
      * Force a full rebuild on the next {@code updateCollections} pass.
      * Call when config options affecting partial-craftable display change
      * (e.g. {@code partialMarkingEnabled} toggled).
+     *
+     * <p>Only the checked-generation marks are cleared, the tags themselves
+     * are KEPT: Step 0 (undo-injection) reads them via the EvenIfStale
+     * queries to remove the previous generation's craftable-set injections.
+     * Clearing the tags too would strand those injections — with the
+     * inventory unchanged, {@code RecipeCraftingIndex} skips
+     * {@code selectRecipes}, the injected ids stay in the craftable set,
+     * and {@link #markPartialMaterials} then treats them as fully craftable
+     * and skips re-marking → partial recipes lose their red overlay and
+     * render exactly like craftable recipes until the next inventory
+     * change forces a {@code selectRecipes} re-run.</p>
      */
     public static void invalidateCaches() {
-        tagger.clearAll();
+        tagger.clearCheckedGenerations();
         tagger.beginFiltering(false);
     }
 

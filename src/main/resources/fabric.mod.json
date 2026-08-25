@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "zzzbrbe",
   "version": "2.3-beta.1",
-  "name": "Better Recipe Book (Adorable♡Girl aVa Seriously Extended)",
+  "name": "Better Recipe Book (Adorable♡Girl aVa Seriously 🔥Extended🔥. Oh, and also Teamed Up with Great Mr.DeepSeek)",
   "description": "Adds some quality of life changes to the recipe book",
   "authors": [
     "marshmallow"
@@ -51,5 +51,6 @@
   "depends": {
     "fabric-api": "*",
     "minecraft": ">=1.21.11"
-  }
+  },
+  "accessWidener": "brbe.common.accesswidener"
 }

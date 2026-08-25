@@ -8,6 +8,7 @@ import mezz.jei.api.recipe.vanilla.IVanillaRecipeFactory;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.runtime.IIngredientManager;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.context.ContextMap;
 
 import java.util.ArrayList;
@@ -44,7 +45,34 @@ public final class RecipeCollector implements IRecipeRegistration {
     @Override
     public <T> void addRecipes(IRecipeType<T> recipeType, List<T> recipes) {
         if (recipeType == null || recipes == null) return;
-        this.recipes.computeIfAbsent(recipeType, k -> new ArrayList<>()).addAll(recipes);
+        List<Object> bucket = this.recipes.computeIfAbsent(recipeType, k -> new ArrayList<>());
+        bucket.addAll(recipes);
+        // Some mods only populate their JEI recipe source when the real JEI is
+        // installed (they gate it on FabricLoader.isModLoaded("jei")), so their
+        // registerRecipes hands us an empty list here even though the recipes
+        // ARE server-synced.  Fall back to the fabric recipe-sync registry,
+        // matching the recipe type's registry key against this JEI type's uid.
+        if (recipes.isEmpty()) {
+            // 1.21.11's fabric-recipe-api (8.x) has no FabricRecipeAccess;
+            // the headless core already captured the synchronized recipes into
+            // Internal.getClientSyncedRecipes() via ClientRecipeSynchronizedEvent.
+            net.minecraft.world.item.crafting.RecipeMap recipeMap = mezz.jei.common.Internal.getClientSyncedRecipes();
+            if (recipeMap == null) return;
+            Identifier typeUid = recipeType.getUid();
+            for (net.minecraft.world.item.crafting.RecipeHolder<?> holder : recipeMap.values()) {
+                try {
+                    if (holder == null || holder.value() == null) continue;
+                    Identifier typeKey =
+                            net.minecraft.core.registries.BuiltInRegistries.RECIPE_TYPE.getKey(holder.value().getType());
+                    if (typeKey == null) continue;
+                    if (typeKey.equals(typeUid)) {
+                        bucket.add(holder);
+                    }
+                } catch (Exception | LinkageError ignored) {
+                    // one unmatched holder must not break the fallback
+                }
+            }
+        }
     }
 
     @Override

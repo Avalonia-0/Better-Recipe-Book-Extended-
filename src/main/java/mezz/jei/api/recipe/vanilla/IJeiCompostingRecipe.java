@@ -3,8 +3,10 @@ package mezz.jei.api.recipe.vanilla;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.ComposterBlock;
+import org.jetbrains.annotations.Unmodifiable;
 import org.jetbrains.annotations.ApiStatus;
 
+import javax.annotation.Nonnegative;
 import java.util.List;
 
 /**
@@ -20,14 +22,16 @@ public interface IJeiCompostingRecipe {
 	 * Get the inputs to this recipe.
 	 * @since 9.5.0
 	 */
-		List<ItemStack> getInputs();
+	@Unmodifiable
+	List<ItemStack> getInputs();
 
 	/**
 	 * Get the chance of this input adding a level of compost to the composter.
 	 *
 	 * @since 9.5.0
 	 */
-		float getChance();
+	@Nonnegative
+	float getChance();
 
 	/**
 	 * Unique ID for this recipe.

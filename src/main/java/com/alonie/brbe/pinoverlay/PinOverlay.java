@@ -1,6 +1,8 @@
 package com.alonie.brbe.pinoverlay;
 
 import com.alonie.brbe.cache.RecipeViewerIndex;
+import com.alonie.brbe.compat.SyntheticRecipeRenderer;
+import com.alonie.brbe.compat.SyntheticRecipeRenderers;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeComponentAccessor;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
@@ -243,10 +245,22 @@ public final class PinOverlay {
     }
 
     /** The item under the cursor (its rotated variant), or empty — through
-     *  the shared popup geometry, so the hit test matches the render exactly. */
+     *  the shared popup geometry, so the hit test matches the render exactly.
+     *  For JEI-adapted pins the item comes from the live JEI drawable (which
+     *  drives the visible cycling itself), so the tooltip matches the painted
+     *  variant. */
     ItemStack itemAt(double mx, double my) {
+        PopupGeometry geometry = geometry();
+        SyntheticRecipeRenderer renderer = SyntheticRecipeRenderers.get();
+        if (renderer != SyntheticRecipeRenderer.NONE && renderer.canRender(id)) {
+            ItemStack painted = renderer.itemUnderMouse(id, mx, my,
+                    geometry.ox, geometry.oy, geometry.fit);
+            if (!painted.isEmpty()) {
+                return painted;
+            }
+        }
         int selIdx = ((OverlayRecipeComponentAccessor) component).getSlotSelectTime().currentIndex();
-        return geometry().itemAt(mx, my, selIdx);
+        return geometry.itemAt(mx, my, selIdx);
     }
 
     // ── Persistence ──────────────────────────────────────────────────────
