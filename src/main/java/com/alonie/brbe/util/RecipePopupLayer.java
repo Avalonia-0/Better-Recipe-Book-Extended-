@@ -1,6 +1,8 @@
 package com.alonie.brbe.util;
 
 import com.alonie.brbe.cache.RecipeViewerIndex;
+import com.alonie.brbe.compat.SyntheticRecipeRenderer;
+import com.alonie.brbe.compat.SyntheticRecipeRenderers;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeComponentAccessor;
 import com.alonie.brbe.pinoverlay.PinOverlay;
@@ -96,10 +98,22 @@ public final class RecipePopupLayer {
                 && geometry().contains(mx, my);
     }
 
-    /** The item rendered under the cursor inside the popup (cycled variant). */
+    /** The item rendered under the cursor inside the popup (cycled variant).
+     *  For JEI-adapted popups the item comes from the live JEI drawable (which
+     *  drives the visible cycling itself), so the tooltip matches the painted
+     *  variant. */
     public static ItemStack itemAt(int mx, int my) {
         if (!active || button == null) return ItemStack.EMPTY;
-        return geometry().itemAt(mx, my, currentSlotSelectIndex());
+        PopupGeometry geometry = geometry();
+        SyntheticRecipeRenderer renderer = SyntheticRecipeRenderers.get();
+        if (renderer != SyntheticRecipeRenderer.NONE && renderer.canRender(id)) {
+            ItemStack painted = renderer.itemUnderMouse(id, mx, my,
+                    geometry.ox, geometry.oy, geometry.fit);
+            if (!painted.isEmpty()) {
+                return painted;
+            }
+        }
+        return geometry.itemAt(mx, my, currentSlotSelectIndex());
     }
 
     private static PopupGeometry geometry() {

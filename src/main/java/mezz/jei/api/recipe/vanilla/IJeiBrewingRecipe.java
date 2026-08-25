@@ -1,9 +1,9 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe.vanilla;
 
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.List;
 
@@ -14,6 +14,7 @@ import java.util.List;
  *
  * Create your own with {@link IVanillaRecipeFactory#createBrewingRecipe}
  */
+@ApiStatus.NonExtendable
 public interface IJeiBrewingRecipe {
 	/**
 	 * Get the input potion, that is used to create a new one.
@@ -22,6 +23,7 @@ public interface IJeiBrewingRecipe {
 	 *
 	 * @since 9.5.0
 	 */
+	@Unmodifiable
 	List<ItemStack> getPotionInputs();
 
 	/**
@@ -30,6 +32,7 @@ public interface IJeiBrewingRecipe {
 	 *
 	 * @since 9.5.0
 	 */
+	@Unmodifiable
 	List<ItemStack> getIngredients();
 
 	/**

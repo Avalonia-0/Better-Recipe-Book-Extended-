@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.registration;
 
 import mezz.jei.api.IModPlugin;
@@ -11,11 +9,14 @@ import mezz.jei.api.recipe.transfer.IUniversalRecipeTransferHandler;
 import mezz.jei.api.recipe.types.IRecipeType;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
+import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Register recipe transfer handlers here to give JEI the information it needs to transfer recipes into the crafting area.
  * Get the instance passed in to your plugin's {@link IModPlugin#registerRecipeTransferHandlers}.
  */
+@ApiStatus.NonExtendable
 public interface IRecipeTransferRegistration {
 	/**
 	 * {@link IJeiHelpers} provides helpers and tools for addon mods.
@@ -37,7 +38,7 @@ public interface IRecipeTransferRegistration {
 	 *
 	 * @since 11.0.0
 	 */
-	<C extends AbstractContainerMenu, R> void addRecipeTransferHandler(Class<? extends C> containerClass, MenuType<C> menuType, IRecipeType<R> recipeType, int recipeSlotStart, int recipeSlotCount, int inventorySlotStart, int inventorySlotCount);
+	<C extends AbstractContainerMenu, R> void addRecipeTransferHandler(Class<? extends C> containerClass, @Nullable MenuType<C> menuType, IRecipeType<R> recipeType, int recipeSlotStart, int recipeSlotCount, int inventorySlotStart, int inventorySlotCount);
 
 	/**
 	 * Advanced method for adding a recipe transfer handler.

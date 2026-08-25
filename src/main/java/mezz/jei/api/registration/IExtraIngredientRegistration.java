@@ -1,11 +1,10 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.registration;
 
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.IIngredientType;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collection;
 
@@ -20,6 +19,7 @@ import java.util.Collection;
  *
  * @since 19.18.0
  */
+@ApiStatus.NonExtendable
 public interface IExtraIngredientRegistration {
 	/**
 	 * Add extra ItemStacks that are not already in the creative menu.

@@ -1,11 +1,10 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.runtime;
 
 import mezz.jei.api.ingredients.IIngredientHelper;
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.ingredients.ITypedIngredient;
 import mezz.jei.api.ingredients.subtypes.UidContext;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collection;
 import java.util.Set;
@@ -22,6 +21,7 @@ import java.util.Set;
  *
  * @since 11.5.0
  */
+@ApiStatus.NonExtendable
 public interface IEditModeConfig {
 	/**
 	 * Returns true if the given ingredient is hidden because it is configured to be hidden by the player.

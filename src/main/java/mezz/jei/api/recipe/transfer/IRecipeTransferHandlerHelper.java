@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe.transfer;
 
 import mezz.jei.api.gui.ingredient.ICraftingGridHelper;
@@ -14,6 +12,8 @@ import net.minecraft.world.inventory.MenuType;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
+import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collection;
 import java.util.List;
@@ -23,6 +23,7 @@ import java.util.Map;
  * Helper functions for implementing an {@link IRecipeTransferHandler}.
  * Get an instance from {@link IRecipeTransferRegistration#getTransferHelper()}.
  */
+@ApiStatus.NonExtendable
 public interface IRecipeTransferHandlerHelper {
 	/**
 	 * Create an error with {@link Type#INTERNAL}.
@@ -60,7 +61,7 @@ public interface IRecipeTransferHandlerHelper {
 	 */
 	<C extends AbstractContainerMenu, R> IRecipeTransferInfo<C, R> createBasicRecipeTransferInfo(
 		Class<? extends C> containerClass,
-		MenuType<C> menuType,
+		@Nullable MenuType<C> menuType,
 		IRecipeType<R> recipeType,
 		int recipeSlotStart,
 		int recipeSlotCount,

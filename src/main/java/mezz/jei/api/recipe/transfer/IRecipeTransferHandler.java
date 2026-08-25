@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe.transfer;
 
 import mezz.jei.api.gui.ingredient.IRecipeSlotsView;
@@ -8,6 +6,7 @@ import mezz.jei.api.registration.IRecipeTransferRegistration;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.MenuType;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
 
@@ -50,5 +49,6 @@ public interface IRecipeTransferHandler<C extends AbstractContainerMenu, R> {
 	 *
 	 * @since 9.3.0
 	 */
+	@Nullable
 	IRecipeTransferError transferRecipe(C container, R recipe, IRecipeSlotsView recipeSlots, Player player, boolean maxTransfer, boolean doTransfer);
 }

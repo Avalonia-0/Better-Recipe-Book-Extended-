@@ -1,17 +1,17 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.registration;
 
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.search.ISearchStorageBuilder;
 import mezz.jei.api.search.ISearchStorageBuilderFactory;
 import mezz.jei.api.search.ISearchStorageFactory;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * The IAdvancedSearchRegistration instance is passed to your mod plugin in {@link IModPlugin#registerAdvancedSearch(IAdvancedSearchRegistration)}.
  *
  * @since 30.10.0
  */
+@ApiStatus.NonExtendable
 public interface IAdvancedSearchRegistration {
 	/**
 	 * Get JEI's default search storage builder factory.

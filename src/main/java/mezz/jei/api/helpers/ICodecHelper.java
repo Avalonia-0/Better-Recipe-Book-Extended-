@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.helpers;
 
 import com.mojang.serialization.Codec;
@@ -10,12 +8,14 @@ import mezz.jei.api.recipe.IRecipeManager;
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import mezz.jei.api.recipe.types.IRecipeType;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Helper for getting codecs related to JEI and recipes.
  *
  * @since 19.9.0
  */
+@ApiStatus.NonExtendable
 public interface ICodecHelper {
 	/**
 	 * @return a codec for {@link IIngredientType}.

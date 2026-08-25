@@ -1,9 +1,8 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe.transfer;
 
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.world.inventory.AbstractContainerMenu;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Optional;
 
@@ -12,6 +11,7 @@ import java.util.Optional;
  *
  * @since 11.5.0
  */
+@ApiStatus.NonExtendable
 public interface IRecipeTransferManager {
 	/**
 	 * Get a recipe transfer handler for the given container and recipe category, if one is registered for it.

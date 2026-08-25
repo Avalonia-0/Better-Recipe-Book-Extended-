@@ -1,15 +1,15 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe.advanced;
 
 import mezz.jei.api.recipe.IFocus;
 import mezz.jei.api.recipe.types.IRecipeType;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Helpers for implementing {@link IRecipeManagerPlugin}s.
  *
  * @since 19.15.1
  */
+@ApiStatus.NonExtendable
 public interface IRecipeManagerPluginHelper {
 	/**
 	 * @return true if the given focus should be treated as a crafting station of this recipe type.

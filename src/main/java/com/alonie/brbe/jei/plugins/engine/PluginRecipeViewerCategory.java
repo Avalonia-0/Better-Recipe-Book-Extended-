@@ -1,5 +1,6 @@
 package com.alonie.brbe.jei.plugins.engine;
 
+import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.recipeviewer.RecipeViewerCategory;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import net.minecraft.network.chat.Component;
@@ -85,6 +86,17 @@ public final class PluginRecipeViewerCategory implements RecipeViewerCategory {
 
     @Override
     public boolean appliesToStation(ItemStack target) {
+        // Source-level exclusion: with "hide objects of workstations without a
+        // recipe book" on, a workstation without its own recipe book (every
+        // mod workstation — e.g. BetterEnd's end stone smelter) is dropped from
+        // the whole system up front: no category matches it, so its objects
+        // never surface anywhere.  RecipeViewerIndex.workstations() does the
+        // same for vanilla-type matching; this closes the mod-type side.
+        if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+                && (target == null || target.isEmpty()
+                    || !RecipeViewerEngine.isRecipeBookStation(target))) {
+            return false;
+        }
         for (String uid : uids) {
             if (RecipeViewerEngine.isStation(uid, target)) return true;
         }

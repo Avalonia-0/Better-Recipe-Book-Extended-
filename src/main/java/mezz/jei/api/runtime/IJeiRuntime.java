@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.runtime;
 
 import mezz.jei.api.IModPlugin;
@@ -7,11 +5,13 @@ import mezz.jei.api.helpers.IJeiHelpers;
 import mezz.jei.api.recipe.IRecipeManager;
 import mezz.jei.api.recipe.transfer.IRecipeTransferManager;
 import mezz.jei.api.runtime.config.IJeiConfigManager;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Gives access to JEI functions that are available once everything has loaded.
  * The IJeiRuntime instance is passed to your mod plugin in {@link IModPlugin#onRuntimeAvailable(IJeiRuntime)}.
  */
+@ApiStatus.NonExtendable
 public interface IJeiRuntime {
 	/**
 	 * The {@link IRecipeManager} offers several functions for retrieving and handling recipes.

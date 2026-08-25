@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.common.gui.elements;
 
 import mezz.jei.api.gui.ITickTimer;
@@ -8,10 +6,6 @@ import mezz.jei.api.gui.drawable.IDrawableStatic;
 import mezz.jei.common.util.TickTimer;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 
-/**
- * An animated drawable that reveals its underlying static drawable over time by
- * masking it in a given {@link StartDirection}.
- */
 public class DrawableAnimated implements IDrawableAnimated {
 	private final IDrawableStatic drawable;
 	private final ITickTimer tickTimer;

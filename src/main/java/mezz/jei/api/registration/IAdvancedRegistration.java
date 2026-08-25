@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.registration;
 
 import mezz.jei.api.IModPlugin;
@@ -13,10 +11,12 @@ import mezz.jei.api.recipe.advanced.ISimpleRecipeManagerPlugin;
 import mezz.jei.api.recipe.category.extensions.IRecipeCategoryDecorator;
 import mezz.jei.api.recipe.types.IRecipeType;
 import mezz.jei.api.runtime.IJeiFeatures;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * The IAdvancedRegistration instance is passed to your mod plugin in {@link IModPlugin#registerAdvanced(IAdvancedRegistration)}.
  */
+@ApiStatus.NonExtendable
 public interface IAdvancedRegistration {
 	/**
 	 * {@link IJeiHelpers} provides helpers and tools for addon mods.

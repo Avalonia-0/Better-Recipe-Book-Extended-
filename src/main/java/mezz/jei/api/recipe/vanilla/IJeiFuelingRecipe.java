@@ -1,10 +1,11 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe.vanilla;
 
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.Unmodifiable;
 
+import javax.annotation.Nonnegative;
 import java.util.List;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Fueling recipes represent items that can be used as fuel in the Furnace, Smoker, Blast Furnace, etc.
@@ -13,14 +14,17 @@ import java.util.List;
  *
  * @since 9.5.0
  */
+@ApiStatus.NonExtendable
 public interface IJeiFuelingRecipe {
 	/**
 	 * @return the inputs that act as a fuel
 	 */
+	@Unmodifiable
 	List<ItemStack> getInputs();
 
 	/**
 	 * @return the fuel's burn time in ticks. Always greater than 0.
 	 */
+	@Nonnegative
 	int getBurnTime();
 }

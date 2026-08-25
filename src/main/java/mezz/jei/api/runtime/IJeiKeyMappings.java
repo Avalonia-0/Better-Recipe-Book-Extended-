@@ -1,7 +1,6 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.runtime;
 
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Gives access to key mappings used by JEI.
@@ -11,6 +10,7 @@ package mezz.jei.api.runtime;
  *
  * @since 11.0.1
  */
+@ApiStatus.NonExtendable
 public interface IJeiKeyMappings {
 	/**
 	 * @return the key mapping to show recipes.

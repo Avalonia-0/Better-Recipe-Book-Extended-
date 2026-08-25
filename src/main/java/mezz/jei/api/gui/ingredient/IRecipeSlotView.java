@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.gui.ingredient;
 
 import mezz.jei.api.constants.VanillaTypes;
@@ -12,6 +10,9 @@ import mezz.jei.api.recipe.transfer.IRecipeTransferHandlerHelper;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.ApiStatus;
+import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.Collection;
 import java.util.List;
@@ -29,6 +30,7 @@ import java.util.stream.Stream;
  *
  * @since 9.3.0
  */
+@ApiStatus.NonExtendable
 public interface IRecipeSlotView {
 	/**
 	 * All ingredient variations that can be shown, ignoring focus and visibility.
@@ -46,7 +48,8 @@ public interface IRecipeSlotView {
 	 *
 	 * @since 19.19.5
 	 */
-	List<ITypedIngredient<?>> getAllIngredientsList();
+	@Unmodifiable
+	List<@Nullable ITypedIngredient<?>> getAllIngredientsList();
 
 	/**
 	 * The ingredient variation that is shown at this moment.

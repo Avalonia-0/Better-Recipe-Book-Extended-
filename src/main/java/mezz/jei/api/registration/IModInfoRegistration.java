@@ -1,7 +1,6 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.registration;
 
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collection;
 import java.util.Set;
@@ -11,6 +10,7 @@ import java.util.Set;
  *
  * @since 17.1.0
  */
+@ApiStatus.NonExtendable
 public interface IModInfoRegistration {
 	/**
 	 * Register alternative mod names, used for searching for a mod by a different name.

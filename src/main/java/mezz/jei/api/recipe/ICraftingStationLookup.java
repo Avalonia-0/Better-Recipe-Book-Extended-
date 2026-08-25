@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe;
 
 import mezz.jei.api.constants.VanillaTypes;
@@ -7,6 +5,7 @@ import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.ingredients.ITypedIngredient;
 import mezz.jei.api.recipe.types.IRecipeType;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.stream.Stream;
 
@@ -17,6 +16,7 @@ import java.util.stream.Stream;
  *
  * @since 20.0.0
  */
+@ApiStatus.NonExtendable
 public interface ICraftingStationLookup {
 	/**
 	 * By default, hidden results are not returned.

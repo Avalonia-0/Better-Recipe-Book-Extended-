@@ -1,8 +1,8 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.runtime.config;
 
 import mezz.jei.api.runtime.IJeiRuntime;
+import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collection;
 
@@ -14,6 +14,7 @@ import java.util.Collection;
  *
  * @since 12.1.0
  */
+@ApiStatus.NonExtendable
 public interface IJeiConfigManager {
 	/**
 	 * @return all of JEI's config files.
@@ -21,5 +22,6 @@ public interface IJeiConfigManager {
 	 *
 	 * @since 12.1.0
 	 */
+	@Unmodifiable
 	Collection<IJeiConfigFile> getConfigFiles();
 }

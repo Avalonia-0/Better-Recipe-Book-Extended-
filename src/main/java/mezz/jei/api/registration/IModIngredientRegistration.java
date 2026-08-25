@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.registration;
 
 import com.mojang.serialization.Codec;
@@ -10,6 +8,7 @@ import mezz.jei.api.ingredients.IIngredientRenderer;
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.ingredients.subtypes.ISubtypeManager;
 import mezz.jei.api.runtime.IIngredientManager;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collection;
 
@@ -19,6 +18,7 @@ import java.util.Collection;
  *
  * This is given to your {@link IModPlugin#registerIngredients(IModIngredientRegistration)}.
  */
+@ApiStatus.NonExtendable
 public interface IModIngredientRegistration {
 	ISubtypeManager getSubtypeManager();
 

@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.library.gui.elements;
 
 import mezz.jei.api.gui.ITickTimer;
@@ -8,12 +6,9 @@ import mezz.jei.api.gui.drawable.IDrawableBuilder;
 import mezz.jei.api.gui.drawable.IDrawableStatic;
 import mezz.jei.common.gui.elements.DrawableAnimated;
 import mezz.jei.common.gui.elements.DrawableResource;
+import mezz.jei.common.util.ErrorUtil;
 import net.minecraft.resources.Identifier;
 
-/**
- * Builds a {@link DrawableResource} (static) or {@link DrawableAnimated} from a
- * gui texture region.
- */
 public class DrawableBuilder implements IDrawableBuilder {
 	private final Identifier id;
 	private int u;
@@ -28,6 +23,7 @@ public class DrawableBuilder implements IDrawableBuilder {
 	private int paddingRight = 0;
 
 	public DrawableBuilder(Identifier id, int u, int v, int width, int height) {
+		ErrorUtil.checkNotNull(id, "id");
 		this.u = u;
 		this.v = v;
 		this.width = width;
@@ -67,6 +63,7 @@ public class DrawableBuilder implements IDrawableBuilder {
 
 	@Override
 	public IDrawableAnimated buildAnimated(int ticksPerCycle, IDrawableAnimated.StartDirection startDirection, boolean inverted) {
+		ErrorUtil.checkNotNull(startDirection, "startDirection");
 		IDrawableStatic drawable = build();
 		return new DrawableAnimated(drawable, ticksPerCycle, startDirection, inverted);
 	}

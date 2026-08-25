@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.ingredients.subtypes;
 
 import mezz.jei.api.constants.VanillaTypes;
@@ -7,12 +5,15 @@ import mezz.jei.api.ingredients.IIngredientTypeWithSubtypes;
 import mezz.jei.api.ingredients.ITypedIngredient;
 import mezz.jei.api.registration.ISubtypeRegistration;
 import net.minecraft.world.item.ItemStack;
+import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Gets subtype information from ingredients that have subtype interpreters.
  * <p>
  * Add subtypes for your ingredients with {@link ISubtypeRegistration#registerSubtypeInterpreter(IIngredientTypeWithSubtypes, Object, ISubtypeInterpreter)}.
  */
+@ApiStatus.NonExtendable
 public interface ISubtypeManager {
 	/**
 	 * Get the data from an ItemStack that is relevant to comparing and telling subtypes apart.
@@ -20,6 +21,7 @@ public interface ISubtypeManager {
 	 *
 	 * @since 19.9.0
 	 */
+	@Nullable
 	default Object getSubtypeData(ItemStack ingredient, UidContext context) {
 		return getSubtypeData(VanillaTypes.ITEM_STACK, ingredient, context);
 	}
@@ -30,6 +32,7 @@ public interface ISubtypeManager {
 	 *
 	 * @since 19.9.0
 	 */
+	@Nullable
 	<T> Object getSubtypeData(IIngredientTypeWithSubtypes<?, T> ingredientType, T ingredient, UidContext context);
 
 	/**
@@ -38,6 +41,7 @@ public interface ISubtypeManager {
 	 *
 	 * @since 19.19.4
 	 */
+	@Nullable
 	<B, T> Object getSubtypeData(IIngredientTypeWithSubtypes<B, T> ingredientType, ITypedIngredient<T> typedIngredient, UidContext context);
 
 	/**

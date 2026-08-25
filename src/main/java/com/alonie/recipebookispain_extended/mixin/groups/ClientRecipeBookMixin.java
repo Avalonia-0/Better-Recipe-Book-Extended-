@@ -74,6 +74,17 @@ public class ClientRecipeBookMixin {
         RecipeBookIsPain.applyNamespaceOverrides();
     }
 
+    // NOTE: the creative-group rebuild below must run on EVERY
+    // rebuildCollections.  Vanilla rebuildCollections always resets
+    // collectionsByTab to its own (RBIP-free) version first, so skipping
+    // this rebuild while the known set is unchanged would leave
+    // collectionsByTab without the mirrored creative-tab categories and every
+    // RBIP tab would be hidden on the next updateTabs.  The per-packet
+    // rebuild storm is handled upstream by
+    // ClientPacketListenerMixin.brbe$skipUnchangedRefresh (cancels
+    // refreshRecipeBook entirely while the known set is unchanged), so this
+    // rebuild only runs when the known set actually changed.
+
     @Inject(at = @At("TAIL"), method = "rebuildCollections")
     private void rbip$refreshCreativeGroups(CallbackInfo ci) {
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
@@ -155,8 +166,7 @@ public class ClientRecipeBookMixin {
     }
 
     @Unique
-    private static FurnaceVariant rbip$determineFurnaceVariant(RecipeBookCategory category) {
-        if (category == RecipeBookCategories.SMOKER_FOOD) return FurnaceVariant.SMOKER;
+    private static FurnaceVariant rbip$determineFurnaceVariant(RecipeBookCategory category) {        if (category == RecipeBookCategories.SMOKER_FOOD) return FurnaceVariant.SMOKER;
         if (category == RecipeBookCategories.BLAST_FURNACE_BLOCKS
                 || category == RecipeBookCategories.BLAST_FURNACE_MISC) return FurnaceVariant.BLAST_FURNACE;
         // Default: furnace (covers FURNACE_FOOD, FURNACE_BLOCKS, FURNACE_MISC, and unknown)

@@ -3,6 +3,7 @@ package com.alonie.brbe.mixins.localcache;
 import com.alonie.brbe.cache.RecipeViewerIndex;
 import com.alonie.brbe.cache.VanillaRecipeCache;
 import com.alonie.brbe.util.RecipeBookState;
+import com.alonie.brbe.util.RecipeCraftingIndex;
 import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
@@ -55,5 +56,9 @@ public abstract class ClientRecipeBookMixin {
                 "[BRBE-CACHE] rebuild RETURN — known={}", known.size());
         RecipeBookState.endCycle();
         RecipeViewerIndex.rebuildEngine();
+        // Collection objects were recreated: rebuild the incremental-canCraft
+        // index so the next inventory pass can skip unaffected collections.
+        ClientRecipeBook self = (ClientRecipeBook) (Object) this;
+        RecipeCraftingIndex.rebuild(self.getCollections());
     }
 }

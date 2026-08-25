@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.gui.widgets;
 
 import mezz.jei.api.gui.drawable.IDrawable;
@@ -11,6 +9,7 @@ import mezz.jei.api.gui.placement.IPlaceable;
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.network.chat.FormattedText;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.List;
 
@@ -29,6 +28,7 @@ import java.util.List;
  *
  * @since 19.6.0
  */
+@ApiStatus.NonExtendable
 public interface IRecipeExtrasBuilder {
 
 	/**

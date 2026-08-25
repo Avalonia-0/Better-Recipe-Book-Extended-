@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.gui.inputs;
 
 import com.mojang.blaze3d.platform.InputConstants;
@@ -8,12 +6,14 @@ import mezz.jei.api.runtime.IJeiKeyMappings;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.input.InputWithModifiers;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Represents a click or key press.
  *
  * @since 19.6.0
  */
+@ApiStatus.NonExtendable
 public interface IJeiUserInput {
 	/**
 	 * Vanilla information about a click or key press.

@@ -95,6 +95,8 @@ public final class AppContext {
 
         // Wire config save listener through the event bus
         configHolder.registerSaveListener((holder, cfg) -> {
+            com.alonie.brbe.BetterRecipeBook.LOGGER.info(
+                    "[BRBE] config save listener fired; unlockAll={}", cfg.newRecipes.unlockAll);
             this.config = cfg;
             events.publish(new ConfigEventBus.ConfigChanged(cfg));
             events.publish(new ConfigEventBus.PartialCraftingChanged(

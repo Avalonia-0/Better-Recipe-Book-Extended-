@@ -78,9 +78,22 @@ public final class VanillaRecipeCache {
             // Drop any locally-injected cache entries (negative IDs) so the
             // local complement cannot bypass the toggle.
             known.keySet().removeIf(id -> id.index() < 0);
+            lastServerFingerprint = Integer.MIN_VALUE;
             return;
         }
         if (cache.isEmpty()) return;
+        // Throttle: rebuildCollections fires repeatedly on item pickup /
+        // progression unlocks, and detectAndInject would re-run the full
+        // complement pass (server result scan + rebuilding every negative-id
+        // entry) on each call.  The negative-id cache entries only depend on
+        // the server-known set — when that set is unchanged, the cached
+        // entries are already correct, so skip the whole pass.
+        int serverFingerprint = serverKnownFingerprint(known);
+        if (serverFingerprint == lastServerFingerprint && !forceInject) {
+            return;
+        }
+        lastServerFingerprint = serverFingerprint;
+        forceInject = false;
         lastServerCount = (int) known.keySet().stream().filter(id -> id.index() >= 0).count();
         BetterRecipeBook.LOGGER.info("[BRBE-CACHE] pre-rebuild known count: {} (server: {})",
                 known.size(), lastServerCount);
@@ -91,6 +104,29 @@ public final class VanillaRecipeCache {
             Set<String> serverResultItems = collectServerResultItems(known);
             injectEntries(known, serverResultItems);
         }
+    }
+
+    /** Fingerprint of the server-known display ids (non-negative indices),
+     *  order-independent (negative-id cache entries are deleted and rebuilt on
+     *  each pass, which would otherwise churn the map iteration order and make
+     *  an insertion-order hash unstable). */
+    private static int serverKnownFingerprint(Map<RecipeDisplayId, RecipeDisplayEntry> known) {
+        int hash = 0;
+        for (RecipeDisplayId id : known.keySet()) {
+            if (id.index() >= 0) {
+                hash += id.index() * 31;
+            }
+        }
+        return hash;
+    }
+
+    private static int lastServerFingerprint = Integer.MIN_VALUE;
+    private static boolean forceInject;
+
+    /** Force the next detectAndInject to run even if the server-known set is
+     *  unchanged (used when cache contents or unlock state change). */
+    public static void forceNextInject() {
+        forceInject = true;
     }
 
     private static Set<String> collectServerResultItems(Map<RecipeDisplayId, RecipeDisplayEntry> known) {

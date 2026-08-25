@@ -1,9 +1,8 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe;
 
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import mezz.jei.api.recipe.types.IRecipeType;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collection;
 import java.util.stream.Stream;
@@ -15,6 +14,7 @@ import java.util.stream.Stream;
  *
  * @since 9.5.0
  */
+@ApiStatus.NonExtendable
 public interface IRecipeCategoriesLookup {
 	/**
 	 * Limit the results to only recipe categories for the given types.

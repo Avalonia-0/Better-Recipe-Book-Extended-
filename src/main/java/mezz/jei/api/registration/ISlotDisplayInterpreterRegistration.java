@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.registration;
 
 import mezz.jei.api.IModPlugin;
@@ -9,6 +7,7 @@ import mezz.jei.api.ingredients.ISlotDisplayInterpreter;
 import mezz.jei.api.ingredients.IUniversalSlotDisplayInterpreter;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Register slot display interpreters so JEI can correctly match and describe resolved ingredients.
@@ -21,6 +20,7 @@ import net.minecraft.world.item.crafting.display.SlotDisplay;
  *
  * @since 30.20.0
  */
+@ApiStatus.NonExtendable
 public interface ISlotDisplayInterpreterRegistration {
 	/**
 	 * Register an interpreter that applies to a slot display for every ingredient type.

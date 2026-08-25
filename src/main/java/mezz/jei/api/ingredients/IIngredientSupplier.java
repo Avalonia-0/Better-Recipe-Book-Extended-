@@ -1,9 +1,9 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.ingredients;
 
 import mezz.jei.api.recipe.IRecipeManager;
 import mezz.jei.api.recipe.RecipeIngredientRole;
+import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.List;
 
@@ -15,10 +15,12 @@ import java.util.List;
  *
  * @since 19.9.0
  */
+@ApiStatus.NonExtendable
 public interface IIngredientSupplier {
 	/**
 	 * Get all the ingredients for the given role.
 	 * @since 19.9.0
 	 */
+	@Unmodifiable
 	List<ITypedIngredient<?>> getIngredients(RecipeIngredientRole role);
 }

@@ -1,9 +1,10 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe.vanilla;
 
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
+import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.List;
 
@@ -14,12 +15,14 @@ import java.util.List;
  * Create your own with {@link IVanillaRecipeFactory#createGrindstoneRecipe}
  * @since 23.1.0
  */
+@ApiStatus.NonExtendable
 public interface IJeiGrindstoneRecipe {
 	/**
 	 * Get the inputs that go into the top slot of the Grindstone.
 	 *
 	 * @since 23.1.0
 	 */
+	@Unmodifiable
 	List<ItemStack> getTopInputs();
 
 	/**
@@ -27,6 +30,7 @@ public interface IJeiGrindstoneRecipe {
 	 *
 	 * @since 23.1.0
 	 */
+	@Unmodifiable
 	List<ItemStack> getBottomInputs();
 
 	/**
@@ -34,6 +38,7 @@ public interface IJeiGrindstoneRecipe {
 	 *
 	 * @since 23.1.0
 	 */
+	@Unmodifiable
 	List<ItemStack> getOutputs();
 
 	/**
@@ -55,6 +60,7 @@ public interface IJeiGrindstoneRecipe {
 	 *
 	 * @since 23.1.0
 	 */
+	@Nullable
 	Identifier getUid();
 
 	/**
@@ -62,5 +68,6 @@ public interface IJeiGrindstoneRecipe {
 	 *
 	 * @since 23.1.0
 	 */
+	@Unmodifiable
 	boolean isOutputRenderOnly();
 }

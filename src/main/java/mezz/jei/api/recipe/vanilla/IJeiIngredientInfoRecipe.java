@@ -1,10 +1,10 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe.vanilla;
 
 import mezz.jei.api.ingredients.ITypedIngredient;
 import mezz.jei.api.registration.IRecipeRegistration;
 import net.minecraft.network.chat.FormattedText;
+import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.List;
 
@@ -15,12 +15,14 @@ import java.util.List;
  *
  * @since 9.5.0
  */
+@ApiStatus.NonExtendable
 public interface IJeiIngredientInfoRecipe {
 	/**
 	 * The input ingredients for the recipe.
 	 *
 	 * @since 9.5.0
 	 */
+	@Unmodifiable
 	List<ITypedIngredient<?>> getIngredients();
 
 	/**
@@ -28,5 +30,6 @@ public interface IJeiIngredientInfoRecipe {
 	 *
 	 * @since 9.5.0
 	 */
+	@Unmodifiable
 	List<FormattedText> getDescription();
 }

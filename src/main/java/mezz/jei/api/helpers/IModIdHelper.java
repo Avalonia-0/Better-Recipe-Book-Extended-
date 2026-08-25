@@ -1,9 +1,8 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.helpers;
 
 import mezz.jei.api.ingredients.ITypedIngredient;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Optional;
 import java.util.Set;
@@ -12,6 +11,7 @@ import java.util.Set;
  * Helper class for getting mod names from their modIds.
  * Get an instance from {@link IJeiHelpers#getModIdHelper()}
  */
+@ApiStatus.NonExtendable
 public interface IModIdHelper {
 	/**
 	 * Get the mod name for its modId

@@ -1,9 +1,8 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.gui.buttons;
 
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.inputs.IJeiUserInput;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Mutable visual and interaction state for a button.
@@ -15,6 +14,7 @@ import mezz.jei.api.gui.inputs.IJeiUserInput;
  *
  * @since 27.2.0
  */
+@ApiStatus.NonExtendable
 public interface IButtonState {
 	/**
 	 * Sets the icon used to render the button.

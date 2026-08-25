@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.gui.builder;
 
 import com.mojang.datafixers.util.Either;
@@ -9,6 +7,7 @@ import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.FormattedText;
 import net.minecraft.world.inventory.tooltip.TooltipComponent;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collection;
 import java.util.List;
@@ -18,6 +17,7 @@ import java.util.List;
  *
  * @since 19.5.4
  */
+@ApiStatus.NonExtendable
 public interface ITooltipBuilder {
 	/**
 	 * Add a {@link FormattedText} line to this tooltip

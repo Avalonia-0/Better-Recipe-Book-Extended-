@@ -1,11 +1,10 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.gui.builder;
 
 import mezz.jei.api.gui.placement.IPlaceable;
 import mezz.jei.api.recipe.IFocusGroup;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.category.IRecipeCategory;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * A builder passed to plugins that implement
@@ -15,6 +14,7 @@ import mezz.jei.api.recipe.category.IRecipeCategory;
  *
  * @since 9.3.0
  */
+@ApiStatus.NonExtendable
 public interface IRecipeLayoutBuilder {
 	/**
 	 * Convenience function to add an input slot that will be drawn at the given position relative to the recipe layout.

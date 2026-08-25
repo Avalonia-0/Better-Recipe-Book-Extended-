@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.runtime;
 
 import com.mojang.serialization.Codec;
@@ -16,6 +14,9 @@ import mezz.jei.api.registration.IExtraIngredientRegistration;
 import mezz.jei.api.registration.IIngredientAliasRegistration;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.world.item.ItemStack;
+import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collection;
 import java.util.Optional;
@@ -25,6 +26,7 @@ import java.util.Optional;
  * An instance is passed to your plugin in {@link IModPlugin#registerRecipes} and it is accessible from
  * {@link IJeiHelpers#getIngredientManager()} and {@link IJeiRuntime#getIngredientManager()}.
  */
+@ApiStatus.NonExtendable
 public interface IIngredientManager {
 	/**
 	 * Returns an unmodifiable collection of all the ItemStacks known to JEI.
@@ -33,6 +35,7 @@ public interface IIngredientManager {
 	 *
 	 * @since 11.1.1
 	 */
+	@Unmodifiable
 	default Collection<ItemStack> getAllItemStacks() {
 		return getAllIngredients(VanillaTypes.ITEM_STACK);
 	}
@@ -40,6 +43,7 @@ public interface IIngredientManager {
 	/**
 	 * Returns an unmodifiable collection of all the ingredients known to JEI, of the specified type.
 	 */
+	@Unmodifiable
 	<V> Collection<V> getAllIngredients(IIngredientType<V> ingredientType);
 
 	/**
@@ -47,6 +51,7 @@ public interface IIngredientManager {
 	 *
 	 * @since 24.1.0
 	 */
+	@Unmodifiable
 	<V> Collection<ITypedIngredient<V>> getAllTypedIngredients(IIngredientType<V> ingredientType);
 
 	/**
@@ -80,6 +85,7 @@ public interface IIngredientManager {
 	 * Returns an unmodifiable collection of all registered ingredient types.
 	 * Without addons, there is {@link VanillaTypes#ITEM_STACK}.
 	 */
+	@Unmodifiable
 	Collection<IIngredientType<?>> getRegisteredIngredientTypes();
 
 	/**
@@ -111,6 +117,7 @@ public interface IIngredientManager {
 	 *
 	 * @since 19.19.5
 	 */
+	@Nullable
 	<V> IIngredientType<V> getIngredientType(V ingredient);
 
 	/**

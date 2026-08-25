@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.gui.builder;
 
 import mezz.jei.api.ingredients.IIngredientType;
@@ -12,6 +10,8 @@ import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.minecraft.world.level.ItemLike;
 import net.minecraft.world.level.material.Fluid;
+import org.jetbrains.annotations.ApiStatus;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +25,7 @@ import java.util.Optional;
  *
  * @since 9.3.0
  */
+@ApiStatus.NonExtendable
 public interface IIngredientAcceptor<THIS extends IIngredientAcceptor<THIS>> {
 	/**
 	 * Add a slot display that contains {@link ItemStack}s.
@@ -127,7 +128,7 @@ public interface IIngredientAcceptor<THIS extends IIngredientAcceptor<THIS>> {
 	 *
 	 * @since 9.3.0
 	 */
-	<I> THIS addIngredients(IIngredientType<I> ingredientType, List<I> ingredients);
+	<I> THIS addIngredients(IIngredientType<I> ingredientType, List<@Nullable I> ingredients);
 
 	/**
 	 * Add an ordered list of ingredients.

@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.registration;
 
 import mezz.jei.api.IModPlugin;
@@ -15,12 +13,14 @@ import mezz.jei.api.runtime.IRecipesGui;
 import mezz.jei.api.runtime.IScreenHelper;
 import mezz.jei.api.search.ISearchStorageBuilderFactory;
 import mezz.jei.api.search.ISearchStorageFactory;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Allows mods to override the runtime classes for JEI with their own implementation.
  *
  * @since 12.0.2
  */
+@ApiStatus.NonExtendable
 public interface IRuntimeRegistration {
 	/**
 	 * Set the ingredient list overlay.

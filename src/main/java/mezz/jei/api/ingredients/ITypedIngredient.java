@@ -1,10 +1,10 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.ingredients;
 
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.runtime.IIngredientManager;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.ApiStatus;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
 
@@ -16,6 +16,7 @@ import java.util.Optional;
  *
  * @since 9.3.0
  */
+@ApiStatus.NonExtendable
 public interface ITypedIngredient<T> {
 	/**
 	 * @return the type of this ingredient
@@ -63,6 +64,7 @@ public interface ITypedIngredient<T> {
 	 *
 	 * @since 19.19.5
 	 */
+	@Nullable
 	default <V> V getCastIngredient(IIngredientType<V> ingredientType) {
 		return ingredientType.getCastIngredient(getIngredient());
 	}
@@ -73,6 +75,7 @@ public interface ITypedIngredient<T> {
 	 *
 	 * @since 19.19.6
 	 */
+	@Nullable
 	default <V> ITypedIngredient<V> cast(IIngredientType<V> ingredientType) {
 		if (getType().equals(ingredientType)) {
 			@SuppressWarnings("unchecked")
@@ -88,6 +91,7 @@ public interface ITypedIngredient<T> {
 	 *
 	 * @since 21.2.0
 	 */
+	@Nullable
 	default ITypedIngredient<ItemStack> castToItemStackType() {
 		return cast(VanillaTypes.ITEM_STACK);
 	}

@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe.category;
 
 import com.mojang.serialization.Codec;
@@ -24,6 +22,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.RecipeHolder;
+import org.jspecify.annotations.Nullable;
 
 import java.util.List;
 
@@ -76,6 +75,7 @@ public interface IRecipeCategory<T> {
 	 *
 	 * @return icon to draw on the category tab, max size is 16x16 pixels.
 	 */
+	@Nullable
 	IDrawable getIcon();
 
 	/**
@@ -180,6 +180,7 @@ public interface IRecipeCategory<T> {
 	 * @return the registry identifier of the recipe, or null if there is none
 	 * @since 27.0.0
 	 */
+	@Nullable
 	default Identifier getIdentifier(T recipe) {
 		if (recipe instanceof RecipeHolder<?> recipeHolder) {
 			return recipeHolder.id().identifier();
@@ -201,6 +202,7 @@ public interface IRecipeCategory<T> {
 	 * @deprecated use {@link #getIdentifier(Object)}
 	 */
 	@Deprecated(since = "27.0.0", forRemoval = true)
+	@Nullable
 	default Identifier getRegistryName(T recipe) {
 		return getIdentifier(recipe);
 	}

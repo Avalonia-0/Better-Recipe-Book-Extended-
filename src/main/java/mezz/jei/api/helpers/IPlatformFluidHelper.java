@@ -1,17 +1,17 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.helpers;
 
 import mezz.jei.api.ingredients.IIngredientTypeWithSubtypes;
 import net.minecraft.core.Holder;
 import net.minecraft.core.component.DataComponentPatch;
 import net.minecraft.world.level.material.Fluid;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Helper for mods that want to handle Fluid ingredients across multiple mod loader platforms.
  * @param <T> the type of Fluid ingredient for the current platform.
  * @since 10.1.0
  */
+@ApiStatus.NonExtendable
 public interface IPlatformFluidHelper<T> {
 	/**
 	 * Returns the type of Fluid ingredients on the current platform.

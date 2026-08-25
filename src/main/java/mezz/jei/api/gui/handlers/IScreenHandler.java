@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.gui.handlers;
 
 import mezz.jei.api.gui.builder.IClickableIngredientFactory;
@@ -8,6 +6,7 @@ import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.runtime.IClickableIngredient;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
 import java.util.function.Function;
@@ -20,6 +19,7 @@ import java.util.function.Function;
 @FunctionalInterface
 public interface IScreenHandler<T extends Screen> extends Function<T, IGuiProperties> {
 	@Override
+	@Nullable
 	IGuiProperties apply(T guiScreen);
 
 	/**

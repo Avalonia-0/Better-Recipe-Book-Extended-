@@ -1,10 +1,9 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.ingredients;
 
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.helpers.ICodecHelper;
 import mezz.jei.api.registration.IModIngredientRegistration;
+import org.jspecify.annotations.Nullable;
 
 import java.util.Optional;
 
@@ -38,7 +37,7 @@ public interface IIngredientType<T> {
 	 *
 	 * @since 11.5.0
 	 */
-	default Optional<T> castIngredient(Object ingredient) {
+	default Optional<T> castIngredient(@Nullable Object ingredient) {
 		Class<? extends T> ingredientClass = getIngredientClass();
 		if (ingredientClass.isInstance(ingredient)) {
 			return Optional.of(ingredientClass.cast(ingredient));
@@ -51,7 +50,8 @@ public interface IIngredientType<T> {
 	 *
 	 * @since 19.19.5
 	 */
-	default T getCastIngredient(Object ingredient) {
+	@Nullable
+	default T getCastIngredient(@Nullable Object ingredient) {
 		Class<? extends T> ingredientClass = getIngredientClass();
 		if (ingredientClass.isInstance(ingredient)) {
 			return ingredientClass.cast(ingredient);

@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe.vanilla;
 
 import mezz.jei.api.recipe.advanced.IRecipeManagerPlugin;
@@ -7,6 +5,7 @@ import net.minecraft.data.recipes.ShapedRecipeBuilder;
 import net.minecraft.world.item.crafting.CraftingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Builds a serializable ShapedRecipe that isn't registered with the vanilla game.
@@ -14,6 +13,7 @@ import net.minecraft.world.item.crafting.display.SlotDisplay;
  *
  * @since 19.15.0
  */
+@ApiStatus.NonExtendable
 public interface IJeiShapedRecipeBuilder {
 
 	/**

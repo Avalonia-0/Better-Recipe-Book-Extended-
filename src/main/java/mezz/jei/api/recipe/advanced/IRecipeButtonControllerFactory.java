@@ -1,9 +1,8 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe.advanced;
 
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
 import mezz.jei.api.gui.buttons.IIconButtonController;
+import org.jspecify.annotations.Nullable;
 
 /**
  * Factory for creating {@link IIconButtonController} instances for recipe layouts.
@@ -37,5 +36,6 @@ public interface IRecipeButtonControllerFactory {
 	 *
 	 * @since 27.2.0
 	 */
+	@Nullable
 	<T> IIconButtonController createButtonController(IRecipeLayoutDrawable<T> recipeLayoutDrawable);
 }

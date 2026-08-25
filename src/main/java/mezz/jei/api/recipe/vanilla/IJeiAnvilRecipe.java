@@ -1,9 +1,10 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe.vanilla;
 
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
+import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.List;
 
@@ -13,12 +14,14 @@ import java.util.List;
  *
  * Create your own with {@link IVanillaRecipeFactory#createAnvilRecipe}
  */
+@ApiStatus.NonExtendable
 public interface IJeiAnvilRecipe {
 	/**
 	 * Get the inputs that go into the left slot of the Anvil.
 	 *
 	 * @since 9.5.0
 	 */
+	@Unmodifiable
 	List<ItemStack> getLeftInputs();
 
 	/**
@@ -26,6 +29,7 @@ public interface IJeiAnvilRecipe {
 	 *
 	 * @since 9.5.0
 	 */
+	@Unmodifiable
 	List<ItemStack> getRightInputs();
 
 	/**
@@ -33,11 +37,13 @@ public interface IJeiAnvilRecipe {
 	 *
 	 * @since 9.5.0
 	 */
+	@Unmodifiable
 	List<ItemStack> getOutputs();
 
 	/**
 	 * Unique ID for this recipe.
 	 * @since 19.1.0
 	 */
+	@Nullable
 	Identifier getUid();
 }

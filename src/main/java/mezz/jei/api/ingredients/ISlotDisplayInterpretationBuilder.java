@@ -1,10 +1,9 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.ingredients;
 
 import net.minecraft.network.chat.Component;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.List;
 
@@ -18,6 +17,7 @@ import java.util.List;
  *
  * @since 30.20.0
  */
+@ApiStatus.NonExtendable
 public interface ISlotDisplayInterpretationBuilder {
 	/**
 	 * Set the display wrapped by this display.

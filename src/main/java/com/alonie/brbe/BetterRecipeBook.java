@@ -11,6 +11,7 @@ import com.alonie.brbe.pin.TabPinManager;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.cache.VanillaRecipeCache;
+import com.alonie.brbe.cache.RecipeViewerIndex;
 import com.alonie.brbe.util.RecipeUnlockUtil;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.ConfigHolder;
@@ -30,6 +31,11 @@ public class BetterRecipeBook {
 
     public static BrbeConfig config;
     public static ConfigHolder<BrbeConfig> configHolder;
+
+    /** Last-seen unlockAll value, for change detection on config save (Cloth
+     *  mutates the config object in place, so old/new cannot be compared by
+     *  object identity). */
+    private static boolean lastUnlockAllValue = true;
 
     public static PinnedRecipeManager pinnedRecipeManager;
     public static InstantCraftingManager instantCraftingManager;
@@ -125,8 +131,15 @@ public class BetterRecipeBook {
             });
 
             // When any config field changes, update static reference + request UI refresh.
+            // NOTE: Cloth Config mutates the config object in place on save, so
+            // config and event.config() are the same object here — comparing
+            // them cannot detect a change.  Track the last-seen unlockAll value
+            // explicitly and diff against that.
             appContext.events().subscribe(ConfigEventBus.ConfigChanged.class, event -> {
-                boolean unlockChanged = config.newRecipes.unlockAll != event.config().newRecipes.unlockAll;
+                boolean unlockChanged = lastUnlockAllValue != event.config().newRecipes.unlockAll;
+                BetterRecipeBook.LOGGER.info("[BRBE] ConfigChanged: unlockChanged={} old={} new={}",
+                        unlockChanged, lastUnlockAllValue, event.config().newRecipes.unlockAll);
+                lastUnlockAllValue = event.config().newRecipes.unlockAll;
                 config = event.config();
                 appContext.events().requestConfigRefresh();
                 if (unlockChanged) {

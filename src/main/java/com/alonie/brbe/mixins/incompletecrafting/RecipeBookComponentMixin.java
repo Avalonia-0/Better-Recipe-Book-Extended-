@@ -61,6 +61,9 @@ public abstract class RecipeBookComponentMixin {
     @Shadow
     private List<net.minecraft.client.gui.screens.recipebook.RecipeBookComponent.TabInfo> tabInfos;
 
+    @Shadow @Final
+    private net.minecraft.world.entity.player.StackedItemContents stackedContents;
+
     @Unique
     private long brbe$lastSlotHash;
 
@@ -98,14 +101,13 @@ public abstract class RecipeBookComponentMixin {
     @Inject(method = "updateCollections", at = @At("HEAD"))
     private void brbe$trackPartialFilteringUpdate(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
         RecipeBookState.beginCollectionProcessing();
-        // When the player switches tabs or reopens the recipe book
-        // (resetPageNumber=true), the collections list contains entirely new
-        // RecipeCollection objects that have never been through
-        // markPartialMaterials.  Reset the slot hash so the removeIf gate
-        // below doesn't skip partial evaluation for these new collections.
-        if (resetPageNumber) {
-            this.brbe$lastSlotHash = 0;
-        }
+        // NOTE: do NOT reset brbe$lastSlotHash when resetPageNumber is true.
+        // That forced every open/tab-switch into the full markPartialMaterials
+        // pass even when the inventory was unchanged — the "recipe book gets
+        // slower with more recipes" bottleneck.  New RecipeCollection objects
+        // (after a rebuildCollections) are detected instead by the
+        // hasUncheckedCollections scan in the removeIf gate below, which
+        // forces a full pass only when genuinely-unchecked collections exist.
         boolean retainIncompatible = BetterRecipeBook.config.showAllRecipesInSurvival
                 && !isFiltering
                 && this.minecraft != null
@@ -360,6 +362,20 @@ public abstract class RecipeBookComponentMixin {
         if (!RecipeStateDiagnostic.enabled()) return;
         com.alonie.brbe.util.RecipeStateDiagnostic.run(brbe$lastProcessedCollections,
                 PartialCraftingUtil.searchSpaceSlots(), this.menu.getCarried());
+    }
+
+    /**
+     * 增量 canCraft diff：每次配方书刷新（打开/物品栏变化）前对比库存变化，
+     * 让 RecipeCollection.selectRecipes 跳过不受影响的集合。
+     *
+     * <p>selectMatchingRecipes 在 updateStackedContents/initVisuals 内部于
+     * fill 之后调用，此时 stackedContents.amounts 已是最新——这里是 diff 的
+     * 正确时机（必须先于第一个 selectRecipes）。
+     */
+    @Inject(method = "selectMatchingRecipes", at = @At("HEAD"))
+    private void brbe$beginCraftingIndexPass(CallbackInfo ci) {
+        int gridSig = this.menu.getRecipeBookType().ordinal();
+        com.alonie.brbe.util.RecipeCraftingIndex.beginPass(this.stackedContents, gridSig);
     }
 
     /**

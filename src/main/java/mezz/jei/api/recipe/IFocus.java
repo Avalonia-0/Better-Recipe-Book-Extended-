@@ -1,9 +1,8 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe;
 
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.ingredients.ITypedIngredient;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Optional;
 
@@ -16,6 +15,7 @@ import java.util.Optional;
  *
  * Use a null IFocus to signify no focus, like in the case of looking up categories of recipes.
  */
+@ApiStatus.NonExtendable
 public interface IFocus<V> {
 	/**
 	 * The ingredient that is being focused on.

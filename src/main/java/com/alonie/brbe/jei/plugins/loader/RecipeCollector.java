@@ -8,6 +8,7 @@ import mezz.jei.api.recipe.vanilla.IVanillaRecipeFactory;
 import mezz.jei.api.registration.IRecipeRegistration;
 import mezz.jei.api.runtime.IIngredientManager;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.context.ContextMap;
 
 import java.util.ArrayList;
@@ -49,7 +50,41 @@ public final class RecipeCollector implements IRecipeRegistration {
     @Override
     public <T> void addRecipes(IRecipeType<T> recipeType, List<T> recipes) {
         if (recipeType == null || recipes == null) return;
-        this.recipes.computeIfAbsent(recipeType, k -> new ArrayList<>()).addAll(recipes);
+        List<Object> bucket = this.recipes.computeIfAbsent(recipeType, k -> new ArrayList<>());
+        bucket.addAll(recipes);
+        // Some mods only populate their JEI recipe source when the real JEI is
+        // installed (they gate it on FabricLoader.isModLoaded("jei")), or their
+        // server-synced recipe source is not ready at collection time, so their
+        // registerRecipes hands us an empty list even though the recipes ARE
+        // server-synced.  Fall back to the server-synced recipe registries
+        // (fabric SynchronizedRecipes, plus the client RecipeManager which
+        // covers wover/bclib-style syncs), matching the recipe type's registry
+        // key against this JEI type's uid (namespace or full path).
+        if (recipes.isEmpty()) {
+            Identifier typeUid = recipeType.getUid();
+            java.util.List<net.minecraft.world.item.crafting.RecipeHolder<?>> all = new ArrayList<>();
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.getConnection() != null && mc.getConnection().recipes() instanceof net.fabricmc.fabric.api.recipe.v1.FabricRecipeAccess fabricAccess) {
+                java.util.Collection<? extends net.minecraft.world.item.crafting.RecipeHolder<?>> synced =
+                        fabricAccess.getSynchronizedRecipes().recipes();
+                if (synced != null) all.addAll(synced);
+            }
+            for (net.minecraft.world.item.crafting.RecipeHolder<?> holder : all) {
+                try {
+                    if (holder == null || holder.value() == null) continue;
+                    Identifier typeKey =
+                            net.minecraft.core.registries.BuiltInRegistries.RECIPE_TYPE.getKey(holder.value().getType());
+                    if (typeKey == null) continue;
+                    if (typeKey.equals(typeUid)
+                            || (typeKey.getNamespace().equals(typeUid.getNamespace())
+                                && typeKey.getPath().equals(typeUid.getPath()))) {
+                        bucket.add(holder);
+                    }
+                } catch (Exception | LinkageError ignored) {
+                    // one unmatched holder must not break the fallback
+                }
+            }
+        }
     }
 
     @Override

@@ -92,6 +92,7 @@ public final class RecipeViewerCategories {
     public static RecipeViewerCategory defaultFor(ItemStack target, boolean usage,
                                                   AbstractContainerMenu menu) {
         if (usage) {
+            RecipeViewerCategory firstMatch = null;
             for (RecipeViewerCategory category : all()) {
                 if (!category.appliesToStation(target)) continue;
                 // The "hide objects of workstations without a recipe book"
@@ -104,7 +105,22 @@ public final class RecipeViewerCategories {
                         && !RecipeViewerEngine.isRecipeBookStation(target)) {
                     continue;
                 }
-                return category;
+                // A workstation may serve several categories (e.g. BetterEnd's
+                // end stone smelter is registered both as a minecraft:blasting
+                // catalyst and as a bclib:alloying crafting station).  Prefer
+                // the first match that actually has content, falling back to
+                // the first match when none does — otherwise the query lands on
+                // an empty vanilla type (unlock-all off) instead of the mod
+                // type's recipes.
+                if (category.hasContent(target, true)) {
+                    return category;
+                }
+                if (firstMatch == null) {
+                    firstMatch = category;
+                }
+            }
+            if (firstMatch != null) {
+                return firstMatch;
             }
         }
         RecipeViewerCategory best = null;

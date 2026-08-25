@@ -1,9 +1,8 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe.category.extensions.vanilla.crafting;
 
 import mezz.jei.api.registration.IVanillaCategoryExtensionRegistration;
 import net.minecraft.world.item.crafting.CraftingRecipe;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Allows extending the vanilla crafting recipe category,
@@ -13,6 +12,7 @@ import net.minecraft.world.item.crafting.CraftingRecipe;
  *
  * @since 16.0.0
  */
+@ApiStatus.NonExtendable
 public interface IExtendableCraftingRecipeCategory {
 	/**
 	 * Add an extension that handles a subset of the recipes in the recipe category.

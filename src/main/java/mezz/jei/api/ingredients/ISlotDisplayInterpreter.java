@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.ingredients;
 
 import mezz.jei.api.IModPlugin;
@@ -8,6 +6,8 @@ import mezz.jei.api.registration.ISlotDisplayInterpreterRegistration;
 import mezz.jei.api.runtime.IIngredientManager;
 import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
+import org.jetbrains.annotations.ApiStatus;
+import org.jetbrains.annotations.Unmodifiable;
 
 import java.util.List;
 import java.util.stream.Stream;
@@ -56,6 +56,7 @@ public interface ISlotDisplayInterpreter<D extends SlotDisplay, T> {
 	 *
 	 * @since 30.20.0
 	 */
+	@ApiStatus.NonExtendable
 	interface IContext<T> {
 		/**
 		 * Returns all ingredients of this type produced by the display.
@@ -64,6 +65,7 @@ public interface ISlotDisplayInterpreter<D extends SlotDisplay, T> {
 		 *
 		 * @since 30.20.0
 		 */
+		@Unmodifiable
 		List<ITypedIngredient<T>> getIngredients();
 
 		/**

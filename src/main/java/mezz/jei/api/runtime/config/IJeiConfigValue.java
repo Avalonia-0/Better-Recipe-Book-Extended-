@@ -1,8 +1,7 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.runtime.config;
 
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Represents config value used by JEI.
@@ -14,6 +13,7 @@ import net.minecraft.network.chat.Component;
  *
  * @since 12.1.0
  */
+@ApiStatus.NonExtendable
 public interface IJeiConfigValue<T> {
 	/**
 	 * Get the name of this config value.

@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.registration;
 
 import mezz.jei.api.constants.VanillaTypes;
@@ -9,6 +7,7 @@ import net.minecraft.core.component.DataComponentType;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Tell JEI how to interpret Components and capabilities when comparing and looking up ingredients.
@@ -16,6 +15,7 @@ import net.minecraft.world.item.Items;
  * If your ingredient has subtypes that depend on Components or capabilities,
  * use this so JEI can tell those subtypes apart.
  */
+@ApiStatus.NonExtendable
 public interface ISubtypeRegistration {
 
 	/**

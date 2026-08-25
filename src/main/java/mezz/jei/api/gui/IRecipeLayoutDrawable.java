@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.gui;
 
 import mezz.jei.api.constants.VanillaTypes;
@@ -13,6 +11,7 @@ import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.world.item.ItemStack;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Optional;
 
@@ -23,6 +22,7 @@ import java.util.Optional;
  *
  * @since 3.13.2
  */
+@ApiStatus.NonExtendable
 public interface IRecipeLayoutDrawable<R> {
 	/**
 	 * Set the position of the recipe layout in screen coordinates.

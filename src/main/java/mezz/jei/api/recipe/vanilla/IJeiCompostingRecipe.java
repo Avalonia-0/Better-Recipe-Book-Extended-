@@ -1,12 +1,13 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.recipe.vanilla;
 
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.ComposterBlock;
+import org.jetbrains.annotations.Unmodifiable;
 
+import javax.annotation.Nonnegative;
 import java.util.List;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Recipes representing ingredients that can be composted in the composter.
@@ -15,11 +16,13 @@ import java.util.List;
  *
  * @since 9.5.0
  */
+@ApiStatus.NonExtendable
 public interface IJeiCompostingRecipe {
 	/**
 	 * Get the inputs to this recipe.
 	 * @since 9.5.0
 	 */
+	@Unmodifiable
 	List<ItemStack> getInputs();
 
 	/**
@@ -27,6 +30,7 @@ public interface IJeiCompostingRecipe {
 	 *
 	 * @since 9.5.0
 	 */
+	@Nonnegative
 	float getChance();
 
 	/**

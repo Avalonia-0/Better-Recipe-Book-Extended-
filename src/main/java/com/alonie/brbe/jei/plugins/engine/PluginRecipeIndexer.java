@@ -102,8 +102,13 @@ public final class PluginRecipeIndexer {
             String uid = recipeType.getUid().toString();
             List<ItemStack> stations = stationsFor(recipeType.getUid(), catalysts);
             RecipeViewerEngine.RecipeBackground background = backgrounds.get(category);
-            BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] type {} background={}",
-                    uid, background == null ? "none" : background.texture());
+            BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] type {} background={} ({} recipes, {} stations {})",
+                    uid, background == null ? "none" : background.texture(),
+                    entry.getValue() == null ? 0 : entry.getValue().size(),
+                    stations.size(),
+                    stations.isEmpty() ? "" : stations.stream()
+                            .map(s -> net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(s.getItem()).toString())
+                            .collect(java.util.stream.Collectors.joining(",")));
 
             List<RecipeViewerEngine.IndexedRecipe> indexed = new ArrayList<>();
             // Distinct (inputs, products) pairs within this type: modpacks can
@@ -244,14 +249,18 @@ public final class PluginRecipeIndexer {
                     uid, e.getValue().size());
         }
 
-        // Rebuild the recipe-book-backed workstation set: the vanilla types
-        // (including external registrations, e.g. BetterEnd's end stone smelter
-        // under minecraft:blasting) plus every recipe-book-driven mod type's
-        // stations.  The "hide objects of workstations without a recipe book"
-        // filter consults this set.
+        // Rebuild the recipe-book-backed workstation set: the vanilla types'
+        // OWN stations (minecraft-namespace blocks only, via
+        // vanillaWorkstationItems) plus every recipe-book-driven mod type's
+        // stations.  A mod block registered under a vanilla type (e.g.
+        // BetterEnd's end stone smelter under minecraft:blasting) is NOT a
+        // recipe-book workstation — it has no recipe book of its own — so it
+        // must not enter the set, or the "hide objects of workstations without
+        // a recipe book" filter would keep its objects.
         List<ItemStack> bookStations = new ArrayList<>(RecipeViewerIndex.vanillaWorkstationItems());
         for (Map.Entry<Identifier, Set<Identifier>> c : catalysts.entrySet()) {
             String uid = c.getKey().toString();
+            if (RecipeViewerEngine.isVanillaType(uid)) continue;
             if (!RecipeViewerEngine.isRecipeBookType(uid) || c.getValue() == null) continue;
             for (Identifier itemId : c.getValue()) {
                 BuiltInRegistries.ITEM.getOptional(itemId).ifPresent(item -> bookStations.add(new ItemStack(item)));

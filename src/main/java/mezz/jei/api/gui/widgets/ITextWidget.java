@@ -1,11 +1,10 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.gui.widgets;
 
 import mezz.jei.api.gui.placement.HorizontalAlignment;
 import mezz.jei.api.gui.placement.IPlaceable;
 import mezz.jei.api.gui.placement.VerticalAlignment;
 import net.minecraft.client.gui.Font;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * An interface to allow configuration of a text widget.
@@ -17,6 +16,7 @@ import net.minecraft.client.gui.Font;
  *
  * @since 19.19.0
  */
+@ApiStatus.NonExtendable
 public interface ITextWidget extends IPlaceable<ITextWidget> {
 	/**
 	 * Set the font used by this text widget when drawing text.

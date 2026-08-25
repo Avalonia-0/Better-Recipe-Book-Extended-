@@ -1,16 +1,17 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.helpers;
 
 import mezz.jei.api.ingredients.ITypedIngredient;
 import mezz.jei.api.ingredients.subtypes.ISubtypeManager;
 import mezz.jei.api.ingredients.subtypes.UidContext;
 import net.minecraft.world.item.ItemStack;
+import org.jspecify.annotations.Nullable;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Helps get ItemStacks from common formats used in recipes.
  * Get the instance from {@link IJeiHelpers#getStackHelper()}.
  */
+@ApiStatus.NonExtendable
 public interface IStackHelper {
 	/**
 	 * Gets the unique identifier for a stack, ignoring NBT on items without subtypes, and uses the {@link ISubtypeManager}.
@@ -32,5 +33,5 @@ public interface IStackHelper {
 	 * Similar to ItemStack.areItemStacksEqual but ignores NBT on items without subtypes, and uses the {@link ISubtypeManager}
 	 * @since 7.3.0
 	 */
-	boolean isEquivalent(ItemStack lhs, ItemStack rhs, UidContext context);
+	boolean isEquivalent(@Nullable ItemStack lhs, @Nullable ItemStack rhs, UidContext context);
 }

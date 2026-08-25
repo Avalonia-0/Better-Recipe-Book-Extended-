@@ -1,9 +1,8 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.runtime;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * A key mapping used by JEI.
@@ -13,6 +12,7 @@ import net.minecraft.network.chat.Component;
  *
  * @since 11.0.1
  */
+@ApiStatus.NonExtendable
 public interface IJeiKeyMapping {
 	/**
 	 * Returns true if the key mapping matches the key,

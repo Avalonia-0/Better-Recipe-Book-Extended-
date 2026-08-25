@@ -1,9 +1,8 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.runtime;
 
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.gui.handlers.IGuiContainerHandler;
+import org.jetbrains.annotations.ApiStatus;
 
 /**
  * Provides access for mod plugins to disable various JEI features.
@@ -13,6 +12,7 @@ import mezz.jei.api.gui.handlers.IGuiContainerHandler;
  *
  * @since 17.3.0
  */
+@ApiStatus.NonExtendable
 public interface IJeiFeatures {
 	/**
 	 * Disable JEI's built-in GUI.

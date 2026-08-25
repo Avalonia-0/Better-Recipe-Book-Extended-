@@ -1,6 +1,7 @@
 package com.alonie.brbe.compat;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 
 /**
@@ -41,4 +42,18 @@ public interface SyntheticRecipeRenderer {
      *         item rendering); false to fall back to the caller's static rendering.
      */
     boolean render(RecipeDisplayId id, GuiGraphicsExtractor gui, int x, int y, int w, int h);
+
+    /**
+     * The item this renderer is <b>currently painting</b> at the content point
+     * under the cursor, or EMPTY when the cursor is not over an item slot.
+     * The content point is the cursor transformed by the same content
+     * origin/scale {@code (ox, oy, fit)} that {@link #render} was given, so
+     * the tooltip reflects exactly the variant that was just painted — the
+     * popup's slot cycling is driven by the renderer's own timer, not by
+     * BRBE's {@code SlotSelectTime}.  Default: EMPTY (no live drawable).
+     */
+    default ItemStack itemUnderMouse(RecipeDisplayId id, double contentX, double contentY,
+                                     float ox, float oy, float fit) {
+        return ItemStack.EMPTY;
+    }
 }

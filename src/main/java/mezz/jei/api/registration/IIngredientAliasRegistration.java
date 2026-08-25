@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.registration;
 
 import mezz.jei.api.constants.VanillaTypes;
@@ -9,6 +7,7 @@ import mezz.jei.api.ingredients.ITypedIngredient;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.material.Fluid;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.Collection;
 
@@ -18,6 +17,7 @@ import java.util.Collection;
  *
  * @since 19.10.0
  */
+@ApiStatus.NonExtendable
 public interface IIngredientAliasRegistration {
 	/**
 	 * Register a search alias for an ingredient.

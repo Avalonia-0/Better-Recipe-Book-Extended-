@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.common.gui.elements;
 
 import mezz.jei.api.gui.drawable.IDrawableStatic;
@@ -7,11 +5,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.resources.Identifier;
 
-/**
- * A static drawable backed by a region of a gui texture.  Draws the region
- * {@code (u,v,width,height)} from a {@code textureWidth x textureHeight} atlas,
- * with optional padding and animation masks.
- */
 public class DrawableResource implements IDrawableStatic {
 
 	private final Identifier id;

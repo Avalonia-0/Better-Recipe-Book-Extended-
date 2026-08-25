@@ -1,5 +1,3 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.gui.ingredient;
 
 import mezz.jei.api.gui.builder.IIngredientAcceptor;
@@ -11,6 +9,7 @@ import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.network.chat.Component;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.util.List;
 
@@ -24,6 +23,7 @@ import java.util.List;
  *
  * @since 11.5.0
  */
+@ApiStatus.NonExtendable
 public interface IRecipeSlotDrawable extends IRecipeSlotView {
 	/**
 	 * Draws the recipe slot relative to the pose stack.

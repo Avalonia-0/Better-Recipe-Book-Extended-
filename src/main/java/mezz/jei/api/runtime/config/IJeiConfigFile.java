@@ -1,7 +1,7 @@
-// Forked from JustEnoughItems (https://github.com/mezz/JustEnoughItems), MIT License.
-// Copyright (c) 2014-2015 mezz. See jei-plugins/LICENSE.txt for the full license text.
 package mezz.jei.api.runtime.config;
 
+import org.jetbrains.annotations.Unmodifiable;
+import org.jetbrains.annotations.ApiStatus;
 
 import java.nio.file.Path;
 import java.util.List;
@@ -14,6 +14,7 @@ import java.util.List;
  *
  * @since 12.1.0
  */
+@ApiStatus.NonExtendable
 public interface IJeiConfigFile {
 	/**
 	 * Get the path of this config file.
@@ -33,5 +34,6 @@ public interface IJeiConfigFile {
 	 *
 	 * @since 12.1.0
 	 */
+	@Unmodifiable
 	List<? extends IJeiConfigCategory> getCategories();
 }

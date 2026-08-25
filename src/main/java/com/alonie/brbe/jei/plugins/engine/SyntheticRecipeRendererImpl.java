@@ -5,6 +5,7 @@ import com.alonie.brbe.compat.SyntheticRecipeRenderer;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.render.PopupGeometry;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
+import net.minecraft.world.item.ItemStack;
 import mezz.jei.api.recipe.IRecipeManager;
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.Minecraft;
@@ -136,6 +137,29 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
 
         gui.pose().popMatrix();
         return true;
+    }
+
+    @Override
+    public ItemStack itemUnderMouse(RecipeDisplayId id, double contentX, double contentY,
+                                    float ox, float oy, float fit) {
+        // The live drawable knows which slot variant it painted last (its own
+        // CycleTimer-driven cycling), so the tooltip matches the rendered item
+        // exactly instead of BRBE's independent SlotSelectTime.
+        IRecipeLayoutDrawable<?> drawable = LAYOUT_CACHE.get(id);
+        if (drawable == null || fit <= 0) {
+            return ItemStack.EMPTY;
+        }
+        try {
+            // contentX/contentY are in content coordinates (cursor transformed
+            // by the same ox/oy/fit the renderer drew at); JEI's slot lookup
+            // works in its own local layout coordinates, so map back.
+            double localX = (contentX - ox) / fit;
+            double localY = (contentY - oy) / fit;
+            return drawable.getItemStackUnderMouse((int) Math.floor(localX), (int) Math.floor(localY))
+                    .orElse(ItemStack.EMPTY);
+        } catch (Exception | LinkageError e) {
+            return ItemStack.EMPTY;
+        }
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
