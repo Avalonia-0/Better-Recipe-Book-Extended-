@@ -1,35 +1,3 @@
 accessWidener	v1      named
 
 accessible	class	net/minecraft/world/item/alchemy/PotionBrewing$Mix
-
-# --- headless JEI embedded runtime (official JEI 1.21.1 platform entries) ---
-accessible	field	net/minecraft/client/gui/screens/inventory/AbstractContainerScreen hoveredSlot Lnet/minecraft/world/inventory/Slot;
-accessible	field	net/minecraft/client/gui/screens/inventory/AbstractContainerScreen leftPos I
-accessible	field	net/minecraft/client/gui/screens/inventory/AbstractContainerScreen topPos I
-accessible	field	net/minecraft/client/gui/screens/inventory/AbstractContainerScreen imageWidth I
-accessible	field	net/minecraft/client/gui/screens/inventory/AbstractContainerScreen imageHeight I
-accessible	field	net/minecraft/client/Minecraft itemColors Lnet/minecraft/client/color/item/ItemColors;
-accessible	field	net/minecraft/client/gui/screens/recipebook/RecipeBookComponent width I
-accessible	field	net/minecraft/client/gui/screens/recipebook/RecipeBookComponent height I
-accessible	field	net/minecraft/client/gui/screens/recipebook/RecipeBookComponent xOffset I
-accessible	field	net/minecraft/client/gui/screens/recipebook/RecipeBookComponent tabButtons Ljava/util/List;
-accessible	field	net/minecraft/client/renderer/texture/SpriteContents byMipLevel [Lcom/mojang/blaze3d/platform/NativeImage;
-accessible	field	net/minecraft/server/MinecraftServer storageSource Lnet/minecraft/world/level/storage/LevelStorageSource$LevelStorageAccess;
-accessible	field	net/minecraft/world/item/crafting/SmithingTransformRecipe base Lnet/minecraft/world/item/crafting/Ingredient;
-accessible	field	net/minecraft/world/item/crafting/SmithingTransformRecipe addition Lnet/minecraft/world/item/crafting/Ingredient;
-accessible	field	net/minecraft/world/item/crafting/SmithingTransformRecipe template Lnet/minecraft/world/item/crafting/Ingredient;
-accessible	field	net/minecraft/world/item/crafting/SmithingTrimRecipe base Lnet/minecraft/world/item/crafting/Ingredient;
-accessible	field	net/minecraft/world/item/crafting/SmithingTrimRecipe addition Lnet/minecraft/world/item/crafting/Ingredient;
-accessible	field	net/minecraft/world/item/crafting/SmithingTrimRecipe template Lnet/minecraft/world/item/crafting/Ingredient;
-accessible	field	net/minecraft/world/item/alchemy/PotionBrewing containers Ljava/util/List;
-accessible	field	net/minecraft/world/item/alchemy/PotionBrewing potionMixes Ljava/util/List;
-accessible	field	net/minecraft/world/item/alchemy/PotionBrewing containerMixes Ljava/util/List;
-accessible	method	net/minecraft/world/item/alchemy/PotionBrewing$Mix ingredient ()Lnet/minecraft/world/item/crafting/Ingredient;
-accessible	method	net/minecraft/world/inventory/GrindstoneMenu computeResult (Lnet/minecraft/world/item/ItemStack;Lnet/minecraft/world/item/ItemStack;)Lnet/minecraft/world/item/ItemStack;
-accessible	field	net/minecraft/client/gui/GuiGraphics bufferSource Lnet/minecraft/client/renderer/MultiBufferSource$BufferSource;
-accessible	method	net/minecraft/client/gui/GuiGraphics blitSprite (Lnet/minecraft/client/renderer/texture/TextureAtlasSprite;IIIIIIIII)V
-accessible	method	net/minecraft/client/gui/GuiGraphics blitNineSlicedSprite (Lnet/minecraft/client/renderer/texture/TextureAtlasSprite;Lnet/minecraft/client/resources/metadata/gui/GuiSpriteScaling$NineSlice;IIIII)V
-accessible	method	net/minecraft/client/gui/GuiGraphics renderTooltipInternal (Lnet/minecraft/client/gui/Font;Ljava/util/List;IILnet/minecraft/client/gui/screens/inventory/tooltip/ClientTooltipPositioner;)V
-accessible	field	net/minecraft/client/gui/components/toasts/ToastComponent visible Ljava/util/List;
-accessible	class	net/minecraft/client/gui/components/toasts/ToastComponent$ToastInstance
-accessible	field	net/minecraft/client/gui/components/EditBox canLoseFocus Z

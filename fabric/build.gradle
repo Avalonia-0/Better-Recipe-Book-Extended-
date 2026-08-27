@@ -40,6 +40,10 @@ dependencies {
     }
 
     common(project(path: ":common", configuration: "namedElements")) { transitive false }
+
+    // 无头 JEI 独立化后：mezz.jei.api 编译参考 = 真实 JEI jar（BRBE 兼容插件仅用 API；
+    // 运行时真实 JEI / headless-jei mod 提供 API 类，类加载遮蔽不变）
+    modCompileOnly files(rootProject.file("libs/jei-1.21.1-fabric-19.27.0.340.jar"))
 }
 
 // Include common module (classes + resources)

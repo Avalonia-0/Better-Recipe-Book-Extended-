@@ -9,8 +9,6 @@ import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.compat.emi.EmiCompat;
 import com.alonie.brbe.compat.rei.ReiCompat;
-import com.alonie.brbe.jei.plugins.BrbeJeiHeadlessCore;
-import com.alonie.brbe.jei.plugins.BrbeJeiPlugins;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.neoforge.NeoForgePlatform;
@@ -72,42 +70,18 @@ public class BetterRecipeBookClientNeoForge {
         NeoForge.EVENT_BUS.addListener(LevelEvent.Unload.class, event -> {
             if (event.getLevel().isClientSide()) {
                 PotionLoader.clear();
-                BrbeJeiHeadlessCore.stop();
             }
         });
 
-        // JEI GUI 图集（assets/jei 内嵌）：注册为客户端资源重载监听器，
-        // 让弹窗渲染完整 JEI 界面（等价官方 RegisterClientReloadListenersEvent 接线）。
-        modEventBus.addListener(net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent.class, event -> {
-            try {
-                mezz.jei.common.gui.textures.JeiGuiSpriteManager spriteManager =
-                        mezz.jei.common.Internal.getTextures().getGuiSpriteManager();
-                event.registerReloadListener(spriteManager);
-            } catch (Exception | LinkageError e) {
-                BetterRecipeBook.LOGGER.debug("[BRBE-JEI-Plugins] JEI gui sprite manager skipped: {}", e.toString());
-            }
-        });
-
-        // 无头 JEI：真实 JEI 缺席时启动内嵌核心 + 收集 mod 插件数据。
-        // 21.1.21 无 ClientLifecycleEvent——用 RecipesUpdatedEvent（配方同步，
-        // 官方 JEI 1.21.1 同源）+ LevelEvent.Load 兜底；GameShuttingDownEvent 收尾。
-        NeoForge.EVENT_BUS.addListener(net.neoforged.neoforge.client.event.RecipesUpdatedEvent.class, event -> {
-            java.util.List<net.minecraft.world.item.crafting.RecipeHolder<?>> recipes =
-                    java.util.List.copyOf(event.getRecipeManager().getRecipes());
-            if (!recipes.isEmpty()) {
-                mezz.jei.common.Internal.setClientSyncedRecipes(recipes);
-            }
-            BrbeJeiHeadlessCore.start();
-            BrbeJeiPlugins.collectAndInject();
-        });
+        // 无头 JEI 桥：headless-jei 独立 mod 负责采集与运行时；BRBE 这里只把
+        // 其 JeiRecipeRegistry 条目索引进查询引擎（absent 时静默跳过）。
         NeoForge.EVENT_BUS.addListener(LevelEvent.Load.class, event -> {
             if (event.getLevel().isClientSide() && event.getLevel() instanceof ClientLevel) {
-                BrbeJeiHeadlessCore.start();
-                BrbeJeiPlugins.collectAndInject();
+                com.alonie.brbe.cache.BrbeJeiBridge.refresh();
             }
         });
-        NeoForge.EVENT_BUS.addListener(net.neoforged.neoforge.event.GameShuttingDownEvent.class,
-                event -> BrbeJeiHeadlessCore.onClientStopping());
+        NeoForge.EVENT_BUS.addListener(net.neoforged.neoforge.client.event.RecipesUpdatedEvent.class,
+                event -> com.alonie.brbe.cache.BrbeJeiBridge.refresh());
 
         // Register HUD hiders (JEI + REI overlay control)
         OverlayHider.register(new JeiHudHider());

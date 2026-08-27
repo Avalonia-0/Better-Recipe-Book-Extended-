@@ -1,23 +1,15 @@
 package com.alonie.brbe.render;
 
-import com.alonie.brbe.jei.plugins.engine.JeiRuntimeBridge;
-import com.alonie.brbe.jei.plugins.engine.PluginRecipeIndexer;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
-import mezz.jei.api.gui.IRecipeLayoutDrawable;
-import mezz.jei.api.recipe.IRecipeManager;
-import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
-import net.minecraft.client.renderer.Rect2i;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -35,16 +27,9 @@ public final class PopupRenderer {
     public static final int POPUP_W = 60;
     public static final int POPUP_H = 60;
 
-    /** JEI 布局缓存：typeUid → (配方对象 → drawable)，每个配方一个。
-     *  tick 持续推进（火焰/循环动画），索引重建时整体失效。 */
-    private static final Map<ResourceLocation, Map<Object, IRecipeLayoutDrawable<?>>> JEI_CACHE =
-            new java.util.WeakHashMap<>();
-    private static long lastJeiTick = -1;
-
-    /** 清空 JEI 布局缓存（索引重建时调用）。 */
+    /** 清空 JEI 布局缓存（索引重建时调用；独立项目渲染器在
+     *  {@link #renderJeiPopup} 时自动 Re-JEINIT——此钩子保留为 no-op）。 */
     public static void invalidateJeiCache() {
-        JEI_CACHE.clear();
-        lastJeiTick = -1;
     }
 
     private PopupRenderer() {}
@@ -162,71 +147,29 @@ public final class PopupRenderer {
 
     // -- JEI delegated popup -----------------------------------------------------
 
-    /** Render a JEI-backed entry's full JEI UI (category background, slot
-     *  backgrounds, drawables, animations) scaled to fit the popup area.
-     *  Returns the popup's top-left origin, or null when the JEI runtime or
-     *  the entry's category is unavailable (caller falls back to info-only).
-     *  The cached drawable's {@code tick()} advances at a 20 Hz tick rate so
-     *  JEI's per-tick variant cycling and animations keep moving. */
-    @SuppressWarnings({"unchecked", "rawtypes"})
+    /** Render a JEI-backed entry's full JEI UI (delegated reflectively to the
+     *  standalone headless-jei mod's {@code JeiPopupRenderer}).  Returns null
+     *  when the mod is absent or the entry has no renderable layout (caller
+     *  falls back to button highlight). */
     public static int[] renderJeiPopup(GuiGraphics gui, RecipeViewerEngine.JeiEntry entry,
                                        int x, int y, int w, int h, float scale) {
-        IRecipeManager manager = JeiRuntimeBridge.recipeManager();
-        IRecipeCategory<?> category = PluginRecipeIndexer.categoryFor(entry.typeUid());
-        if (manager == null || category == null) {
+        try {
+            Class<?> registryClass = Class.forName("com.alonie.brbe.jei.api.JeiRecipeRegistry");
+            Class<?> entryClass = Class.forName("com.alonie.brbe.jei.api.JeiRecipeRegistry$Entry");
+            Class<?> rendererClass = Class.forName("com.alonie.brbe.jei.api.JeiPopupRenderer");
+            Object bridgeEntry = entryClass.getConstructor(
+                            net.minecraft.resources.ResourceLocation.class,
+                            Object.class, List.class, List.class, List.class, int.class, int.class)
+                    .newInstance(entry.typeUid(), entry.recipe(),
+                            entry.inputs() == null ? List.of() : entry.inputs(),
+                            entry.outputs() == null ? List.of() : entry.outputs(),
+                            List.of(), 0, 0);
+            Object result = rendererClass.getMethod("render", entryClass, GuiGraphics.class,
+                            int.class, int.class, int.class, int.class, float.class)
+                    .invoke(null, bridgeEntry, gui, x, y, w, h, scale);
+            return (int[]) result;
+        } catch (Exception | LinkageError e) {
             return null;
         }
-        IRecipeLayoutDrawable<?> drawable = jeiDrawable(manager, category, entry);
-        if (drawable == null) {
-            return null;
-        }
-        // tick at JEI's 20 Hz rate (once per game tick batch)
-        long now = System.currentTimeMillis();
-        if (lastJeiTick < 0 || now - lastJeiTick >= 50) {
-            lastJeiTick = now;
-            drawable.tick();
-        }
-        Rect2i rect = drawable.getRect();
-        int rw = Math.max(1, rect.getWidth());
-        int rh = Math.max(1, rect.getHeight());
-        float fit = Math.min((POPUP_W * scale) / rw, (POPUP_H * scale) / rh);
-        fit = Math.min(fit, 2.0F * scale);
-        int ox = (int) (x + w / 2f - rw * fit / 2f);
-        int oy = (int) (y + h / 2f - rh * fit / 2f);
-        gui.pose().pushPose();
-        gui.pose().translate(ox, oy, 0);
-        gui.pose().scale(fit, fit, 1.0F);
-        drawable.setPosition(0, 0);
-        try {
-            drawable.drawRecipe(gui, (int) (net.minecraft.client.Minecraft.getInstance().mouseHandler.xpos()),
-                    (int) (net.minecraft.client.Minecraft.getInstance().mouseHandler.ypos()));
-        } catch (Exception | LinkageError e) {
-            // a broken category must not kill the frame
-        }
-        gui.pose().popPose();
-        return new int[] {ox, oy, (int) (rw * fit), (int) (rh * fit)};
-    }
-
-    private static IRecipeLayoutDrawable<?> jeiDrawable(IRecipeManager manager,
-                                                        IRecipeCategory<?> category,
-                                                        RecipeViewerEngine.JeiEntry entry) {
-        Map<Object, IRecipeLayoutDrawable<?>> byRecipe =
-                JEI_CACHE.computeIfAbsent(entry.typeUid(), k -> new java.util.WeakHashMap<>());
-        IRecipeLayoutDrawable<?> drawable = byRecipe.get(entry.recipe());
-        if (drawable != null) {
-            return drawable;
-        }
-        try {
-            Optional<?> optional = ((IRecipeManager) manager).createRecipeLayoutDrawable(
-                    (IRecipeCategory) category, entry.recipe(),
-                    com.alonie.brbe.jei.plugins.engine.EmptyFocusGroup.INSTANCE);
-            drawable = (IRecipeLayoutDrawable<?>) optional.orElse(null);
-        } catch (Exception | LinkageError e) {
-            drawable = null;
-        }
-        if (drawable != null) {
-            byRecipe.put(entry.recipe(), drawable);
-        }
-        return drawable;
     }
 }

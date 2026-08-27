@@ -46,6 +46,9 @@ dependencies {
     // 造成平台封装与接口错配。运行时真实 JEI 存在时其类仍按类加载顺序遮蔽 fork。
     common(project(path: ":common", configuration: "namedElements")) { transitive false }
     shadowBundle project(path: ":common", configuration: "transformProductionNeoForge")
+
+    // 无头 JEI 独立化后：mezz.jei.api 编译参考 = 真实 JEI jar（BRBE 兼容插件仅用 API）
+    compileOnly files(rootProject.file("libs/jei-1.21.1-neoforge-19.27.0.340.jar"))
 }
 
 processResources {

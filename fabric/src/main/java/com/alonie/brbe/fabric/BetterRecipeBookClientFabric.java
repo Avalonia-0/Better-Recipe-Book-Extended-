@@ -67,6 +67,8 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         // Register PotionLoader lifecycle hooks (was in Architectury ClientLifecycleEvent.CLIENT_LEVEL_LOAD)
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             if (client.level != null) PotionLoader.load(client.level);
+            // 无头 JEI 桥：headless-jei 独立 mod 的配方条目索引进查询引擎
+            com.alonie.brbe.cache.BrbeJeiBridge.refresh();
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             PotionLoader.clear();
