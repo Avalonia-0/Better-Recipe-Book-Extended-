@@ -476,3 +476,13 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 - lang：zzzbrbe.gui.tip.8/9（7 语言，en 值）
 
 **待办**：pinoverlay 浮层、资源/textures 核对。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 18——资源缺失修复）
+
+**修复的缺失资源**（assets/zzzbrbe 全量对比 1.21.11 发现）：
+- `textures/gui/sprites/tooltip/viewer_background.png(+mcmeta)/viewer_frame.png(+mcmeta)`（ClientCompat.VIEWER_TOOLTIP_STYLE 引用——此前缺失，tooltip 背景样式无效）
+- `animation/edge_width.json`（PageAnimationEdges 读取——此前缺失，翻页动画左右边距读不到默认值）
+- `textures/gui/sprites/recipe_book/furnace_fire.png` + **FURNACE_FIRE_SPRITE 引用修正**：`recipe_book/flame`（1.21.1 原版无此 sprite → 渲染空）→ `zzzbrbe:recipe_book/furnace_fire`（自有资源，1.21.11 一致）
+- 未补：column_panel/column_panel_top（1.21.1 无代码引用——1.21.11 的 viewer 面板背景，1.21.1 自绘面板不用）；icon.png（1.21.1 在三模块已有）
+
+**待办**：pinoverlay 浮层（最后可选）。
