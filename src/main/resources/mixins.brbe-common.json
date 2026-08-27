@@ -57,6 +57,7 @@
     "pins.RecipeBookComponentMixin",
     "pins.RecipeBookPageMixin",
     "pins.RecipeButtonMixin",
+    "pins.OverlayRecipeButtonMixin",
     "scrollablepages.RecipeBookPageAnimationMixin",
     "scrollablepages.RecipeBookPageMixin",
     "search.RecipeBookComponentPageJumpMixin",

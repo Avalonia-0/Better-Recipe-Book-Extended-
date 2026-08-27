@@ -77,7 +77,8 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         boolean viewer = RecipeViewerIndex.isViewerCollection(collection);
         boolean hover = isHoveredOrFocused() || pin;
         int mode = mode();
-        int selIdx = ((OverlayRecipeComponentAccessor) outer).getSlotSelectTime().currentIndex();
+        int selIdx = RecipeViewerOverlay.currentSlotSelectIndex(
+                ((OverlayRecipeComponentAccessor) outer).getSlotSelectTime().currentIndex());
         int x = getX();
         int y = getY();
         int w = width;

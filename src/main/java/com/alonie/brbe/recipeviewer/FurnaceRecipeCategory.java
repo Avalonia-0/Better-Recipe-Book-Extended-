@@ -47,6 +47,21 @@ public final class FurnaceRecipeCategory implements RecipeViewerCategory {
         return usage ? mergeUsages(target) : mergeResults(target);
     }
 
+    @Override
+    public List<RecipeDisplayEntry> allEntries() {
+        List<RecipeDisplayEntry> out = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        for (String type : FURNACE_TYPES) {
+            for (RecipeDisplayEntry entry : RecipeViewerEngine.allRecipes(type)) {
+                FurnaceRecipeDisplay display = RecipeViewerIndex.asFurnace(entry);
+                if (display != null && seen.add(RecipeViewerIndex.furnaceContentKey(display))) {
+                    out.add(entry);
+                }
+            }
+        }
+        return out;
+    }
+
     private List<RecipeDisplayEntry> mergeResults(ItemStack target) {
         List<RecipeDisplayEntry> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();

@@ -33,6 +33,10 @@ public abstract class GhostSlotsMixin {
                 return;
             }
         }
+        // 缺材料槽位的红色背景：原版 0x30FF0000（alpha 0x30≈19%）偏淡，调高 alpha 让红更明显。
+        if (col == 0x30FF0000) {
+            col = 0x66FF0000; // alpha 0x30 → 0x66 (≈40%)
+        }
         graphics.fill(x0, y0, x1, y1, col);
     }
 }

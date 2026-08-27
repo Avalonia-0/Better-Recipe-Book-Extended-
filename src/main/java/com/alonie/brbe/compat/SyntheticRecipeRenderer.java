@@ -56,4 +56,13 @@ public interface SyntheticRecipeRenderer {
                                      float ox, float oy, float fit) {
         return ItemStack.EMPTY;
     }
+
+    /**
+     * Alt+wheel quick-flip: step every live drawable's slot variants by
+     * {@code delta} (wheel up = -1), re-pinning each multi-variant slot to
+     * {@code current + delta} through its display overrides — the painted
+     * item follows the manual cycle index.  Default: no-op.
+     */
+    default void stepVariants(int delta) {
+    }
 }

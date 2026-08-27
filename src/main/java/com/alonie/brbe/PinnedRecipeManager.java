@@ -20,6 +20,7 @@ import java.io.OutputStreamWriter;
 import java.lang.reflect.Type;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Set;
 
 public class PinnedRecipeManager {
@@ -136,5 +137,52 @@ public class PinnedRecipeManager {
         }
 
         return false;
+    }
+
+    /** 是否"全 pin 组"（副本替代配方组特征）：组内**每个**配方都被 pin。
+     *  仅含部分 pin 配方的原组不返回 true——原组按钮不显示 pin 贴图，
+     *  避免"整体变成副本组"的观感（pin 贴图只属于真正的副本组）。 */
+    public boolean isFullyPinned(PinnableRecipeCollection target) {
+        if (target == null) return false;
+        java.util.Collection<Identifier> ids = target.identifiers();
+        if (ids.isEmpty()) return false;
+        for (Identifier id : ids) {
+            if (!this.pinned.contains(id)) return false;
+        }
+        return true;
+    }
+
+    /** 同 {@link #isFullyPinned(PinnableRecipeCollection)}，自研配方书集合版。 */
+    public <R extends GenericRecipe, M extends AbstractContainerMenu> boolean isFullyPinned(
+            GenericRecipeBookCollection<R, M> target) {
+        if (target == null) return false;
+        List<R> recipes = target.getRecipes();
+        if (recipes.isEmpty()) return false;
+        for (R recipe : recipes) {
+            if (!this.pinned.contains(recipe.id())) return false;
+        }
+        return true;
+    }
+
+    /** Whether a query-viewer entry is pinned (same stable id derivation as the
+     *  recipe book — {@link PinnableRecipeCollection#idFor}).  Lets the query
+     *  viewer pin-mark and sort-forward the recipe book's pinned recipes. */
+    public boolean isPinnedEntry(net.minecraft.world.item.crafting.display.RecipeDisplayEntry entry) {
+        return entry != null && this.pinned.contains(PinnableRecipeCollection.idFor(entry));
+    }
+
+    /** 单配方变体 pin 切换（替代配方组规则：组不能直接 pin，只能在打开
+     *  替代配方组后按固定键切换组内单个变体；键 = idFor(entry) 的稳定 key）。 */
+    public void toggleFavourite(net.minecraft.world.item.crafting.display.RecipeDisplayEntry entry) {
+        if (entry == null) return;
+        Identifier id = PinnableRecipeCollection.idFor(entry);
+        if (this.pinned.remove(id)) {
+            version++;
+            this.store();
+            return;
+        }
+        this.pinned.add(id);
+        version++;
+        this.store();
     }
 }

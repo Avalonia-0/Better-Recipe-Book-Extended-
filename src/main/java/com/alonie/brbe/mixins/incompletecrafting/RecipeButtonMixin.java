@@ -161,7 +161,12 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         }
     }
 
-    @Inject(method = "extractWidgetRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fakeItem(Lnet/minecraft/world/item/ItemStack;II)V", shift = At.Shift.BEFORE))
+    // Inject AFTER the slot sprite (blitSprite) and BEFORE every item draw:
+    // a partial recipe's red mark must sit under BOTH icons of the vanilla
+    // "many recipes" stack (item at offset+1, then fakeItem at offset) —
+    // injecting before fakeItem only would paint the red mark BETWEEN the two
+    // stacked icons, covering the back icon.
+    @Inject(method = "extractWidgetRenderState", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;blitSprite(Lcom/mojang/blaze3d/pipeline/RenderPipeline;Lnet/minecraft/resources/Identifier;IIII)V", shift = At.Shift.AFTER))
     private void brbe$renderPartialOverlay(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         RecipeDisplayId currentRecipe;
         try {

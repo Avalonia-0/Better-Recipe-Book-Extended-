@@ -121,8 +121,19 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             // rebuild once per tick with the final known set.
             RecipeViewerIndex.flushEngineRebuildIfDirty();
             Screen screen = client.gui.screen();
-            if (BetterRecipeBook.config.hideReiJeiOverlay && screen != null) {
-                OverlayHider.ensureJeiOverlayHidden();
+            // While a BRBE overlay is open (query viewer or a pin — not the
+            // vanilla recipe-book overlay) the JEI/REI overlay is hidden
+            // outright: its ingredient list is drawn after BRBE's layer and
+            // would cover BRBE's tooltips.  The user's config state is
+            // restored as soon as no BRBE overlay is open.
+            if (screen != null) {
+                boolean brbeOverlay = com.alonie.brbe.util.RecipeViewerOverlay.isActive()
+                        || com.alonie.brbe.pinoverlay.PinOverlayManager.hasPins();
+                OverlayHider.setOverlaysHidden(
+                        brbeOverlay || BetterRecipeBook.config.hideReiJeiOverlay);
+                if (BetterRecipeBook.config.hideReiJeiOverlay) {
+                    OverlayHider.ensureJeiOverlayHidden();
+                }
             }
             if (screen == null || this.registeredScreens.contains(screen) || !TopLayerOverlayRenderer.hasOverlay(screen)) {
                 return;
@@ -136,7 +147,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         ResourceLoader.registerBuiltinPack(
                 Identifier.fromNamespaceAndPath("zzzbrbe", "zzzbrbe_unique_dark"),
                 FabricLoader.getInstance().getModContainer("zzzbrbe").orElseThrow(),
-                Component.literal("Unique Dark Lite ").append(Component.literal("✕").withStyle(ChatFormatting.YELLOW)).append(Component.literal(" BRBE")),
+                Component.literal("Unique Dark - Lite ").append(Component.literal("✕").withStyle(ChatFormatting.YELLOW)).append(Component.literal(" BRBE")),
                 PackActivationType.NORMAL);
     }
 }

@@ -5,14 +5,21 @@ import com.alonie.brbe.cache.RecipeViewerIndex;
 import com.alonie.brbe.recipeviewer.RecipeViewerCategories;
 import com.alonie.brbe.recipeviewer.RecipeViewerCategory;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
+import mezz.jei.api.recipe.IRecipeManager;
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import mezz.jei.api.recipe.types.IRecipeType;
+import net.minecraft.client.Minecraft;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeMap;
+import net.minecraft.world.item.crafting.SmithingRecipe;
+import net.minecraft.world.item.crafting.StonecutterRecipe;
+import net.minecraft.world.item.crafting.display.RecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 
@@ -116,69 +123,8 @@ public final class PluginRecipeIndexer {
             // split entries.
             Set<String> seenRecipes = new HashSet<>();
             for (Object recipe : entry.getValue()) {
-                try {
-                    DataOnlyLayoutBuilder builder = new DataOnlyLayoutBuilder(category.getWidth(), category.getHeight());
-                    runSetRecipe(category, recipe, builder);
-                    List<SlotData> slots = builder.slotData();
-                    List<ItemStack> inputs = new ArrayList<>();
-                    Map<Item, ItemStack> productsByItem = new LinkedHashMap<>();
-                    for (SlotData slot : slots) {
-                        if (slot.role() == RecipeIngredientRole.OUTPUT && slot.visible()) {
-                            // Player-obtainable products: every stack in a visible
-                            // OUTPUT slot, de-duplicated by item so variant stacks
-                            // or repeated slots collapse into one product.
-                            // Invisible slots are data-only (not rendered, not a
-                            // product) and are excluded, matching toLayout.
-                            for (ItemStack stack : slot.stacks()) {
-                                if (stack != null && !stack.isEmpty()) {
-                                    productsByItem.putIfAbsent(stack.getItem(), stack);
-                                }
-                            }
-                        } else if (slot.role() == RecipeIngredientRole.INPUT
-                                || slot.role() == RecipeIngredientRole.CRAFTING_STATION) {
-                            inputs.addAll(slot.stacks());
-                        }
-                    }
-                    List<ItemStack> products = new ArrayList<>(productsByItem.values());
-                    if (inputs.isEmpty() && products.isEmpty()) {
-                        continue;
-                    }
-                    if (!seenRecipes.add(fingerprint(inputs, products))) {
-                        BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] duplicate {} recipe skipped",
-                                recipeType.getUid());
-                        continue;
-                    }
-                    // Multi-product recipes stay as ONE entry whose result
-                    // carries every product (a composite display): the viewer
-                    // shows a single object that cycles through the products
-                    // (like the smithing category) instead of one split button
-                    // per product.  The engine indexes the entry under every
-                    // product, so result lookup still gates on each product,
-                    // and the groupKey keeps usage lookups to one entry per
-                    // recipe.
-                    RecipeViewerEngine.RecipeLayout layout = toLayout(builder, slots, background);
-                    Object groupKey = recipe;
-                    if (products.isEmpty()) {
-                        RecipeDisplayEntry synthetic =
-                                SyntheticRecipeDisplayEntryFactory.createForOutput(slots, stations, List.of());
-                        RENDER_ENTRIES.put(synthetic.id(), new RenderEntry(category, recipe));
-                        RecipeViewerEngine.registerLayout(synthetic.id(), layout);
-                        renderCandidates.computeIfAbsent(uid, k -> new ArrayList<>())
-                                .add(new RenderCandidate(layout, List.of(), category, recipe));
-                        indexed.add(new RecipeViewerEngine.IndexedRecipe(synthetic, inputs, List.of(), groupKey));
-                    } else {
-                        RecipeDisplayEntry synthetic =
-                                SyntheticRecipeDisplayEntryFactory.createForOutput(slots, stations, products);
-                        RENDER_ENTRIES.put(synthetic.id(), new RenderEntry(category, recipe));
-                        RecipeViewerEngine.registerLayout(synthetic.id(), layout);
-                        renderCandidates.computeIfAbsent(uid, k -> new ArrayList<>())
-                                .add(new RenderCandidate(layout, products, category, recipe));
-                        indexed.add(new RecipeViewerEngine.IndexedRecipe(synthetic, inputs, products, groupKey));
-                    }
-                } catch (Exception | LinkageError ex) {
-                    BetterRecipeBook.LOGGER.warn("[BRBE-JEI-Plugins] failed to index a {} recipe: {}",
-                            recipeType.getUid(), ex.toString());
-                }
+                indexPluginRecipe(category, recipe, uid, stations, background,
+                        seenRecipes, indexed, renderCandidates, false);
             }
 
             if (indexed.isEmpty()) {
@@ -289,6 +235,17 @@ public final class PluginRecipeIndexer {
                 }
             }
         }
+        // Vanilla stonecutter / smithing: the same treatment for the vanilla
+        // recipe-book entries the engine sources from ClientRecipeBook.known —
+        // they get the vanilla JEI category's native layout and render entry,
+        // so their popup / pin renders the full JEI UI (slot backgrounds +
+        // arrow) exactly like JEI's own recipe view.
+        attachVanillaCategoryLayouts();
+        // Vanilla JEI plugin recipe types (anvil / brewing / grindstone): their
+        // recipes are runtime-built by JEI's vanilla plugin (no datapack
+        // holders), so they enter the engine here from the JEI manager, each
+        // with its native layout + render entry (full JEI UI preview/pin).
+        indexVanillaPluginTypes();
         // Category-tab visibility (categories whose objects are all hidden by
         // the filter) depends on the freshly registered engine data.
         RecipeViewerCategories.markVisibilityDirty();
@@ -325,27 +282,324 @@ public final class PluginRecipeIndexer {
                 typeCount, recipeCount, dynamicCategories.size(), typeInfos.size() - dynamicCategories.size());
     }
 
-    /** A type-local identity for a recipe: its input and product item ids,
-     *  sorted and joined.  Equal pairs are treated as duplicate recipes. */
+    /** The vanilla JEI recipe type ids whose popup previews should render the
+     *  full JEI UI (the vanilla JEI categories' own layouts). */
+    private static final List<String> VANILLA_JEI_LAYOUT_TYPES =
+            List.of("minecraft:stonecutting", "minecraft:smithing");
+
+    /** Attach the vanilla JEI layout + render entry to every engine entry of
+     *  the stonecutter / smithing types: the entries are matched back to their
+     *  {@link RecipeHolder} (by display equality against the server-synced
+     *  recipe set), run through the vanilla JEI category's {@code setRecipe}
+     *  and registered like the mod (synthetic) entries — so the popup / pin
+     *  preview shows the complete JEI UI (JEI slot backgrounds, recipe arrow)
+     *  instead of the vanilla fixed-pair layout.  Entries with no matchable
+     *  holder keep the vanilla fallback rendering.
+     *
+     *  <p>Requires the JEI runtime ({@link JeiRuntimeBridge}) and the
+     *  server-synced recipe map ({@code Internal.getClientSyncedRecipes});
+     *  without either the pass is a no-op (the vanilla fallback stays in
+     *  effect).</p>
+     */
+    private static void attachVanillaCategoryLayouts() {
+        IRecipeManager manager = JeiRuntimeBridge.recipeManager();
+        if (manager == null) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return;
+        // The server-synced recipe map (the same source the embedded headless
+        // core's manager is fed with — vanilla and mod holders alike).
+        RecipeMap recipeMap = mezz.jei.common.Internal.getClientSyncedRecipes();
+        if (recipeMap == null || recipeMap.values().isEmpty()) return;
+        List<RecipeHolder<?>> holders = new ArrayList<>(recipeMap.values());
+
+        // The vanilla JEI categories (from the manager's own registry — the
+        // headless embedded core and the real JEI both register them).
+        Map<String, IRecipeCategory<?>> vanillaCategories = new HashMap<>();
+        for (IRecipeCategory<?> category : manager.createRecipeCategoryLookup().get().toList()) {
+            Identifier uid = category.getRecipeType().getUid();
+            if (uid == null) continue;
+            String uidStr = uid.toString();
+            if (VANILLA_JEI_LAYOUT_TYPES.contains(uidStr)) {
+                vanillaCategories.put(uidStr, category);
+            }
+        }
+        if (vanillaCategories.isEmpty()) return;
+
+        for (String uid : VANILLA_JEI_LAYOUT_TYPES) {
+            attachVanillaCategoryType(vanillaCategories.get(uid), uid, holders);
+        }
+    }
+
+    /** One vanilla type pass of {@link #attachVanillaCategoryLayouts}. */
+    private static void attachVanillaCategoryType(IRecipeCategory<?> category, String uid,
+                                                  List<RecipeHolder<?>> holders) {
+        if (category == null) return;
+        try {
+            List<RecipeDisplayEntry> entries = new ArrayList<>();
+            for (RecipeDisplayEntry entry : RecipeViewerEngine.allRecipes(uid)) {
+                if (entry == null || renderEntryFor(entry.id()) != null) continue;
+                if ("minecraft:stonecutting".equals(uid)
+                        && !(entry.display() instanceof net.minecraft.world.item.crafting.display.StonecutterRecipeDisplay)) continue;
+                if ("minecraft:smithing".equals(uid)
+                        && !(entry.display() instanceof net.minecraft.world.item.crafting.display.SmithingRecipeDisplay)) continue;
+                entries.add(entry);
+            }
+            if (entries.isEmpty()) return;
+            List<RecipeHolder<?>> candidates = holderCandidates(uid, holders);
+            if (candidates.isEmpty()) return;
+
+            int attached = 0;
+            for (RecipeDisplayEntry entry : entries) {
+                RecipeHolder<?> holder = findMatchingHolder(entry, candidates);
+                if (holder == null) continue;
+                try {
+                    DataOnlyLayoutBuilder builder =
+                            new DataOnlyLayoutBuilder(category.getWidth(), category.getHeight());
+                    runSetRecipe(category, holder, builder);
+                    RecipeViewerEngine.RecipeLayout layout = toLayout(builder, builder.slotData(), null);
+                    if (layout == null || layout.slots().isEmpty()) continue;
+                    RecipeViewerEngine.registerLayout(entry.id(), layout);
+                    RENDER_ENTRIES.put(entry.id(), new RenderEntry(category, holder));
+                    attached++;
+                } catch (Exception | LinkageError ex) {
+                    BetterRecipeBook.LOGGER.warn("[BRBE-JEI-Plugins] failed to attach vanilla {} layout: {}",
+                            uid, ex.toString());
+                }
+            }
+            BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] vanilla {}: {} recipe previews switched to JEI UI",
+                    uid, attached);
+        } catch (Exception | LinkageError e) {
+            BetterRecipeBook.LOGGER.warn("[BRBE-JEI-Plugins] vanilla {} layout pass failed: {}",
+                    uid, e.toString());
+        }
+    }
+
+    /** The vanilla JEI plugin recipe types whose recipes are runtime-built by
+     *  JEI's own vanilla plugin (no datapack holders, not recipe-book entries):
+     *  they are indexed into the query engine from the JEI manager, so their
+     *  preview / pin render the complete JEI UI (native layout + render entry)
+     *  like every mod category. */
+    private static final List<String> VANILLA_PLUGIN_TYPES =
+            List.of("minecraft:anvil", "minecraft:brewing", "minecraft:grindstone");
+
+    /** Index the vanilla JEI plugin recipe types into the query engine: for
+     *  each type the recipes are read from the JEI manager (the same data the
+     *  vanilla plugin registered), run through the category's {@code setRecipe}
+     *  and registered like the mod (synthetic) entries — layout + render entry
+     *  attached, so preview / pin show the full JEI UI.  Requires the JEI
+     *  runtime; without it the types are simply absent (their viewer categories
+     *  have no content and stay hidden). */
+    private static void indexVanillaPluginTypes() {
+        IRecipeManager manager = JeiRuntimeBridge.recipeManager();
+        if (manager == null) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return;
+        // These are no-recipe-book workstations (anvil / brewing stand /
+        // grindstone): with the hide toggle on they are source-excluded exactly
+        // like the stonecutter — their engine types are dropped (not just not
+        // re-registered, or a pre-toggle type would linger and the
+        // default-category pick would bypass the filter's station cut).
+        if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+            for (String uid : VANILLA_PLUGIN_TYPES) {
+                RecipeViewerEngine.clearType(uid);
+            }
+            return;
+        }
+        Map<String, IRecipeCategory<?>> categoriesByUid = new HashMap<>();
+        for (IRecipeCategory<?> category : manager.createRecipeCategoryLookup().get().toList()) {
+            Identifier uid = category.getRecipeType().getUid();
+            if (uid != null) categoriesByUid.put(uid.toString(), category);
+        }
+        for (String uid : VANILLA_PLUGIN_TYPES) {
+            try {
+                IRecipeCategory<?> category = categoriesByUid.get(uid);
+                if (category == null) continue;
+                List<ItemStack> stations = vanillaStationsFor(uid);
+                List<?> recipes;
+                try {
+                    recipes = manager.createRecipeLookup(category.getRecipeType()).get().toList();
+                } catch (Exception | LinkageError e) {
+                    BetterRecipeBook.LOGGER.warn("[BRBE-JEI-Plugins] vanilla {} recipe lookup failed: {}",
+                            uid, e.toString());
+                    continue;
+                }
+                if (recipes.isEmpty()) continue;
+                List<RecipeViewerEngine.IndexedRecipe> indexed = new ArrayList<>();
+                Set<String> seenRecipes = new HashSet<>();
+                for (Object recipe : recipes) {
+                    indexPluginRecipe(category, recipe, uid, stations, null,
+                            seenRecipes, indexed, null, true);
+                }
+                if (indexed.isEmpty()) continue;
+                RecipeViewerEngine.registerType(uid, indexed, stations);
+                BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] vanilla runtime type {}: {} recipes indexed (JEI UI)",
+                        uid, indexed.size());
+            } catch (Exception | LinkageError e) {
+                BetterRecipeBook.LOGGER.warn("[BRBE-JEI-Plugins] vanilla runtime type {} pass failed: {}",
+                        uid, e.toString());
+            }
+        }
+    }
+
+    /** Workstation block items of a vanilla JEI plugin type (the same stations
+     *  JEI's {@code registerRecipeCatalysts} declares; all anvil variants). */
+    private static List<ItemStack> vanillaStationsFor(String uid) {
+        List<ItemStack> out = new ArrayList<>();
+        switch (uid) {
+            case "minecraft:anvil" -> {
+                addStation(out, "minecraft:anvil");
+                addStation(out, "minecraft:chipped_anvil");
+                addStation(out, "minecraft:damaged_anvil");
+            }
+            case "minecraft:brewing" -> addStation(out, "minecraft:brewing_stand");
+            case "minecraft:grindstone" -> addStation(out, "minecraft:grindstone");
+            default -> { }
+        }
+        return out;
+    }
+
+    private static void addStation(List<ItemStack> out, String id) {
+        BuiltInRegistries.ITEM.getOptional(Identifier.parse(id))
+                .ifPresent(item -> out.add(new ItemStack(item)));
+    }
+
+    /** Index one plugin recipe into {@code indexed} (shared by the JEI full
+     *  collection pass and the vanilla plugin types pass).  Extracts the
+     *  recipe's slots through the category's {@code setRecipe}, synthesizes a
+     *  display entry, registers its native layout + JEI render entry, and
+     *  dedupes by (inputs, products) fingerprint.  {@code renderOnlyAsOutput}
+     *  counts RENDER_ONLY slots as products (the vanilla grindstone declares
+     *  its output slot RENDER_ONLY); mod recipes keep them data-only. */
+    private static void indexPluginRecipe(IRecipeCategory<?> category, Object recipe, String uid,
+                                          List<ItemStack> stations,
+                                          RecipeViewerEngine.RecipeBackground background,
+                                          Set<String> seenRecipes,
+                                          List<RecipeViewerEngine.IndexedRecipe> indexed,
+                                          Map<String, List<RenderCandidate>> renderCandidates,
+                                          boolean renderOnlyAsOutput) {
+        try {
+            DataOnlyLayoutBuilder builder =
+                    new DataOnlyLayoutBuilder(category.getWidth(), category.getHeight());
+            runSetRecipe(category, recipe, builder);
+            List<SlotData> slots = builder.slotData();
+            List<ItemStack> inputs = new ArrayList<>();
+            Map<Item, ItemStack> productsByItem = new LinkedHashMap<>();
+            for (SlotData slot : slots) {
+                if ((slot.role() == RecipeIngredientRole.OUTPUT
+                        || (renderOnlyAsOutput && slot.role() == RecipeIngredientRole.RENDER_ONLY))
+                        && slot.visible()) {
+                    // Player-obtainable products: every stack in a visible
+                    // OUTPUT slot (or a render-only output), de-duplicated by
+                    // item so variant stacks or repeated slots collapse into
+                    // one product.  Invisible slots are data-only (not
+                    // rendered, not a product) and are excluded, matching
+                    // toLayout.
+                    for (ItemStack stack : slot.stacks()) {
+                        if (stack != null && !stack.isEmpty()) {
+                            productsByItem.putIfAbsent(stack.getItem(), stack);
+                        }
+                    }
+                } else if (slot.role() == RecipeIngredientRole.INPUT
+                        || slot.role() == RecipeIngredientRole.CRAFTING_STATION) {
+                    inputs.addAll(slot.stacks());
+                }
+            }
+            List<ItemStack> products = new ArrayList<>(productsByItem.values());
+            if (inputs.isEmpty() && products.isEmpty()) {
+                return;
+            }
+            if (!seenRecipes.add(fingerprint(inputs, products))) {
+                BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] duplicate {} recipe skipped", uid);
+                return;
+            }
+            RecipeViewerEngine.RecipeLayout layout = toLayout(builder, slots, background);
+            Object groupKey = recipe;
+            RecipeDisplayEntry synthetic =
+                    SyntheticRecipeDisplayEntryFactory.createForOutput(slots, stations, products);
+            RENDER_ENTRIES.put(synthetic.id(), new RenderEntry(category, recipe));
+            RecipeViewerEngine.registerLayout(synthetic.id(), layout);
+            if (renderCandidates != null) {
+                renderCandidates.computeIfAbsent(uid, k -> new ArrayList<>())
+                        .add(new RenderCandidate(layout, products, category, recipe));
+            }
+            indexed.add(new RecipeViewerEngine.IndexedRecipe(synthetic, inputs, products, groupKey));
+        } catch (Exception | LinkageError ex) {
+            BetterRecipeBook.LOGGER.warn("[BRBE-JEI-Plugins] failed to index a {} recipe: {}",
+                    uid, ex.toString());
+        }
+    }
+
+    /** The server-synced holders of one vanilla recipe type. */
+    private static List<RecipeHolder<?>> holderCandidates(String uid, List<RecipeHolder<?>> holders) {
+        boolean stonecutting = "minecraft:stonecutting".equals(uid);
+        List<RecipeHolder<?>> out = new ArrayList<>();
+        for (RecipeHolder<?> holder : holders) {
+            if (holder == null || holder.value() == null) continue;
+            if (stonecutting ? holder.value() instanceof StonecutterRecipe
+                    : holder.value() instanceof SmithingRecipe) {
+                out.add(holder);
+            }
+        }
+        return out;
+    }
+
+    /** The holder whose display equals {@code entry}'s display (value equality:
+     *  the server-synced displays and the recipe-book entries come from the
+     *  same datapack data), or null when no holder matches. */
+    private static RecipeHolder<?> findMatchingHolder(RecipeDisplayEntry entry,
+                                                      List<RecipeHolder<?>> candidates) {
+        RecipeDisplay target = entry.display();
+        if (target == null) return null;
+        for (RecipeHolder<?> holder : candidates) {
+            try {
+                for (RecipeDisplay display : holder.value().display()) {
+                    if (target.equals(display)) return holder;
+                }
+            } catch (Exception | LinkageError ignored) {
+                // one broken holder must not break the whole pass
+            }
+        }
+        return null;
+    }
+
+    /** A type-local identity for a recipe: its input and product stacks
+     *  (item id AND complete component data), sorted and joined.  Equal pairs
+     *  are treated as duplicate recipes — only identical stacks collapse, so
+     *  recipes whose products share an item but differ in components (three
+     *  enchanted books with different enchantments, potions, …) stay distinct.
+     *  Better Archeology's identifying recipes are exactly this shape: three
+     *  {@code identifying} recipes all output {@code enchanted_book}, and the
+     *  item-id-only fingerprint used to merge them into one. */
     private static String fingerprint(List<ItemStack> inputs, List<ItemStack> products) {
         StringBuilder sb = new StringBuilder();
-        appendSortedItemIds(sb, inputs);
+        appendSortedItemKeys(sb, inputs);
         sb.append('|');
-        appendSortedItemIds(sb, products);
+        appendSortedItemKeys(sb, products);
         return sb.toString();
     }
 
-    private static void appendSortedItemIds(StringBuilder sb, List<ItemStack> stacks) {
-        List<String> names = new ArrayList<>();
+    private static void appendSortedItemKeys(StringBuilder sb, List<ItemStack> stacks) {
+        List<String> keys = new ArrayList<>();
         for (ItemStack stack : stacks) {
             if (stack != null && !stack.isEmpty()) {
-                names.add(BuiltInRegistries.ITEM.getKey(stack.getItem()).toString());
+                keys.add(stackKey(stack));
             }
         }
-        names.sort(null);
-        for (String name : names) {
-            sb.append(name).append(';');
+        keys.sort(null);
+        for (String key : keys) {
+            sb.append(key).append(';');
         }
+    }
+
+    /** A value identity for one stack: item id plus its full component data
+     *  (enchantments, potion contents, …) via
+     *  {@link net.minecraft.core.component.DataComponentPatch}'s record-style
+     *  description.  Two stacks of the same item with different components
+     *  produce different keys, so recipes that share an output item but differ
+     *  in components never collapse. */
+    private static String stackKey(ItemStack stack) {
+        return BuiltInRegistries.ITEM.getKey(stack.getItem()) + "#"
+                + stack.getComponentsPatch();
     }
 
     /** Group recipe types that share any workstation block (JEI's catalyst

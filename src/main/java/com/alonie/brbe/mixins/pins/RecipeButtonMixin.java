@@ -28,7 +28,7 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     @Inject(method = "extractWidgetRenderState", at = @At("RETURN"))
     public void renderWidget_renderFakeItem(GuiGraphicsExtractor gui, int x, int y, float delta, CallbackInfo ci) {
         // if pins are enabled, and the recipe is pinned, blit the pin texture after the recipe collection is rendered
-        if (BetterRecipeBook.pinnedRecipeManager.has(PinnableRecipeCollection.of(getCollection()))) {
+        if (BetterRecipeBook.pinnedRecipeManager.isFullyPinned(PinnableRecipeCollection.of(getCollection()))) {
             ClientCompat.blitSprite(gui, BRBTextures.RECIPE_BOOK_PIN_SPRITE, getX() - 4, getY() - 4, 32, 32);
         }
     }

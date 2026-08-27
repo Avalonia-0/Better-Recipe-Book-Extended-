@@ -293,7 +293,7 @@ public final class InternalKeyMappings implements IInternalKeyMappings {
 
 		pauseRecipeCycling = recipeGui.createMapping("key.jei.pauseRecipeCycling")
 			.setContext(JeiKeyConflictContext.GUI)
-			.buildKeyboardKey(GLFW.GLFW_KEY_LEFT_SHIFT)
+			.buildKeyboardKey(GLFW.GLFW_KEY_LEFT_ALT)
 			.register(registerMethod);
 
 		previousCategory = recipeGui.createMapping("key.jei.previousCategory")

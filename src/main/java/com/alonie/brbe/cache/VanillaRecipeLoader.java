@@ -352,4 +352,14 @@ public final class VanillaRecipeLoader {
         List<String> parsed = parseIngredientEntry(ingredient);
         return parsed != null ? List.of(parsed) : null;
     }
+
+    /** Extract one named slot field ({@code template} / {@code base} /
+     *  {@code addition}) of a smithing recipe JSON as ingredient alternatives,
+     *  or null when the field is absent. */
+    static List<List<String>> extractSmithingSlot(JsonObject json, String field) {
+        JsonElement element = json.get(field);
+        if (element == null || element.isJsonNull()) return null;
+        List<String> parsed = parseIngredientEntry(element);
+        return parsed != null ? List.of(parsed) : null;
+    }
 }

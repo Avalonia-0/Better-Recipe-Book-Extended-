@@ -159,6 +159,23 @@ public final class RecipeViewerEngine {
         }
     }
 
+    /** Drop one recipe type: its registry entry, every entry id it registered
+     *  and every layout bound to those ids.  Used to source-exclude a plugin
+     *  type (e.g. the no-recipe-book anvil / brewing / grindstone types when
+     *  "hide objects of workstations without a recipe book" is on). */
+    public static void clearType(String uid) {
+        if (uid == null) return;
+        RecipeTypeData data = TYPES.remove(uid);
+        if (data == null) return;
+        for (RecipeDisplayEntry recipe : data.recipes) {
+            RecipeDisplayId id = recipe.id();
+            if (id != null) {
+                BY_ID.remove(id);
+                LAYOUTS.remove(id);
+            }
+        }
+    }
+
     /** Whether {@code uid} is one of the seven vanilla recipe types (managed
      *  by {@code RecipeViewerIndex.rebuildEngine}, not by the plugin collector). */
     public static boolean isVanillaType(String uid) {

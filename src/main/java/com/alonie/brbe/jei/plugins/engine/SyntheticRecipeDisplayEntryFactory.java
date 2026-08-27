@@ -2,6 +2,7 @@ package com.alonie.brbe.jei.plugins.engine;
 
 import mezz.jei.api.recipe.RecipeIngredientRole;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.crafting.RecipeBookCategories;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
@@ -63,13 +64,17 @@ public final class SyntheticRecipeDisplayEntryFactory {
     }
 
     /** One slot display from a slot's concrete item stacks: empty → Empty,
-     *  single → ItemSlotDisplay, several → Composite of item displays. */
+     *  single → ItemStackSlotDisplay, several → Composite of item displays.
+     *  Every child carries the FULL stack (components included) — potion
+     *  contents, stored enchantments, … — so resolving the display restores
+     *  the complete item data instead of a bare default instance. */
     private static SlotDisplay toSlotDisplay(List<ItemStack> stacks) {
         List<SlotDisplay> children = new ArrayList<>();
         if (stacks != null) {
             for (ItemStack stack : stacks) {
                 if (stack != null && !stack.isEmpty()) {
-                    children.add(new SlotDisplay.ItemSlotDisplay(stack.getItem()));
+                    children.add(new SlotDisplay.ItemStackSlotDisplay(
+                            ItemStackTemplate.fromStack(stack)));
                 }
             }
         }

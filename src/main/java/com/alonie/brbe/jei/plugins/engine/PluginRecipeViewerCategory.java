@@ -63,6 +63,12 @@ public final class PluginRecipeViewerCategory implements RecipeViewerCategory {
         return uids;
     }
 
+    /** The workstations this plugin category was registered with (the viewer's
+     *  left station-column list for dynamic mod categories). */
+    public List<ItemStack> stations() {
+        return stations;
+    }
+
     @Override
     public ItemStack icon() {
         return icon;
@@ -71,6 +77,19 @@ public final class PluginRecipeViewerCategory implements RecipeViewerCategory {
     @Override
     public Component name() {
         return name;
+    }
+
+    @Override
+    public List<RecipeDisplayEntry> allEntries() {
+        List<RecipeDisplayEntry> out = new ArrayList<>();
+        java.util.Set<net.minecraft.world.item.crafting.display.RecipeDisplayId> seen =
+                new java.util.HashSet<>();
+        for (String uid : uids) {
+            for (RecipeDisplayEntry entry : RecipeViewerEngine.allRecipes(uid)) {
+                if (seen.add(entry.id())) out.add(entry);
+            }
+        }
+        return out;
     }
 
     @Override

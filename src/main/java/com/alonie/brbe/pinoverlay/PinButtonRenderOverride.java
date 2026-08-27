@@ -13,6 +13,9 @@ public final class PinButtonRenderOverride {
     public static final int MODE_FURNACE = 1;
     public static final int MODE_STONECUTTING = 2;
     public static final int MODE_SMITHING = 3;
+    public static final int MODE_ANVIL = 4;
+    public static final int MODE_BREWING = 5;
+    public static final int MODE_GRINDSTONE = 6;
 
     private static float current = -1f;
     private static int mode = -1;

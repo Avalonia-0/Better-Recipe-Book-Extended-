@@ -19,8 +19,10 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.client.renderer.RenderPipelines;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 
@@ -28,6 +30,14 @@ import java.util.List;
 
 public final class ClientCompat {
     public static final RenderPipeline GUI_TEXTURED = RenderPipelines.GUI_TEXTURED;
+
+    /** 查询系统（R/U viewer + pin）tooltip 的自定义背景样式：解析为
+     *  {@code zzzbrbe:tooltip/viewer_background} / {@code viewer_frame}
+     *  sprite（textures/gui/sprites/tooltip/ 下，背景 alpha 已调淡为 160）。
+     *  传给原版 {@code tooltip(...)} 链路的最后一个 Identifier 参数即可，
+     *  不影响配方书/原版 tooltip。 */
+    public static final Identifier VIEWER_TOOLTIP_STYLE =
+            Identifier.fromNamespaceAndPath("zzzbrbe", "viewer");
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientCompat.class);
     private static boolean spriteDiagLogged = false;
@@ -69,10 +79,36 @@ public final class ClientCompat {
                 || InputConstants.isKeyDown(minecraft.getWindow(), InputConstants.KEY_RCONTROL);
     }
 
+    /** Whether EITHER Shift is held (BRBE's preview hotkey): both the left and
+     *  the right Shift expand the preview UI, and the items keep cycling while
+     *  it is held (pausing recipe cycling moved to Alt). */
     public static boolean isShiftDown() {
         Minecraft minecraft = Minecraft.getInstance();
         return InputConstants.isKeyDown(minecraft.getWindow(), InputConstants.KEY_LSHIFT)
                 || InputConstants.isKeyDown(minecraft.getWindow(), InputConstants.KEY_RSHIFT);
+    }
+
+    /** Whether EITHER Alt is held: the pause-recipe-cycling key — while held,
+     *  cycled variants freeze, and Alt+wheel steps through them manually. */
+    public static boolean isAltDown() {
+        Minecraft minecraft = Minecraft.getInstance();
+        return InputConstants.isKeyDown(minecraft.getWindow(), InputConstants.KEY_LALT)
+                || InputConstants.isKeyDown(minecraft.getWindow(), InputConstants.KEY_RALT);
+    }
+
+    /** Play the shared page-flip UI click — gated by the "鼠标滚轮翻页音效"
+     *  toggle and scaled by the page-flip volume setting (0.25 x volume, the
+     *  same scaling the recipe book's scroll flips use).  Every paging surface
+     *  (query viewer object area / tab strip / station column, RBIP tab area)
+     *  goes through here, so the toggle and the volume slider govern them all. */
+    public static void playPageFlipSound(Minecraft mc) {
+        if (!BetterRecipeBook.config.scrollPageSound) return;
+        if (mc == null || mc.getSoundManager() == null) return;
+        float volume = 0.25f * BetterRecipeBook.config.pageFlipVolume;
+        if (volume > 0.0f) {
+            mc.getSoundManager().play(SimpleSoundInstance.forUI(
+                    SoundEvents.UI_BUTTON_CLICK.value(), 1.0f, volume));
+        }
     }
 
     /**
