@@ -457,3 +457,13 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 - lang 键全量核对：viewer.recipe/usage/materials + 全部 category 键（7 语言）
 
 **待办**：pinoverlay 浮层、info 类别（信息页——可选）、资源/textures 核对（1.21.1 新类别图标用 Items 现有项）。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 16——收尾核查）
+
+**核查结论**（无代码变更，验证部署到位）：
+- 21 个提交全部落地、工作区干净、双端构建通过（17 up-to-date）、jar 含全部新类（recipeviewer 全套/PopupRenderer/RecipeViewerOverlay/TabPinManager）
+- mixin 注册核对：本轮新增 3 个（recipebookposition/search.PageJump/scrollablepages.Animation）全部注册 ✓；4 个"未注册"类（ghostguard/hideoverlay-JEI×2/rei）各有归属配置（jei-common/rei-common）或为移植前死代码（ghostguard，1.21.11 也无）——非遗漏
+- mixin 冲突检测：initVisuals 被 incompletecrafting/recipebookposition 双注入（TAIL×2，mixin 兼容）；render 仅 recipebookposition 一处——无冲突
+- info 类别判定：依赖 JEI jei:information 运行时（1.21.1 实例 JEI disabled）→ 与 1.21.11 一致，无 JEI 时类别缺席（不实现）
+
+**1.21.1 移植最终功能清单**：mod id zzzbrbe 化、BrbeConfig 全字段、R/U/A 键位+配置、拼音搜索、翻页动画+位置记忆+^N^+Ctrl 跳页、RBIP 标签 pin 闭环、pin 体系重制（Stage 3/4/6/6b）、查询 viewer（9 类别+Shift 预览+viewer 内 pin）、CLAUDE.md 轮次记录。**未实现（数据源或 API 鸿沟）**：info 类别（无 JEI）、anvil/grindstone 配方条目（无 RecipeType，已工作站降级）、完整 pinoverlay 浮层（已按钮角标降级）、翻页动画视觉池与 1.21.11 的完整版差异（简单平移，非挤压视效）。
