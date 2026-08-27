@@ -28,4 +28,19 @@ public interface RecipeBookPageAccessor {
     @Accessor("backButton")
     StateSwitchingButton getBackButton();
 
+    @Accessor("currentPage")
+    int getCurrentPage();
+
+    @Accessor("currentPage")
+    void setCurrentPage(int value);
+
+    @Accessor("totalPages")
+    int getTotalPages();
+
+    @org.spongepowered.asm.mixin.gen.Invoker("updateButtonsForPage")
+    void updateButtonsForPageInvoker();
+
+    @Accessor("hoveredButton")
+    net.minecraft.client.gui.screens.recipebook.RecipeButton getHoveredButton();
+
 }

@@ -361,3 +361,17 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 **API 差异备忘**：1.21.1 `ItemStack.is(Block)` 不存在 → `is(Block.asItem())`；1.21.1 燃料体系 `AbstractFurnaceBlockEntity`（1.21.11 是 FuelValues/FuelValues.fuelItems()）。
 
 **待办（下一轮次）**：Shift 预览弹窗（PopupGeometry/PopupRenderer 1.21.1 版）、anvil/brewing/grindstone/compost/info 类别、pinoverlay（viewer 内 pin）、RBIP 标签固定键、翻页 Mixin。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 7——位置记忆接入）
+
+**已落地**：
+- `mixins/accessors/RecipeBookPageAccessor` 增补：getCurrentPage/setCurrentPage/getTotalPages/updateButtonsForPageInvoker/getHoveredButton
+- `mixins/accessors/RecipeBookComponentAccessor` 增补：setSelectedTab/getTabButtons/updateTabsInvoker（**1.21.1 的 updateTabs() 无参**——1.21.11 是 updateTabs(boolean)）
+- `mixins/recipebookposition/RecipeBookComponentMixin`（1.21.1 简化版）：render TAIL 记住标签+页码+搜索词（PositionMemory.save，tabPage 传 -1 无 RBIP 页码）；initVisuals TAIL 恢复（searchBox.setValue → setStateTriggered 替换选中 → updateTabs → 钳制页码 + updateButtonsForPageInvoker）
+- mixins.brbe-common.json 注册 recipebookposition mixin
+
+**API 差异备忘**：1.21.1 RecipeBookTabButton 无 select/unselect（用 StateSwitchingButton.setStateTriggered）；1.21.1 updateTabs() 无参。
+
+**设计说明**：对照 1.21.11 完整版，本版不含：RBIP 标签栏页码恢复（RecipeBookScrollAccess 1.21.1 无）、搜索变更页码策略（checkSearchStringUpdate 注入——避开与 1.21.1 search mixin 冲突）。
+
+**待办（下一轮次）**：^N^ 跳页命令（SearchPageJump 接线）、Ctrl 跳页、翻页动画 Mixin（RecipeBookPageAnimationMixin 需 RecipeButton(SlotSelectTime) 构造器重适配）、anvil/brewing/grindstone/compost/info 类别、Shift 预览弹窗、pinoverlay、RBIP 标签固定键。

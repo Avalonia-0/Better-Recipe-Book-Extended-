@@ -54,6 +54,15 @@ public interface RecipeBookComponentAccessor {
     @Accessor("selectedTab")
     net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton getSelectedTab();
 
+    @Accessor("selectedTab")
+    void setSelectedTab(net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton value);
+
+    @Accessor("tabButtons")
+    java.util.List<net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton> getTabButtons();
+
+    @org.spongepowered.asm.mixin.gen.Invoker("updateTabs")
+    void updateTabsInvoker();
+
     @Accessor("SEARCH_HINT")
     static Component getSEARCH_HINT() {
         throw new AssertionError();
