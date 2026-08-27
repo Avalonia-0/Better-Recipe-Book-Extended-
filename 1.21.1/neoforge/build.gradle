@@ -7,6 +7,12 @@ architectury {
     neoForge()
 }
 
+loom {
+    // 关键：显式声明 neoForge 平台才会给 dependencies 注册 neoForge(...) 方法
+    // （architectury { neoForge() } 单独调用在冷配置下不注册——2026-08-28 定位）。
+    neoForge { }
+}
+
 configurations {
     common {
         canBeResolved = true
