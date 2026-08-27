@@ -427,3 +427,14 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 **至此 RBIP 标签 pin 闭环**：A 键固定标签 → TabPinManager 持久化 → rebuildTabList 置顶 + 标签 pin 贴图（轮次 3）。
 
 **待办**：翻页动画 Mixin（视觉池整块重写）、anvil/brewing/grindstone（数据源缺失）、pinoverlay 浮层。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 13——翻页动画 Mixin 简化版）
+
+**已落地**：
+- `mixins/scrollablepages/RecipeBookPageAnimationMixin`（1.21.1 简化版）：**快照池用 `new RecipeButton()` 无参构造 + `init(RecipeCollection, RecipeBookPage)` 2 参**（1.21.11 用 SlotSelectTime + 4 参 init）；用户翻页检测（updateButtonsForPage HEAD + RecipeBookPageAnimBridge.consumeUserFlip）→ 快照旧页滑出 + 当前页平移滑入（PAGE_SLIDE_DISTANCE 125、指数减速、追逐延展、scissor 包网格区）；配置 pageAnimation.pageAnimationEnabled / pageAnimationDuration
+- 关键适配：**1.21.1 RecipeBookPage.render(GuiGraphics,int,int,int,int,float) 5 参**（无 mouseX/mouseY 参数——从 Minecraft.mouseHandler.xpos/ypos 取）
+- mixins.brbe-common.json 注册
+
+**API 差异备忘**：1.21.1 RecipeButton 无参构造（1.21.11 需 SlotSelectTime）；RecipeBookPage.render 5 参；PageFlipDirection.backward(int,int,int,boolean) 可直接复用。
+
+**待办**：anvil/brewing/grindstone（数据源缺失——JEI 19.27 运行时构建）、pinoverlay 浮层、资源/lang 全量补齐核对。

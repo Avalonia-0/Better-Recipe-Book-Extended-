@@ -55,6 +55,7 @@
     "recipebookposition.RecipeBookComponentMixin",
     "search.RecipeBookComponentPageJumpMixin",
     "scrollablepages.RecipeBookPageMixin",
+    "scrollablepages.RecipeBookPageAnimationMixin",
     "settings.RecipeBookComponentMixin",
     "toasts.RemoveToasts",
     "toasts.SuppressUnlockSound",
