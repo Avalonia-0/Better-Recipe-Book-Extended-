@@ -8,6 +8,7 @@ import com.alonie.recipebookispain_extended.access.CreativeTabButtonAccess;
 import com.alonie.recipebookispain_extended.access.RecipeBookScrollAccess;
 import com.alonie.recipebookispain_extended.access.RecipeGroupButtonPlacement;
 import com.alonie.recipebookispain_extended.access.RecipeGroupButtonPlacementAccess;
+import com.alonie.recipebookispain_extended.access.RbipTabBridge;
 import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.RecipeBookCategories;
