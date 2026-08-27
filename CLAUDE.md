@@ -396,3 +396,14 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 **API 差异备忘**：1.21.1 ComposterBlock.COMPOSTABLES 是 Object2FloatMap（需 object2FloatEntrySet 遍历、getOrDefault(item, 0.0F)）；1.21.1 ItemStack 无 ItemLike 构造（like.asItem()）；**1.21.1 无 anvil/brewing/grindstone RecipeType**（JEI 运行时构建配方），这些类别需按 JEI 19.27 插件方式运行时构建或延后。
 
 **待办**：翻页动画 Mixin（RecipeButton 构造器/init 4 参 vs 2 参——视觉池需整块重写）、anvil/brewing/grindstone（数据源缺失）、Shift 预览弹窗、pinoverlay、RBIP 标签固定键。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 10——Shift 预览弹窗基础）
+
+**已落地**：
+- `render/PopupRenderer`（1.21.1 版，RecipeHolder 固定布局）：renderRecipePopup（居中 24x24 按钮 + 2x 缩放 + 返回原点矩形）；crafting 3x2 网格+结果 / furnace 输入+火焰+结果 / stonecutting-smithing 双槽 / generic 兜底；0.6x 缩放图标；modeFor(categoryId)
+- `BRBTextures.FURNACE_FIRE_SPRITE`（recipe_book/flame，1.21.1 原版火焰 sprite）
+- `RecipeViewerOverlay.render`：配方按钮 Shift 悬停 → PopupRenderer.renderRecipePopup（2x；fuel/grid 类别无配方不弹窗）
+
+**API 差异备忘**：1.21.1 PoseStack 用 pushPose/popPose/translate(x,y,z)/scale(x,y,z)（1.21.11 部分仍用 pushMatrix/2 参）；GuiGraphics.renderItem(ItemStack,int,int) 无渲染管线重载。
+
+**待办**：翻页动画 Mixin（视觉池整块重写）、anvil/brewing/grindstone（数据源缺失——JEI 运行时构建）、pinoverlay、RBIP 标签固定键。

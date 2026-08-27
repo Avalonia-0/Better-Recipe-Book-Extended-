@@ -237,6 +237,15 @@ public final class RecipeViewerOverlay {
             gui.renderFakeItem(result, bx + 4, by + 4);
             if (hovered) {
                 gui.fill(bx, by, bx + BUTTON_W, by + BUTTON_H, 0x40FFFFFF);
+                // Shift 悬停：渲染放大弹窗（PopupRenderer 1.21.1 简化版）
+                if (com.alonie.brbe.util.ClientCompat.isShiftDown()) {
+                    com.alonie.brbe.render.PopupRenderer.renderRecipePopup(
+                            gui, entries.get(i),
+                            com.alonie.brbe.render.PopupRenderer.modeFor(
+                                    category != null ? category.id() : null),
+                            false, false,
+                            bx, by, BUTTON_W, BUTTON_H, true, 2.0F);
+                }
             }
         }
 

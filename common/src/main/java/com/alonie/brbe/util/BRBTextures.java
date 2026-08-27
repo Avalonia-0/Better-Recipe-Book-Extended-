@@ -25,6 +25,7 @@ public class BRBTextures {
     public static final ResourceLocation RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE = ResourceLocation.withDefaultNamespace("recipe_book/slot_uncraftable");
     public static final ResourceLocation RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE = ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/slot_partial");
     public static final ResourceLocation RECIPE_BOOK_PIN_SPRITE = ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/pin");
+    public static final ResourceLocation FURNACE_FIRE_SPRITE = ResourceLocation.withDefaultNamespace("recipe_book/flame");
     public static final ResourceLocation RECIPE_BOOK_OVERLAY_PIN_SPRITE = ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/overlay_pin");
     
     public static final WidgetSprites RECIPE_BOOK_FILTER_BUTTON_SPRITES = new WidgetSprites(
