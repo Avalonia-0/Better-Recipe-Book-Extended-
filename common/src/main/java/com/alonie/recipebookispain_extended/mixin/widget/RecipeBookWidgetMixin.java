@@ -410,6 +410,23 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
             }
         }
 
+        // 固定创造标签置顶（pin 顺序）：TabPinManager.pinnedTabs() 依次排到
+        // 页列表最前（搜索标签之后）。固定标签在首次重开后生效。
+        java.util.List<CreativeModeTab> pinnedTabs = com.alonie.brbe.pin.TabPinManager.pinnedTabs();
+        if (!pinnedTabs.isEmpty()) {
+            java.util.List<RecipeBookTabButton> pinnedButtons = new java.util.ArrayList<>();
+            for (RecipeBookTabButton btn : rbip$pageableTabs) {
+                CreativeModeTab tab = rbip$buttonToTab.get(btn);
+                if (tab != null && pinnedTabs.contains(tab)) {
+                    pinnedButtons.add(btn);
+                }
+            }
+            if (!pinnedButtons.isEmpty()) {
+                rbip$pageableTabs.removeAll(pinnedButtons);
+                rbip$pageableTabs.addAll(0, pinnedButtons);
+            }
+        }
+
         this.rbip$applyPagination(true);
     }
 
