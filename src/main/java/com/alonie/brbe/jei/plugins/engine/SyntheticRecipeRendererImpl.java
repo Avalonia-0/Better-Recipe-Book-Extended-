@@ -10,7 +10,6 @@ import mezz.jei.api.gui.ingredient.IRecipeSlotDrawable;
 import mezz.jei.api.gui.ingredient.IRecipeSlotView;
 import mezz.jei.api.ingredients.ITypedIngredient;
 import net.minecraft.world.item.ItemStack;
-import mezz.jei.api.recipe.IRecipeManager;
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -80,28 +79,27 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
         // usable native layout does the delegated JEI UI actually paint.  The
         // shared PopupGeometry relies on this to pick the adapted coordinate
         // model; without it the geometry must match the vanilla fallback.
-        return JeiRuntimeBridge.recipeManager() != null
-                && PluginRecipeIndexer.renderEntryFor(id) != null
-                && RecipeViewerEngine.getLayout(id) != null;
+        return RecipeViewerEngine.getLayout(id) != null
+                && com.alonie.brbe.cache.BrbeJeiBridge.jeiAvailable()
+                && com.alonie.brbe.cache.BrbeJeiBridge.recipeFor(id) != null;
     }
 
     @Override
     public boolean render(RecipeDisplayId id, GuiGraphicsExtractor gui, int x, int y, int w, int h) {
-        PluginRecipeIndexer.RenderEntry entry = PluginRecipeIndexer.renderEntryFor(id);
         RecipeViewerEngine.RecipeLayout layout = RecipeViewerEngine.getLayout(id);
-        IRecipeManager recipeManager = JeiRuntimeBridge.recipeManager();
-        if (entry == null || layout == null || recipeManager == null) {
+        java.lang.Object recipe = com.alonie.brbe.cache.BrbeJeiBridge.recipeFor(id);
+        if (recipe == null || layout == null) {
             if (!renderSkipLogged) {
                 renderSkipLogged = true;
-                BetterRecipeBook.LOGGER.info("[BRBE-POPUP] synthetic render skipped entry={} layout={} jei={}",
-                        entry != null, layout != null, recipeManager != null);
+                BetterRecipeBook.LOGGER.info("[BRBE-POPUP] synthetic render skipped recipe={} layout={}",
+                        recipe != null, layout != null);
             }
             return false;
         }
 
         IRecipeLayoutDrawable<?> drawable = LAYOUT_CACHE.get(id);
         if (drawable == null) {
-            drawable = createDrawable(recipeManager, entry);
+            drawable = createDrawable(id, recipe, layout);
             if (drawable == null) {
                 if (!drawableFailLogged) {
                     drawableFailLogged = true;
@@ -265,12 +263,25 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
-    private static IRecipeLayoutDrawable<?> createDrawable(IRecipeManager recipeManager,
-                                                           PluginRecipeIndexer.RenderEntry entry) {
+    private static IRecipeLayoutDrawable<?> createDrawable(RecipeDisplayId id,
+                                                           java.lang.Object recipe,
+                                                           RecipeViewerEngine.RecipeLayout layout) {
         try {
-            Optional<IRecipeLayoutDrawable<?>> result = recipeManager.createRecipeLayoutDrawable(
-                    (IRecipeCategory) entry.category(), entry.recipe(), EmptyFocusGroup.INSTANCE);
-            return result.orElse(null);
+            // 独立化后：manager/category/focus 都来自 headless-jei 运行时（反射；
+            // 其 jar-in-jar 加载后类在 classpath）。mezz.jei.api 接口类型仅作编译参考。
+            java.lang.Object manager = com.alonie.brbe.cache.BrbeJeiBridge.reflectRecipeManager();
+            java.lang.Object category = com.alonie.brbe.cache.BrbeJeiBridge.reflectCategory(id);
+            java.lang.Object focusGroup = com.alonie.brbe.cache.BrbeJeiBridge.emptyFocusGroup();
+            if (manager == null || category == null || focusGroup == null) {
+                return null;
+            }
+            java.util.Optional<?> opt = (java.util.Optional<?>) manager.getClass()
+                    .getMethod("createRecipeLayoutDrawable",
+                            mezz.jei.api.recipe.category.IRecipeCategory.class,
+                            Object.class,
+                            mezz.jei.api.recipe.IFocusGroup.class)
+                    .invoke(manager, category, recipe, focusGroup);
+            return (IRecipeLayoutDrawable<?>) opt.orElse(null);
         } catch (Exception | LinkageError e) {
             BetterRecipeBook.LOGGER.debug("[BRBE-JEI-Plugins] createRecipeLayoutDrawable failed: {}", e.toString());
             return null;

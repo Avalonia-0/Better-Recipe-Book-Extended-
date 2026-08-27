@@ -39,16 +39,14 @@ public final class SyntheticRecipeDisplayEntryFactory {
      *  {@code products} holds every distinct player-obtainable product stack
      *  (all output slots combined), kept together as one composite result so
      *  the viewer object cycles through them. */
-    public static RecipeDisplayEntry createForOutput(List<SlotData> slots, List<ItemStack> stations,
-                                                     List<ItemStack> products) {
+    public static RecipeDisplayEntry createForItemLists(List<ItemStack> inputs, List<ItemStack> stations,
+                                                         List<ItemStack> products) {
         List<SlotDisplay> inputDisplays = new ArrayList<>();
-        if (slots != null) {
-            for (SlotData slot : slots) {
-                if (slot.role() == RecipeIngredientRole.INPUT
-                        || slot.role() == RecipeIngredientRole.CRAFTING_STATION) {
-                    inputDisplays.add(toSlotDisplay(slot.stacks()));
+        if (inputs != null) {
+            for (ItemStack stack : inputs) {
+                if (stack != null && !stack.isEmpty()) {
+                    inputDisplays.add(toSlotDisplay(List.of(stack)));
                 }
-                // RENDER_ONLY slots are not part of lookup
             }
         }
         SlotDisplay result = (products == null || products.isEmpty())

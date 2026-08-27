@@ -2,11 +2,11 @@ package com.alonie.brbe.fabric.compat.jei;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.compat.jei.JeiCompat;
-import com.alonie.brbe.jei.plugins.engine.JeiRuntimeBridge;
 import com.alonie.brbe.pinoverlay.PinOverlayManager;
 import com.alonie.brbe.util.RecipeViewerOverlay;
 import com.mojang.blaze3d.platform.InputConstants;
 import mezz.jei.api.IModPlugin;
+import net.minecraft.client.input.KeyEvent;
 import mezz.jei.api.JeiPlugin;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.gui.handlers.IGlobalGuiHandler;
@@ -18,7 +18,6 @@ import mezz.jei.api.registration.IGuiHandlerRegistration;
 import mezz.jei.api.runtime.IJeiKeyMappings;
 import mezz.jei.api.runtime.IJeiRuntime;
 import net.fabricmc.loader.api.FabricLoader;
-import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
@@ -28,11 +27,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
-/**
- * Fabric-side JEI plugin that bridges BRBE's recipe/usage key requests to JEI's
- * runtime (a coexistence bridge, not a data dependency: BRBE never reads JEI's
- * recipe data).  Workstation logic is entirely BRBE's own.
- */
 @JeiPlugin
 public final class BetterRecipeBookJEIPlugin implements IModPlugin {
     private static final Identifier PLUGIN_UID = Identifier.fromNamespaceAndPath(BetterRecipeBook.MOD_ID, "jei");
@@ -44,10 +38,8 @@ public final class BetterRecipeBookJEIPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
-        // Expose JEI's recipe manager so the synthetic recipe renderer can
-        // delegate the full JEI recipe UI to JEI itself.
-        JeiRuntimeBridge.set(jeiRuntime.getRecipeManager());
-        BetterRecipeBook.LOGGER.info("[BRBE-JEI] JEI runtime available; delegating synthetic recipe rendering to JEI");
+        // 独立化后：渲染委托改由 BrbeJeiBridge 反射复用 headless-jei 运行时的
+        // JeiRuntimeBridge/PluginRecipeIndexer，无需在此注入 recipeManager。
 
         // Only bridge R/U fallback queries to the real JEI.  With the real JEI
         // absent, the embedded headless core's RecipesGui is a no-op dummy, so
@@ -87,7 +79,6 @@ public final class BetterRecipeBookJEIPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeUnavailable() {
-        JeiRuntimeBridge.clear();
         JeiCompat.setHandler(null);
     }
 

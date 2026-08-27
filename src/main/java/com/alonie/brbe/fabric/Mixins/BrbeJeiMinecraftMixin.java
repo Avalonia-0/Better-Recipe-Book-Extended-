@@ -1,9 +1,6 @@
 package com.alonie.brbe.fabric.Mixins;
 
 import com.alonie.brbe.BetterRecipeBook;
-import mezz.jei.common.Internal;
-import mezz.jei.common.gui.textures.JeiAtlasManager;
-import mezz.jei.common.gui.textures.Textures;
 import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.main.GameConfig;
@@ -51,12 +48,16 @@ public class BrbeJeiMinecraftMixin {
             return;
         }
         try {
-            Textures textures = Internal.getTextures();
-            JeiAtlasManager atlasManager = textures.getAtlasManager();
-            resourceManager.registerReloadListener(atlasManager);
-            BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] embedded JEI core atlas registered before initial resource reload (headless mode)");
+            // 独立化后（headless-jei jar-in-jar / 真实 JEI）反射取 atlas 管理器：
+            // Internal.getTextures().getAtlasManager() → registerReloadListener。
+            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
+            Object textures = internalClass.getMethod("getTextures").invoke(null);
+            Object atlasManager = textures.getClass().getMethod("getAtlasManager").invoke(textures);
+            resourceManager.registerReloadListener(
+                    (net.minecraft.server.packs.resources.PreparableReloadListener) atlasManager);
+            BetterRecipeBook.LOGGER.info("[BRBE-JEI-PLUGINS] JEI core atlas registered before initial resource reload");
         } catch (Exception | LinkageError e) {
-            BetterRecipeBook.LOGGER.warn("[BRBE-JEI-Plugins] failed to register embedded JEI atlas: {}", e.toString());
+            BetterRecipeBook.LOGGER.warn("[BRBE-JEI-PLUGINS] failed to register JEI atlas: {}", e.toString());
         }
     }
 }

@@ -1,6 +1,5 @@
 package com.alonie.brbe.recipeviewer;
 
-import com.alonie.brbe.jei.plugins.engine.JeiRuntimeBridge;
 import mezz.jei.api.constants.RecipeTypes;
 import mezz.jei.api.ingredients.ITypedIngredient;
 import mezz.jei.api.recipe.IRecipeManager;
@@ -139,13 +138,24 @@ public final class InfoRecipeCategory implements RecipeViewerCategory {
     /** Every {@code jei:information} recipe of the current JEI runtime
      *  (cached per manager instance). */
     private static List<IJeiIngredientInfoRecipe> infoRecipes() {
-        IRecipeManager manager = JeiRuntimeBridge.recipeManager();
+        IRecipeManager manager = reflectRecipeManager();
         if (manager == null) return List.of();
         if (manager != cachedManager || cachedRecipes.isEmpty()) {
             cachedManager = manager;
             cachedRecipes = collect(manager);
         }
         return cachedRecipes;
+    }
+
+    /** headless-jei 运行时的 recipeManager（反射；absent → null）。 */
+    private static IRecipeManager reflectRecipeManager() {
+        try {
+            Class<?> bridge = Class.forName("com.alonie.brbe.jei.plugins.engine.JeiRuntimeBridge");
+            Object manager = bridge.getMethod("recipeManager").invoke(null);
+            return (IRecipeManager) manager;
+        } catch (Exception | LinkageError e) {
+            return null;
+        }
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})
