@@ -53,7 +53,6 @@
   "text.autoconfig.brbe.option.scrollAround": "Зацикленная прокрутка страниц рецептов",
   "text.autoconfig.brbe.option.scrollAround.@Tooltip": "При достижении конца книги возвращает прокрутку к началу (как в JEI)",
   "key.zzzbrbe.diagnostic": "Диагностическая информация (F8)",
-
   "zzzbrbe.gui.tip.prefix": "Совет: ",
   "zzzbrbe.gui.tip.1": "Щёлкните правой кнопкой по строке поиска, чтобы очистить текст.",
   "zzzbrbe.gui.tip.2": "Нажмите F (по умолчанию), чтобы закрепить наведённый рецепт на первой странице.",
@@ -62,5 +61,8 @@
   "zzzbrbe.gui.tip.5": "Функция вкладок в креативном режиме взята из мода Recipe Book is Pain!",
   "zzzbrbe.gui.tip.6": "Загляните в соцсети и подружитесь с нами!",
   "zzzbrbe.gui.tip.7": "Весь код сгенерирован DeepSeek!",
-  "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§eОтметка неполных рецептов"
+  "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§eОтметка неполных рецептов",
+  "zzzbrbe.viewer.recipe": "Recipe",
+  "zzzbrbe.viewer.usage": "Usage",
+  "zzzbrbe.viewer.materials": "Materials"
 }

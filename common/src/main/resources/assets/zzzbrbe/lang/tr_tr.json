@@ -53,7 +53,6 @@
   "text.autoconfig.brbe.option.scrollAround": "Tarif Alanında Sayfa Döngüsü",
   "text.autoconfig.brbe.option.scrollAround.@Tooltip": "Kitabın sonuna gelindiğinde başa dönerek kaydırmaya devam eder (JEI'deki gibi)",
   "key.zzzbrbe.diagnostic": "Tanılama Bilgisi (F8)",
-
   "zzzbrbe.gui.tip.prefix": "İpucu: ",
   "zzzbrbe.gui.tip.1": "Arama çubuğuna sağ tıklayarak yazılan metni temizleyebilirsiniz.",
   "zzzbrbe.gui.tip.2": "F tuşuna (varsayılan) basarak imlecinizin üzerindeki tarifi ilk sayfaya sabitleyebilirsiniz.",
@@ -62,5 +61,8 @@
   "zzzbrbe.gui.tip.5": "Yaratıcı mod sekmesi özelliği Recipe Book is Pain modundan geliyor!",
   "zzzbrbe.gui.tip.6": "Sosyal medyada bize katıl, arkadaş olalım!",
   "zzzbrbe.gui.tip.7": "Tüm kod DeepSeek tarafından üretilmiştir!",
-  "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§eEksik Tarif İşaretleme"
+  "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§eEksik Tarif İşaretleme",
+  "zzzbrbe.viewer.recipe": "Recipe",
+  "zzzbrbe.viewer.usage": "Usage",
+  "zzzbrbe.viewer.materials": "Materials"
 }

@@ -53,7 +53,6 @@
   "text.autoconfig.brbe.option.scrollAround": "配方区页面循环滚动",
   "text.autoconfig.brbe.option.scrollAround.@Tooltip": "翻到书的结尾时，折回开头重新滚动（类似 JEI）",
   "key.zzzbrbe.diagnostic": "诊断信息 (F8)",
-
   "zzzbrbe.gui.tip.prefix": "提示：",
   "zzzbrbe.gui.tip.1": "你可以右键搜索栏来清除已输入文字。",
   "zzzbrbe.gui.tip.2": "你可以按下F键（默认）将鼠标指向的配方固定于首页。",
@@ -62,5 +61,8 @@
   "zzzbrbe.gui.tip.5": "创造模式标签功能来自Recipe Book is Pain模组！",
   "zzzbrbe.gui.tip.6": "来社交媒体和大家交个朋友！",
   "zzzbrbe.gui.tip.7": "所有代码均由DeepSeek生成！",
-  "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§e残缺配方标记"
+  "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§e残缺配方标记",
+  "zzzbrbe.viewer.recipe": "Recipe",
+  "zzzbrbe.viewer.usage": "Usage",
+  "zzzbrbe.viewer.materials": "Materials"
 }

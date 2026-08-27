@@ -53,7 +53,6 @@
   "text.autoconfig.brbe.option.scrollAround": "レシピエリアページのループスクロール",
   "text.autoconfig.brbe.option.scrollAround.@Tooltip": "レシピ本の最後までスクロールしたら、先頭に戻ります（JEIと同様）",
   "key.zzzbrbe.diagnostic": "診断情報 (F8)",
-
   "zzzbrbe.gui.tip.prefix": "ヒント：",
   "zzzbrbe.gui.tip.1": "検索バーを右クリックすると入力した文字を消せます。",
   "zzzbrbe.gui.tip.2": "Fキー（デフォルト）でカーソルのレシピを先頭ページに固定できます。",
@@ -62,5 +61,8 @@
   "zzzbrbe.gui.tip.5": "クリエイティブモードのタブ機能は Recipe Book is Pain のMODから来ています！",
   "zzzbrbe.gui.tip.6": "SNSでみんなと友達になりましょう！",
   "zzzbrbe.gui.tip.7": "すべてのコードはDeepSeekによって生成されています！",
-  "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§e不完全なレシピのマーキング"
+  "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§e不完全なレシピのマーキング",
+  "zzzbrbe.viewer.recipe": "Recipe",
+  "zzzbrbe.viewer.usage": "Usage",
+  "zzzbrbe.viewer.materials": "Materials"
 }

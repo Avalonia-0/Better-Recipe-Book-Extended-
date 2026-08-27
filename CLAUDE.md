@@ -336,3 +336,15 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 **API 差异备忘**：1.21.1 `AbstractCraftingMenu` → `CraftingMenu`（类名不同）；1.21.1 ClientRecipeBook 无 rebuildCollections（1.21.11 的注入点），用 setupCollections RETURN 替代。
 
 **待办（下一轮次）**：viewer UI（RecipeViewerOverlay 1.21.1 版 + PopupGeometry/PopupRenderer + pinoverlay）、其余类别（furnace/fuel/food 等 station 类型 + anvil/brewing/grindstone/compost/info）、R/U 键位接线（ItemViewCompat → 自研 viewer）、RBIP 标签固定键（旧 API 重写）。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 5——viewer UI 最小原型）
+
+**已落地**：
+- `util/RecipeViewerOverlay`（1.21.1 轻量版）：静态状态（active/usage/target/category/page）+ `open/close/keyPressed/mouseClicked/render/renderTooltip`；面板 = 原版 recipe_book 背景 176x148 居中 + 标题行 + 底部分类 tab + 6x4 配方按钮网格（result 图标+悬停高亮）+ 每页计数；R=查询配方/U=查询用途（切换 reopen）、ESC 关闭；悬停按钮 tooltip（结果名+材料首个）
+- `mixins/ScreenRenderMixin`：TAIL 追加 viewer render + renderTooltip（最顶层）
+- `mixins/hideoverlay/AbstractContainerScreenMixin`：keyPressed 前置 viewer 分支（recipeViewerEnabled 守卫、独立于 hideReiJeiOverlay）、ESC 关闭 viewer（不关下层屏幕）
+- lang 键：zzzbrbe.viewer.recipe/usage/materials（7 语言，暂 en 值）
+
+**设计说明**：1.21.1 的 RecipeViewerOverlay 是轻量独立实现（非 1.21.11 3532 行版的 display 移植）——UI 骨架（面板/网格/tab/分页）先行，完整弹窗/预览/硬模态/pin 浮层后续逐步扩展。API 差异：getSlotUnderMouse 编译期不可见（1.21.1 hoveredSlot 字段由调用方传入）、append 链式拆开。
+
+**待办（下一轮次）**：viewer 完整弹窗（Shift 预览 PopupGeometry/PopupRenderer 1.21.1 版）、其余类别（furnace/fuel/stonecutting/smithing/anvil/brewing/grindstone/compost/info）、pinoverlay（viewer 内 pin）、RBIP 标签固定键、翻页 Mixin 接入。

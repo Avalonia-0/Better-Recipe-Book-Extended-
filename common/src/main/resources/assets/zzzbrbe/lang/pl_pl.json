@@ -53,7 +53,6 @@
   "text.autoconfig.brbe.option.scrollAround": "Zawijanie stron w obszarze receptur",
   "text.autoconfig.brbe.option.scrollAround.@Tooltip": "Po przewinięciu do końca księgi, przewijanie wraca do początku (podobnie jak w JEI)",
   "key.zzzbrbe.diagnostic": "Informacje diagnostyczne (F8)",
-
   "zzzbrbe.gui.tip.prefix": "Wskazówka: ",
   "zzzbrbe.gui.tip.1": "Możesz kliknąć prawym przyciskiem pasek wyszukiwania, aby wyczyścić tekst.",
   "zzzbrbe.gui.tip.2": "Naciśnij F (domyślnie), aby przypiąć wskazany przepis na pierwszej stronie.",
@@ -62,5 +61,8 @@
   "zzzbrbe.gui.tip.5": "Funkcja zakładek w trybie kreatywnym pochodzi z moda Recipe Book is Pain!",
   "zzzbrbe.gui.tip.6": "Zajrzyj na media społecznościowe i zaprzyjaźnij się z nami!",
   "zzzbrbe.gui.tip.7": "Cały kod został wygenerowany przez DeepSeek!",
-  "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§eOznaczanie niekompletnych przepisów"
+  "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§eOznaczanie niekompletnych przepisów",
+  "zzzbrbe.viewer.recipe": "Recipe",
+  "zzzbrbe.viewer.usage": "Usage",
+  "zzzbrbe.viewer.materials": "Materials"
 }

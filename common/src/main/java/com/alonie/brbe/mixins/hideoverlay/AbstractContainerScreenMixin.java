@@ -2,6 +2,7 @@ package com.alonie.brbe.mixins.hideoverlay;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.compat.ItemViewCompat;
+import com.alonie.brbe.util.RecipeViewerOverlay;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -31,7 +32,29 @@ public abstract class AbstractContainerScreenMixin {
 
     @Inject(method = "keyPressed", at = @At("HEAD"), cancellable = true)
     private void brbe$handleKeysOnHiddenOverlay(int keyCode, int scancode, int modifiers, CallbackInfoReturnable<Boolean> cir) {
+        // BRBE 自研查询浮层优先：R/U 键直接打开烘焙引擎（不依赖外部 viewer）。
+        // 独立于 hideReiJeiOverlay——查询功能由 recipeViewerEnabled 配置控制。
+        // ESC 关闭查询浮层（下层屏幕保持不关闭——viewer 是模态俯层）。
+        if (com.alonie.brbe.util.RecipeViewerOverlay.isActive() && keyCode == 256) {
+            com.alonie.brbe.util.RecipeViewerOverlay.close();
+            cir.setReturnValue(true);
+            return;
+        }
+        if (BetterRecipeBook.ctx().config().recipeViewerEnabled
+                && RecipeViewerOverlay.keyPressed(keyCode, scancode, modifiers,
+                        (AbstractContainerScreen<?>) (Object) this, this.hoveredSlot)) {
+            cir.setReturnValue(true);
+            return;
+        }
+
         if (!BetterRecipeBook.ctx().config().hideReiJeiOverlay) {
+            return;
+        }
+
+        // A key: prevent REI/JEI favorites. Skip if text field is focused.
+        if (RecipeViewerOverlay.keyPressed(keyCode, scancode, modifiers,
+                (AbstractContainerScreen<?>) (Object) this, this.hoveredSlot)) {
+            cir.setReturnValue(true);
             return;
         }
 
