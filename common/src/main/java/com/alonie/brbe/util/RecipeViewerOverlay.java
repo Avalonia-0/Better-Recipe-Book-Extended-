@@ -37,6 +37,11 @@ public final class RecipeViewerOverlay {
     private static List<RecipeHolder<?>> entries = new ArrayList<>();
     private static int page;
     private static int pageCount = 1;
+    /** pinoverlay 弹窗：A 键固定后展示的配方（旁边大弹窗）；关闭 viewer 清空。 */
+    private static RecipeHolder<?> pinPopupEntry;
+    private static int pinPopupX;
+    private static int pinPopupY;
+    private static boolean pinPopupActive;
 
     // -- Geometry (centered panel) --------------------------------------------
 
@@ -99,6 +104,8 @@ public final class RecipeViewerOverlay {
         entries = new ArrayList<>();
         page = 0;
         pageCount = 1;
+        pinPopupActive = false;
+        pinPopupEntry = null;
     }
 
     // -- Key input ---------------------------------------------------------------
@@ -124,7 +131,23 @@ public final class RecipeViewerOverlay {
             if (BetterRecipeBook.PIN_MAPPING.matches(keyCode, scanCode)) {
                 RecipeHolder<?> hovered = hoveredEntry(mouseXFor(screen), mouseYFor(screen));
                 if (hovered != null) {
+                    boolean wasPinned = BetterRecipeBook.pinnedRecipeManager.isPinnedEntry(hovered);
                     BetterRecipeBook.pinnedRecipeManager.toggleFavourite(hovered);
+                    boolean nowPinned = !wasPinned;
+                    int mx = mouseXFor(screen);
+                    int my = mouseYFor(screen);
+                    if (nowPinned) {
+                        // 固定成功：在悬停按钮旁展示 pinoverlay 弹窗（PopupRenderer 复用）
+                        pinPopupEntry = hovered;
+                        int bx = buttonRectXFor(mx, my);
+                        int by = buttonRectYFor(mx, my);
+                        pinPopupX = bx + 28;
+                        pinPopupY = by - 8;
+                        pinPopupActive = true;
+                    } else {
+                        pinPopupActive = false;
+                        pinPopupEntry = null;
+                    }
                     return true;
                 }
             }
@@ -261,6 +284,16 @@ public final class RecipeViewerOverlay {
             }
         }
 
+        // pinoverlay 弹窗（固定配方展示）
+        if (pinPopupActive && pinPopupEntry != null) {
+            com.alonie.brbe.render.PopupRenderer.renderRecipePopup(
+                    gui, pinPopupEntry,
+                    com.alonie.brbe.render.PopupRenderer.modeFor(
+                            category != null ? category.id() : null),
+                    false, false,
+                    pinPopupX - 12, pinPopupY - 12, 24, 24, false, 2.0F);
+        }
+
         // Page indicator
         if (pageCount > 1) {
             gui.drawString(Minecraft.getInstance().font,
@@ -361,6 +394,46 @@ public final class RecipeViewerOverlay {
     }
 
     /** 当前鼠标悬停的配方条目（网格命中）。 */
+    /** 命中按钮的 X（网格矩形反推）。 */
+    private static int buttonRectXFor(int mouseX, int mouseY) {
+        int left = panelLeft(Minecraft.getInstance().screen);
+        int top = panelTop(Minecraft.getInstance().screen);
+        int perPage = COLS * ROWS;
+        int start = page * perPage;
+        int end = Math.min(start + perPage, entries.size());
+        for (int i = start; i < end; i++) {
+            int col = (i - start) % COLS;
+            int row = (i - start) / COLS;
+            int bx = left + GRID_PAD_X + col * (BUTTON_W + 3);
+            int by = top + GRID_PAD_Y + 8 + row * (BUTTON_H + 3);
+            if (mouseX >= bx && mouseX < bx + BUTTON_W
+                    && mouseY >= by && mouseY < by + BUTTON_H) {
+                return bx;
+            }
+        }
+        return left + GRID_PAD_X;
+    }
+
+    /** 命中按钮的 Y（网格矩形反推）。 */
+    private static int buttonRectYFor(int mouseX, int mouseY) {
+        int left = panelLeft(Minecraft.getInstance().screen);
+        int top = panelTop(Minecraft.getInstance().screen);
+        int perPage = COLS * ROWS;
+        int start = page * perPage;
+        int end = Math.min(start + perPage, entries.size());
+        for (int i = start; i < end; i++) {
+            int col = (i - start) % COLS;
+            int row = (i - start) / COLS;
+            int bx = left + GRID_PAD_X + col * (BUTTON_W + 3);
+            int by = top + GRID_PAD_Y + 8 + row * (BUTTON_H + 3);
+            if (mouseX >= bx && mouseX < bx + BUTTON_W
+                    && mouseY >= by && mouseY < by + BUTTON_H) {
+                return by;
+            }
+        }
+        return top + GRID_PAD_Y + 8;
+    }
+
     private static RecipeHolder<?> hoveredEntry(int mouseX, int mouseY) {
         int left = panelLeft(Minecraft.getInstance().screen);
         int top = panelTop(Minecraft.getInstance().screen);

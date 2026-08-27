@@ -486,3 +486,13 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 - 未补：column_panel/column_panel_top（1.21.1 无代码引用——1.21.11 的 viewer 面板背景，1.21.1 自绘面板不用）；icon.png（1.21.1 在三模块已有）
 
 **待办**：pinoverlay 浮层（最后可选）。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 19——pinoverlay 轻量浮层）
+
+**已落地**：
+- `RecipeViewerOverlay`：A 键固定成功 → 在悬停按钮旁展示 **pinoverlay 弹窗**（PopupRenderer 复用 2x 大弹窗，pinPopupX/Y 按钮右上方）；取消固定/关闭 viewer → 弹窗清空
+- 辅助：`buttonRectXFor/buttonRectYFor`（鼠标坐标反推命中按钮矩形）；`nowPinned = !wasPinned`（toggleFavourite 返回 void，先 isPinnedEntry 判定）
+
+**说明**：1.21.11 的 PinOverlay 是完整独立浮层系统（display 依赖），1.21.1 轻量版在 viewer 内实现"固定即预览"——固定配方时放大弹窗展示材料/结果（PopupRenderer 复用），等效为用户核心诉求（固定后查看配方详情）。
+
+**待办**：最后轮收尾（提交部署 + 根 CLAUDE.md 状态更新）。
