@@ -8,7 +8,7 @@ base {
 }
 
 loom {
-    accessWidenerPath = project(":common").file("src/main/resources/headlessjei.accesswidener")
+    accessWidenerPath = project(":common").file("src/main/resources/brbe.common.accesswidener")
 }
 
 configurations {

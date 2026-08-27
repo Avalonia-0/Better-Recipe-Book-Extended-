@@ -1,6 +1,5 @@
 package com.alonie.brbe.jei.plugins.stub;
 
-import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import mezz.jei.api.gui.ITickTimer;
 import mezz.jei.api.gui.drawable.IDrawableAnimated;
 import mezz.jei.api.gui.drawable.IDrawableBuilder;
@@ -15,26 +14,16 @@ import net.minecraft.resources.Identifier;
  */
 public final class RecordedDrawableBuilder implements IDrawableBuilder {
 
-    private final Identifier id;
-    private final int u;
-    private final int v;
     private final int width;
     private final int height;
-    private int textureWidth = 256;
-    private int textureHeight = 256;
 
-    public RecordedDrawableBuilder(Identifier id, int u, int v, int width, int height) {
-        this.id = id;
-        this.u = u;
-        this.v = v;
+    public RecordedDrawableBuilder(int u, int v, int width, int height) {
         this.width = width;
         this.height = height;
     }
 
     @Override
     public IDrawableBuilder setTextureSize(int width, int height) {
-        this.textureWidth = width;
-        this.textureHeight = height;
         return this;
     }
 
@@ -50,21 +39,17 @@ public final class RecordedDrawableBuilder implements IDrawableBuilder {
 
     @Override
     public IDrawableStatic build() {
-        return new RecordedDrawable(toBackground());
+        return new RecordedDrawable(width, height);
     }
 
     @Override
     public IDrawableAnimated buildAnimated(int ticksPerCycle, IDrawableAnimated.StartDirection startDirection, boolean inverted) {
-        return new RecordedDrawable(toBackground());
+        return new RecordedDrawable(width, height);
     }
 
     @Override
     public IDrawableAnimated buildAnimated(ITickTimer tickTimer, IDrawableAnimated.StartDirection startDirection) {
-        return new RecordedDrawable(toBackground());
+        return new RecordedDrawable(width, height);
     }
 
-    /** The recorded background texture region. */
-    RecipeViewerEngine.RecipeBackground toBackground() {
-        return new RecipeViewerEngine.RecipeBackground(id, u, v, width, height, textureWidth, textureHeight);
-    }
 }

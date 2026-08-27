@@ -1,8 +1,6 @@
 package com.alonie.brbe.jei.plugins.stub;
 
-import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import mezz.jei.api.gui.ITickTimer;
-import mezz.jei.library.gui.elements.DrawableBuilder;
 import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.drawable.IDrawableAnimated;
 import mezz.jei.api.gui.drawable.IDrawableBuilder;
@@ -34,30 +32,11 @@ public final class GuiHelperStub implements IGuiHelper {
 
     public static final GuiHelperStub INSTANCE = new GuiHelperStub();
 
-    /** Drawable builders recorded since the last {@link #drainBackgrounds()}. */
-    private final List<RecordedDrawableBuilder> recent = new ArrayList<>();
-
     private GuiHelperStub() {}
 
     @Override
     public IDrawableBuilder drawableBuilder(Identifier id, int u, int v, int width, int height) {
-        // Record the texture region so the category collector can attribute the
-        // category's background, then hand back a real builder whose build()/buildAnimated()
-        // produce drawables that actually render (animation included).
-        recent.add(new RecordedDrawableBuilder(id, u, v, width, height));
-        return new DrawableBuilder(id, u, v, width, height);
-    }
-
-    /** Drain and return the drawable backgrounds recorded since the last drain,
-     *  in call order.  The category collector calls this once per category so
-     *  each background can be attributed to the category that declared it. */
-    public List<RecipeViewerEngine.RecipeBackground> drainBackgrounds() {
-        List<RecipeViewerEngine.RecipeBackground> out = new ArrayList<>(recent.size());
-        for (RecordedDrawableBuilder builder : recent) {
-            out.add(builder.toBackground());
-        }
-        recent.clear();
-        return out;
+        return new RecordedDrawableBuilder(u, v, width, height);
     }
 
     @Override

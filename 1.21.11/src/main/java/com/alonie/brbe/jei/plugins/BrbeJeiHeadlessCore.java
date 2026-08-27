@@ -1,6 +1,8 @@
 package com.alonie.brbe.jei.plugins;
 
-import com.alonie.brbe.BetterRecipeBook;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import com.alonie.brbe.jei.plugins.engine.JeiRuntimeBridge;
 import mezz.jei.api.IModPlugin;
 import mezz.jei.api.recipe.IRecipeManager;
@@ -51,6 +53,8 @@ import java.util.Set;
  * initializer is skipped.
  */
 public final class BrbeJeiHeadlessCore {
+
+    private static final Logger LOGGER = LogManager.getLogger("headless-jei");
 
     private BrbeJeiHeadlessCore() {}
 
@@ -112,7 +116,7 @@ public final class BrbeJeiHeadlessCore {
         }
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null) {
-            BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] no level yet; deferring embedded core start");
+            LOGGER.info("[BRBE-JEI-Plugins] no level yet; deferring embedded core start");
             return;
         }
         try {
@@ -155,10 +159,10 @@ public final class BrbeJeiHeadlessCore {
             jeiStarter = new JeiStarter(startData);
             jeiStarter.start();
             running = true;
-            BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] embedded JEI core started ({} plugins)", plugins.size());
+            LOGGER.info("[BRBE-JEI-Plugins] embedded JEI core started ({} plugins)", plugins.size());
             injectSyncedModRecipes();
         } catch (Exception | LinkageError e) {
-            BetterRecipeBook.LOGGER.warn("[BRBE-JEI-Plugins] embedded JEI core failed to start: {}", e.toString());
+            LOGGER.warn("[BRBE-JEI-Plugins] embedded JEI core failed to start: {}", e.toString());
         }
     }
 
@@ -231,10 +235,10 @@ public final class BrbeJeiHeadlessCore {
                         manager.addRecipes((IRecipeType) recipeType, recipes);
                     }
                 }
-                BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] injected {} recipes into JEI manager for {}",
+                LOGGER.info("[BRBE-JEI-Plugins] injected {} recipes into JEI manager for {}",
                         entry.getValue().size(), typeKey);
             } catch (Exception | LinkageError e) {
-                BetterRecipeBook.LOGGER.warn("[BRBE-JEI-Plugins] failed to inject recipes for {}: {}",
+                LOGGER.warn("[BRBE-JEI-Plugins] failed to inject recipes for {}: {}",
                         typeKey, e.toString());
             }
         }
@@ -247,7 +251,7 @@ public final class BrbeJeiHeadlessCore {
         try {
             jeiStarter.stop();
         } catch (Exception | LinkageError e) {
-            BetterRecipeBook.LOGGER.debug("[BRBE-JEI-Plugins] embedded JEI core stop: {}", e.toString());
+            LOGGER.debug("[BRBE-JEI-Plugins] embedded JEI core stop: {}", e.toString());
         }
         running = false;
         injectedTypes.clear();

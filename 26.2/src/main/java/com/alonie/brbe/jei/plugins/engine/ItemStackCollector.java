@@ -1,13 +1,15 @@
 package com.alonie.brbe.jei.plugins.engine;
 
-import com.alonie.brbe.cache.RecipeViewerIndex;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.ingredients.ITypedIngredient;
+import net.minecraft.client.Minecraft;
+import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
+import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import net.minecraft.world.level.ItemLike;
 
 import java.util.ArrayList;
@@ -18,8 +20,8 @@ import java.util.Optional;
  * Collects the {@link ItemStack}s that a plugin adds to a slot into a flat
  * list, resolving every vanilla ingredient form (ItemStack / ItemLike /
  * ItemStackTemplate / Ingredient / SlotDisplay) through vanilla APIs.  Fluids
- * and custom {@link IIngredientType}s are dropped — BRBE only queries item
- * recipes.  This is the data half of JEI's {@code DisplayIngredientAcceptor},
+ * and custom {@link IIngredientType}s are dropped — the consumer only queries
+ * item recipes.  This is the data half of JEI's {@code DisplayIngredientAcceptor},
  * without the {@code ITypedIngredient} normalization.
  */
 public final class ItemStackCollector {
@@ -59,8 +61,33 @@ public final class ItemStackCollector {
         if (display == null) {
             return;
         }
-        for (ItemStack stack : RecipeViewerIndex.resolveSlotDisplay(display)) {
-            addStack(stack);
+        // Level-backed context first (vanilla API, no BRBE cache): fall back to
+        // the null context, which resolves holder-less displays.
+        ContextMap context = context();
+        if (context != null) {
+            for (ItemStack stack : display.resolveForStacks(context)) {
+                addStack(stack);
+            }
+            if (!stacks.isEmpty()) {
+                return;
+            }
+        }
+        try {
+            for (ItemStack stack : display.resolveForStacks(null)) {
+                addStack(stack);
+            }
+        } catch (Exception | LinkageError ignored) {
+            // unresolvable display — no stacks
+        }
+    }
+
+    /** The current level's slot-display context, or null when no level is up. */
+    private static ContextMap context() {
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            return mc.level == null ? null : SlotDisplayContext.fromLevel(mc.level);
+        } catch (Exception | LinkageError e) {
+            return null;
         }
     }
 

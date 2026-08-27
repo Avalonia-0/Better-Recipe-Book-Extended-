@@ -1,12 +1,12 @@
 package com.alonie.brbe.jei.plugins.engine;
 
-import com.alonie.brbe.cache.RecipeViewerIndex;
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.IIngredientType;
 import mezz.jei.api.ingredients.ITypedIngredient;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
+import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import net.minecraft.world.level.ItemLike;
 
 import java.util.ArrayList;
@@ -52,9 +52,32 @@ public final class ItemStackCollector {
         if (display == null) {
             return;
         }
-        for (ItemStack stack : RecipeViewerIndex.resolveSlotDisplay(display)) {
+        for (ItemStack stack : resolveSlotDisplay(display)) {
             addStack(stack);
         }
+    }
+
+    /** Resolve a SlotDisplay into its concrete ItemStacks through the vanilla
+     *  API (level-backed context first, null-context fallback). */
+    private static List<ItemStack> resolveSlotDisplay(SlotDisplay display) {
+        List<ItemStack> out = new ArrayList<>();
+        try {
+            var ctx = SlotDisplayContext.fromLevel(net.minecraft.client.Minecraft.getInstance().level);
+            for (ItemStack stack : display.resolveForStacks(ctx)) {
+                if (stack != null && !stack.isEmpty()) out.add(stack);
+            }
+            if (!out.isEmpty()) return out;
+        } catch (Exception e) {
+            // fall through to null-context
+        }
+        try {
+            for (ItemStack stack : display.resolveForStacks(null)) {
+                if (stack != null && !stack.isEmpty()) out.add(stack);
+            }
+        } catch (Exception e) {
+            // unresolvable
+        }
+        return out;
     }
 
     public void addTyped(IIngredientType<?> type, Object value) {

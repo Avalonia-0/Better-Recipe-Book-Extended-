@@ -1,6 +1,7 @@
 package com.alonie.brbe.jei.plugins.loader;
 
-import com.alonie.brbe.BetterRecipeBook;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import mezz.jei.api.IModPlugin;
 
 import java.lang.reflect.Method;
@@ -12,6 +13,8 @@ import java.util.List;
  *  entrypoint, reached reflectively so this module has no platform compile
  *  dependency. */
 public final class BrbeJeiPluginFinder {
+
+    private static final Logger LOGGER = LogManager.getLogger("headless-jei");
 
     private BrbeJeiPluginFinder() {}
 
@@ -33,7 +36,7 @@ public final class BrbeJeiPluginFinder {
                     Object entrypoint = container.getClass().getMethod("getEntrypoint").invoke(container);
                     if (entrypoint instanceof IModPlugin plugin) out.add(plugin);
                 } catch (ReflectiveOperationException | LinkageError e) {
-                    BetterRecipeBook.LOGGER.warn("[BRBE-JEI-Plugins] broken fabric plugin container: {}", e.toString());
+                    LOGGER.warn("[BRBE-JEI-Plugins] broken fabric plugin container: {}", e.toString());
                 }
             }
         } catch (ReflectiveOperationException | LinkageError e) {

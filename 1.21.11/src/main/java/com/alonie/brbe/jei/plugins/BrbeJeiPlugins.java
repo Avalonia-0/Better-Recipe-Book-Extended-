@@ -1,66 +1,59 @@
 package com.alonie.brbe.jei.plugins;
 
-import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.compat.SyntheticRecipeRenderers;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import com.alonie.brbe.jei.plugins.engine.JeiRuntimeBridge;
 import com.alonie.brbe.jei.plugins.engine.PluginRecipeIndexer;
-import com.alonie.brbe.jei.plugins.engine.SyntheticRecipeRendererImpl;
-import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.jei.plugins.loader.BrbeJeiPluginFinder;
 import com.alonie.brbe.jei.plugins.loader.CatalystCollector;
 import com.alonie.brbe.jei.plugins.loader.RecipeCategoryCollector;
 import com.alonie.brbe.jei.plugins.loader.RecipeCollector;
-import com.alonie.brbe.jei.plugins.loader.WorkstationExporter;
 import mezz.jei.api.IModPlugin;
 import net.minecraft.resources.Identifier;
 
 import java.util.List;
 
-/** Orchestration for the companion mod: load every mod's JEI plugin and funnel
- *  its registered categories, workstation catalysts and recipes into the BRBE
- *  main mod's query engine.
+/**
+ * 1.21.1 编排：发现每个 mod 的 JEI 插件（反射扫描 {@code jei_mod_plugin}
+ * entrypoint），把其 registerCategories / registerRecipeCatalysts /
+ * registerRecipes 采集进 BRBE 收集器，最后 {@link PluginRecipeIndexer} 索引进
+ * 查询引擎——真实 JEI 缺席（headless）时同样工作（mezz.jei.api 内嵌）。
  *
- *  <p>Data source: the plugins themselves, called directly with BRBE's own
- *  collectors.  The {@link RecipeCollector} falls back to the server-synced
- *  recipe registries (fabric SynchronizedRecipes / client RecipeManager) for
- *  types whose plugin registers nothing — mods like betterarcheology/bclib
- *  gate their JEI recipe source on {@code FabricLoader.isModLoaded("jei")},
- *  which stays false in headless mode.  This plugin path was verified working
- *  (identifying 3 / alloying 8 / infusion 49 indexed) in the 19:54 test run. */
+ * <p>独立项目版（headless-jei）：收集结果写 {@code JeiRecipeRegistry} 轻量桥；
+ * 消费者（BRBE 主 mod）从桥读取条目转进自己的查询引擎（RecipeViewerEngine），
+ * 弹窗渲染经 {@code JeiPopupRenderer}（1.21.1 引擎无 RecipeDisplayEntry——直接用
+ * IRecipeManager#createRecipeLayoutDrawable）。
+ */
 public final class BrbeJeiPlugins {
+
+    private static final Logger LOGGER = LogManager.getLogger("headless-jei");
 
     private BrbeJeiPlugins() {}
 
-    /** Re-collect after each recipe-book rebuild (the server's recipe sync), so
-     *  mod recipes are indexed once the synchronised recipe registry is full. */
-    private static volatile boolean rebuildListenerRegistered = false;
-
-    /** Called from both platform client-initialization paths.  Every mod's JEI
-     *  plugin is discovered, its {@code registerCategories} /
-     *  {@code registerRecipeCatalysts} / {@code registerRecipes} run against
-     *  local collectors, and the result is indexed into the BRBE main mod's
-     *  query engine.
-     *
-     *  <p>The mezz.jei API is provided either by the bundled fork (standalone
-     *  jar, no JEI installed) or by the real JEI (jei-compat jar, JEI installed)
-     *  — Fabric Loader's {@code depends: jei} selects the right variant, so this
-     *  method never needs a runtime JEI check.  JEI's own plugins
-     *  ({@code jei:*}) are skipped: their vanilla data is already covered by
-     *  BRBE's cache and their vanilla recipe factory is null here. */
+    /** Called from both platform client-initialization paths (JOIN / level
+     *  load).  Idempotent per join; re-runs whenever the caller needs a fresh
+     *  collection (registry replace is idempotent). */
     public static void collectAndInject() {
         try {
-            if (!rebuildListenerRegistered) {
-                rebuildListenerRegistered = true;
-                RecipeViewerEngine.registerRebuildListener(BrbeJeiPlugins::collectAndInject);
-            }
+            // 真实 JEI 存在时同样收集（插件数据喂 BRBE 索引；渲染走真实 JEI）。
+            // 注意：JEI 自己的插件（namespace jei）跳过——原版数据已由
+            // 消费者侧索引（RecipeViewerIndex）与 vanilla JEI 类型
+            // （anvil/grindstone/brewing 等经 VanillaPlugin 注册）覆盖。
             RecipeCategoryCollector categoryCollector = new RecipeCategoryCollector();
             CatalystCollector catalystCollector = new CatalystCollector();
             RecipeCollector recipeCollector = new RecipeCollector();
 
             List<IModPlugin> plugins = BrbeJeiPluginFinder.findPlugins();
             if (plugins.isEmpty()) {
-                BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] no JEI plugins found");
+                LOGGER.info("[BRBE-JEI-Plugins] no JEI plugins found");
                 return;
             }
+            // 无头核心本身会把 VanillaPlugin/JeiInternalPlugin 装进 JEI 运行时；
+            // 原版 anvil/brewing/grindstone 类别与配方数据从运行时直接读取
+            // （PluginRecipeIndexer.indexVanillaRuntimeTypes），不在此重跑
+            // registerRecipes（其 vanillaRecipeFactory 依赖运行时）。
+
             for (IModPlugin plugin : plugins) {
                 try {
                     Identifier uid = plugin.getPluginUid();
@@ -68,23 +61,20 @@ public final class BrbeJeiPlugins {
                     plugin.registerCategories(categoryCollector);
                     plugin.registerRecipeCatalysts(catalystCollector);
                     plugin.registerRecipes(recipeCollector);
-                    BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] collected from plugin {}", uid);
+                    LOGGER.info("[BRBE-JEI-Plugins] collected from plugin {}", uid);
                 } catch (Exception | LinkageError e) {
-                    BetterRecipeBook.LOGGER.warn("[BRBE-JEI-Plugins] plugin {} failed: {}", safeUid(plugin), e.toString());
+                    LOGGER.warn("[BRBE-JEI-Plugins] plugin {} failed: {}",
+                            safeUid(plugin), e.toString());
                 }
             }
 
-            WorkstationExporter.export(catalystCollector.collected());
-            // Delegate the full JEI recipe UI to the real JEI runtime.  The
-            // renderer is registered unconditionally: canRender itself checks
-            // JeiRuntimeBridge.recipeManager(), which is set either by the
-            // real JEI (onRuntimeAvailable) or by the embedded headless core.
-            SyntheticRecipeRenderers.register(new SyntheticRecipeRendererImpl());
-            PluginRecipeIndexer.indexAll(categoryCollector.categories(),
-                    recipeCollector.recipes(), catalystCollector.collected(),
-                    categoryCollector.backgrounds());
+            PluginRecipeIndexer.indexModData(categoryCollector.categories(),
+                    recipeCollector.recipes(), catalystCollector.collected());
+            // 原版 JEI 类型（anvil/brewing/grindstone）：数据来自 JEI 运行时
+            // （嵌入式无头核心或真实 JEI）的 VanillaPlugin 注册。
+            PluginRecipeIndexer.indexVanillaRuntimeTypes();
         } catch (Exception e) {
-            BetterRecipeBook.LOGGER.warn("[BRBE-JEI-Plugins] collection failed: {}", e.toString());
+            LOGGER.warn("[BRBE-JEI-Plugins] collection failed: {}", e.toString());
         }
     }
 

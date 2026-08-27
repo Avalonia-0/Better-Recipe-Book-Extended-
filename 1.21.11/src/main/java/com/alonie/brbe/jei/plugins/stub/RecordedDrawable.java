@@ -1,6 +1,5 @@
 package com.alonie.brbe.jei.plugins.stub;
 
-import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import mezz.jei.api.gui.drawable.IDrawableAnimated;
 import mezz.jei.api.gui.drawable.IDrawableStatic;
 import mezz.jei.api.gui.drawable.IScalableDrawable;
@@ -13,20 +12,22 @@ import net.minecraft.client.gui.GuiGraphics;
  */
 public final class RecordedDrawable implements IDrawableStatic, IDrawableAnimated, IScalableDrawable {
 
-    private final RecipeViewerEngine.RecipeBackground background;
+    private final int width;
+    private final int height;
 
-    public RecordedDrawable(RecipeViewerEngine.RecipeBackground background) {
-        this.background = background;
+    public RecordedDrawable(int width, int height) {
+        this.width = width;
+        this.height = height;
     }
 
     @Override
     public int getWidth() {
-        return background.width();
+        return width;
     }
 
     @Override
     public int getHeight() {
-        return background.height();
+        return height;
     }
 
     @Override

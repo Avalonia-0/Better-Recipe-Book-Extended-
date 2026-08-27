@@ -47,7 +47,6 @@ group = project.maven_group
 
 repositories {
     maven { url = "https://maven.fabricmc.net/" }
-    maven { url = "https://maven.shedaniel.me/" }                  // cloth-config
     maven { url = "https://maven.terraformersmc.com/releases/" }  // modmenu
     maven { url = "https://api.modrinth.com/maven" }
     mavenCentral()
@@ -58,12 +57,8 @@ dependencies {
     mappings loom.officialMojangMappings()
 
     modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
-    modImplementation("net.fabricmc.fabric-api:fabric-api:${fabric_api_version}") {
-        exclude group: "net.fabricmc.fabric-api", module: "fabric-api-base"
-    }
-    modImplementation "me.shedaniel.cloth:cloth-config-fabric:${cloth_config_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_api_version}"
 
-    modCompileOnly files("libs/modmenu-17.0.0.jar")
 
     // JEI core is vendored in-tree (src/main/java/mezz/) — no compile-time JEI
     // jar needed.  The two search libraries are JEI Common's only external
@@ -73,7 +68,7 @@ dependencies {
 }
 
 loom {
-    accessWidenerPath = file("src/main/resources/brbe.common.accesswidener")
+    accessWidenerPath = file("src/main/resources/headlessjei.accesswidener")
 }
 
 tasks.withType(JavaCompile) {
