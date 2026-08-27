@@ -183,13 +183,9 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess, R
     private void rbip$afterUpdateTabs(CallbackInfo ci) {
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         rbip$ensureFields();
-        brbe$activeInstance = this;
         if (rbip$creativeButtons.isEmpty()) return;
         this.rbip$rebuildTabList();
     }
-
-    /** 活跃 RBIP 实例（updateTabs 时记录；诊断用）。 */
-    @Unique private static volatile RecipeBookWidgetMixin brbe$activeInstance;
 
     /** 标签 → 创造模式标签映射（接口桥，Mixin 规则要求注入方法非私有须走接口）。 */
     @Override
