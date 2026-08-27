@@ -407,3 +407,12 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 **API 差异备忘**：1.21.1 PoseStack 用 pushPose/popPose/translate(x,y,z)/scale(x,y,z)（1.21.11 部分仍用 pushMatrix/2 参）；GuiGraphics.renderItem(ItemStack,int,int) 无渲染管线重载。
 
 **待办**：翻页动画 Mixin（视觉池整块重写）、anvil/brewing/grindstone（数据源缺失——JEI 运行时构建）、pinoverlay、RBIP 标签固定键。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 11——viewer 内 pin）
+
+**已落地**：
+- `RecipeViewerOverlay.keyPressed`：viewer 激活时 A 键（PIN_MAPPING）→ `toggleFavourite(悬停配方)`（与配方书 pin 语义一致：RecipeHolder.id() 稳定键）
+- `RecipeViewerOverlay.render`：已 pin 配方按钮左上角画 pin 图标（RECIPE_BOOK_PIN_SPRITE，同为 32x32，与配方书 pin 一致）
+- 辅助：`hoveredEntry(mouseX,mouseY)` 网格命中、`mouseXFor/mouseYFor`（MouseHandler xpos/ypos；1.21.1 无鼠标事件 record）
+
+**待办**：翻页动画 Mixin（视觉池整块重写）、anvil/brewing/grindstone（数据源缺失）、pinoverlay 浮层（独立的 pin 展示界面——当前为按钮就地 pin 标记，非 1.21.11 的弹层）、RBIP 标签固定键。

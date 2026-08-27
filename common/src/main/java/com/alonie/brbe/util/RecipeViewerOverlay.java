@@ -120,6 +120,14 @@ public final class RecipeViewerOverlay {
                 reopen(screen, true);
                 return true;
             }
+            // A 键：固定/取消固定悬停配方（单配方 pin，与配方书 pin 语义一致）
+            if (BetterRecipeBook.PIN_MAPPING.matches(keyCode, scanCode)) {
+                RecipeHolder<?> hovered = hoveredEntry(mouseXFor(screen), mouseYFor(screen));
+                if (hovered != null) {
+                    BetterRecipeBook.pinnedRecipeManager.toggleFavourite(hovered);
+                    return true;
+                }
+            }
             return false;
         }
 
@@ -235,6 +243,10 @@ public final class RecipeViewerOverlay {
             gui.blitSprite(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE,
                     bx, by, BUTTON_W, BUTTON_H);
             gui.renderFakeItem(result, bx + 4, by + 4);
+            // 已固定配方：左上角 pin 图标（与配方书 pin 一致）
+            if (BetterRecipeBook.pinnedRecipeManager.isPinnedEntry(entries.get(i))) {
+                gui.blitSprite(BRBTextures.RECIPE_BOOK_PIN_SPRITE, bx - 4, by - 4, 32, 32);
+            }
             if (hovered) {
                 gui.fill(bx, by, bx + BUTTON_W, by + BUTTON_H, 0x40FFFFFF);
                 // Shift 悬停：渲染放大弹窗（PopupRenderer 1.21.1 简化版）
@@ -346,6 +358,36 @@ public final class RecipeViewerOverlay {
             if (stacks.length > 0) inputs.add(stacks[0]);
         }
         return inputs;
+    }
+
+    /** 当前鼠标悬停的配方条目（网格命中）。 */
+    private static RecipeHolder<?> hoveredEntry(int mouseX, int mouseY) {
+        int left = panelLeft(Minecraft.getInstance().screen);
+        int top = panelTop(Minecraft.getInstance().screen);
+        int perPage = COLS * ROWS;
+        int start = page * perPage;
+        int end = Math.min(start + perPage, entries.size());
+        for (int i = start; i < end; i++) {
+            int col = (i - start) % COLS;
+            int row = (i - start) / COLS;
+            int bx = left + GRID_PAD_X + col * (BUTTON_W + 3);
+            int by = top + GRID_PAD_Y + 8 + row * (BUTTON_H + 3);
+            if (mouseX >= bx && mouseX < bx + BUTTON_W
+                    && mouseY >= by && mouseY < by + BUTTON_H) {
+                return entries.get(i);
+            }
+        }
+        return null;
+    }
+
+    private static int mouseXFor(Object screen) {
+        var mc = Minecraft.getInstance();
+        return mc.mouseHandler != null ? (int) mc.mouseHandler.xpos() : 0;
+    }
+
+    private static int mouseYFor(Object screen) {
+        var mc = Minecraft.getInstance();
+        return mc.mouseHandler != null ? (int) mc.mouseHandler.ypos() : 0;
     }
 
     private static int tabAt(double mouseX, double mouseY, AbstractContainerScreen<?> screen) {
