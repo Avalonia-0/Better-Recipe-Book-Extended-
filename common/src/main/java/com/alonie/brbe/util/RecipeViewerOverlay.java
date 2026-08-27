@@ -3,6 +3,8 @@ package com.alonie.brbe.util;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.recipeviewer.RecipeViewerCategories;
 import com.alonie.brbe.recipeviewer.RecipeViewerCategory;
+import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -34,14 +36,46 @@ public final class RecipeViewerOverlay {
     private static boolean viewUsage;
     private static ItemStack target = ItemStack.EMPTY;
     private static RecipeViewerCategory category;
-    private static List<RecipeHolder<?>> entries = new ArrayList<>();
+    private static List<DisplayEntry> entries = new ArrayList<>();
     private static int page;
     private static int pageCount = 1;
     /** pinoverlay 弹窗：A 键固定后展示的配方（旁边大弹窗）；关闭 viewer 清空。 */
-    private static RecipeHolder<?> pinPopupEntry;
+    private static DisplayEntry pinPopupEntry;
     private static int pinPopupX;
     private static int pinPopupY;
     private static boolean pinPopupActive;
+
+    /** Unified grid entry: a vanilla RecipeHolder or a JEI-backed entry. */
+    private record DisplayEntry(RecipeHolder<?> holder, RecipeViewerEngine.JeiEntry jei) {
+        static DisplayEntry of(RecipeHolder<?> h) {
+            return new DisplayEntry(h, null);
+        }
+        static DisplayEntry of(RecipeViewerEngine.JeiEntry j) {
+            return new DisplayEntry(null, j);
+        }
+        ItemStack result() {
+            if (holder != null) return recipeResult(holder);
+            if (jei != null && jei.outputs() != null && !jei.outputs().isEmpty()) {
+                return jei.outputs().get(0);
+            }
+            return ItemStack.EMPTY;
+        }
+        List<ItemStack> inputs() {
+            if (holder != null) return recipeInputs(holder);
+            return jei == null || jei.inputs() == null ? List.of() : jei.inputs();
+        }
+        boolean isPinned() {
+            if (holder != null) return BetterRecipeBook.pinnedRecipeManager.isPinnedEntry(holder);
+            return BetterRecipeBook.pinnedRecipeManager.isPinnedUid(jei.typeUid());
+        }
+        void togglePin() {
+            if (holder != null) {
+                BetterRecipeBook.pinnedRecipeManager.toggleFavourite(holder);
+            } else {
+                BetterRecipeBook.pinnedRecipeManager.toggleFavouriteUid(jei.typeUid());
+            }
+        }
+    }
 
     // -- Geometry (centered panel) --------------------------------------------
 
@@ -85,8 +119,9 @@ public final class RecipeViewerOverlay {
         RecipeViewerCategory cat = RecipeViewerCategories.defaultFor(
                 stack, usage, screen == null ? null : screen.getMenu());
         if (cat == null) return false;
-        List<RecipeHolder<?>> hits = cat.query(stack, usage);
-        if (hits.isEmpty()) return false;
+        if (cat.query(stack, usage).isEmpty() && cat.queryJei(stack, usage).isEmpty()) {
+            return false;
+        }
 
         active = true;
         viewUsage = usage;
@@ -129,10 +164,10 @@ public final class RecipeViewerOverlay {
             }
             // A 键：固定/取消固定悬停配方（单配方 pin，与配方书 pin 语义一致）
             if (BetterRecipeBook.PIN_MAPPING.matches(keyCode, scanCode)) {
-                RecipeHolder<?> hovered = hoveredEntry(mouseXFor(screen), mouseYFor(screen));
+                DisplayEntry hovered = hoveredEntry(mouseXFor(screen), mouseYFor(screen));
                 if (hovered != null) {
-                    boolean wasPinned = BetterRecipeBook.pinnedRecipeManager.isPinnedEntry(hovered);
-                    BetterRecipeBook.pinnedRecipeManager.toggleFavourite(hovered);
+                    boolean wasPinned = hovered.isPinned();
+                    hovered.togglePin();
                     boolean nowPinned = !wasPinned;
                     int mx = mouseXFor(screen);
                     int my = mouseYFor(screen);
@@ -260,38 +295,55 @@ public final class RecipeViewerOverlay {
             int row = (i - start) / COLS;
             int bx = left + GRID_PAD_X + col * (BUTTON_W + 3);
             int by = top + GRID_PAD_Y + 8 + row * (BUTTON_H + 3);
-            ItemStack result = recipeResult(entries.get(i));
+            DisplayEntry entry = entries.get(i);
+            ItemStack result = entry.result();
             boolean hovered = mouseX >= bx && mouseX < bx + BUTTON_W
                     && mouseY >= by && mouseY < by + BUTTON_H;
             gui.blitSprite(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE,
                     bx, by, BUTTON_W, BUTTON_H);
             gui.renderFakeItem(result, bx + 4, by + 4);
             // 已固定配方：左上角 pin 图标（与配方书 pin 一致）
-            if (BetterRecipeBook.pinnedRecipeManager.isPinnedEntry(entries.get(i))) {
+            if (entry.isPinned()) {
                 gui.blitSprite(BRBTextures.RECIPE_BOOK_PIN_SPRITE, bx - 4, by - 4, 32, 32);
             }
             if (hovered) {
                 gui.fill(bx, by, bx + BUTTON_W, by + BUTTON_H, 0x40FFFFFF);
-                // Shift 悬停：渲染放大弹窗（PopupRenderer 1.21.1 简化版）
+                // Shift 悬停：渲染放大弹窗（PopupRenderer 1.21.1 简化版 / JEI 委托版）
                 if (com.alonie.brbe.util.ClientCompat.isShiftDown()) {
-                    com.alonie.brbe.render.PopupRenderer.renderRecipePopup(
-                            gui, entries.get(i),
-                            com.alonie.brbe.render.PopupRenderer.modeFor(
-                                    category != null ? category.id() : null),
-                            false, false,
-                            bx, by, BUTTON_W, BUTTON_H, true, 2.0F);
+                    int[] rect;
+                    if (entry.jei() != null) {
+                        rect = com.alonie.brbe.render.PopupRenderer.renderJeiPopup(
+                                gui, entry.jei(), bx, by, BUTTON_W, BUTTON_H, 2.0F);
+                    } else {
+                        rect = com.alonie.brbe.render.PopupRenderer.renderRecipePopup(
+                                gui, entry.holder(),
+                                com.alonie.brbe.render.PopupRenderer.modeFor(
+                                        category != null ? category.id() : null),
+                                false, false,
+                                bx, by, BUTTON_W, BUTTON_H, true, 2.0F);
+                    }
+                    if (rect == null) {
+                        // JEI runtime/category 缺失：退回按钮高亮
+                        gui.fill(bx, by, bx + BUTTON_W, by + BUTTON_H, 0x40FFFFFF);
+                    }
                 }
             }
         }
 
         // pinoverlay 弹窗（固定配方展示）
         if (pinPopupActive && pinPopupEntry != null) {
-            com.alonie.brbe.render.PopupRenderer.renderRecipePopup(
-                    gui, pinPopupEntry,
-                    com.alonie.brbe.render.PopupRenderer.modeFor(
-                            category != null ? category.id() : null),
-                    false, false,
-                    pinPopupX - 12, pinPopupY - 12, 24, 24, false, 2.0F);
+            if (pinPopupEntry.jei() != null) {
+                com.alonie.brbe.render.PopupRenderer.renderJeiPopup(
+                        gui, pinPopupEntry.jei(),
+                        pinPopupX - 12, pinPopupY - 12, 24, 24, 2.0F);
+            } else {
+                com.alonie.brbe.render.PopupRenderer.renderRecipePopup(
+                        gui, pinPopupEntry.holder(),
+                        com.alonie.brbe.render.PopupRenderer.modeFor(
+                                category != null ? category.id() : null),
+                        false, false,
+                        pinPopupX - 12, pinPopupY - 12, 24, 24, false, 2.0F);
+            }
         }
 
         // Page indicator
@@ -320,8 +372,8 @@ public final class RecipeViewerOverlay {
             if (mouseX >= bx && mouseX < bx + BUTTON_W
                     && mouseY >= by && mouseY < by + BUTTON_H) {
                 List<Component> tooltip = new ArrayList<>();
-                tooltip.add(recipeResult(entries.get(i)).getHoverName());
-                List<ItemStack> inputs = recipeInputs(entries.get(i));
+                tooltip.add(entries.get(i).result().getHoverName());
+                List<ItemStack> inputs = entries.get(i).inputs();
                 if (!inputs.isEmpty()) {
                     String suffix = inputs.size() > 1 ? " …" : "";
                     tooltip.add(Component.translatable("zzzbrbe.viewer.materials")
@@ -350,7 +402,14 @@ public final class RecipeViewerOverlay {
     }
 
     private static void applyCategory() {
-        entries = new ArrayList<>(category.query(target, viewUsage));
+        List<DisplayEntry> merged = new ArrayList<>();
+        for (RecipeHolder<?> holder : category.query(target, viewUsage)) {
+            merged.add(DisplayEntry.of(holder));
+        }
+        for (RecipeViewerEngine.JeiEntry jei : category.queryJei(target, viewUsage)) {
+            merged.add(DisplayEntry.of(jei));
+        }
+        entries = merged;
         page = 0;
         pageCount = Math.max(1, (entries.size() + COLS * ROWS - 1) / (COLS * ROWS));
     }
@@ -434,7 +493,7 @@ public final class RecipeViewerOverlay {
         return top + GRID_PAD_Y + 8;
     }
 
-    private static RecipeHolder<?> hoveredEntry(int mouseX, int mouseY) {
+    private static DisplayEntry hoveredEntry(int mouseX, int mouseY) {
         int left = panelLeft(Minecraft.getInstance().screen);
         int top = panelTop(Minecraft.getInstance().screen);
         int perPage = COLS * ROWS;

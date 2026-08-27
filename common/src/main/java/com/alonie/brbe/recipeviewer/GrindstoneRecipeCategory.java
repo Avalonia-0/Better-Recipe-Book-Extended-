@@ -1,5 +1,6 @@
 package com.alonie.brbe.recipeviewer;
 
+import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.GrindstoneMenu;
@@ -33,13 +34,28 @@ public final class GrindstoneRecipeCategory implements RecipeViewerCategory {
 
     @Override
     public List<RecipeHolder<?>> query(ItemStack target, boolean usage) {
-        // 数据源缺失（1.21.1 无 JEI grindstone 运行时配方）：空条目，仅工作站信息。
+        // 1.21.1 原版无 grindstone RecipeType；配方条目走 JEI 运行时（queryJei）。
         return List.of();
     }
 
     @Override
+    public List<RecipeViewerEngine.JeiEntry> queryJei(ItemStack target, boolean usage) {
+        return usage
+                ? RecipeViewerEngine.jeiUsagesFor(TYPE, target)
+                : RecipeViewerEngine.jeiResultsFor(TYPE, target);
+    }
+
+    @Override
+    public List<RecipeViewerEngine.JeiEntry> allJeiEntries() {
+        return RecipeViewerEngine.allJeiRecipes(TYPE);
+    }
+
+    private static final String TYPE = "minecraft:grindstone";
+
+    @Override
     public boolean hasContent(ItemStack target, boolean usage) {
-        return usage && appliesToStation(target);
+        return (usage && appliesToStation(target))
+                || RecipeViewerEngine.hasJeiContent(TYPE, target, usage);
     }
 
     @Override

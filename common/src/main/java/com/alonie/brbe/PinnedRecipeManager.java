@@ -193,6 +193,21 @@ public class PinnedRecipeManager {
         this.store();
     }
 
+    /** Whether a JEI-backed viewer entry ({@code typeUid} key) is pinned. */
+    public boolean isPinnedUid(ResourceLocation uid) {
+        return uid != null && this.pinned.contains(uid);
+    }
+
+    /** Toggle a JEI-backed viewer entry's pin (uid-keyed). */
+    public void toggleFavouriteUid(ResourceLocation uid) {
+        if (uid == null) return;
+        if (!this.pinned.add(uid)) {
+            this.pinned.remove(uid);
+        }
+        version++;
+        this.store();
+    }
+
     public static void handlePinRecipe(RecipeBookComponent book, RecipeBookPage page, RecipeHolder<?> recipe) {
         RecipeCollection collection = new RecipeCollection(Minecraft.getInstance().level.registryAccess(), List.of(recipe));
         collection.updateKnownRecipes(page.getRecipeBook());

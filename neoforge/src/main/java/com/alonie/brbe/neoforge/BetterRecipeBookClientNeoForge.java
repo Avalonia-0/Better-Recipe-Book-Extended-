@@ -9,6 +9,8 @@ import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.compat.emi.EmiCompat;
 import com.alonie.brbe.compat.rei.ReiCompat;
+import com.alonie.brbe.jei.plugins.BrbeJeiHeadlessCore;
+import com.alonie.brbe.jei.plugins.BrbeJeiPlugins;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.neoforge.NeoForgePlatform;
@@ -70,8 +72,30 @@ public class BetterRecipeBookClientNeoForge {
         NeoForge.EVENT_BUS.addListener(LevelEvent.Unload.class, event -> {
             if (event.getLevel().isClientSide()) {
                 PotionLoader.clear();
+                BrbeJeiHeadlessCore.stop();
             }
         });
+
+        // 无头 JEI：真实 JEI 缺席时启动内嵌核心 + 收集 mod 插件数据。
+        // 21.1.21 无 ClientLifecycleEvent——用 RecipesUpdatedEvent（配方同步，
+        // 官方 JEI 1.21.1 同源）+ LevelEvent.Load 兜底；GameShuttingDownEvent 收尾。
+        NeoForge.EVENT_BUS.addListener(net.neoforged.neoforge.client.event.RecipesUpdatedEvent.class, event -> {
+            java.util.List<net.minecraft.world.item.crafting.RecipeHolder<?>> recipes =
+                    java.util.List.copyOf(event.getRecipeManager().getRecipes());
+            if (!recipes.isEmpty()) {
+                mezz.jei.common.Internal.setClientSyncedRecipes(recipes);
+            }
+            BrbeJeiHeadlessCore.start();
+            BrbeJeiPlugins.collectAndInject();
+        });
+        NeoForge.EVENT_BUS.addListener(LevelEvent.Load.class, event -> {
+            if (event.getLevel().isClientSide() && event.getLevel() instanceof ClientLevel) {
+                BrbeJeiHeadlessCore.start();
+                BrbeJeiPlugins.collectAndInject();
+            }
+        });
+        NeoForge.EVENT_BUS.addListener(net.neoforged.neoforge.event.GameShuttingDownEvent.class,
+                event -> BrbeJeiHeadlessCore.onClientStopping());
 
         // Register HUD hiders (JEI + REI overlay control)
         OverlayHider.register(new JeiHudHider());

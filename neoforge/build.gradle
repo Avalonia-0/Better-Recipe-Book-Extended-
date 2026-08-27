@@ -41,29 +41,12 @@ dependencies {
 
     modApi files(rootProject.file("libs/cloth-config-15.0.140-neoforge.jar"))
 
-    def jeiJarCandidates = [
-            rootProject.findProperty("jei_neoforge_jar"),
-            rootProject.file("libs/jei-1.21.1-neoforge-19.27.0.340.jar").absolutePath
-    ].findAll { it != null }
-    def jeiJarPath = jeiJarCandidates.find { file(it).exists() }
-    if (jeiJarPath != null) {
-        compileOnly files(jeiJarPath)
-    }
-
-    jeiNeoForgePresent = jeiJarPath != null && jeiJarPath.toString().contains("neoforge")
-
+    // JEI 编译依赖移除：mezz.jei.* 全部来自 common 内嵌 fork（官方 1.21.1
+    // 源码），真实 JEI 19.27 jar 的 common 内部类与 fork 版本不一致——混编会
+    // 造成平台封装与接口错配。运行时真实 JEI 存在时其类仍按类加载顺序遮蔽 fork。
     common(project(path: ":common", configuration: "namedElements")) { transitive false }
     shadowBundle project(path: ":common", configuration: "transformProductionNeoForge")
 }
-
-    // Conditional compile: exclude JEI plugin when JEI Neoforge variant is missing.
-    // With JEI in libs/ this normally succeeds; this guard prevents a hard crash for CI or fresh clones.
-    // TODO: replace with a proper source set or JEI-on-classpath invariant once the build setup is overhauled.
-    tasks.named("compileJava") {
-        if (!jeiNeoForgePresent) {
-            exclude("com/alonie/brbe/neoforge/compat/jei/BetterRecipeBookJEIPlugin.java")
-        }
-    }
 
 processResources {
     inputs.property "version", project.version

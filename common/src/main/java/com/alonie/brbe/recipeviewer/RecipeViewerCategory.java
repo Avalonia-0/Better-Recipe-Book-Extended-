@@ -1,5 +1,6 @@
 package com.alonie.brbe.recipeviewer;
 
+import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.item.ItemStack;
@@ -29,6 +30,18 @@ public interface RecipeViewerCategory {
 
     /** R/U query for {@code target} (usage=true = recipes that use it). */
     List<RecipeHolder<?>> query(ItemStack target, boolean usage);
+
+    /** JEI-backed entries for {@code target} (empty by default).  Collected
+     *  from JEI plugins / the embedded headless JEI runtime; rendered by the
+     *  popup through {@code IRecipeManager#createRecipeLayoutDrawable}. */
+    default List<RecipeViewerEngine.JeiEntry> queryJei(ItemStack target, boolean usage) {
+        return List.of();
+    }
+
+    /** EVERY JEI entry this category can show, query-independent. */
+    default List<RecipeViewerEngine.JeiEntry> allJeiEntries() {
+        return List.of();
+    }
 
     /** Whether this category can do anything with {@code target}. */
     default boolean appliesTo(ItemStack target) {
@@ -91,6 +104,6 @@ public interface RecipeViewerCategory {
 
     /** Whether this category has anything to show for {@code target}. */
     default boolean hasContent(ItemStack target, boolean usage) {
-        return !query(target, usage).isEmpty();
+        return !query(target, usage).isEmpty() || !queryJei(target, usage).isEmpty();
     }
 }

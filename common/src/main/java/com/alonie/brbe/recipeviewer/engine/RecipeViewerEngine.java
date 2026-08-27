@@ -118,6 +118,66 @@ public final class RecipeViewerEngine {
         return VANILLA_TYPES.contains(uid);
     }
 
+    // -- JEI (headless embedded runtime) entries ------------------------------
+
+    /** A recipe collected from a JEI plugin (embedded headless core or real
+     *  JEI): its JEI type uid, the raw recipe object (e.g. {@code
+     *  IJeiAnvilRecipe} / a mod's recipe object) and its already-extracted
+     *  item inputs/outputs.  Rendered by the popup through {@code
+     *  IRecipeManager#createRecipeLayoutDrawable}. */
+    public record JeiEntry(ResourceLocation typeUid, Object recipe,
+                           List<ItemStack> inputs, List<ItemStack> outputs) {
+    }
+
+    private static final Map<String, JeiTypeData> JEI_TYPES = new LinkedHashMap<>();
+
+    /** Register (or replace) a JEI type's recipes and its workstation items
+     *  (collected from JEI plugins / vanilla JEI recipes). */
+    public static void registerJeiType(String uid, List<JeiEntry> entries, List<ItemStack> stations) {
+        if (uid == null) return;
+        JeiTypeData data = new JeiTypeData(uid, stations);
+        if (entries != null) {
+            for (JeiEntry entry : entries) {
+                if (entry != null && entry.recipe() != null) {
+                    data.addEntry(entry);
+                }
+            }
+        }
+        JEI_TYPES.put(uid, data);
+    }
+
+    /** Drop only the JEI-registered types (mod recipes re-collected on the
+     *  next join / rebuild). */
+    public static void clearJei() {
+        JEI_TYPES.clear();
+    }
+
+    /** JEI recipes of {@code uid} whose output is {@code target} (R). */
+    public static List<JeiEntry> jeiResultsFor(String uid, ItemStack target) {
+        JeiTypeData data = JEI_TYPES.get(uid);
+        if (data == null || target == null || target.isEmpty()) return List.of();
+        return data.resultsFor(target);
+    }
+
+    /** JEI recipes of {@code uid} using {@code target} as material (U).  A
+     *  workstation item returns the whole JEI type. */
+    public static List<JeiEntry> jeiUsagesFor(String uid, ItemStack target) {
+        JeiTypeData data = JEI_TYPES.get(uid);
+        if (data == null || target == null || target.isEmpty()) return List.of();
+        return data.usagesFor(target);
+    }
+
+    /** Every JEI recipe of {@code uid}, unfiltered. */
+    public static List<JeiEntry> allJeiRecipes(String uid) {
+        JeiTypeData data = JEI_TYPES.get(uid);
+        return data == null ? new ArrayList<>() : new ArrayList<>(data.entries);
+    }
+
+    /** Whether {@code uid} has JEI content for {@code target}. */
+    public static boolean hasJeiContent(String uid, ItemStack target, boolean usage) {
+        return !(usage ? jeiUsagesFor(uid, target) : jeiResultsFor(uid, target)).isEmpty();
+    }
+
     /** Callback fired whenever the engine content is rebuilt. */
     public static void addRebuildListener(Runnable listener) {
         REBUILD_LISTENERS.add(listener);
@@ -193,6 +253,57 @@ public final class RecipeViewerEngine {
                 byGroup.putIfAbsent(group != null ? group : entry, entry);
             }
             return new ArrayList<>(byGroup.values());
+        }
+    }
+
+    /** JEI-entry analogue of {@link RecipeTypeData}. */
+    private static final class JeiTypeData {
+        final String uid;
+        final List<JeiEntry> entries = new ArrayList<>();
+        final Set<Item> stationItems = new LinkedHashSet<>();
+        final Map<Item, List<JeiEntry>> outputIndex = new HashMap<>();
+        /** input item → (recipe object → one representative entry). */
+        final Map<Item, Map<Object, JeiEntry>> inputIndex = new HashMap<>();
+
+        JeiTypeData(String uid, List<ItemStack> stations) {
+            this.uid = uid;
+            if (stations != null) {
+                for (ItemStack station : stations) {
+                    if (station != null && !station.isEmpty()) {
+                        stationItems.add(station.getItem());
+                    }
+                }
+            }
+        }
+
+        void addEntry(JeiEntry entry) {
+            entries.add(entry);
+            if (entry.outputs() != null) {
+                for (ItemStack output : entry.outputs()) {
+                    if (output != null && !output.isEmpty()) {
+                        outputIndex.computeIfAbsent(output.getItem(), k -> new ArrayList<>()).add(entry);
+                    }
+                }
+            }
+            if (entry.inputs() != null) {
+                for (ItemStack input : entry.inputs()) {
+                    if (input != null && !input.isEmpty()) {
+                        inputIndex.computeIfAbsent(input.getItem(), k -> new HashMap<>())
+                                .putIfAbsent(entry.recipe(), entry);
+                    }
+                }
+            }
+        }
+
+        List<JeiEntry> resultsFor(ItemStack target) {
+            List<JeiEntry> hits = outputIndex.get(target.getItem());
+            return hits == null ? new ArrayList<>() : new ArrayList<>(hits);
+        }
+
+        List<JeiEntry> usagesFor(ItemStack target) {
+            if (stationItems.contains(target.getItem())) return new ArrayList<>(entries);
+            Map<Object, JeiEntry> byGroup = inputIndex.get(target.getItem());
+            return byGroup == null ? new ArrayList<>() : new ArrayList<>(byGroup.values());
         }
     }
 }

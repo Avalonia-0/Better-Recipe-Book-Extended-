@@ -29,7 +29,8 @@
       "com.alonie.brbe.fabric.BetterRecipeBookFabric"
     ],
     "client": [
-      "com.alonie.brbe.fabric.BetterRecipeBookClientFabric"
+      "com.alonie.brbe.fabric.BetterRecipeBookClientFabric",
+      "com.alonie.brbe.fabric.jei.BrbeJeiPluginsClientFabric"
     ],
     "jei_mod_plugin": [
       "com.alonie.brbe.fabric.compat.jei.BetterRecipeBookJEIPlugin"
