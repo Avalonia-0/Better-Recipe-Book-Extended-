@@ -26,11 +26,13 @@ public final class ConfigTipsHelper {
     private static final List<ConfigTipCarousel> CAROUSELS = new ArrayList<>();
 
     static {
-        // 默认：实用功能页面顶部"提示：xxx"功能 tips 轮循行（1.21.1 gui 键前缀 brb.）
+        // 默认：实用功能页面顶部"提示：xxx"功能 tips 轮循行
         registerCarousel(ConfigTipCarousel.builder()
-                .category(Component.translatable("text.autoconfig.brbe.category.default"))
-                .prefix(Component.translatable("brb.gui.tip.prefix"))
-                .tipKeys(List.of("brb.gui.tip.1", "brb.gui.tip.2", "brb.gui.tip.3", "brb.gui.tip.4", "brb.gui.tip.5", "brb.gui.tip.6", "brb.gui.tip.7"))
+                .category(Component.translatable("text.autoconfig.zzzbrbe.category.default"))
+                .prefix(Component.translatable("zzzbrbe.gui.tip.prefix"))
+                .tipKeys(List.of("zzzbrbe.gui.tip.1", "zzzbrbe.gui.tip.2", "zzzbrbe.gui.tip.3", "zzzbrbe.gui.tip.4",
+                        "zzzbrbe.gui.tip.5", "zzzbrbe.gui.tip.6", "zzzbrbe.gui.tip.7",
+                        "zzzbrbe.gui.tip.8", "zzzbrbe.gui.tip.9"))
                 .build());
     }
 
@@ -47,6 +49,12 @@ public final class ConfigTipsHelper {
     /**
      * 打开配置界面（注入所有注册的轮循行）。所有入口统一走这里。
      */
+    /** 隐藏配置界面 Tips（hideConfigTips 开关，1.21.11 对齐）。 */
+    public static boolean hidesTips() {
+        return com.alonie.brbe.BetterRecipeBook.config != null
+                && com.alonie.brbe.BetterRecipeBook.config.hideConfigTips;
+    }
+
     @SuppressWarnings({"unchecked", "rawtypes"})
     public static void openConfigScreen(Class configClass, Screen parent) {
         try {
@@ -63,6 +71,7 @@ public final class ConfigTipsHelper {
     }
 
     private static void addCarousels(ConfigBuilder builder) {
+        if (hidesTips()) return;
         for (ConfigTipCarousel carousel : CAROUSELS) {
             if (!carousel.hasTips()) continue;
             ConfigCategory category = builder.getOrCreateCategory(carousel.categoryTitle());

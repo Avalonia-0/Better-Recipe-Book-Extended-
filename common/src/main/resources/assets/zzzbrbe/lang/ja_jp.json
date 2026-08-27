@@ -73,5 +73,7 @@
   "zzzbrbe.category.compost": "Compost",
   "zzzbrbe.category.brewing": "Brewing",
   "zzzbrbe.category.anvil": "Anvil",
-  "zzzbrbe.category.grindstone": "Grindstone"
+  "zzzbrbe.category.grindstone": "Grindstone",
+  "zzzbrbe.gui.tip.8": "Press Ctrl while clicking the page arrows to jump to the first/last page.",
+  "zzzbrbe.gui.tip.9": "Type ^N^ in the search bar to jump straight to page N."
 }

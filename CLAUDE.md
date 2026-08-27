@@ -467,3 +467,12 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 - info 类别判定：依赖 JEI jei:information 运行时（1.21.1 实例 JEI disabled）→ 与 1.21.11 一致，无 JEI 时类别缺席（不实现）
 
 **1.21.1 移植最终功能清单**：mod id zzzbrbe 化、BrbeConfig 全字段、R/U/A 键位+配置、拼音搜索、翻页动画+位置记忆+^N^+Ctrl 跳页、RBIP 标签 pin 闭环、pin 体系重制（Stage 3/4/6/6b）、查询 viewer（9 类别+Shift 预览+viewer 内 pin）、CLAUDE.md 轮次记录。**未实现（数据源或 API 鸿沟）**：info 类别（无 JEI）、anvil/grindstone 配方条目（无 RecipeType，已工作站降级）、完整 pinoverlay 浮层（已按钮角标降级）、翻页动画视觉池与 1.21.11 的完整版差异（简单平移，非挤压视效）。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 17——零碎同步）
+
+**已落地**：
+- `ConfigTipsHelper`：tip 键 brb.*→zzzbrbe.* + 补 tip.8/9（Ctrl 跳页/^N^ 跳页提示）+ `hideConfigTips` 守卫（hidesTips() 在 addCarousels 开头 return，1.21.11 对齐）
+- `ModNameUtil`：namespace 兜底显示首字母大写（1.21.11 对齐）
+- lang：zzzbrbe.gui.tip.8/9（7 语言，en 值）
+
+**待办**：pinoverlay 浮层、资源/textures 核对。
