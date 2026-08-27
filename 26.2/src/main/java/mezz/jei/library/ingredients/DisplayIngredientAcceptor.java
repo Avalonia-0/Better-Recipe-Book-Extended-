@@ -1,0 +1,305 @@
+package mezz.jei.library.ingredients;
+
+import com.google.common.base.Preconditions;
+import it.unimi.dsi.fastutil.ints.IntOpenHashSet;
+import it.unimi.dsi.fastutil.ints.IntSet;
+import mezz.jei.api.constants.VanillaTypes;
+import mezz.jei.api.gui.builder.IIngredientAcceptor;
+import mezz.jei.api.ingredients.IIngredientHelper;
+import mezz.jei.api.ingredients.IIngredientType;
+import mezz.jei.api.ingredients.IIngredientTypeWithSubtypes;
+import mezz.jei.api.ingredients.ITypedIngredient;
+import mezz.jei.api.ingredients.subtypes.UidContext;
+import mezz.jei.api.recipe.IFocus;
+import mezz.jei.api.recipe.IFocusGroup;
+import mezz.jei.api.recipe.RecipeIngredientRole;
+import mezz.jei.common.platform.IPlatformFluidHelperInternal;
+import mezz.jei.common.platform.Services;
+import mezz.jei.common.ingredients.TypedIngredientUtil;
+import mezz.jei.common.ingredients.TypedIngredient;
+import mezz.jei.common.ingredients.itemStacks.TypedItemStack;
+import mezz.jei.common.util.ErrorUtil;
+import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponentPatch;
+import net.minecraft.util.context.ContextMap;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
+import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.display.SlotDisplay;
+import net.minecraft.world.level.ItemLike;
+import net.minecraft.world.level.material.Fluid;
+import org.jetbrains.annotations.UnmodifiableView;
+import org.jspecify.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
+public class DisplayIngredientAcceptor implements IIngredientAcceptor<DisplayIngredientAcceptor> {
+	private final IIngredientManagerInternal ingredientManager;
+	private final ContextMap contextMap;
+	private final RecipeIngredientRole role;
+	/**
+	 * A list of ingredients, including "blank" ingredients represented by {@link Optional#empty()}.
+	 * Blank ingredients are drawn as "nothing" in a rotation of ingredients, but aren't considered in lookups.
+	 */
+	private final List<@Nullable SlotIngredient<?>> ingredients = new ArrayList<>();
+
+	public DisplayIngredientAcceptor(IIngredientManagerInternal ingredientManager, ContextMap contextMap, RecipeIngredientRole role) {
+		this.ingredientManager = ingredientManager;
+		this.contextMap = contextMap;
+		this.role = role;
+	}
+
+	@Override
+	public ContextMap getContextMap() {
+		return contextMap;
+	}
+
+	@Override
+	public DisplayIngredientAcceptor addIngredientsUnsafe(List<?> ingredients) {
+		Preconditions.checkNotNull(ingredients, "ingredients");
+
+		for (Object ingredient : ingredients) {
+			ITypedIngredient<?> typedIngredient = TypedIngredient.createAndFilterInvalid(ingredientManager, ingredient, false);
+			this.ingredients.add(createSlotIngredient(typedIngredient));
+		}
+
+		return this;
+	}
+
+	@Override
+	public DisplayIngredientAcceptor add(SlotDisplay slotDisplay) {
+		Preconditions.checkNotNull(slotDisplay, "slotDisplay");
+
+		ingredientManager.resolveSlotDisplay(contextMap, role, slotDisplay)
+			.forEach(this.ingredients::add);
+
+		return this;
+	}
+
+	@Override
+	public <I> DisplayIngredientAcceptor add(IIngredientType<I> ingredientType, SlotDisplay slotDisplay) {
+		Preconditions.checkNotNull(ingredientType, "ingredientType");
+		Preconditions.checkNotNull(slotDisplay, "slotDisplay");
+
+		ingredientManager.resolveSlotDisplay(ingredientType, contextMap, role, slotDisplay)
+			.forEach(this.ingredients::add);
+
+		return this;
+	}
+
+	@Override
+	public DisplayIngredientAcceptor add(ItemStack itemStack) {
+		ErrorUtil.checkNotNull(itemStack, "itemStack");
+
+		addIngredientInternal(VanillaTypes.ITEM_STACK, itemStack);
+		return this;
+	}
+
+	@Override
+	public DisplayIngredientAcceptor addItemStacks(List<ItemStack> itemStacks) {
+		return addIngredients(VanillaTypes.ITEM_STACK, itemStacks);
+	}
+
+	@Override
+	public <T> DisplayIngredientAcceptor addIngredients(IIngredientType<T> ingredientType, List<@Nullable T> ingredients) {
+		ErrorUtil.checkNotNull(ingredientType, "ingredientType");
+		Preconditions.checkNotNull(ingredients, "ingredients");
+
+		List<@Nullable ITypedIngredient<T>> typedIngredients = TypedIngredient.createAndFilterInvalidList(ingredientManager, ingredientType, ingredients, false);
+		typedIngredients.stream()
+			.map(DisplayIngredientAcceptor::createSlotIngredient)
+			.forEach(this.ingredients::add);
+
+		return this;
+	}
+
+	@Override
+	public DisplayIngredientAcceptor add(Ingredient ingredient) {
+		Preconditions.checkNotNull(ingredient, "ingredient");
+		return add(ingredient.display());
+	}
+
+	@Override
+	public <I> DisplayIngredientAcceptor add(IIngredientType<I> ingredientType, Ingredient ingredient) {
+		Preconditions.checkNotNull(ingredient, "ingredient");
+		return add(ingredientType, ingredient.display());
+	}
+
+	@Override
+	public <T> DisplayIngredientAcceptor add(IIngredientType<T> ingredientType, T ingredient) {
+		ErrorUtil.checkNotNull(ingredientType, "ingredientType");
+		ErrorUtil.checkNotNull(ingredient, "ingredient");
+
+		addIngredientInternal(ingredientType, ingredient);
+		return this;
+	}
+
+	@Override
+	public <I> DisplayIngredientAcceptor add(ITypedIngredient<I> typedIngredient) {
+		ErrorUtil.checkNotNull(typedIngredient, "typedIngredient");
+
+		ITypedIngredient<I> copy = TypedIngredientUtil.checkAndValidateTypedIngredientFromApi(ingredientManager, typedIngredient);
+		this.ingredients.add(createSlotIngredient(copy));
+
+		return this;
+	}
+
+	@Override
+	public DisplayIngredientAcceptor add(ItemLike itemLike) {
+		Preconditions.checkNotNull(itemLike, "itemLike");
+
+		ITypedIngredient<ItemStack> ingredient = TypedItemStack.create(itemLike);
+		this.ingredients.add(new SlotIngredient<>(ingredient));
+
+		return this;
+	}
+
+	@Override
+	public DisplayIngredientAcceptor add(ItemStackTemplate itemStackTemplate) {
+		ErrorUtil.checkNotNull(itemStackTemplate, "itemStackTemplate");
+
+		ITypedIngredient<ItemStack> ingredient = TypedItemStack.create(itemStackTemplate);
+		this.ingredients.add(new SlotIngredient<>(ingredient));
+
+		return this;
+	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public DisplayIngredientAcceptor add(Fluid fluid) {
+		IPlatformFluidHelperInternal<?> fluidHelper = Services.PLATFORM.getFluidHelper();
+		return addFluidInternal(fluidHelper, fluid.builtInRegistryHolder(), fluidHelper.bucketVolume(), DataComponentPatch.EMPTY);
+	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public DisplayIngredientAcceptor add(Fluid fluid, long amount) {
+		IPlatformFluidHelperInternal<?> fluidHelper = Services.PLATFORM.getFluidHelper();
+		return addFluidInternal(fluidHelper, fluid.builtInRegistryHolder(), amount, DataComponentPatch.EMPTY);
+	}
+
+	@SuppressWarnings("deprecation")
+	@Override
+	public DisplayIngredientAcceptor add(Fluid fluid, long amount, DataComponentPatch componentPatch) {
+		IPlatformFluidHelperInternal<?> fluidHelper = Services.PLATFORM.getFluidHelper();
+		return addFluidInternal(fluidHelper, fluid.builtInRegistryHolder(), amount, componentPatch);
+	}
+
+	private <T> DisplayIngredientAcceptor addFluidInternal(IPlatformFluidHelperInternal<T> fluidHelper, Holder<Fluid> fluid, long amount, DataComponentPatch tag) {
+		T fluidStack = fluidHelper.create(fluid, amount, tag);
+		IIngredientTypeWithSubtypes<Fluid, T> fluidIngredientType = fluidHelper.getFluidIngredientType();
+		addIngredientInternal(fluidIngredientType, fluidStack);
+		return this;
+	}
+
+	@Override
+	public DisplayIngredientAcceptor addTypedIngredients(List<ITypedIngredient<?>> ingredients) {
+		ErrorUtil.checkNotNull(ingredients, "ingredients");
+
+		for (ITypedIngredient<?> typedIngredient : ingredients) {
+			this.add(typedIngredient);
+		}
+		return this;
+	}
+
+	@Override
+	public DisplayIngredientAcceptor addOptionalTypedIngredients(List<Optional<ITypedIngredient<?>>> ingredients) {
+		ErrorUtil.checkNotNull(ingredients, "ingredients");
+
+		for (Optional<ITypedIngredient<?>> o : ingredients) {
+			if (o.isPresent()) {
+				this.add(o.get());
+			} else {
+				this.ingredients.add(null);
+			}
+		}
+
+		return this;
+	}
+
+	private <T> void addIngredientInternal(IIngredientType<T> ingredientType, @Nullable T ingredient) {
+		ITypedIngredient<T> result = TypedIngredient.createAndFilterInvalid(ingredientManager, ingredientType, ingredient, false);
+		this.ingredients.add(createSlotIngredient(result));
+	}
+
+	@UnmodifiableView
+	public List<@Nullable ITypedIngredient<?>> getAllIngredients() {
+		return this.ingredients.stream()
+			.map(DisplayIngredientAcceptor::getTypedIngredient)
+			.toList();
+	}
+
+	@UnmodifiableView
+	public List<@Nullable SlotIngredient<?>> getAllSlotIngredients() {
+		return Collections.unmodifiableList(this.ingredients);
+	}
+
+	public IntSet getMatches(IFocusGroup focusGroup, RecipeIngredientRole role) {
+		List<IFocus<?>> focuses = focusGroup.getFocuses(role).toList();
+		IntSet results = new IntOpenHashSet();
+		for (IFocus<?> focus : focuses) {
+			getMatches(focus, role, results);
+		}
+		return results;
+	}
+
+	private <T> void getMatches(IFocus<T> focus, RecipeIngredientRole role, IntSet results) {
+		List<@Nullable SlotIngredient<?>> ingredients = getAllSlotIngredients();
+		if (ingredients.isEmpty()) {
+			return;
+		}
+
+		ITypedIngredient<T> focusValue = focus.getTypedValue();
+		IIngredientType<T> ingredientType = focusValue.getType();
+		IIngredientHelper<T> ingredientHelper = ingredientManager.getIngredientHelper(ingredientType);
+		Object focusUid = ingredientHelper.getUid(focusValue, UidContext.Ingredient);
+
+		for (int i = 0; i < ingredients.size(); i++) {
+			SlotIngredient<?> slotIngredient = ingredients.get(i);
+			if (slotIngredient == null) {
+				continue;
+			}
+			ITypedIngredient<?> typedIngredient = slotIngredient.typedIngredient();
+			ITypedIngredient<T> ingredient = typedIngredient.cast(ingredientType);
+			if (ingredient == null) {
+				continue;
+			}
+			Object uniqueId = ingredientHelper.getUid(ingredient, UidContext.Ingredient);
+			if (focusUid.equals(uniqueId) || matchesAllSubtypes(focusValue, ingredient, ingredientHelper, slotIngredient)) {
+				results.add(i);
+			}
+		}
+	}
+
+	private <T> boolean matchesAllSubtypes(
+		ITypedIngredient<T> focus,
+		ITypedIngredient<T> ingredient,
+		IIngredientHelper<T> ingredientHelper,
+		SlotIngredient<?> slotIngredient
+	) {
+		SlotDisplayData<?> slotDisplayData = slotIngredient.slotDisplayData();
+		if (slotDisplayData == null || !slotDisplayData.info().matchesAllSubtypes()) {
+			return false;
+		}
+		Object focusGroupingUid = ingredientHelper.getGroupingUid(focus);
+		Object ingredientGroupingUid = ingredientHelper.getGroupingUid(ingredient);
+		return focusGroupingUid.equals(ingredientGroupingUid);
+	}
+
+	private static <T> @Nullable SlotIngredient<T> createSlotIngredient(@Nullable ITypedIngredient<T> typedIngredient) {
+		if (typedIngredient == null) {
+			return null;
+		}
+		return new SlotIngredient<>(typedIngredient);
+	}
+
+	private static @Nullable ITypedIngredient<?> getTypedIngredient(@Nullable SlotIngredient<?> slotIngredient) {
+		if (slotIngredient == null) {
+			return null;
+		}
+		return slotIngredient.typedIngredient();
+	}
+}

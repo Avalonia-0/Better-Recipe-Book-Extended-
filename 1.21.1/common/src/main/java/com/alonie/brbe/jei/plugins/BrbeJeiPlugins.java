@@ -20,9 +20,10 @@ import java.util.List;
  * registerRecipes 采集进 BRBE 收集器，最后 {@link PluginRecipeIndexer} 索引进
  * 查询引擎——真实 JEI 缺席（headless）时同样工作（mezz.jei.api 内嵌）。
  *
- * <p>对应 1.21.11 的 BrbeJeiPlugins。差异：不接 SyntheticRecipeRenderers
- * （1.21.1 弹窗经 JeiPopupRenderer 直接委托 IRecipeManager#createRecipeLayoutDrawable；
- * 1.21.1 引擎无 RecipeDisplayEntry——JEI 条目进 RecipeViewerEngine.registerJeiType）。
+ * <p>独立项目版（headless-jei）：收集结果写 {@code JeiRecipeRegistry} 轻量桥；
+ * 消费者（BRBE 主 mod）从桥读取条目转进自己的查询引擎（RecipeViewerEngine），
+ * 弹窗渲染经 {@code JeiPopupRenderer}（1.21.1 引擎无 RecipeDisplayEntry——直接用
+ * IRecipeManager#createRecipeLayoutDrawable）。
  */
 public final class BrbeJeiPlugins {
 
@@ -37,8 +38,8 @@ public final class BrbeJeiPlugins {
         try {
             // 真实 JEI 存在时同样收集（插件数据喂 BRBE 索引；渲染走真实 JEI）。
             // 注意：JEI 自己的插件（namespace jei）跳过——原版数据已由
-            // RecipeViewerIndex 与 vanilla JEI 类型（anvil/grindstone/brewing
-            // 等经 VanillaPlugin 注册）覆盖。
+            // 消费者侧索引（RecipeViewerIndex）与 vanilla JEI 类型
+            // （anvil/grindstone/brewing 等经 VanillaPlugin 注册）覆盖。
             RecipeCategoryCollector categoryCollector = new RecipeCategoryCollector();
             CatalystCollector catalystCollector = new CatalystCollector();
             RecipeCollector recipeCollector = new RecipeCollector();
