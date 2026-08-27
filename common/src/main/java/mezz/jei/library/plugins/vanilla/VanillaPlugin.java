@@ -138,21 +138,21 @@ import java.util.Optional;
 public class VanillaPlugin implements IModPlugin {
 	private static final Logger LOGGER = LogManager.getLogger();
 
-	@Nullable
+	
 	private CraftingRecipeCategory craftingCategory;
-	@Nullable
+	
 	private IRecipeCategory<RecipeHolder<StonecutterRecipe>> stonecuttingCategory;
-	@Nullable
+	
 	private IRecipeCategory<RecipeHolder<SmeltingRecipe>> furnaceCategory;
-	@Nullable
+	
 	private IRecipeCategory<RecipeHolder<SmokingRecipe>> smokingCategory;
-	@Nullable
+	
 	private IRecipeCategory<RecipeHolder<BlastingRecipe>> blastingCategory;
-	@Nullable
+	
 	private IRecipeCategory<RecipeHolder<CampfireCookingRecipe>> campfireCategory;
-	@Nullable
+	
 	private SmithingRecipeCategory smithingCategory;
-	@Nullable
+	
 	private BrewingExtensionHelper brewingExtensionHelper;
 
 	@Override

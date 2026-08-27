@@ -35,7 +35,7 @@ public final class ClientConnectionHelper {
 		return false;
 	}
 
-	@Nullable
+	
 	public static ClientPacketListener getConnectedClientPacketListener() {
 		Minecraft minecraft = Minecraft.getInstance();
 		ClientPacketListener clientPacketListener = minecraft.getConnection();

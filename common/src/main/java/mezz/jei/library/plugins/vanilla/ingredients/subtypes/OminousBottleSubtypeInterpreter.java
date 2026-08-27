@@ -14,7 +14,7 @@ public class OminousBottleSubtypeInterpreter implements ISubtypeInterpreter<Item
 	}
 
 	@Override
-	public @Nullable Object getSubtypeData(ItemStack ingredient, UidContext context) {
+	public  Object getSubtypeData(ItemStack ingredient, UidContext context) {
 		return ingredient.get(DataComponents.OMINOUS_BOTTLE_AMPLIFIER);
 	}
 

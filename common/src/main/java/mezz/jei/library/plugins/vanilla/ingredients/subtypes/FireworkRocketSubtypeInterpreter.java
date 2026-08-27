@@ -20,7 +20,7 @@ public class FireworkRocketSubtypeInterpreter implements ISubtypeInterpreter<Ite
 	}
 
 	@Override
-	public @Nullable Object getSubtypeData(ItemStack ingredient, UidContext context) {
+	public  Object getSubtypeData(ItemStack ingredient, UidContext context) {
 		return ingredient.get(DataComponents.FIREWORKS);
 	}
 

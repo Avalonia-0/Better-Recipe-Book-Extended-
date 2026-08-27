@@ -47,7 +47,7 @@ public class RecipeManagerInternal {
 	private final Set<RecipeType<?>> hiddenRecipeTypes = new HashSet<>();
 	private final IIngredientVisibility ingredientVisibility;
 
-	@Nullable
+	
 	@Unmodifiable
 	private List<IRecipeCategory<?>> recipeCategoriesVisibleCache = null;
 

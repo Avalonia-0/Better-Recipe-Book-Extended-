@@ -23,7 +23,7 @@ public class CycleTicker implements ICycler {
 	}
 
 	@Override
-	public <T> Optional<T> getCycled(List<@Nullable T> list) {
+	public <T> Optional<T> getCycled(List< T> list) {
 		if (list.isEmpty()) {
 			return Optional.empty();
 		}

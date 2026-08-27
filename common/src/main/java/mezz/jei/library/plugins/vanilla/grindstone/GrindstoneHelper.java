@@ -7,12 +7,12 @@ import net.minecraft.world.inventory.GrindstoneMenu;
 import org.jetbrains.annotations.Nullable;
 
 final class GrindstoneHelper {
-	private static @Nullable GrindstoneMenu GRINDSTONE_MENU;
+	private static  GrindstoneMenu GRINDSTONE_MENU;
 
 	private GrindstoneHelper() {
 	}
 
-	@Nullable
+	
 	public static GrindstoneMenu getFakeGrindstoneMenu() {
 		if (GRINDSTONE_MENU == null) {
 			Player player = Minecraft.getInstance().player;

@@ -38,7 +38,7 @@ public class DisplayIngredientAcceptor implements IIngredientAcceptor<DisplayIng
 	 * A list of ingredients, including "blank" ingredients represented by {@link Optional#empty()}.
 	 * Blank ingredients are drawn as "nothing" in a rotation of ingredients, but aren't considered in lookups.
 	 */
-	private final List<@Nullable ITypedIngredient<?>> ingredients = new ArrayList<>();
+	private final List< ITypedIngredient<?>> ingredients = new ArrayList<>();
 
 	public DisplayIngredientAcceptor(IIngredientManager ingredientManager) {
 		this.ingredientManager = ingredientManager;
@@ -49,7 +49,7 @@ public class DisplayIngredientAcceptor implements IIngredientAcceptor<DisplayIng
 		Preconditions.checkNotNull(ingredients, "ingredients");
 
 		for (Object ingredient : ingredients) {
-			@Nullable ITypedIngredient<?> typedIngredient = TypedIngredient.createAndFilterInvalid(ingredientManager, ingredient, false);
+			 ITypedIngredient<?> typedIngredient = TypedIngredient.createAndFilterInvalid(ingredientManager, ingredient, false);
 			this.ingredients.add(typedIngredient);
 		}
 
@@ -70,11 +70,11 @@ public class DisplayIngredientAcceptor implements IIngredientAcceptor<DisplayIng
 	}
 
 	@Override
-	public <T> DisplayIngredientAcceptor addIngredients(IIngredientType<T> ingredientType, List<@Nullable T> ingredients) {
+	public <T> DisplayIngredientAcceptor addIngredients(IIngredientType<T> ingredientType, List< T> ingredients) {
 		ErrorUtil.checkNotNull(ingredientType, "ingredientType");
 		Preconditions.checkNotNull(ingredients, "ingredients");
 
-		List<@Nullable ITypedIngredient<T>> typedIngredients = TypedIngredient.createAndFilterInvalidList(ingredientManager, ingredientType, ingredients, false);
+		List< ITypedIngredient<T>> typedIngredients = TypedIngredient.createAndFilterInvalidList(ingredientManager, ingredientType, ingredients, false);
 		this.ingredients.addAll(typedIngredients);
 
 		return this;
@@ -84,7 +84,7 @@ public class DisplayIngredientAcceptor implements IIngredientAcceptor<DisplayIng
 	public DisplayIngredientAcceptor addIngredients(Ingredient ingredient) {
 		Preconditions.checkNotNull(ingredient, "ingredient");
 
-		List<@Nullable ITypedIngredient<ItemStack>> typedIngredients = TypedIngredient.createAndFilterInvalidList(ingredientManager, ingredient, false);
+		List< ITypedIngredient<ItemStack>> typedIngredients = TypedIngredient.createAndFilterInvalidList(ingredientManager, ingredient, false);
 		this.ingredients.addAll(typedIngredients);
 
 		return this;
@@ -103,7 +103,7 @@ public class DisplayIngredientAcceptor implements IIngredientAcceptor<DisplayIng
 	public <I> DisplayIngredientAcceptor addTypedIngredient(ITypedIngredient<I> typedIngredient) {
 		ErrorUtil.checkNotNull(typedIngredient, "typedIngredient");
 
-		@Nullable ITypedIngredient<I> copy = TypedIngredient.defensivelyCopyTypedIngredientFromApi(ingredientManager, typedIngredient);
+		 ITypedIngredient<I> copy = TypedIngredient.defensivelyCopyTypedIngredientFromApi(ingredientManager, typedIngredient);
 		this.ingredients.add(copy);
 
 		return this;
@@ -172,13 +172,13 @@ public class DisplayIngredientAcceptor implements IIngredientAcceptor<DisplayIng
 		return this;
 	}
 
-	private <T> void addIngredientInternal(IIngredientType<T> ingredientType, @Nullable T ingredient) {
-		@Nullable ITypedIngredient<T> result = TypedIngredient.createAndFilterInvalid(ingredientManager, ingredientType, ingredient, false);
+	private <T> void addIngredientInternal(IIngredientType<T> ingredientType,  T ingredient) {
+		 ITypedIngredient<T> result = TypedIngredient.createAndFilterInvalid(ingredientManager, ingredientType, ingredient, false);
 		this.ingredients.add(result);
 	}
 
 	@UnmodifiableView
-	public List<@Nullable ITypedIngredient<?>> getAllIngredients() {
+	public List< ITypedIngredient<?>> getAllIngredients() {
 		return Collections.unmodifiableList(this.ingredients);
 	}
 
@@ -192,7 +192,7 @@ public class DisplayIngredientAcceptor implements IIngredientAcceptor<DisplayIng
 	}
 
 	private <T> void getMatches(IFocus<T> focus, IntSet results) {
-		List<@Nullable ITypedIngredient<?>> ingredients = getAllIngredients();
+		List< ITypedIngredient<?>> ingredients = getAllIngredients();
 		if (ingredients.isEmpty()) {
 			return;
 		}
@@ -203,11 +203,11 @@ public class DisplayIngredientAcceptor implements IIngredientAcceptor<DisplayIng
 		Object focusUid = ingredientHelper.getUid(focusValue, UidContext.Ingredient);
 
 		for (int i = 0; i < ingredients.size(); i++) {
-			@Nullable ITypedIngredient<?> typedIngredient = ingredients.get(i);
+			 ITypedIngredient<?> typedIngredient = ingredients.get(i);
 			if (typedIngredient == null) {
 				continue;
 			}
-			@Nullable ITypedIngredient<T> ingredient = typedIngredient.cast(ingredientType);
+			 ITypedIngredient<T> ingredient = typedIngredient.cast(ingredientType);
 			if (ingredient == null) {
 				continue;
 			}

@@ -53,7 +53,7 @@ public interface IRecipeTransferInfo<C extends AbstractContainerMenu, R> {
 	 *
 	 * @since 9.5.4
 	 */
-	@Nullable
+	
 	default IRecipeTransferError getHandlingError(C container, R recipe) {
 		return null;
 	}

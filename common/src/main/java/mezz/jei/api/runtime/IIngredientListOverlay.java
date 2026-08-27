@@ -24,7 +24,7 @@ public interface IIngredientListOverlay {
 	 * @return the ingredient that's currently under the mouse if it matches the given type, or null if there is none.
 	 * @since 7.0.1
 	 */
-	@Nullable
+	
 	<T> T getIngredientUnderMouse(IIngredientType<T> ingredientType);
 
 	/**

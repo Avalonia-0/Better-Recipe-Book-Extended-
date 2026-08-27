@@ -90,7 +90,7 @@ public class AnvilRecipeCategory extends AbstractRecipeCategory<IJeiAnvilRecipe>
 		}
 	}
 
-	private @Nullable Integer getCost(IRecipeSlotDrawablesView recipeSlotsView) {
+	private  Integer getCost(IRecipeSlotDrawablesView recipeSlotsView) {
 		Optional<ItemStack> leftStack = recipeSlotsView.findSlotByName(leftSlotName)
 			.flatMap(IRecipeSlotView::getDisplayedItemStack);
 
@@ -105,11 +105,11 @@ public class AnvilRecipeCategory extends AbstractRecipeCategory<IJeiAnvilRecipe>
 	}
 
 	@Override
-	public @Nullable ResourceLocation getRegistryName(IJeiAnvilRecipe recipe) {
+	public  ResourceLocation getRegistryName(IJeiAnvilRecipe recipe) {
 		return recipe.getUid();
 	}
 
-	private static boolean playerHasEnoughLevels(@Nullable LocalPlayer player, int cost) {
+	private static boolean playerHasEnoughLevels( LocalPlayer player, int cost) {
 		if (player == null) {
 			return true;
 		}

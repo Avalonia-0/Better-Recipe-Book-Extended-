@@ -58,7 +58,7 @@ public interface IJeiGrindstoneRecipe {
 	 *
 	 * @since 19.22.1
 	 */
-	@Nullable
+	
 	ResourceLocation getUid();
 
 	/**

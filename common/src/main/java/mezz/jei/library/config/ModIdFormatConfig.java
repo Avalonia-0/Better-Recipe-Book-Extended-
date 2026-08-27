@@ -17,7 +17,7 @@ public class ModIdFormatConfig implements IModIdFormatConfig {
 	public static final String MOD_NAME_FORMAT_CODE = "%MODNAME%";
 
 	private final Supplier<Component> modNameFormat;
-	@Nullable
+	
 	private Component cachedOverride; // when we detect another mod is adding mod names to tooltips, use its formatting
 
 	public ModIdFormatConfig(IConfigSchemaBuilder builder) {

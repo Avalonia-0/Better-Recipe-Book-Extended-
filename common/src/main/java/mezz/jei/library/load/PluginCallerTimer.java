@@ -9,7 +9,7 @@ import java.util.concurrent.TimeUnit;
 
 public class PluginCallerTimer implements AutoCloseable {
 	private final ScheduledExecutorService executor;
-	private @Nullable PluginCallerTimerRunnable runnable;
+	private  PluginCallerTimerRunnable runnable;
 
 	public PluginCallerTimer() {
 		this.executor = Executors.newSingleThreadScheduledExecutor();

@@ -23,7 +23,7 @@ public class EnchantedBookSubtypeInterpreter implements ISubtypeInterpreter<Item
 	}
 
 	@Override
-	@Nullable
+	
 	public Object getSubtypeData(ItemStack ingredient, UidContext context) {
 		return EnchantmentHelper.getEnchantmentsForCrafting(ingredient);
 	}

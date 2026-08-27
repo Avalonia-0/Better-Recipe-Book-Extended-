@@ -25,7 +25,7 @@ public class GuiContainerHandlers {
 		entryForClass.addHandler(handler);
 	}
 
-	@Nullable
+	
 	@SuppressWarnings("unchecked")
 	private <T extends AbstractContainerScreen<?>> Entry<T> getEntryForClass(Class<? extends T> containerClass) {
 		return this.entries.stream()

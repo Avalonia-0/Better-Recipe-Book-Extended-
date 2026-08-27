@@ -16,7 +16,7 @@ public class InstrumentSubtypeInterpreter implements ISubtypeInterpreter<ItemSta
 	}
 
 	@Override
-	public @Nullable Object getSubtypeData(ItemStack ingredient, UidContext context) {
+	public  Object getSubtypeData(ItemStack ingredient, UidContext context) {
 		return ingredient.get(DataComponents.INSTRUMENT);
 	}
 

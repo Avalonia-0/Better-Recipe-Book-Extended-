@@ -291,7 +291,7 @@ public final class ItemStackListFactory {
 		}
 	}
 
-	@Nullable
+	
 	private static Object safeGetUid(StackHelper stackHelper, ItemStack stack) {
 		try {
 			return stackHelper.getUidForStack(stack, UidContext.Ingredient);

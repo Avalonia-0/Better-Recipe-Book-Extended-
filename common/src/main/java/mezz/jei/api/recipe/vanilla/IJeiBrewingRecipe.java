@@ -52,6 +52,6 @@ public interface IJeiBrewingRecipe {
 	 * Unique ID for this recipe.
 	 * @since 19.1.0
 	 */
-	@Nullable
+	
 	ResourceLocation getUid();
 }

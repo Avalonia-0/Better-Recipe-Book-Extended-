@@ -36,6 +36,6 @@ public interface IRecipeButtonControllerFactory {
 	 *
 	 * @since 19.27.0
 	 */
-	@Nullable
+	
 	<T> IIconButtonController createButtonController(IRecipeLayoutDrawable<T> recipeLayoutDrawable);
 }

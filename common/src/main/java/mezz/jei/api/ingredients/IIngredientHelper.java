@@ -251,7 +251,7 @@ public interface IIngredientHelper<V> {
 	 * Get information for error messages involving this ingredient.
 	 * Be extremely careful not to crash here, get as much useful info as possible.
 	 */
-	String getErrorInfo(@Nullable V ingredient);
+	String getErrorInfo( V ingredient);
 
 	/**
 	 * If these ingredients represent everything from a single tag, returns that tag.

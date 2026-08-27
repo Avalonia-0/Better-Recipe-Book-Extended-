@@ -28,19 +28,19 @@ import java.util.Optional;
  * For JEI internal use only, these are normally accessed from the API.
  */
 public final class Internal {
-	@Nullable
+	
 	private static Textures textures;
-	@Nullable
+	
 	private static IConnectionToServer serverConnection;
-	@Nullable
+	
 	private static IInternalKeyMappings keyMappings;
-	@Nullable
+	
 	private static IClientToggleState toggleState;
-	@Nullable
+	
 	private static IJeiClientConfigs jeiClientConfigs;
-	@Nullable
+	
 	private static IJeiRuntime jeiRuntime;
-	@Nullable
+	
 	private static ClientRecipes clientRecipes = null;
 	private static final JeiFeatures jeiFeatures = new JeiFeatures();
 	private static final DelayedExecutor delayedExecutor = new DelayedExecutor(Duration.ofSeconds(10));
@@ -119,7 +119,7 @@ public final class Internal {
 		return Optional.ofNullable(jeiRuntime);
 	}
 
-	@Nullable
+	
 	private static String getRemoteConnectionId() {
 		ClientPacketListener clientPacketListener = Minecraft.getInstance().getConnection();
 		if (clientPacketListener != null) {
@@ -172,7 +172,7 @@ public final class Internal {
 		clientRecipes = null;
 	}
 
-	@Nullable
+	
 	private static ClientRecipes getClientRecipes() {
 		if (clientRecipes != null) {
 			var connectionId = getRemoteConnectionId();

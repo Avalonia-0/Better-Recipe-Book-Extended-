@@ -16,7 +16,7 @@ public class LightSubtypeInterpreter implements ISubtypeInterpreter<ItemStack> {
 	}
 
 	@Override
-	public @Nullable Object getSubtypeData(ItemStack ingredient, UidContext context) {
+	public  Object getSubtypeData(ItemStack ingredient, UidContext context) {
 		BlockItemStateProperties properties = ingredient.get(DataComponents.BLOCK_STATE);
 		if (properties == null) {
 			return null;

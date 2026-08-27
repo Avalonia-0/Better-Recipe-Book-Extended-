@@ -12,7 +12,7 @@ import java.util.Map;
 
 public class RegistryUtil {
 	private static final Map<ResourceKey<? extends Registry<?>>, Registry<?>> REGISTRY_CACHE = new HashMap<>();
-	private static @Nullable RegistryAccess REGISTRY_ACCESS;
+	private static  RegistryAccess REGISTRY_ACCESS;
 
 	public static <T> Registry<T> getRegistry(ResourceKey<? extends Registry<T>> key) {
 		Registry<?> registry = REGISTRY_CACHE.get(key);
@@ -42,7 +42,7 @@ public class RegistryUtil {
 		return REGISTRY_ACCESS;
 	}
 
-	public static void setRegistryAccess(@Nullable RegistryAccess registryAccess) {
+	public static void setRegistryAccess( RegistryAccess registryAccess) {
 		REGISTRY_ACCESS = registryAccess;
 		REGISTRY_CACHE.clear();
 	}

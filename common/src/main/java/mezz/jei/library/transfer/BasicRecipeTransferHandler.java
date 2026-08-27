@@ -70,7 +70,7 @@ public class BasicRecipeTransferHandler<C extends AbstractContainerMenu, R> impl
 		return transferInfo.getRecipeType();
 	}
 
-	@Nullable
+	
 	@Override
 	public IRecipeTransferError transferRecipe(C container, R recipe, IRecipeSlotsView recipeSlotsView, Player player, boolean maxTransfer, boolean doTransfer) {
 		if (!serverConnection.isJeiOnServer()) {
@@ -238,7 +238,7 @@ public class BasicRecipeTransferHandler<C extends AbstractContainerMenu, R> impl
 		return set;
 	}
 
-	@Nullable
+	
 	public static <C extends AbstractContainerMenu, R> InventoryState getInventoryState(
 		Collection<Slot> craftingSlots,
 		Collection<Slot> inventorySlots,

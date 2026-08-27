@@ -14,7 +14,7 @@ public class JeiBrewingRecipe implements IJeiBrewingRecipe {
 	private final List<ItemStack> ingredients;
 	private final List<ItemStack> potionInputs;
 	private final ItemStack potionOutput;
-	private final @Nullable ResourceLocation uid;
+	private final  ResourceLocation uid;
 	private final BrewingRecipeUtil brewingRecipeUtil;
 	private final int hashCode;
 
@@ -22,7 +22,7 @@ public class JeiBrewingRecipe implements IJeiBrewingRecipe {
 		List<ItemStack> ingredients,
 		List<ItemStack> potionInputs,
 		ItemStack potionOutput,
-		@Nullable ResourceLocation uid,
+		 ResourceLocation uid,
 		BrewingRecipeUtil brewingRecipeUtil
 	) {
 		this.ingredients = List.copyOf(ingredients);
@@ -59,7 +59,7 @@ public class JeiBrewingRecipe implements IJeiBrewingRecipe {
 		return potionOutput;
 	}
 
-	@Nullable
+	
 	@Override
 	public ResourceLocation getUid() {
 		return uid;

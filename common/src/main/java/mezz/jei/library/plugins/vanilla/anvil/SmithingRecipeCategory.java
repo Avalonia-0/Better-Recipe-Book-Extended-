@@ -118,7 +118,7 @@ public class SmithingRecipeCategory extends AbstractRecipeCategory<RecipeHolder<
 		extensions.put(recipeClass, extension);
 	}
 
-	@Nullable
+	
 	private <R extends SmithingRecipe> ISmithingCategoryExtension<? super R> getExtension(SmithingRecipe recipe) {
 		{
 			ISmithingCategoryExtension<?> extension = extensions.get(recipe.getClass());

@@ -123,7 +123,7 @@ public final class ColorGetter {
 		return renderHelper.getMainImage(textureAtlasSprite);
 	}
 
-	@Nullable
+	
 	private static TextureAtlasSprite getTextureAtlasSprite(ItemStack itemStack) {
 		ItemRenderer itemRenderer = Minecraft.getInstance().getItemRenderer();
 		ItemModelShaper itemModelMesher = itemRenderer.getItemModelShaper();

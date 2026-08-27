@@ -28,7 +28,7 @@ public interface ISubtypeInterpreter<T> {
 	 *
 	 * @since 19.9.0
 	 */
-	@Nullable
+	
 	Object getSubtypeData(T ingredient, UidContext context);
 
 	/**

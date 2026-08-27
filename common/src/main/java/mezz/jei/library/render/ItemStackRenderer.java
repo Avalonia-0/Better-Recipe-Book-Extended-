@@ -22,12 +22,12 @@ public class ItemStackRenderer implements IIngredientRenderer<ItemStack> {
 	private final ItemStackBatchRendererCache batchRenderer = new ItemStackBatchRendererCache();
 
 	@Override
-	public void render(GuiGraphics guiGraphics, @Nullable ItemStack ingredient) {
+	public void render(GuiGraphics guiGraphics,  ItemStack ingredient) {
 		render(guiGraphics, ingredient, 0, 0);
 	}
 
 	@Override
-	public void render(GuiGraphics guiGraphics, @Nullable ItemStack ingredient, int posX, int posY) {
+	public void render(GuiGraphics guiGraphics,  ItemStack ingredient, int posX, int posY) {
 		if (ingredient != null) {
 			RenderSystem.enableDepthTest();
 

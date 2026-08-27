@@ -32,7 +32,7 @@ public interface IIngredientConsumer {
 	 *
 	 * @since 19.8.3
 	 */
-	<I> IIngredientConsumer addIngredients(IIngredientType<I> ingredientType, List<@Nullable I> ingredients);
+	<I> IIngredientConsumer addIngredients(IIngredientType<I> ingredientType, List< I> ingredients);
 
 	/**
 	 * Add one ingredient.

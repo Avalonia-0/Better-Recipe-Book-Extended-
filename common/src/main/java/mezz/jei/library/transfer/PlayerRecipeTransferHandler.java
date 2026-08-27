@@ -52,7 +52,7 @@ public class PlayerRecipeTransferHandler implements IRecipeTransferHandler<Inven
 		return RecipeTypes.CRAFTING;
 	}
 
-	@Nullable
+	
 	@Override
 	public IRecipeTransferError transferRecipe(InventoryMenu container, RecipeHolder<CraftingRecipe> recipe, IRecipeSlotsView recipeSlotsView, Player player, boolean maxTransfer, boolean doTransfer) {
 		if (!handlerHelper.recipeTransferHasServerSupport()) {

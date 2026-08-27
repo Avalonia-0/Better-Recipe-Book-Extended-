@@ -54,6 +54,6 @@ public interface IUniversalRecipeTransferHandler<C extends AbstractContainerMenu
 	 *
 	 * @since 19.8.1
 	 */
-	@Nullable
+	
 	IRecipeTransferError transferRecipe(C container, Object recipe, IRecipeSlotsView recipeSlots, Player player, boolean maxTransfer, boolean doTransfer);
 }

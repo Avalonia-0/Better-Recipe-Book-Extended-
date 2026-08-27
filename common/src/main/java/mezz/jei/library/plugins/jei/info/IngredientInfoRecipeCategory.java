@@ -58,7 +58,7 @@ public class IngredientInfoRecipeCategory extends AbstractRecipeCategory<IJeiIng
 	}
 
 	@Override
-	public @Nullable ResourceLocation getRegistryName(IJeiIngredientInfoRecipe recipe) {
+	public  ResourceLocation getRegistryName(IJeiIngredientInfoRecipe recipe) {
 		return null;
 	}
 

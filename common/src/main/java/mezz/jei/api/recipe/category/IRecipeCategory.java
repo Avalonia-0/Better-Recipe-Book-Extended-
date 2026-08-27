@@ -61,7 +61,7 @@ public interface IRecipeCategory<T> {
 	 */
 	@SuppressWarnings("DeprecatedIsStillUsed")
 	@Deprecated(since = "19.19.0", forRemoval = true)
-	@Nullable
+	
 	default IDrawable getBackground() {
 		return null;
 	}
@@ -101,7 +101,7 @@ public interface IRecipeCategory<T> {
 	 *
 	 * @return icon to draw on the category tab, max size is 16x16 pixels.
 	 */
-	@Nullable
+	
 	IDrawable getIcon();
 
 	/**
@@ -265,7 +265,7 @@ public interface IRecipeCategory<T> {
 	 *
 	 * @since 9.3.0
 	 */
-	@Nullable
+	
 	default ResourceLocation getRegistryName(T recipe) {
 		if (recipe instanceof RecipeHolder<?> recipeHolder) {
 			return recipeHolder.id();

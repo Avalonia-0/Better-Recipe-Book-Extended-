@@ -117,8 +117,8 @@ public final class GrindstoneRecipeMaker {
 				.filter(Objects::nonNull);
 	}
 
-	@Nullable
-	private static IJeiGrindstoneRecipe getGrindstoneRecipe(IPlatformRecipeHelper platformHelper, GrindstoneMenu grindstoneMenu, ItemStack topInput, ItemStack bottomInput, @Nullable ResourceLocation uid) {
+	
+	private static IJeiGrindstoneRecipe getGrindstoneRecipe(IPlatformRecipeHelper platformHelper, GrindstoneMenu grindstoneMenu, ItemStack topInput, ItemStack bottomInput,  ResourceLocation uid) {
 		ItemStack output = platformHelper.getGrindstoneResult(grindstoneMenu, topInput, bottomInput);
 		if (output.isEmpty()) {
 			return null;

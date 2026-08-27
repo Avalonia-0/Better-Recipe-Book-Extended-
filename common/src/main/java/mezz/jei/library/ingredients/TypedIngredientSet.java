@@ -29,7 +29,7 @@ public class TypedIngredientSet<T> extends AbstractSet<ITypedIngredient<T>> {
 		this.ingredients = new LinkedHashMap<>();
 	}
 
-	@Nullable
+	
 	private Object getUid(ITypedIngredient<T> typedIngredient) {
 		try {
 			return ingredientHelper.getUid(typedIngredient, context);

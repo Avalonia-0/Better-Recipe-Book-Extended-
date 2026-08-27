@@ -144,7 +144,7 @@ public class IngredientManager implements IIngredientManager {
 	}
 
 	@Override
-	public @Nullable <V> IIngredientType<V> getIngredientType(V ingredient) {
+	public  <V> IIngredientType<V> getIngredientType(V ingredient) {
 		ErrorUtil.checkNotNull(ingredient, "ingredient");
 		return this.registeredIngredients.getIngredientType(ingredient);
 	}

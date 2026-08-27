@@ -38,7 +38,7 @@ public interface IPlatformRenderHelper {
 
 	BakedModel createLimitedQuadItemModel(BakedModel bakedModel);
 
-	@Nullable
+	
 	TextureAtlasSprite getTextureAtlasSprite(BlockState blockState);
 
 	void blitSprite(GuiGraphics guiGraphics, TextureAtlasSprite sprite, int textureWidth, int textureHeight, int uPosition, int vPosition, int x, int y, int uWidth, int vHeight);

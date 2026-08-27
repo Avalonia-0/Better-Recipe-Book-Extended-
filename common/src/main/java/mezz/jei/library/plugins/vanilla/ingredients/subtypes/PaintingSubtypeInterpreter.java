@@ -17,7 +17,7 @@ public class PaintingSubtypeInterpreter implements ISubtypeInterpreter<ItemStack
 	}
 
 	@Override
-	public @Nullable Object getSubtypeData(ItemStack ingredient, UidContext context) {
+	public  Object getSubtypeData(ItemStack ingredient, UidContext context) {
 		CustomData properties = ingredient.get(DataComponents.ENTITY_DATA);
 		if (properties == null) {
 			return null;

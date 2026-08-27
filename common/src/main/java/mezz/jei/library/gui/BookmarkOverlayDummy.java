@@ -19,7 +19,7 @@ public class BookmarkOverlayDummy implements IBookmarkOverlay {
 		return Optional.empty();
 	}
 
-	@Nullable
+	
 	@Override
 	public <T> T getIngredientUnderMouse(IIngredientType<T> ingredientType) {
 		return null;

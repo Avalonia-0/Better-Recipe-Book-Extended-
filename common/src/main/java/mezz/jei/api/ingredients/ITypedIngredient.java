@@ -49,7 +49,7 @@ public interface ITypedIngredient<T> {
 	 *
 	 * @since 19.19.5
 	 */
-	@Nullable
+	
 	default <V> V getCastIngredient(IIngredientType<V> ingredientType) {
 		return ingredientType.getCastIngredient(getIngredient());
 	}
@@ -60,7 +60,7 @@ public interface ITypedIngredient<T> {
 	 *
 	 * @since 19.19.6
 	 */
-	@Nullable
+	
 	default <V> ITypedIngredient<V> cast(IIngredientType<V> ingredientType) {
 		if (getType().equals(ingredientType)) {
 			@SuppressWarnings("unchecked")
@@ -76,7 +76,7 @@ public interface ITypedIngredient<T> {
 	 *
 	 * @since 19.23.0
 	 */
-	@Nullable
+	
 	default ITypedIngredient<ItemStack> castToItemStackType() {
 		return cast(VanillaTypes.ITEM_STACK);
 	}

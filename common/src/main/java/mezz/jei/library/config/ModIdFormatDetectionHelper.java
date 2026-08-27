@@ -27,7 +27,7 @@ final class ModIdFormatDetectionHelper {
 		return ModIdFormatConfig.detectModNameTooltipFormatting(tooltip);
 	}
 
-	private static List<Component> getTestTooltip(@Nullable Player player, ItemStack itemStack) {
+	private static List<Component> getTestTooltip( Player player, ItemStack itemStack) {
 		try {
 			return itemStack.getTooltipLines(Item.TooltipContext.EMPTY, player, TooltipFlag.Default.NORMAL);
 		} catch (LinkageError | RuntimeException e) {

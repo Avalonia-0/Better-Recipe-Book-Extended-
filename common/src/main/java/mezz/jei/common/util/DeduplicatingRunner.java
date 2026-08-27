@@ -12,7 +12,7 @@ import java.util.concurrent.Future;
 public class DeduplicatingRunner {
 	private final IDelayedExecutor executor;
 	private final Duration delay;
-	private @Nullable Future<?> future;
+	private  Future<?> future;
 
 	public DeduplicatingRunner(Duration delay) {
 		this(delay, Internal.getDelayedExecutor());

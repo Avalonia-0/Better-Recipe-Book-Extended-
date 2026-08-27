@@ -128,7 +128,7 @@ public final class DelayedExecutor implements IDelayedExecutor {
 
 	private final class ScheduledTask implements Runnable {
 		private final Runnable command;
-		private @Nullable volatile Future<?> future;
+		private  volatile Future<?> future;
 
 		private ScheduledTask(Runnable command) {
 			this.command = command;

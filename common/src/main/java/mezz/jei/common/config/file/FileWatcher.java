@@ -10,13 +10,13 @@ import java.nio.file.Path;
 public class FileWatcher {
 	private static final Logger LOGGER = LogManager.getLogger();
 
-	private final @Nullable FileWatcherThread thread;
+	private final  FileWatcherThread thread;
 
 	public FileWatcher(String threadName) {
 		this.thread = createThread(threadName);
 	}
 
-	@Nullable
+	
 	private static FileWatcherThread createThread(String threadName) {
 		try {
 			return new FileWatcherThread(threadName);

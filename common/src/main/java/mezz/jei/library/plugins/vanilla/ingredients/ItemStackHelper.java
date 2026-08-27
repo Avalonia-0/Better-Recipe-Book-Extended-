@@ -244,7 +244,7 @@ public class ItemStackHelper implements IIngredientHelper<ItemStack> {
 	}
 
 	@Override
-	public String getErrorInfo(@Nullable ItemStack ingredient) {
+	public String getErrorInfo( ItemStack ingredient) {
 		return ErrorUtil.getItemStackInfo(ingredient);
 	}
 

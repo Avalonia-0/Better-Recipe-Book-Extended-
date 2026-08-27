@@ -52,7 +52,7 @@ public class RecipeTransferHandlerHelper implements IRecipeTransferHandlerHelper
 	@Override
 	public <C extends AbstractContainerMenu, R> IRecipeTransferInfo<C, R> createBasicRecipeTransferInfo(
 		Class<? extends C> containerClass,
-		@Nullable MenuType<C> menuType,
+		 MenuType<C> menuType,
 		RecipeType<R> recipeType,
 		int recipeSlotStart,
 		int recipeSlotCount,

@@ -23,7 +23,6 @@ import net.minecraft.world.level.material.Fluid;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.Nullable;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
@@ -65,7 +64,7 @@ public class IngredientManagerBuilder implements IModIngredientRegistration, IIn
 		Collection<V> allIngredients,
 		IIngredientHelper<V> ingredientHelper,
 		IIngredientRenderer<V> ingredientRenderer,
-		@Nullable Codec<V> ingredientCodec
+		 Codec<V> ingredientCodec
 	) {
 		ErrorUtil.checkNotNull(ingredientType, "ingredientType");
 		ErrorUtil.checkNotNull(allIngredients, "allIngredients");

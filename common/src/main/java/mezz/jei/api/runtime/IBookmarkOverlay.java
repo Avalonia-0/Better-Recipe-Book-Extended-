@@ -23,13 +23,13 @@ public interface IBookmarkOverlay {
 	/**
 	 * @return the ingredient that's currently under the mouse, or null if there is none.
 	 */
-	@Nullable
+	
 	<T> T getIngredientUnderMouse(IIngredientType<T> ingredientType);
 
 	/**
 	 * @return the ingredient that's currently under the mouse, or null if there is none.
 	 */
-	@Nullable
+	
 	default ItemStack getItemStackUnderMouse() {
 		return getIngredientUnderMouse(VanillaTypes.ITEM_STACK);
 	}

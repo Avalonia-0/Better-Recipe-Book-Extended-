@@ -3,7 +3,6 @@ package mezz.jei.common.config.file;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
-import javax.annotation.concurrent.ThreadSafe;
 import java.io.IOException;
 import java.nio.file.FileSystem;
 import java.nio.file.FileSystems;
@@ -22,7 +21,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-@ThreadSafe
+
 public class FileWatcherThread extends Thread {
 	private static final Logger LOGGER = LogManager.getLogger();
 

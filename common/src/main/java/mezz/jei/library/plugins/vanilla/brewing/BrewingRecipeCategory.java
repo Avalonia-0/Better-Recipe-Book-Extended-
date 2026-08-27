@@ -90,7 +90,7 @@ public class BrewingRecipeCategory extends AbstractRecipeCategory<IJeiBrewingRec
 	}
 
 	@Override
-	public @Nullable ResourceLocation getRegistryName(IJeiBrewingRecipe recipe) {
+	public  ResourceLocation getRegistryName(IJeiBrewingRecipe recipe) {
 		return recipe.getUid();
 	}
 

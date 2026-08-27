@@ -14,9 +14,9 @@ import java.util.function.Supplier;
 
 public class IngredientsTooltipCallback implements IRecipeSlotRichTooltipCallback {
 
-	private final Supplier<@Nullable IRecipeLayoutDrawable<?>> recipeLayoutSupplier;
+	private final Supplier< IRecipeLayoutDrawable<?>> recipeLayoutSupplier;
 
-	public IngredientsTooltipCallback(Supplier<@Nullable IRecipeLayoutDrawable<?>> supplier) {
+	public IngredientsTooltipCallback(Supplier< IRecipeLayoutDrawable<?>> supplier) {
 		this.recipeLayoutSupplier = supplier;
 	}
 

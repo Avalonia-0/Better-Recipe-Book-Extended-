@@ -41,13 +41,13 @@ public class SubtypeInterpreters {
 		return true;
 	}
 
-	@Nullable
+	
 	public <B, I> ISubtypeInterpreter<I> get(IIngredientTypeWithSubtypes<B, I> type, I ingredient) {
 		B base = type.getBase(ingredient);
 		return getFromBase(type, base);
 	}
 
-	@Nullable
+	
 	public <B, I> ISubtypeInterpreter<I> getFromBase(@SuppressWarnings("unused") IIngredientTypeWithSubtypes<B, I> type, B ingredientBase) {
 		ISubtypeInterpreter<?> interpreter = map.get(ingredientBase);
 		@SuppressWarnings("unchecked")

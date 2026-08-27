@@ -29,7 +29,7 @@ public class CraftingGridHelper implements ICraftingGridHelper {
 	}
 
 	@Override
-	public <T> List<IRecipeSlotBuilder> createAndSetNamedInputs(IRecipeLayoutBuilder builder, IIngredientType<T> ingredientType, List<@Nullable Pair<String, List<@Nullable T>>> namedInputs, int width, int height) {
+	public <T> List<IRecipeSlotBuilder> createAndSetNamedInputs(IRecipeLayoutBuilder builder, IIngredientType<T> ingredientType, List< Pair<String, List< T>>> namedInputs, int width, int height) {
 		List<IRecipeSlotBuilder> inputSlots = createInputSlots(builder, width, height);
 		setNamedInputs(inputSlots, ingredientType, namedInputs, width, height);
 		return inputSlots;
@@ -42,7 +42,7 @@ public class CraftingGridHelper implements ICraftingGridHelper {
 	}
 
 	@Override
-	public <T> List<IRecipeSlotBuilder> createAndSetInputs(IRecipeLayoutBuilder builder, IIngredientType<T> ingredientType, List<@Nullable List<@Nullable T>> inputs, int width, int height) {
+	public <T> List<IRecipeSlotBuilder> createAndSetInputs(IRecipeLayoutBuilder builder, IIngredientType<T> ingredientType, List< List< T>> inputs, int width, int height) {
 		List<IRecipeSlotBuilder> inputSlots = createInputSlots(builder, width, height);
 		setInputs(inputSlots, ingredientType, inputs, width, height);
 		return inputSlots;
@@ -68,7 +68,7 @@ public class CraftingGridHelper implements ICraftingGridHelper {
 	}
 
 	@Override
-	public <T> void setInputs(List<IRecipeSlotBuilder> slotBuilders, IIngredientType<T> ingredientType, List<@Nullable List<@Nullable T>> inputs, int width, int height) {
+	public <T> void setInputs(List<IRecipeSlotBuilder> slotBuilders, IIngredientType<T> ingredientType, List< List< T>> inputs, int width, int height) {
 		if (width <= 0 || height <= 0) {
 			width = height = getShapelessSize(inputs.size());
 		}
@@ -80,7 +80,7 @@ public class CraftingGridHelper implements ICraftingGridHelper {
 			int index = getCraftingIndex(i, width, height);
 			IRecipeSlotBuilder slot = slotBuilders.get(index);
 
-			@Nullable List<@Nullable T> ingredients = inputs.get(i);
+			 List< T> ingredients = inputs.get(i);
 			if (ingredients != null) {
 				slot.addIngredients(ingredientType, ingredients);
 			}
@@ -88,7 +88,7 @@ public class CraftingGridHelper implements ICraftingGridHelper {
 	}
 
 	@Override
-	public <T> IRecipeSlotBuilder createAndSetOutputs(IRecipeLayoutBuilder builder, IIngredientType<T> ingredientType, @Nullable List<@Nullable T> outputs) {
+	public <T> IRecipeSlotBuilder createAndSetOutputs(IRecipeLayoutBuilder builder, IIngredientType<T> ingredientType,  List< T> outputs) {
 		IRecipeSlotBuilder outputSlot = builder.addOutputSlot(95, 19)
 			.setOutputSlotBackground();
 		if (outputs != null) {
@@ -133,7 +133,7 @@ public class CraftingGridHelper implements ICraftingGridHelper {
 		}
 	}
 
-	private <T> void setNamedInputs(List<IRecipeSlotBuilder> slotBuilders, IIngredientType<T> ingredientType, List<@Nullable Pair<String, List<@Nullable T>>> namedInputs, int width, int height) {
+	private <T> void setNamedInputs(List<IRecipeSlotBuilder> slotBuilders, IIngredientType<T> ingredientType, List< Pair<String, List< T>>> namedInputs, int width, int height) {
 		if (width <= 0 || height <= 0) {
 			width = height = getShapelessSize(namedInputs.size());
 		}
@@ -145,7 +145,7 @@ public class CraftingGridHelper implements ICraftingGridHelper {
 			int index = getCraftingIndex(i, width, height);
 			IRecipeSlotBuilder slot = slotBuilders.get(index);
 
-			Pair<String, List<@Nullable T>> value = namedInputs.get(i);
+			Pair<String, List< T>> value = namedInputs.get(i);
 			if (value != null) {
 				slot.setSlotName(value.getFirst())
 					.addIngredients(ingredientType, value.getSecond());

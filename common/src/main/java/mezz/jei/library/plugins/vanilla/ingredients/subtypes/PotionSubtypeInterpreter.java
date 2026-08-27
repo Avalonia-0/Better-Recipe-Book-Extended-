@@ -16,7 +16,7 @@ public class PotionSubtypeInterpreter implements ISubtypeInterpreter<ItemStack> 
 	}
 
 	@Override
-	@Nullable
+	
 	public Object getSubtypeData(ItemStack ingredient, UidContext context) {
 		PotionContents contents = ingredient.get(DataComponents.POTION_CONTENTS);
 		if (contents == null) {

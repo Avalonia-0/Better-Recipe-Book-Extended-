@@ -84,7 +84,7 @@ public class RecipeLayout<R> implements IRecipeLayoutDrawable<R>, IRecipeExtrasB
 	private final IScalableDrawable recipeBackground;
 	private final int recipeBorderPadding;
 	private final ImmutableRect2i recipeTransferButtonArea;
-	private final @Nullable ShapelessIcon shapelessIcon;
+	private final  ShapelessIcon shapelessIcon;
 	private final RecipeLayoutInputHandler<R> inputHandler;
 	private boolean extrasCreated = false;
 
@@ -122,7 +122,7 @@ public class RecipeLayout<R> implements IRecipeLayoutDrawable<R>, IRecipeExtrasB
 		R recipe,
 		IScalableDrawable recipeBackground,
 		int recipeBorderPadding,
-		@Nullable ShapelessIcon shapelessIcon,
+		 ShapelessIcon shapelessIcon,
 		ImmutablePoint2i recipeTransferButtonPos,
 		List<IRecipeSlotDrawable> recipeCategorySlots,
 		List<IRecipeSlotDrawable> allSlots,

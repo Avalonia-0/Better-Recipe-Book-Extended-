@@ -15,7 +15,7 @@ import java.util.Objects;
 
 public class AnvilHelper {
 	private static final Logger LOGGER = LogManager.getLogger();
-	private static @Nullable AnvilMenu ANVIL_MENU = null;
+	private static  AnvilMenu ANVIL_MENU = null;
 
 	public static int findLevelsCost(ItemStack leftStack, ItemStack rightStack) {
 		AnvilMenu anvilMenu = getFakeAnvilMenu();
@@ -36,7 +36,7 @@ public class AnvilHelper {
 		return ANVIL_MENU;
 	}
 
-	@Nullable
+	
 	public static AnvilMenu setAnvilMenu(AnvilMenu anvilMenu, ItemStack leftStack, ItemStack rightStack) {
 		try {
 			Slot leftSlot = anvilMenu.slots.get(0);

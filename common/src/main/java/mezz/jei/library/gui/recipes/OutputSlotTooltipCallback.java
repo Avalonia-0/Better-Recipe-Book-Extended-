@@ -76,7 +76,7 @@ public class OutputSlotTooltipCallback implements IRecipeSlotRichTooltipCallback
 		tooltip.add(recipeBy.withStyle(ChatFormatting.GRAY));
 	}
 
-	private <T> @Nullable String getDisplayModId(ITypedIngredient<T> typedIngredient) {
+	private <T>  String getDisplayModId(ITypedIngredient<T> typedIngredient) {
 		IIngredientManager ingredientManager = Internal.getJeiRuntime().getIngredientManager();
 
 		IIngredientType<T> type = typedIngredient.getType();

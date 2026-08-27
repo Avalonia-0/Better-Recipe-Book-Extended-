@@ -81,7 +81,7 @@ public class CodecHelper implements ICodecHelper {
 	private final IIngredientManager ingredientManager;
 	private final IFocusFactory focusFactory;
 	private final Map<RecipeType<?>, Codec<?>> defaultRecipeCodecs = new HashMap<>();
-	private @Nullable Codec<RecipeType<?>> recipeTypeCodec;
+	private  Codec<RecipeType<?>> recipeTypeCodec;
 
 	public CodecHelper(IIngredientManager ingredientManager, IFocusFactory focusFactory) {
 		this.ingredientManager = ingredientManager;

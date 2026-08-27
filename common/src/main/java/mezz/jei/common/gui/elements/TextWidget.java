@@ -31,7 +31,7 @@ public class TextWidget implements ITextWidget, IRecipeWidget {
 	private boolean shadow;
 	private int lineSpacing;
 
-	private @Nullable List<FormattedText> wrappedText;
+	private  List<FormattedText> wrappedText;
 	private boolean truncated = false;
 
 	public TextWidget(List<FormattedText> text, int xPos, int yPos, int maxWidth, int maxHeight) {

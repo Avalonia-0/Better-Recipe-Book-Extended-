@@ -59,7 +59,7 @@ public class RegisteredIngredients {
 		return this.orderedTypes;
 	}
 
-	@Nullable
+	
 	public <V> IIngredientType<V> getIngredientType(V ingredient) {
 		ErrorUtil.checkNotNull(ingredient, "ingredient");
 		@SuppressWarnings("unchecked")
@@ -67,7 +67,7 @@ public class RegisteredIngredients {
 		return getIngredientType(ingredientClass);
 	}
 
-	@Nullable
+	
 	public <V> IIngredientType<V> getIngredientType(Class<? extends V> ingredientClass) {
 		ErrorUtil.checkNotNull(ingredientClass, "ingredientClass");
 		@SuppressWarnings("unchecked")

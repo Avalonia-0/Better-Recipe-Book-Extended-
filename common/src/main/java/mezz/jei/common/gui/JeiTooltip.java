@@ -43,13 +43,13 @@ import java.util.stream.Collectors;
 
 public class JeiTooltip implements ITooltipBuilder {
 	private final List<Either<FormattedText, TooltipComponent>> lines = new ArrayList<>();
-	private @Nullable ITypedIngredient<?> typedIngredient;
+	private  ITypedIngredient<?> typedIngredient;
 
 	public record TooltipRenderData(Font font, ItemStack itemStack) {
 	}
 
 	@Override
-	public void add(@Nullable FormattedText formattedText) {
+	public void add( FormattedText formattedText) {
 		if (formattedText == null) {
 			if (Services.PLATFORM.getModHelper().isInDev()) {
 				throw new NullPointerException("Tried to add null tooltip text");
@@ -60,7 +60,7 @@ public class JeiTooltip implements ITooltipBuilder {
 	}
 
 	@Override
-	public void add(@Nullable TooltipComponent component) {
+	public void add( TooltipComponent component) {
 		if (component == null) {
 			if (Services.PLATFORM.getModHelper().isInDev()) {
 				throw new NullPointerException("Tried to add null tooltip component");

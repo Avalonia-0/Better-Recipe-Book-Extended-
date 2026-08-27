@@ -26,7 +26,7 @@ public class Table<R, C, V> {
 		this.rowMappingFunction = (k -> rowSupplier.get());
 	}
 
-	@Nullable
+	
 	public V get(R row, C col) {
 		Map<C, V> rowMap = getRow(row);
 		return rowMap.get(col);
@@ -37,7 +37,7 @@ public class Table<R, C, V> {
 		return rowMap.computeIfAbsent(col, k -> valueSupplier.get());
 	}
 
-	@Nullable
+	
 	public V put(R row, C col, V val) {
 		Map<C, V> rowMap = getRow(row);
 		return rowMap.put(col, val);

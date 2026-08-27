@@ -83,7 +83,7 @@ public class GrindstoneRecipeCategory extends AbstractRecipeCategory<IJeiGrindst
 	}
 
 	@Override
-	public @Nullable ResourceLocation getRegistryName(IJeiGrindstoneRecipe recipe) {
+	public  ResourceLocation getRegistryName(IJeiGrindstoneRecipe recipe) {
 		return recipe.getUid();
 	}
 }

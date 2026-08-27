@@ -12,7 +12,6 @@ import com.mojang.serialization.DataResult;
 import com.mojang.serialization.DynamicOps;
 import mezz.jei.common.util.PathUtil;
 
-import javax.annotation.Nullable;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
 import java.io.IOException;
@@ -98,7 +97,7 @@ public class JsonArrayFileHelper {
 		writer.end();
 	}
 
-	@Nullable
+	
 	private static Integer getVersion(JsonElement firstElement) {
 		if (!firstElement.isJsonObject()) {
 			return null;
@@ -116,7 +115,7 @@ public class JsonArrayFileHelper {
 
 	public static <T> List<T> read(
 		BufferedReader reader,
-		@Nullable Integer version,
+		 Integer version,
 		Codec<T> codec,
 		DynamicOps<JsonElement> registryOps,
 		BiConsumer<JsonElement, ? super DataResult.Error<Pair<T, JsonElement>>> ifElementError,

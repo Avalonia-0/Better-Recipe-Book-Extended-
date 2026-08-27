@@ -147,7 +147,7 @@ public final class BasicRecipeTransferHandlerServer {
 		return remainderItems;
 	}
 
-	@Nullable
+	
 	private static List<RequiredTransfer> calculateRequiredTransfers(List<TransferOperation> transferOperations, Player player) {
 		List<RequiredTransfer> requiredTransfers = new ArrayList<>(transferOperations.size());
 		Map<Slot, ItemStack> targetSlotStacks = new HashMap<>();

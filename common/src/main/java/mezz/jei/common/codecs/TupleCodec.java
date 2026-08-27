@@ -8,7 +8,6 @@ import com.mojang.serialization.DynamicOps;
 import com.mojang.serialization.Lifecycle;
 import com.mojang.serialization.ListBuilder;
 
-import javax.annotation.Nullable;
 import java.util.Objects;
 import java.util.stream.Stream;
 
@@ -71,8 +70,8 @@ public class TupleCodec<F, S> implements Codec<Pair<F, S>> {
 		private final DynamicOps<T> ops;
 		private final Stream.Builder<T> failed = Stream.builder();
 		private DataResult<Unit> result = INITIAL_RESULT;
-		private @Nullable F firstValue;
-		private @Nullable S secondValue;
+		private  F firstValue;
+		private  S secondValue;
 		private int elementCount;
 
 		private DecoderState(final DynamicOps<T> ops) {

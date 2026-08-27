@@ -132,7 +132,7 @@ public class RecipeLayoutBuilder<T> implements IRecipeLayoutBuilder {
 			builders.add(builder);
 
 			DisplayIngredientAcceptor displayIngredientAcceptor = builder.getIngredientAcceptor();
-			List<@Nullable ITypedIngredient<?>> allIngredients = displayIngredientAcceptor.getAllIngredients();
+			List< ITypedIngredient<?>> allIngredients = displayIngredientAcceptor.getAllIngredients();
 			int ingredientCount = allIngredients.size();
 			if (count == -1) {
 				count = ingredientCount;
@@ -192,9 +192,9 @@ public class RecipeLayoutBuilder<T> implements IRecipeLayoutBuilder {
 		}
 
 		class LayoutSupplier implements Supplier<IRecipeLayoutDrawable<?>>{
-			private @Nullable IRecipeLayoutDrawable<?> drawable;
+			private  IRecipeLayoutDrawable<?> drawable;
 			@Override
-			public @Nullable IRecipeLayoutDrawable<?> get() {
+			public  IRecipeLayoutDrawable<?> get() {
 				return drawable;
 			}
 		}
@@ -254,7 +254,7 @@ public class RecipeLayoutBuilder<T> implements IRecipeLayoutBuilder {
 		return iRecipeSlotDrawables;
 	}
 
-	@Nullable
+	
 	private ShapelessIcon createShapelessIcon(IRecipeCategory<?> recipeCategory) {
 		if (!shapeless) {
 			return null;

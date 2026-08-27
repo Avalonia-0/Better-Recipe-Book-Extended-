@@ -6,7 +6,7 @@ import java.util.function.Supplier;
 
 public class LazySupplier<T> implements Supplier<T> {
 	private final Supplier<T> supplier;
-	@Nullable
+	
 	private T cachedResult;
 
 	public LazySupplier(Supplier<T> supplier) {

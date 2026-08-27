@@ -37,7 +37,7 @@ public interface IIngredientType<T> {
 	 *
 	 * @since 11.5.0
 	 */
-	default Optional<T> castIngredient(@Nullable Object ingredient) {
+	default Optional<T> castIngredient( Object ingredient) {
 		Class<? extends T> ingredientClass = getIngredientClass();
 		if (ingredientClass.isInstance(ingredient)) {
 			return Optional.of(ingredientClass.cast(ingredient));
@@ -50,8 +50,8 @@ public interface IIngredientType<T> {
 	 *
 	 * @since 19.19.5
 	 */
-	@Nullable
-	default T getCastIngredient(@Nullable Object ingredient) {
+	
+	default T getCastIngredient( Object ingredient) {
 		Class<? extends T> ingredientClass = getIngredientClass();
 		if (ingredientClass.isInstance(ingredient)) {
 			return ingredientClass.cast(ingredient);

@@ -59,7 +59,7 @@ public interface IRecipeTransferHandlerHelper {
 	 */
 	<C extends AbstractContainerMenu, R> IRecipeTransferInfo<C, R> createBasicRecipeTransferInfo(
 		Class<? extends C> containerClass,
-		@Nullable MenuType<C> menuType,
+		 MenuType<C> menuType,
 		RecipeType<R> recipeType,
 		int recipeSlotStart,
 		int recipeSlotCount,

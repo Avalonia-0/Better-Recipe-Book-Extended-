@@ -71,7 +71,7 @@ public class FurnaceFuelCategory extends AbstractRecipeCategory<IJeiFuelingRecip
 	}
 
 	@Override
-	public @Nullable ResourceLocation getRegistryName(IJeiFuelingRecipe recipe) {
+	public  ResourceLocation getRegistryName(IJeiFuelingRecipe recipe) {
 		return null;
 	}
 }

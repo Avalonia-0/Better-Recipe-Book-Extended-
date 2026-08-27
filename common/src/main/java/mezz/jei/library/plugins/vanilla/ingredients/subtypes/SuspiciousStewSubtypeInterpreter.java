@@ -19,7 +19,7 @@ public class SuspiciousStewSubtypeInterpreter implements ISubtypeInterpreter<Ite
 	}
 
 	@Override
-	public @Nullable Object getSubtypeData(ItemStack ingredient, UidContext context) {
+	public  Object getSubtypeData(ItemStack ingredient, UidContext context) {
 		return ingredient.get(DataComponents.SUSPICIOUS_STEW_EFFECTS);
 	}
 

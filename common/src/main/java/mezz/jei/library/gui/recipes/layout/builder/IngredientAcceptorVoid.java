@@ -21,7 +21,7 @@ public class IngredientAcceptorVoid implements IIngredientAcceptor<IngredientAcc
 	}
 
 	@Override
-	public <I> IngredientAcceptorVoid addIngredients(IIngredientType<I> ingredientType, List<@Nullable I> ingredients) {
+	public <I> IngredientAcceptorVoid addIngredients(IIngredientType<I> ingredientType, List< I> ingredients) {
 		return this;
 	}
 

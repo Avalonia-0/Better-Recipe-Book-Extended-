@@ -43,12 +43,12 @@ public class RecipeSlotBuilder implements IRecipeSlotBuilder {
 	private final List<IRecipeSlotRichTooltipCallback> tooltipCallbacks = new ArrayList<>();
 	private final int slotIndex;
 	private ImmutableRect2i rect;
-	private @Nullable RendererOverrides rendererOverrides;
-	private @Nullable OffsetDrawable background;
-	private @Nullable IDrawable overlay;
-	private @Nullable String slotName;
+	private  RendererOverrides rendererOverrides;
+	private  OffsetDrawable background;
+	private  IDrawable overlay;
+	private  String slotName;
 	@SuppressWarnings("removal")
-	private @Nullable mezz.jei.api.gui.widgets.ISlottedWidgetFactory<?> assignedWidgetFactory;
+	private  mezz.jei.api.gui.widgets.ISlottedWidgetFactory<?> assignedWidgetFactory;
 
 	public RecipeSlotBuilder(IIngredientManager ingredientManager, int slotIndex, RecipeIngredientRole role) {
 		this.ingredients = new DisplayIngredientAcceptor(ingredientManager);
@@ -58,7 +58,7 @@ public class RecipeSlotBuilder implements IRecipeSlotBuilder {
 	}
 
 	@Override
-	public <I> IRecipeSlotBuilder addIngredients(IIngredientType<I> ingredientType, List<@Nullable I> ingredients) {
+	public <I> IRecipeSlotBuilder addIngredients(IIngredientType<I> ingredientType, List< I> ingredients) {
 		this.ingredients.addIngredients(ingredientType, ingredients);
 		return this;
 	}
@@ -239,7 +239,7 @@ public class RecipeSlotBuilder implements IRecipeSlotBuilder {
 	}
 
 	@SuppressWarnings("removal")
-	@Nullable
+	
 	public mezz.jei.api.gui.widgets.ISlottedWidgetFactory<?> getAssignedWidget() {
 		return assignedWidgetFactory;
 	}
@@ -250,15 +250,15 @@ public class RecipeSlotBuilder implements IRecipeSlotBuilder {
 	}
 
 	public Pair<Integer, IRecipeSlotDrawable> build(Set<Integer> focusMatches, ICycler cycler) {
-		List<@Nullable ITypedIngredient<?>> allIngredients = this.ingredients.getAllIngredients();
+		List< ITypedIngredient<?>> allIngredients = this.ingredients.getAllIngredients();
 
-		List<@Nullable ITypedIngredient<?>> focusedIngredients = null;
+		List< ITypedIngredient<?>> focusedIngredients = null;
 
 		if (!focusMatches.isEmpty()) {
 			focusedIngredients = new ArrayList<>();
 			for (Integer i : focusMatches) {
 				if (i < allIngredients.size()) {
-					@Nullable ITypedIngredient<?> ingredient = allIngredients.get(i);
+					 ITypedIngredient<?> ingredient = allIngredients.get(i);
 					focusedIngredients.add(ingredient);
 				}
 			}

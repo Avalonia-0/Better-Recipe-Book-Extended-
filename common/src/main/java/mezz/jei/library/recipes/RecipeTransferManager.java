@@ -40,7 +40,7 @@ public class RecipeTransferManager implements IRecipeTransferManager {
 		return getHandler(containerClass, menuType, Constants.UNIVERSAL_RECIPE_TRANSFER_TYPE);
 	}
 
-	@Nullable
+	
 	private <C extends AbstractContainerMenu> MenuType<C> getMenuType(C container) {
 		if (unsupportedContainers.contains(container)) {
 			return null;
@@ -55,7 +55,7 @@ public class RecipeTransferManager implements IRecipeTransferManager {
 		}
 	}
 
-	private <C extends AbstractContainerMenu, R> Optional<IRecipeTransferHandler<C, R>> getHandler(Class<? extends C> containerClass, @Nullable MenuType<C> menuType, RecipeType<?> recipeType) {
+	private <C extends AbstractContainerMenu, R> Optional<IRecipeTransferHandler<C, R>> getHandler(Class<? extends C> containerClass,  MenuType<C> menuType, RecipeType<?> recipeType) {
 		IRecipeTransferHandler<?, ?> handler = recipeTransferHandlers.get(containerClass, recipeType);
 		if (handler == null) {
 			return Optional.empty();

@@ -19,7 +19,7 @@ import java.util.function.Function;
 @FunctionalInterface
 public interface IScreenHandler<T extends Screen> extends Function<T, IGuiProperties> {
 	@Override
-	@Nullable
+	
 	IGuiProperties apply(T guiScreen);
 
 	/**

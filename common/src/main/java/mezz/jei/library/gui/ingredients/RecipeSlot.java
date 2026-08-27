@@ -47,10 +47,10 @@ public class RecipeSlot implements IRecipeSlotView, IRecipeSlotDrawable {
 	private final RecipeIngredientRole role;
 	private final ICycler cycler;
 	private final List<IRecipeSlotRichTooltipCallback> tooltipCallbacks;
-	private final @Nullable RendererOverrides rendererOverrides;
-	private final @Nullable OffsetDrawable background;
-	private final @Nullable IDrawable overlay;
-	private final @Nullable String slotName;
+	private final  RendererOverrides rendererOverrides;
+	private final  OffsetDrawable background;
+	private final  IDrawable overlay;
+	private final  String slotName;
 	private ImmutableRect2i rect;
 
 	/**
@@ -58,17 +58,17 @@ public class RecipeSlot implements IRecipeSlotView, IRecipeSlotDrawable {
 	 * null ingredients represent a "blank" drawn ingredient in the rotation.
 	 */
 	@Unmodifiable
-	private final List<@Nullable ITypedIngredient<?>> allIngredients;
+	private final List< ITypedIngredient<?>> allIngredients;
 
 	/**
 	 * Displayed ingredients, taking focus and visibility into account.
 	 * null ingredients represent a "blank" drawn ingredient in the rotation.
 	 */
 	@Unmodifiable
-	@Nullable
-	private List<@Nullable ITypedIngredient<?>> displayIngredients;
+	
+	private List< ITypedIngredient<?>> displayIngredients;
 
-	@Nullable
+	
 	private DisplayIngredientAcceptor displayOverrides;
 
 	public RecipeSlot(
@@ -76,12 +76,12 @@ public class RecipeSlot implements IRecipeSlotView, IRecipeSlotDrawable {
 		ImmutableRect2i rect,
 		ICycler cycler,
 		List<IRecipeSlotRichTooltipCallback> tooltipCallbacks,
-		List<@Nullable ITypedIngredient<?>> allIngredients,
-		@Nullable List<@Nullable ITypedIngredient<?>> focusedIngredients,
-		@Nullable OffsetDrawable background,
-		@Nullable IDrawable overlay,
-		@Nullable String slotName,
-		@Nullable RendererOverrides rendererOverrides
+		List< ITypedIngredient<?>> allIngredients,
+		 List< ITypedIngredient<?>> focusedIngredients,
+		 OffsetDrawable background,
+		 IDrawable overlay,
+		 String slotName,
+		 RendererOverrides rendererOverrides
 	) {
 		this.allIngredients = Collections.unmodifiableList(allIngredients);
 		this.background = background;
@@ -103,7 +103,7 @@ public class RecipeSlot implements IRecipeSlotView, IRecipeSlotDrawable {
 
 	@Override
 	@Unmodifiable
-	public List<@Nullable ITypedIngredient<?>> getAllIngredientsList() {
+	public List< ITypedIngredient<?>> getAllIngredientsList() {
 		return this.allIngredients;
 	}
 
@@ -115,7 +115,7 @@ public class RecipeSlot implements IRecipeSlotView, IRecipeSlotDrawable {
 	@Override
 	public Optional<ITypedIngredient<?>> getDisplayedIngredient() {
 		if (this.displayOverrides != null) {
-			List<@Nullable ITypedIngredient<?>> overrides = this.displayOverrides.getAllIngredients();
+			List< ITypedIngredient<?>> overrides = this.displayOverrides.getAllIngredients();
 			return cycler.getCycled(overrides);
 		}
 		if (this.displayIngredients == null) {
@@ -124,12 +124,12 @@ public class RecipeSlot implements IRecipeSlotView, IRecipeSlotDrawable {
 		return cycler.getCycled(this.displayIngredients);
 	}
 
-	private static List<@Nullable ITypedIngredient<?>> calculateDisplayIngredients(List<@Nullable ITypedIngredient<?>> allIngredients) {
+	private static List< ITypedIngredient<?>> calculateDisplayIngredients(List< ITypedIngredient<?>> allIngredients) {
 		if (allIngredients.isEmpty()) {
 			return List.of();
 		}
 
-		List<@Nullable ITypedIngredient<?>> visibleIngredients = List.of();
+		List< ITypedIngredient<?>> visibleIngredients = List.of();
 		boolean hasInvisibleIngredients = false;
 
 		// hide invisible ingredients if there are any
@@ -137,7 +137,7 @@ public class RecipeSlot implements IRecipeSlotView, IRecipeSlotDrawable {
 		// if an invisible ingredient is found, start building the list of visible ingredients
 		IIngredientVisibility ingredientVisibility = Internal.getJeiRuntime().getJeiHelpers().getIngredientVisibility();
 		for (int i = 0; i < allIngredients.size() && visibleIngredients.size() < MAX_DISPLAYED_INGREDIENTS; i++) {
-			@Nullable ITypedIngredient<?> ingredient = allIngredients.get(i);
+			 ITypedIngredient<?> ingredient = allIngredients.get(i);
 			boolean visible = ingredient == null || ingredientVisibility.isIngredientVisible(ingredient);
 			if (visible) {
 				if (hasInvisibleIngredients) {

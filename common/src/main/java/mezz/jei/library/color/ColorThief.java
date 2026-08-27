@@ -58,7 +58,7 @@ public class ColorThief {
 	 * @return the color map
 	 * @throws IllegalArgumentException if quality is less than 1
 	 */
-	@Nullable
+	
 	public static MMCQ.CMap getColorMap(NativeImage sourceImage, int colorCount, int quality, boolean ignoreWhite) {
 		validateQuality(quality);
 		if (sourceImage.format() == NativeImage.Format.RGBA) {

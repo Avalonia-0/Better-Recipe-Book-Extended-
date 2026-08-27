@@ -32,7 +32,7 @@ public class IngredientSlotBuilder implements IRecipeSlotBuilder {
 	}
 
 	@Override
-	public <I> IRecipeSlotBuilder addIngredients(IIngredientType<I> ingredientType, List<@Nullable I> ingredients) {
+	public <I> IRecipeSlotBuilder addIngredients(IIngredientType<I> ingredientType, List< I> ingredients) {
 		this.ingredients.addIngredients(ingredientType, ingredients);
 		return this;
 	}

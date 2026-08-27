@@ -29,7 +29,7 @@ public interface IVanillaRecipeFactory {
 	 *
 	 * @since 19.1.0
 	 */
-	IJeiAnvilRecipe createAnvilRecipe(ItemStack leftInput, List<ItemStack> rightInputs, List<ItemStack> outputs, @Nullable ResourceLocation uid);
+	IJeiAnvilRecipe createAnvilRecipe(ItemStack leftInput, List<ItemStack> rightInputs, List<ItemStack> outputs,  ResourceLocation uid);
 
 	/**
 	 * Create an anvil recipe for the given inputs and output.

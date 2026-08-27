@@ -6,9 +6,9 @@ import java.util.function.Function;
 
 public class CachedFunction<T, R> implements Function<T, R> {
 	private final Function<T, R> function;
-	@Nullable
+	
 	private T previousValue;
-	@Nullable
+	
 	private R cachedResult;
 
 	public CachedFunction(Function<T, R> function) {

@@ -24,7 +24,7 @@ public class CraftingExtensionHelper {
 
 	private final List<Handler<? extends CraftingRecipe>> handlers = new ArrayList<>();
 	private final Set<Class<? extends CraftingRecipe>> handledClasses = new HashSet<>();
-	private final Map<RecipeHolder<? extends CraftingRecipe>, @Nullable ICraftingCategoryExtension<? extends CraftingRecipe>> cache = new IdentityHashMap<>();
+	private final Map<RecipeHolder<? extends CraftingRecipe>,  ICraftingCategoryExtension<? extends CraftingRecipe>> cache = new IdentityHashMap<>();
 
 	public <T extends CraftingRecipe> void addRecipeExtension(Class<? extends T> recipeClass, ICraftingCategoryExtension<T> recipeExtension) {
 		if (!CraftingRecipe.class.isAssignableFrom(recipeClass)) {

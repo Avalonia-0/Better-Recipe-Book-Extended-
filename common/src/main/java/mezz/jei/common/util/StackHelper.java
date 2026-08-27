@@ -22,7 +22,7 @@ public class StackHelper implements IStackHelper {
 	}
 
 	@Override
-	public boolean isEquivalent(@Nullable ItemStack lhs, @Nullable ItemStack rhs, UidContext context) {
+	public boolean isEquivalent( ItemStack lhs,  ItemStack rhs, UidContext context) {
 		ErrorUtil.checkNotNull(context, "context");
 		if (lhs == rhs) {
 			return true;

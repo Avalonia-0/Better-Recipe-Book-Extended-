@@ -7,7 +7,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.function.Supplier;
 
 public final class DebugConfig {
-	@Nullable
+	
 	private static DebugConfig instance;
 
 	public static void create(IConfigSchemaBuilder schema) {

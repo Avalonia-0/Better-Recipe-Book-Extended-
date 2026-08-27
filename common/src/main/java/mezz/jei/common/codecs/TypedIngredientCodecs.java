@@ -15,8 +15,8 @@ import java.util.Optional;
 
 public class TypedIngredientCodecs {
 	private static final Map<IIngredientType<?>, Codec<ITypedIngredient<?>>> codecMapCache = new HashMap<>();
-	private static @Nullable Codec<IIngredientType<?>> ingredientTypeCodec;
-	private static @Nullable MapCodec<ITypedIngredient<?>> ingredientCodec;
+	private static  Codec<IIngredientType<?>> ingredientTypeCodec;
+	private static  MapCodec<ITypedIngredient<?>> ingredientCodec;
 
 	public static Codec<IIngredientType<?>> getIngredientTypeCodec(IIngredientManager ingredientManager) {
 		if (ingredientTypeCodec == null) {

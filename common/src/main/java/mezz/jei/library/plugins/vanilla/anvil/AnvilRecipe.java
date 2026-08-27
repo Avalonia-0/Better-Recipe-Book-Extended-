@@ -11,7 +11,7 @@ public record AnvilRecipe(
 	List<ItemStack> leftInputs,
 	List<ItemStack> rightInputs,
 	List<ItemStack> outputs,
-	@Nullable ResourceLocation uid
+	 ResourceLocation uid
 ) implements IJeiAnvilRecipe {
 
 	@Override
@@ -30,7 +30,7 @@ public record AnvilRecipe(
 	}
 
 	@Override
-	@Nullable
+	
 	public ResourceLocation getUid() {
 		return uid;
 	}

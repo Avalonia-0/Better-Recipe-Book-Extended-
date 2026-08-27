@@ -13,7 +13,7 @@ import java.util.Optional;
 
 public class BasicRecipeTransferInfo<C extends AbstractContainerMenu, R> implements IRecipeTransferInfo<C, R> {
 	private final Class<? extends C> containerClass;
-	@Nullable
+	
 	private final MenuType<C> menuType;
 	private final RecipeType<R> recipeType;
 	private final int recipeSlotStart;
@@ -23,7 +23,7 @@ public class BasicRecipeTransferInfo<C extends AbstractContainerMenu, R> impleme
 
 	public BasicRecipeTransferInfo(
 		Class<? extends C> containerClass,
-		@Nullable MenuType<C> menuType,
+		 MenuType<C> menuType,
 		RecipeType<R> recipeType,
 		int recipeSlotStart,
 		int recipeSlotCount,

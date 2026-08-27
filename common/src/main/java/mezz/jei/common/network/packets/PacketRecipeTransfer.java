@@ -100,7 +100,7 @@ public class PacketRecipeTransfer extends PlayToServerPacket<PacketRecipeTransfe
 		);
 	}
 
-	@Nullable
+	
 	static List<Slot> getSlots(AbstractContainerMenu container, List<Integer> slotIds) {
 		if (slotIds.size() > container.slots.size()) {
 			LOGGER.error(

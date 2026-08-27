@@ -35,7 +35,7 @@ public class JeiHelpers implements IJeiHelpers {
 	private final IngredientVisibility ingredientVisibility;
 	private final IPlatformFluidHelper<?> platformFluidHelper;
 	private final ICodecHelper codecHelper;
-	private @Nullable Collection<IRecipeCategory<?>> recipeCategories;
+	private  Collection<IRecipeCategory<?>> recipeCategories;
 
 	public JeiHelpers(
 		GuiHelper guiHelper,

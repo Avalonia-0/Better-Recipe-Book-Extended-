@@ -2,11 +2,10 @@ package mezz.jei.library.recipes;
 
 import net.minecraft.world.item.crafting.RecipeSerializer;
 
-import javax.annotation.Nullable;
 import java.util.function.Supplier;
 
 public class RecipeSerializers {
-	private static @Nullable RecipeSerializers INSTANCE;
+	private static  RecipeSerializers INSTANCE;
 
 	private final Supplier<RecipeSerializer<?>> jeiShapedRecipeSerializer;
 

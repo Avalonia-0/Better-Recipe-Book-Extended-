@@ -25,7 +25,7 @@ public class PluginHelper {
 		});
 	}
 
-	public static void sortPlugins(List<IModPlugin> plugins, VanillaPlugin vanillaPlugin, @Nullable JeiInternalPlugin jeiInternalPlugin) {
+	public static void sortPlugins(List<IModPlugin> plugins, VanillaPlugin vanillaPlugin,  JeiInternalPlugin jeiInternalPlugin) {
 		plugins.remove(vanillaPlugin);
 		plugins.addFirst(vanillaPlugin);
 

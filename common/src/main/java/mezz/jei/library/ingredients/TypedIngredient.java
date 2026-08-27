@@ -56,10 +56,10 @@ public final class TypedIngredient<T> implements ITypedIngredient<T> {
 		return new TypedIngredient<>(ingredientType, ingredient);
 	}
 
-	@Nullable
+	
 	public static <T> ITypedIngredient<?> createAndFilterInvalid(
 		IIngredientManager ingredientManager,
-		@Nullable T ingredient,
+		 T ingredient,
 		boolean normalize
 	) {
 		if (ingredient == null) {
@@ -72,11 +72,11 @@ public final class TypedIngredient<T> implements ITypedIngredient<T> {
 		return createAndFilterInvalid(ingredientManager, type, ingredient, normalize);
 	}
 
-	@Nullable
+	
 	public static <T> ITypedIngredient<T> createAndFilterInvalid(
 		IIngredientManager ingredientManager,
 		IIngredientType<T> ingredientType,
-		@Nullable T ingredient,
+		 T ingredient,
 		boolean normalize
 	) {
 		if (ingredient == null) {
@@ -96,7 +96,7 @@ public final class TypedIngredient<T> implements ITypedIngredient<T> {
 		IIngredientHelper<T> ingredientHelper = ingredientManager.getIngredientHelper(ingredientType);
 		List<ITypedIngredient<T>> results = new ArrayList<>(ingredients.size());
 		for (T ingredient : ingredients) {
-			@Nullable ITypedIngredient<T> result = createAndFilterInvalid(ingredientHelper, ingredientType, ingredient, normalize);
+			 ITypedIngredient<T> result = createAndFilterInvalid(ingredientHelper, ingredientType, ingredient, normalize);
 			if (result != null) {
 				results.add(result);
 			}
@@ -104,26 +104,26 @@ public final class TypedIngredient<T> implements ITypedIngredient<T> {
 		return results;
 	}
 
-	public static <T> List<@Nullable ITypedIngredient<T>> createAndFilterInvalidList(
+	public static <T> List< ITypedIngredient<T>> createAndFilterInvalidList(
 		IIngredientManager ingredientManager,
 		IIngredientType<T> ingredientType,
-		List<@Nullable T> ingredients,
+		List< T> ingredients,
 		boolean normalize
 	) {
 		IIngredientHelper<T> ingredientHelper = ingredientManager.getIngredientHelper(ingredientType);
-		List<@Nullable ITypedIngredient<T>> results = new ArrayList<>(ingredients.size());
-		for (@Nullable T ingredient : ingredients) {
-			@Nullable ITypedIngredient<T> result = createAndFilterInvalid(ingredientHelper, ingredientType, ingredient, normalize);
+		List< ITypedIngredient<T>> results = new ArrayList<>(ingredients.size());
+		for ( T ingredient : ingredients) {
+			 ITypedIngredient<T> result = createAndFilterInvalid(ingredientHelper, ingredientType, ingredient, normalize);
 			results.add(result);
 		}
 		return results;
 	}
 
-	public static List<@Nullable ITypedIngredient<ItemStack>> createAndFilterInvalidList(IIngredientManager ingredientManager, Ingredient ingredient, boolean normalize) {
+	public static List< ITypedIngredient<ItemStack>> createAndFilterInvalidList(IIngredientManager ingredientManager, Ingredient ingredient, boolean normalize) {
 		ItemStack[] itemStacks = ingredient.getItems();
 		IIngredientHelper<ItemStack> ingredientHelper = ingredientManager.getIngredientHelper(VanillaTypes.ITEM_STACK);
 
-		List<@Nullable ITypedIngredient<ItemStack>> results = new ArrayList<>(itemStacks.length);
+		List< ITypedIngredient<ItemStack>> results = new ArrayList<>(itemStacks.length);
 		for (ItemStack itemStack : itemStacks) {
 			ITypedIngredient<ItemStack> result = createAndFilterInvalid(ingredientHelper, VanillaTypes.ITEM_STACK, itemStack, normalize);
 			results.add(result);
@@ -131,11 +131,11 @@ public final class TypedIngredient<T> implements ITypedIngredient<T> {
 		return results;
 	}
 
-	@Nullable
+	
 	public static <T> ITypedIngredient<T> createAndFilterInvalid(
 		IIngredientHelper<T> ingredientHelper,
 		IIngredientType<T> ingredientType,
-		@Nullable T ingredient,
+		 T ingredient,
 		boolean normalize
 	) {
 		if (ingredient == null) {
@@ -156,7 +156,7 @@ public final class TypedIngredient<T> implements ITypedIngredient<T> {
 		return createUnvalidated(ingredientType, ingredient);
 	}
 
-	@Nullable
+	
 	public static <T> ITypedIngredient<T> defensivelyCopyTypedIngredientFromApi(IIngredientManager ingredientManager, ITypedIngredient<T> value) {
 		if (value instanceof TypedItemStack || value instanceof TypedIngredient) {
 			return value;

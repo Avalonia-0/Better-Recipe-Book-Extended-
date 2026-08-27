@@ -381,7 +381,7 @@ public final class RecipeTransferUtil {
 		}
 	}
 
-	@Nullable
+	
 	private static RequiredSlot getMostConstrainedRequiredSlot(
 		List<RequiredSlot> requiredSlots,
 		Map<Slot, Integer> availableCounts,
@@ -416,7 +416,7 @@ public final class RecipeTransferUtil {
 	}
 
 	private static Map<Object, Integer> calculateRequiredCountsByUid(IRecipeSlotView recipeSlotView, IStackHelper stackhelper) {
-		List<@Nullable ITypedIngredient<?>> allIngredientsList = recipeSlotView.getAllIngredientsList();
+		List< ITypedIngredient<?>> allIngredientsList = recipeSlotView.getAllIngredientsList();
 		Map<Object, Integer> requiredCountsByUid = new HashMap<>(allIngredientsList.size());
 		for (ITypedIngredient<?> typedIngredient : allIngredientsList) {
 			if (typedIngredient == null) {

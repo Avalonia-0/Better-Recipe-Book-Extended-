@@ -125,7 +125,7 @@ public interface ICraftingCategoryExtension<R extends CraftingRecipe> extends IR
 	 * @deprecated use {@link RecipeHolder#id()}
 	 */
 	@Deprecated(since = "16.0.0", forRemoval = true)
-	@Nullable
+	
 	default ResourceLocation getRegistryName() {
 		return null;
 	}

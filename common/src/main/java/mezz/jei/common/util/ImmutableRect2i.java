@@ -5,14 +5,13 @@ import net.minecraft.client.gui.navigation.ScreenPosition;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.renderer.Rect2i;
 
-import javax.annotation.Nonnegative;
 
 @SuppressWarnings("unused")
 public record ImmutableRect2i(
 	int x,
 	int y,
-	@Nonnegative int width,
-	@Nonnegative int height
+	 int width,
+	 int height
 ) {
 	public static final ImmutableRect2i EMPTY = new ImmutableRect2i(0, 0, 0, 0);
 
@@ -207,7 +206,7 @@ public record ImmutableRect2i(
 		);
 	}
 
-	public ImmutableRect2i keepTop(@Nonnegative int amount) {
+	public ImmutableRect2i keepTop( int amount) {
 		if (amount == this.height) {
 			return this;
 		}

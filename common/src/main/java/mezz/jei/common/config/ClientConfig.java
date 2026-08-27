@@ -12,7 +12,7 @@ import org.jetbrains.annotations.Nullable;
 import java.util.List;
 
 public final class ClientConfig implements IClientConfig {
-	@Nullable
+	
 	private static IClientConfig instance;
 
 	// appearance

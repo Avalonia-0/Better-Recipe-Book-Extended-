@@ -8,9 +8,9 @@ import java.util.Locale;
 import java.util.function.Supplier;
 
 public class MinecraftLocaleSupplier implements Supplier<Locale> {
-	@Nullable
+	
 	private String cachedLocaleCode;
-	@Nullable
+	
 	private Locale cachedLocale;
 
 	@Override

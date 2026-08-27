@@ -30,7 +30,7 @@ public interface IIngredientAcceptor<THIS extends IIngredientAcceptor<THIS>> ext
 	 *
 	 * @since 9.3.0
 	 */
-	<I> THIS addIngredients(IIngredientType<I> ingredientType, List<@Nullable I> ingredients);
+	<I> THIS addIngredients(IIngredientType<I> ingredientType, List< I> ingredients);
 
 	/**
 	 * Add one ingredient.

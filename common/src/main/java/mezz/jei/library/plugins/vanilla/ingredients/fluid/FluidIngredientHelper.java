@@ -171,7 +171,7 @@ public class FluidIngredientHelper<T> implements IIngredientHelper<T> {
 
 	@SuppressWarnings("ConstantConditions")
 	@Override
-	public String getErrorInfo(@Nullable T ingredient) {
+	public String getErrorInfo( T ingredient) {
 		if (ingredient == null) {
 			return "null";
 		}

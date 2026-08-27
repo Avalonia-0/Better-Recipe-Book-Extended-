@@ -34,7 +34,7 @@ public class IngredientInfo<T> {
 		Collection<ITypedIngredient<T>> ingredients,
 		IIngredientHelper<T> ingredientHelper,
 		IIngredientRenderer<T> ingredientRenderer,
-		@Nullable Codec<T> ingredientCodec
+		 Codec<T> ingredientCodec
 	) {
 		if (ingredientCodec == null) {
 			//noinspection deprecation

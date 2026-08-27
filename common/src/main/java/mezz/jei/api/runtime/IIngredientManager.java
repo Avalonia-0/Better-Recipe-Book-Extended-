@@ -117,7 +117,7 @@ public interface IIngredientManager {
 	 *
 	 * @since 19.19.5
 	 */
-	@Nullable
+	
 	<V> IIngredientType<V> getIngredientType(V ingredient);
 
 	/**

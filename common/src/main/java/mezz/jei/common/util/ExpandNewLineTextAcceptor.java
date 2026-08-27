@@ -12,7 +12,7 @@ import java.util.Optional;
 
 public class ExpandNewLineTextAcceptor implements FormattedText.StyledContentConsumer<Void> {
 	private final List<FormattedText> lines = new ArrayList<>();
-	@Nullable
+	
 	private MutableComponent lastComponent;
 
 	@Override

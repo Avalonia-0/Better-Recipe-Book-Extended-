@@ -193,7 +193,7 @@ public class MMCQ {
 			return vboxes.size();
 		}
 
-		@Nullable
+		
 		public int[] map(int[] color) {
 			int numVBoxes = vboxes.size();
 			for (int i = 0; i < numVBoxes; i++) {
@@ -205,7 +205,7 @@ public class MMCQ {
 			return nearest(color);
 		}
 
-		@Nullable
+		
 		public int[] nearest(int[] color) {
 			double d1 = Double.MAX_VALUE;
 			double d2;
@@ -424,7 +424,7 @@ public class MMCQ {
 		throw new RuntimeException("VBox can't be cut");
 	}
 
-	@Nullable
+	
 	public static CMap quantize(int[][] pixels, int maxcolors) {
 		// short-circuit
 		if (pixels.length == 0 || maxcolors < 1 || maxcolors > 256) {

@@ -49,7 +49,7 @@ public interface IRecipeSlotView {
 	 * @since 19.19.5
 	 */
 	@Unmodifiable
-	List<@Nullable ITypedIngredient<?>> getAllIngredientsList();
+	List< ITypedIngredient<?>> getAllIngredientsList();
 
 	/**
 	 * The ingredient variation that is shown at this moment.

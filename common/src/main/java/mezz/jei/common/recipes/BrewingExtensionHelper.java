@@ -40,7 +40,7 @@ public final class BrewingExtensionHelper implements IExtendableBrewingRecipeCat
 		unresolvedRecipeClasses.clear();
 	}
 
-	@Nullable
+	
 	public <R> IBrewingCategoryExtension<? super R> getRecipeExtension(R recipe) {
 		ErrorUtil.checkNotNull(recipe, "recipe");
 		Class<?> recipeClass = recipe.getClass();
@@ -105,7 +105,7 @@ public final class BrewingExtensionHelper implements IExtendableBrewingRecipeCat
 		return new ArrayList<>(recipes);
 	}
 
-	@Nullable
+	
 	private Map.Entry<Class<?>, IBrewingCategoryExtension<?>> getMostSpecificExtension(Class<?> recipeClass) {
 		Map.Entry<Class<?>, IBrewingCategoryExtension<?>> result = null;
 		for (Map.Entry<Class<?>, IBrewingCategoryExtension<?>> candidate : extensions.entrySet()) {

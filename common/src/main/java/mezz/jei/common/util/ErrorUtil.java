@@ -46,7 +46,7 @@ public final class ErrorUtil {
 		return ingredientHelper.getErrorInfo(ingredient);
 	}
 
-	public static String getItemStackInfo(@Nullable ItemStack itemStack) {
+	public static String getItemStackInfo( ItemStack itemStack) {
 		if (itemStack == null) {
 			return "null";
 		}
@@ -122,7 +122,7 @@ public final class ErrorUtil {
 		}
 	}
 
-	public static <T> void checkNotNull(@Nullable T object, String name) {
+	public static <T> void checkNotNull( T object, String name) {
 		if (object == null) {
 			throw new NullPointerException(name + " must not be null.");
 		}

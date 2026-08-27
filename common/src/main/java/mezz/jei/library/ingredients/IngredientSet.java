@@ -28,7 +28,7 @@ public class IngredientSet<V> extends AbstractSet<V> {
 		this.ingredients = new LinkedHashMap<>();
 	}
 
-	@Nullable
+	
 	private Object getUid(V ingredient) {
 		try {
 			return ingredientHelper.getUid(ingredient, context);

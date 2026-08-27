@@ -49,6 +49,6 @@ public interface IRecipeTransferHandler<C extends AbstractContainerMenu, R> {
 	 *
 	 * @since 9.3.0
 	 */
-	@Nullable
+	
 	IRecipeTransferError transferRecipe(C container, R recipe, IRecipeSlotsView recipeSlots, Player player, boolean maxTransfer, boolean doTransfer);
 }

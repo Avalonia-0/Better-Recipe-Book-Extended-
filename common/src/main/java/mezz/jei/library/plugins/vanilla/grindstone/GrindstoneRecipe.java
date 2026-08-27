@@ -21,7 +21,7 @@ public final class GrindstoneRecipe implements IJeiGrindstoneRecipe {
 	private final List<ItemStack> outputs;
 	private int minXpReward;
 	private final int maxXpReward;
-	private final @Nullable ResourceLocation uid;
+	private final  ResourceLocation uid;
 
 	public GrindstoneRecipe(
 		List<ItemStack> topInputs,
@@ -29,7 +29,7 @@ public final class GrindstoneRecipe implements IJeiGrindstoneRecipe {
 		List<ItemStack> outputs,
 		int minXpReward,
 		int maxXpReward,
-		@Nullable ResourceLocation uid
+		 ResourceLocation uid
 	) {
 		this.topInputs = topInputs;
 		this.bottomInputs = bottomInputs;
@@ -74,7 +74,7 @@ public final class GrindstoneRecipe implements IJeiGrindstoneRecipe {
 	}
 
 	@Override
-	@Nullable
+	
 	public ResourceLocation getUid() {
 		return uid;
 	}

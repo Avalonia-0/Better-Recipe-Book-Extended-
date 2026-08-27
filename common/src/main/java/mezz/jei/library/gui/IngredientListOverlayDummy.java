@@ -31,7 +31,7 @@ public class IngredientListOverlayDummy implements IIngredientListOverlay{
 		return Optional.empty();
 	}
 
-	@Nullable
+	
 	@Override
 	public <T> T getIngredientUnderMouse(IIngredientType<T> ingredientType) {
 		return null;

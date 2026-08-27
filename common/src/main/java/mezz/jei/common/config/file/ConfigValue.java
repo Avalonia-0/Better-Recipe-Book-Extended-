@@ -20,9 +20,9 @@ public class ConfigValue<T> implements IJeiConfigValue<T>, Supplier<T> {
 	private final Component description;
 	private final T defaultValue;
 	private final IJeiConfigValueSerializer<T> serializer;
-	private @Nullable List<Consumer<T>> listeners;
+	private  List<Consumer<T>> listeners;
 	private volatile T currentValue;
-	@Nullable
+	
 	private IConfigSchema schema;
 
 	public ConfigValue(

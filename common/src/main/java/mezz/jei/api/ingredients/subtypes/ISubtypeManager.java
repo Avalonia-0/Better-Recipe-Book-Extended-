@@ -19,7 +19,7 @@ public interface ISubtypeManager {
 	 *
 	 * @since 19.9.0
 	 */
-	@Nullable
+	
 	default Object getSubtypeData(ItemStack ingredient, UidContext context) {
 		return getSubtypeData(VanillaTypes.ITEM_STACK, ingredient, context);
 	}
@@ -30,7 +30,7 @@ public interface ISubtypeManager {
 	 *
 	 * @since 19.9.0
 	 */
-	@Nullable
+	
 	<T> Object getSubtypeData(IIngredientTypeWithSubtypes<?, T> ingredientType, T ingredient, UidContext context);
 
 	/**
@@ -39,7 +39,7 @@ public interface ISubtypeManager {
 	 *
 	 * @since 19.19.4
 	 */
-	@Nullable
+	
 	<B, T> Object getSubtypeData(IIngredientTypeWithSubtypes<B, T> ingredientType, ITypedIngredient<T> typedIngredient, UidContext context);
 
 	/**

@@ -16,7 +16,7 @@ import java.util.Optional;
 public class AdvancedSearchRegistration implements IAdvancedSearchRegistration {
 	private static final Logger LOGGER = LogManager.getLogger();
 
-	@Nullable
+	
 	private ISearchStorageBuilderFactory searchStorageBuilderFactoryOverride;
 	private final ISearchStorageBuilderFactory defaultSearchStorageBuilderFactory;
 

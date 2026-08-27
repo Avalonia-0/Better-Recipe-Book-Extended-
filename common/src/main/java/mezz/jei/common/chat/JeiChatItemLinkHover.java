@@ -38,7 +38,7 @@ public final class JeiChatItemLinkHover {
 			});
 	}
 
-	public static Optional<IngredientLink> getIngredientLink(@Nullable Style style) {
+	public static Optional<IngredientLink> getIngredientLink( Style style) {
 		if (style == null) {
 			return Optional.empty();
 		}

@@ -19,7 +19,7 @@ public abstract class SortingConfig<T> {
 	private static final Logger LOGGER = LogManager.getLogger();
 	private final Path path;
 	private final ISortingSerializer<T> serializer;
-	@Nullable
+	
 	private List<T> sorted;
 
 	public SortingConfig(Path path, ISortingSerializer<T> serializer) {
