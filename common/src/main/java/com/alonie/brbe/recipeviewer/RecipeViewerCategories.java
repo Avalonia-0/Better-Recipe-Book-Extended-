@@ -22,7 +22,9 @@ public final class RecipeViewerCategories {
 
     /** Built-in categories (vanilla recipe types). */
     private static final List<RecipeViewerCategory> BUILTIN =
-            List.of(new CraftingRecipeCategory());
+            List.of(new CraftingRecipeCategory(), new FurnaceRecipeCategory(),
+                    new FuelRecipeCategory(), new StonecuttingRecipeCategory(),
+                    new SmithingRecipeCategory());
 
     /** Categories appended by the companion mod (mod recipe types). */
     private static final List<RecipeViewerCategory> EXTERNAL = new CopyOnWriteArrayList<>();

@@ -54,19 +54,40 @@ public final class RecipeViewerIndex {
 
         // Per-type grouping
         List<RecipeViewerEngine.IndexedRecipe> crafting = new ArrayList<>();
+        List<RecipeViewerEngine.IndexedRecipe> smelting = new ArrayList<>();
+        List<RecipeViewerEngine.IndexedRecipe> stonecutting = new ArrayList<>();
+        List<RecipeViewerEngine.IndexedRecipe> smithing = new ArrayList<>();
         for (RecipeHolder<?> holder : all) {
             RecipeType<?> type = holder.value().getType();
             if (type == RecipeType.CRAFTING) {
                 crafting.add(toIndexed(holder, registryAccess));
+            } else if (type == RecipeType.SMELTING
+                    || type == RecipeType.BLASTING
+                    || type == RecipeType.SMOKING
+                    || type == RecipeType.CAMPFIRE_COOKING) {
+                smelting.add(toIndexed(holder, registryAccess));
+            } else if (type == RecipeType.STONECUTTING) {
+                stonecutting.add(toIndexed(holder, registryAccess));
+            } else if (type == RecipeType.SMITHING) {
+                smithing.add(toIndexed(holder, registryAccess));
             }
-            // 其余类型（smelting/stonecutting/smithing 等）后续类别补齐时续加
+            // 其余类型（blasting/smoking/campfire 并入 smelting 类别等）后续补齐
         }
         if (!crafting.isEmpty()) {
             RecipeViewerEngine.registerType("minecraft:crafting", crafting, stationsForCrafting());
         }
+        if (!smelting.isEmpty()) {
+            RecipeViewerEngine.registerType("minecraft:smelting", smelting, stationsForFurnace());
+        }
+        if (!stonecutting.isEmpty()) {
+            RecipeViewerEngine.registerType("minecraft:stonecutting", stonecutting, stationsForStonecutting());
+        }
+        if (!smithing.isEmpty()) {
+            RecipeViewerEngine.registerType("minecraft:smithing", smithing, stationsForSmithing());
+        }
 
-        BetterRecipeBook.LOGGER.info("[BRBE-ENGINE] rebuildEngine: total={} crafting={}",
-                all.size(), crafting.size());
+        BetterRecipeBook.LOGGER.info("[BRBE-ENGINE] rebuildEngine: total={} crafting={} smelting={} stonecutting={} smithing={}",
+                all.size(), crafting.size(), smelting.size(), stonecutting.size(), smithing.size());
     }
 
     private static RecipeViewerEngine.IndexedRecipe toIndexed(RecipeHolder<?> holder,
@@ -90,5 +111,52 @@ public final class RecipeViewerIndex {
         stations.add(new ItemStack(net.minecraft.world.level.block.Blocks.CRAFTING_TABLE));
         stations.add(new ItemStack(net.minecraft.world.level.block.Blocks.CRAFTER));
         return stations;
+    }
+
+    /** Furnace-family station blocks. */
+    private static List<ItemStack> stationsForFurnace() {
+        List<ItemStack> stations = new ArrayList<>();
+        stations.add(new ItemStack(net.minecraft.world.level.block.Blocks.FURNACE));
+        stations.add(new ItemStack(net.minecraft.world.level.block.Blocks.BLAST_FURNACE));
+        stations.add(new ItemStack(net.minecraft.world.level.block.Blocks.SMOKER));
+        return stations;
+    }
+
+    /** Stonecutter station block. */
+    private static List<ItemStack> stationsForStonecutting() {
+        List<ItemStack> stations = new ArrayList<>();
+        stations.add(new ItemStack(net.minecraft.world.level.block.Blocks.STONECUTTER));
+        return stations;
+    }
+
+    /** Smithing-table station block. */
+    private static List<ItemStack> stationsForSmithing() {
+        List<ItemStack> stations = new ArrayList<>();
+        stations.add(new ItemStack(net.minecraft.world.level.block.Blocks.SMITHING_TABLE));
+        return stations;
+    }
+
+    /** Static furnace-fuel helper（1.21.1 用 AbstractFurnaceBlockEntity.isFuel）。 */
+    public static boolean isFuelItem(ItemStack stack) {
+        return stack != null && !stack.isEmpty()
+                && net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity.isFuel(stack);
+    }
+
+    /** Every registered fuel item（getFuel() map keys），1.21.1 版。 */
+    public static List<ItemStack> allFuelItems() {
+        List<ItemStack> fuels = new ArrayList<>();
+        for (var entry : net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity.getFuel().entrySet()) {
+            if (entry.getValue() != null && entry.getValue() > 0) {
+                fuels.add(new ItemStack(entry.getKey()));
+            }
+        }
+        return fuels;
+    }
+
+    /** Burn duration (ticks) of {@code fuel}, or 0. */
+    public static int burnDuration(ItemStack fuel) {
+        return (fuel == null || fuel.isEmpty()) ? 0
+                : net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity.getFuel()
+                        .getOrDefault(fuel.getItem(), 0);
     }
 }

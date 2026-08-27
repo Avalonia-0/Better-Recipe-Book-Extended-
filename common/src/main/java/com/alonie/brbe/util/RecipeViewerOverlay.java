@@ -197,6 +197,29 @@ public final class RecipeViewerOverlay {
             tabX += TAB_W;
         }
 
+        // Grid category (fuel): standalone item grid, no recipe buttons
+        if (category.isGridCategory()) {
+            List<ItemStack> grid = category.gridItems(target, viewUsage);
+            List<ItemStack> all = grid.isEmpty() ? category.allGridItems() : grid;
+            int gridStart = page * 24;
+            int gridEnd = Math.min(gridStart + 24, all.size());
+            for (int gi = gridStart; gi < gridEnd; gi++) {
+                int col = (gi - gridStart) % 6;
+                int row = (gi - gridStart) / 6;
+                int bx = left + GRID_PAD_X + col * (BUTTON_W + 3);
+                int by = top + GRID_PAD_Y + 8 + row * (BUTTON_H + 3);
+                boolean hovered = mouseX >= bx && mouseX < bx + BUTTON_W
+                        && mouseY >= by && mouseY < by + BUTTON_H;
+                gui.blitSprite(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE,
+                        bx, by, BUTTON_W, BUTTON_H);
+                gui.renderFakeItem(all.get(gi), bx + 4, by + 4);
+                if (hovered) {
+                    gui.fill(bx, by, bx + BUTTON_W, by + BUTTON_H, 0x40FFFFFF);
+                }
+            }
+            return;
+        }
+
         // Recipe buttons grid (paged)
         int perPage = COLS * ROWS;
         int start = page * perPage;

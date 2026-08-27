@@ -348,3 +348,16 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 **设计说明**：1.21.1 的 RecipeViewerOverlay 是轻量独立实现（非 1.21.11 3532 行版的 display 移植）——UI 骨架（面板/网格/tab/分页）先行，完整弹窗/预览/硬模态/pin 浮层后续逐步扩展。API 差异：getSlotUnderMouse 编译期不可见（1.21.1 hoveredSlot 字段由调用方传入）、append 链式拆开。
 
 **待办（下一轮次）**：viewer 完整弹窗（Shift 预览 PopupGeometry/PopupRenderer 1.21.1 版）、其余类别（furnace/fuel/stonecutting/smithing/anvil/brewing/grindstone/compost/info）、pinoverlay（viewer 内 pin）、RBIP 标签固定键、翻页 Mixin 接入。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 6——内置类别扩展）
+
+**已落地**：
+- `cache/RecipeViewerIndex`：rebuildEngine 扩展注册 smelting（含 blasting/smoking/campfire 四 RecipeType 合并）/stonecutting/smithing；stationsForFurnace（熔炉+鼓风炉+烟熏炉）/Stonecutting/Smithing；燃料辅助 `isFuelItem`/`allFuelItems`/`burnDuration`（1.21.1 用 `AbstractFurnaceBlockEntity.isFuel/getFuel`，1.21.11 用 FuelValues）
+- `FurnaceRecipeCategory`/`FuelRecipeCategory`/`StonecuttingRecipeCategory`/`SmithingRecipeCategory`（1.21.1 版，RecipeHolder）：Fuel 是 grid 类别（appliesToStation 熔炉家族工作站、defaultPriority 2 最高、burnDuration）
+- `RecipeViewerCategories.BUILTIN`：crafting/furnace/fuel/stonecutting/smithing 5 类别
+- `RecipeViewerOverlay.render`：grid 类别渲染分支（燃料网格 24/页 + 悬停高亮，无配方按钮）
+- lang：zzzbrbe.category.{crafting,furnace,fuel,stonecutting,smithing}
+
+**API 差异备忘**：1.21.1 `ItemStack.is(Block)` 不存在 → `is(Block.asItem())`；1.21.1 燃料体系 `AbstractFurnaceBlockEntity`（1.21.11 是 FuelValues/FuelValues.fuelItems()）。
+
+**待办（下一轮次）**：Shift 预览弹窗（PopupGeometry/PopupRenderer 1.21.1 版）、anvil/brewing/grindstone/compost/info 类别、pinoverlay（viewer 内 pin）、RBIP 标签固定键、翻页 Mixin。

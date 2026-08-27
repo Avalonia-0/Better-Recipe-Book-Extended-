@@ -64,5 +64,10 @@
   "text.autoconfig.brbe.option.partialMarkingEnabled.@PrefixText": "§e殘缺配方標記",
   "zzzbrbe.viewer.recipe": "Recipe",
   "zzzbrbe.viewer.usage": "Usage",
-  "zzzbrbe.viewer.materials": "Materials"
+  "zzzbrbe.viewer.materials": "Materials",
+  "zzzbrbe.category.crafting": "Crafting",
+  "zzzbrbe.category.furnace": "Smelting",
+  "zzzbrbe.category.fuel": "Fuel",
+  "zzzbrbe.category.stonecutting": "Stonecutting",
+  "zzzbrbe.category.smithing": "Smithing"
 }
