@@ -226,7 +226,8 @@ public final class RecipeViewerIndex {
 
     /** Recipe-book category family of a workstation.  The four furnace-family
      *  stations share {@link #FURNACE}; every other station maps one-to-one. */
-    private enum Family { CRAFTING, FURNACE, STONECUTTING, SMITHING }
+    public enum Family { CRAFTING, FURNACE, STONECUTTING, SMITHING,
+                          ANVIL, BREWING, GRINDSTONE, COMPOSTING }
 
     /**
      * A workstation: a self-owned identity string (equal to the JEI recipe-type
@@ -275,7 +276,14 @@ public final class RecipeViewerIndex {
      *  {@code zzzbrbe-jei-plugins} mod scanning each mod's JEI plugin, or appended
      *  manually via {@code config/zzzbrbe_workstations.json} (see
      *  {@link #workstations()}).  Recognition is self-contained — no runtime
-     *  JEI data. */
+     *  JEI data.
+     *
+     *  <p>The {@code recipeBook} flag is false for the stonecutter: vanilla's
+     *  stonecutter has no recipe-book UI (its menu/screen are not recipe-book
+     *  based), and BRBE provides none — so with "hide objects of workstations
+     *  without a recipe book" on, the stonecutter is excluded from the whole
+     *  query system (like a no-book mod station), rather than being treated as
+     *  a recipe-book-backed builtin.</p> */
     private static final List<Workstation> BUILTIN_WORKSTATIONS = List.of(
             new Workstation(Family.CRAFTING, "minecraft:crafting", List.of("crafting_"),
                     List.of(Identifier.withDefaultNamespace("crafting_table"),
@@ -290,9 +298,23 @@ public final class RecipeViewerIndex {
                     List.of(Identifier.withDefaultNamespace("campfire"),
                             Identifier.withDefaultNamespace("soul_campfire")), true),
             new Workstation(Family.STONECUTTING, "minecraft:stonecutting", List.of("stonecutter"),
-                    List.of(Identifier.withDefaultNamespace("stonecutter")), true),
+                    List.of(Identifier.withDefaultNamespace("stonecutter")), false),
             new Workstation(Family.SMITHING, "minecraft:smithing", List.of("smithing"),
-                    List.of(Identifier.withDefaultNamespace("smithing_table")), true));
+                    List.of(Identifier.withDefaultNamespace("smithing_table")), true),
+            // No-recipe-book vanilla workstations (JEI runtime recipe types):
+            // their viewer categories (anvil / brewing / grindstone / compost)
+            // are BRBE-built, and with the hide toggle on they are excluded
+            // from the whole query system, exactly like the stonecutter.
+            new Workstation(Family.ANVIL, "minecraft:anvil", List.of("anvil"),
+                    List.of(Identifier.withDefaultNamespace("anvil"),
+                            Identifier.withDefaultNamespace("chipped_anvil"),
+                            Identifier.withDefaultNamespace("damaged_anvil")), false),
+            new Workstation(Family.BREWING, "minecraft:brewing", List.of("brewing"),
+                    List.of(Identifier.withDefaultNamespace("brewing_stand")), false),
+            new Workstation(Family.GRINDSTONE, "minecraft:grindstone", List.of("grindstone"),
+                    List.of(Identifier.withDefaultNamespace("grindstone")), false),
+            new Workstation(Family.COMPOSTING, "minecraft:compostable", List.of("compost"),
+                    List.of(Identifier.withDefaultNamespace("composter")), false));
 
     /** Effective registry: built-ins plus any stations appended from
      *  {@code config/zzzbrbe_workstations.json} or registered programmatically
@@ -316,7 +338,37 @@ public final class RecipeViewerIndex {
                 }
             }
         }
+        // Source-level exclusion: with "hide objects of workstations without a
+        // recipe book" on, a workstation without its own recipe book (every
+        // config/external mod station — e.g. BetterEnd's end stone smelter —
+        // and the vanilla stonecutter, which has no recipe-book UI) is dropped
+        // from the whole system up front: it stops matching any query target,
+        // its category tabs and objects never surface, and the hide filter
+        // downstream has nothing left to judge.  Recipe-book-backed built-in
+        // stations keep their recipeBook=true and stay.  (Mirrors 26.2.)
+        if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+            return stations.stream()
+                    .filter(Workstation::recipeBook)
+                    .toList();
+        }
         return stations;
+    }
+
+    /** Workstation block items (registry order) of a built-in family — the
+     *  viewer's left station-column list.  Already honouring the
+     *  hide-no-recipe-book-station cut (via {@link #workstations()}), e.g. the
+     *  FURNACE family lists furnace / blast_furnace / smoker / campfire /
+     *  soul_campfire in one column. */
+    public static List<ItemStack> workstationItems(Family family) {
+        List<ItemStack> out = new ArrayList<>();
+        for (Workstation ws : workstations()) {
+            if (ws.family() == family) {
+                for (ItemStack icon : ws.fallbackIcons()) {
+                    out.add(icon);
+                }
+            }
+        }
+        return out;
     }
 
     private static List<Workstation> buildWorkstations() {
@@ -612,6 +664,27 @@ public final class RecipeViewerIndex {
      *  {@code "furnace_"}, {@code "blast_furnace_"}, {@code "campfire"}). */
     public static List<ItemStack> workstationsIconsForPrefix(String categoryPrefix) {
         return workstationsIconsForPath(categoryPrefix);
+    }
+
+    /** Furnace subcategory prefixes in bottom-up column order — matches the
+     *  furnace/fuel tooltip's subcategory rows (烧炼 / 熔炼 / 烟熏 / 营火). */
+    private static final List<String> FURNACE_SUBCATEGORY_PREFIXES = List.of(
+            "furnace_", "blast_furnace_", "smoker_", "campfire");
+
+    /** The furnace-family station column for the viewer's left panel: grouped
+     *  by subcategory and stacked bottom-up (smelting 烧炼 / blasting 熔炼 /
+     *  smoking 烟熏 / campfire cooking 营火), each group preserving the same
+     *  order as that subcategory's tooltip icon row (left-to-right).  A station
+     *  matching several subcategories keeps its first (lowest) position. */
+    public static List<ItemStack> furnaceStationColumnItems() {
+        List<ItemStack> out = new ArrayList<>();
+        java.util.Set<net.minecraft.world.item.Item> seen = new java.util.HashSet<>();
+        for (String prefix : FURNACE_SUBCATEGORY_PREFIXES) {
+            for (ItemStack icon : workstationsIconsForPrefix(prefix)) {
+                if (seen.add(icon.getItem())) out.add(icon);
+            }
+        }
+        return List.copyOf(out);
     }
 
     private static List<ItemStack> workstationsIconsForPath(String path) {

@@ -82,6 +82,7 @@ public abstract class RecipeGroupButtonMixin extends ImageButton implements Reci
 
         this.rbip$drawRotatedBackground(context);
         this.rbip$renderIconsAt(context, this.rbip$getRotatedIconX(), this.rbip$getRotatedIconY());
+        this.rbip$drawTabPin(context);
 
         if (pushed) {
             context.pose().popMatrix();
@@ -105,21 +106,49 @@ public abstract class RecipeGroupButtonMixin extends ImageButton implements Reci
         }
     }
 
-    /** 固定标签标记：固定了的创造标签在左上角画 pin 图标（最上层，图标之后，
-     *  32x32 与配方按钮的 pin 一致，图形悬出标签顶边）。仅左侧正常朝向的标签绘制；
-     *  上下旋转条带上的标签坐标是旋转锚点，不适用。注入目标必须是
-     *  RecipeBookTabButton 自身声明的方法（extractIcon）——继承自 AbstractWidget
-     *  的 extractWidgetRenderState 不会被本版本 Mixin 解析（与
-     *  RecipeBookTabHoverMixin 的 @Shadow 字段问题同类）。 */
+    /** 固定标签标记：固定了的创造标签画 pin 图标（最上层，图标之后，
+     *  32x32 与配方按钮的 pin 一致，图形悬出标签边缘）。正常朝向与上侧标签
+     *  的 pin 悬在标签左上角，下侧标签的 pin 悬在左下角；旋转条带在 90°
+     *  旋转矩阵之外按最终屏幕坐标绘制，位置即最终呈现位置。正常朝向的标签
+     *  借 renderContents RETURN 绘制；旋转条带上的标签由 renderContents
+     *  HEAD 注入接管（正常体被取消），在 rbip$drawRotatedButton 内补画。 */
     @Inject(at = @At("RETURN"), method = "renderContents")
     private void rbip$drawPinMarker(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (this.rbip$placement != RecipeGroupButtonPlacement.NORMAL) return;
+        this.rbip$drawTabPin(context);
+    }
+
+    @Unique
+    private void rbip$drawTabPin(GuiGraphics context) {
         CreativeModeTab group = RecipeBookIsPain.toItemGroup(this.getCategory());
         if (group == null) return;
         Identifier tabId = BuiltInRegistries.CREATIVE_MODE_TAB.getKey(group);
         if (tabId == null || !TabPinManager.isPinned(tabId)) return;
+        // pin 图形位于 32x32 精灵图左上 (6,2)-(12,7)。上侧 pin 锚点 (x-1, y-4)
+        // （左上角，悬出标签顶边 2px，x-4 基础上右移 3px）；下侧 pin 同 x 但
+        // y+6（左上角下移 6px，用户要求）；正常朝向锚点 (x-4, y-4)。
+        // 均为最终屏幕位置（不随旋转矩阵变换）。
+        // 选中时 pin 随标签选中偏移移动：左/上/下侧分别向左/上/下移动 1px。
+        int pinX = this.getX() - 4;
+        int pinY = this.getY() - 4;
+        if (this.rbip$placement == RecipeGroupButtonPlacement.TOP
+                || this.rbip$placement == RecipeGroupButtonPlacement.BOTTOM) {
+            pinX += 3;
+        }
+        if (this.rbip$placement == RecipeGroupButtonPlacement.BOTTOM) {
+            pinY += 6;
+        }
+        if (this.selected) {
+            if (this.rbip$placement == RecipeGroupButtonPlacement.NORMAL) {
+                pinX--;
+            } else if (this.rbip$placement == RecipeGroupButtonPlacement.TOP) {
+                pinY--;
+            } else {
+                pinY++;
+            }
+        }
         ClientCompat.blitSprite(context, BRBTextures.RECIPE_BOOK_PIN_SPRITE,
-                this.getX() - 4, this.getY() - 4, 32, 32);
+                pinX, pinY, 32, 32);
     }
 
     @Unique

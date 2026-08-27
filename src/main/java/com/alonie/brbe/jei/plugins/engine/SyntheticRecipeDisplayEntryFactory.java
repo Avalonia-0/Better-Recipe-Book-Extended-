@@ -63,13 +63,16 @@ public final class SyntheticRecipeDisplayEntryFactory {
     }
 
     /** One slot display from a slot's concrete item stacks: empty → Empty,
-     *  single → ItemSlotDisplay, several → Composite of item displays. */
+     *  single → ItemStackSlotDisplay, several → Composite of item displays.
+     *  Every child carries the FULL stack (components included) — potion
+     *  contents, stored enchantments, … — so resolving the display restores
+     *  the complete item data instead of a bare default instance. */
     private static SlotDisplay toSlotDisplay(List<ItemStack> stacks) {
         List<SlotDisplay> children = new ArrayList<>();
         if (stacks != null) {
             for (ItemStack stack : stacks) {
                 if (stack != null && !stack.isEmpty()) {
-                    children.add(new SlotDisplay.ItemSlotDisplay(stack.getItem()));
+                    children.add(new SlotDisplay.ItemStackSlotDisplay(stack));
                 }
             }
         }

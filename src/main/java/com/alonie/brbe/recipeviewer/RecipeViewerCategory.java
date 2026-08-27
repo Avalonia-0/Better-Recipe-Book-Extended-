@@ -65,6 +65,38 @@ public interface RecipeViewerCategory {
         return false;
     }
 
+    /** Whether this category renders a standalone item grid (fuel / compost /
+     *  info): no recipe buttons, no pins — hovering a grid cell shows the
+     *  category's info lines in the tooltip.  Grid categories are exempt from
+     *  the "hide objects of workstations without a recipe book" cuts exactly
+     *  like the fuel category (they are info sheets, not station objects). */
+    default boolean isGridCategory() {
+        return false;
+    }
+
+    /** The item grid shown by a standalone grid category for the current
+     *  query: e.g. a usage query of a fuel shows that fuel alone, a usage
+     *  query of a fuel-burning workstation shows every fuel it can take.
+     *  Empty = the category has nothing to show for this query.  Only
+     *  consulted when {@link #isGridCategory()}. */
+    default List<ItemStack> gridItems(ItemStack target, boolean usage) {
+        return List.of();
+    }
+
+    /** EVERY object this category can show, query-independent — the Ctrl+O
+     *  browse-all "import pool" (all queryable objects are gathered into the
+     *  viewer).  Grid categories answer {@link #allGridItems()} instead. */
+    default List<RecipeDisplayEntry> allEntries() {
+        return List.of();
+    }
+
+    /** EVERY grid item of a standalone grid category (fuel / compost / info),
+     *  query-independent — the Ctrl+O browse-all "import pool" for the
+     *  category. */
+    default List<ItemStack> allGridItems() {
+        return List.of();
+    }
+
     /** Workstation item icons that can produce {@code entry}, shown at the
      *  bottom of the recipe tooltip.  Built-in categories answer from their
      *  recipe-book category path; dynamic (mod) categories answer from the

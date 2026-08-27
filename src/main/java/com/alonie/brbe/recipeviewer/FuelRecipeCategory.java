@@ -56,6 +56,24 @@ public final class FuelRecipeCategory implements RecipeViewerCategory {
         return true;
     }
 
+    @Override
+    public boolean isGridCategory() {
+        return true;
+    }
+
+    @Override
+    public List<ItemStack> allGridItems() {
+        return allFuelItems();
+    }
+
+    @Override
+    public List<ItemStack> gridItems(ItemStack target, boolean usage) {
+        if (!usage || target == null || target.isEmpty()) return List.of();
+        if (isFuel(target)) return List.of(target);
+        if (isFuelStation(target)) return allFuelItems();
+        return List.of();
+    }
+
     /** This category also activates on a usage query of a fuel-burning
      *  workstation: its usage view lists the fuel it can take. */
     @Override

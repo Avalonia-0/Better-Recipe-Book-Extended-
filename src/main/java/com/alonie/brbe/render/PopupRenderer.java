@@ -65,6 +65,14 @@ public final class PopupRenderer {
                     Math.round(geometry.fit * geometry.contentW),
                     Math.round(geometry.fit * geometry.contentH));
             if (painted) {
+                // The delegated JEI UI has no backdrop of its own to tint, so
+                // keep the partial-crafting red cover the vanilla popup would
+                // draw — only for non-crafting modes (stonecutter / smithing);
+                // crafting-mode delegates (cooking etc.) stay untouched.
+                if (partial && mode != PinOverlay.MODE_CRAFTING) {
+                    gui.fill(geometry.x, geometry.y,
+                            geometry.x + geometry.w, geometry.y + geometry.h, 0x60FF3333);
+                }
                 return true;
             }
         }
@@ -187,9 +195,21 @@ public final class PopupRenderer {
     }
 
     /** Stonecutter / smithing: input (base) top-left at (2,2), result
-     *  bottom-right at (12,7), scaled 0.6; "result only" when not hovered. */
+     *  bottom-right at (12,7), scaled 0.6; "result only" when not hovered.
+     *  Entries whose display is not the expected type (e.g. local-cache
+     *  fallbacks) render the generic entry layout instead of a blank button. */
     private static void renderFixedPair(GuiGraphics gui, RecipeDisplayEntry entry,
                                         int mode, int selIdx, int x, int y, boolean hover) {
+        if (mode == PinOverlay.MODE_STONECUTTING
+                && RecipeViewerIndex.asStonecutter(entry) == null) {
+            renderGenericCrafting(gui, entry, selIdx, x, y, hover);
+            return;
+        }
+        if (mode == PinOverlay.MODE_SMITHING
+                && RecipeViewerIndex.asSmithing(entry) == null) {
+            renderGenericCrafting(gui, entry, selIdx, x, y, hover);
+            return;
+        }
         boolean onHover = BetterRecipeBook.config.alternativeRecipes.onHover;
         ItemStack first;
         ItemStack second;

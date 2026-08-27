@@ -77,13 +77,10 @@ public final class PartialGhostOverlayUtil {
         for (Slot slot : ordered) {
             Object ghost = ingredients.get(slot);
             if (isResultSlot(ghost)) continue;
-            Item item = resolveGhostItem(ghost);
-            if (item == null) continue;
-            int available = counts.getOrDefault(item, 0);
-            if (available > 0) {
-                noRedMaskSlots.add(key(slot.x, slot.y));
-                counts.put(item, available - 1);
-            }
+            Item owned = findOwnedItem(ghost, counts);
+            if (owned == null) continue;
+            noRedMaskSlots.add(key(slot.x, slot.y));
+            counts.put(owned, counts.getOrDefault(owned, 0) - 1);
         }
     }
 
@@ -103,12 +100,23 @@ public final class PartialGhostOverlayUtil {
         return ((long) x << 32) | (y & 0xFFFFFFFFL);
     }
 
+    /**
+     * 轮循幽灵槽位（如"任意颜色羊毛"）的 ingredients 列表会列出所有可放置物品，
+     * 且每帧在这些物品间轮循。只要玩家拥有其中任意一个物品，该槽位就应移除红遮罩
+     * ——不能只看列表第一个（玩家可能拥有的是另一种颜色/变体）。
+     *
+     * @return 玩家实际拥有、且能作为该槽位材料的物品；没有则返回 null
+     */
     @Nullable
-    private static Item resolveGhostItem(Object ghost) {
+    private static Item findOwnedItem(Object ghost, Map<Item, Integer> counts) {
         List<ItemStack> items = ghostItems(ghost);
         if (items == null) return null;
         for (ItemStack stack : items) {
-            if (stack != null && !stack.isEmpty()) return stack.getItem();
+            if (stack == null || stack.isEmpty()) continue;
+            Item candidate = stack.getItem();
+            if (counts.getOrDefault(candidate, 0) > 0) {
+                return candidate;
+            }
         }
         return null;
     }

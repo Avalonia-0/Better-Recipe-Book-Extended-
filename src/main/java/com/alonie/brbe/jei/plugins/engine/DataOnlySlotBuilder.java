@@ -28,12 +28,18 @@ public final class DataOnlySlotBuilder implements IRecipeSlotBuilder {
 
     private final RecipeIngredientRole role;
     private final ItemStackCollector collector;
+    private final ContextMap contextMap;
     private int x;
     private int y;
 
     public DataOnlySlotBuilder(RecipeIngredientRole role) {
+        this(role, null);
+    }
+
+    public DataOnlySlotBuilder(RecipeIngredientRole role, ContextMap contextMap) {
         this.role = role;
         this.collector = new ItemStackCollector();
+        this.contextMap = contextMap;
     }
 
     public RecipeIngredientRole role() {
@@ -188,7 +194,7 @@ public final class DataOnlySlotBuilder implements IRecipeSlotBuilder {
 
     @Override
     public net.minecraft.util.context.ContextMap getContextMap() {
-        return null;
+        return contextMap;
     }
 
     @Override

@@ -10,12 +10,10 @@ public interface IPinningComponent<T extends Pinnable> {
     default void brbe$sortByPinsInPlace(List<T> results) {
         List<T> tempResults = Lists.newArrayList(results);
 
-        if (true) {
-            for (T result : tempResults) {
-                if (BetterRecipeBook.pinnedRecipeManager.has(result)) {
-                    results.remove(result);
-                    results.add(0, result);
-                }
+        for (T result : tempResults) {
+            if (BetterRecipeBook.pinnedRecipeManager.has(result)) {
+                results.remove(result);
+                results.add(0, result);
             }
         }
     }

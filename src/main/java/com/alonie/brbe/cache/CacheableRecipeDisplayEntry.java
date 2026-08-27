@@ -1,15 +1,21 @@
 package com.alonie.brbe.cache;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.annotations.SerializedName;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.Holder;
+import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.tags.TagKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.*;
 import net.minecraft.world.item.crafting.display.*;
+import net.minecraft.world.item.equipment.trim.TrimPattern;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -38,6 +44,20 @@ public final class CacheableRecipeDisplayEntry {
     @SerializedName("ingredients")
     private List<List<String>> ingredients;
 
+    @SerializedName("template")
+    private List<List<String>> templateIngredients;
+
+    @SerializedName("base")
+    private List<List<String>> baseIngredients;
+
+    @SerializedName("addition")
+    private List<List<String>> additionIngredients;
+
+    /** Trim pattern id (e.g. {@code minecraft:coast}); smithing_trim recipes
+     *  have no {@code result} field, their product is pattern-derived. */
+    @SerializedName("pattern")
+    private String trimPattern;
+
     @SerializedName("resultItem")
     private String resultItem;
 
@@ -62,6 +82,9 @@ public final class CacheableRecipeDisplayEntry {
 
     /** The recipe book category (e.g. "crafting_building_blocks"), or null. */
     public String categoryName() { return categoryName; }
+
+    /** Trim pattern id of a smithing_trim recipe, or null for other types. */
+    public String trimPattern() { return trimPattern; }
 
     // ======== From JSON ========
 
@@ -101,8 +124,20 @@ public final class CacheableRecipeDisplayEntry {
                 break;
             case "smithing_transform":
             case "smithing_trim":
-                // Smithing recipes: ingredients not needed for display, just result
+                // Smithing recipes: template / base / addition are carried
+                // separately so the cache entry reconstructs a real
+                // SmithingRecipeDisplay (the empty-slot shapeless fallback
+                // rendered as a blank button in the query viewer).
                 c.ingredients = null;
+                c.templateIngredients = VanillaRecipeLoader.extractSmithingSlot(json, "template");
+                c.baseIngredients = VanillaRecipeLoader.extractSmithingSlot(json, "base");
+                c.additionIngredients = VanillaRecipeLoader.extractSmithingSlot(json, "addition");
+                if ("smithing_trim".equals(type)) {
+                    JsonElement pattern = json.get("pattern");
+                    if (pattern != null && !pattern.isJsonNull()) {
+                        c.trimPattern = pattern.getAsString();
+                    }
+                }
                 break;
         }
 
@@ -157,6 +192,41 @@ public final class CacheableRecipeDisplayEntry {
                         SlotDisplay.Empty.INSTANCE, 100, 0f);
                 break;
 
+            case "stonecutter":
+                SlotDisplay stonecutterInput = (ingredients != null && !ingredients.isEmpty()
+                        && ingredients.get(0) != null && !ingredients.get(0).isEmpty())
+                        ? makeSlotDisplay(ingredients.get(0).get(0), 1)
+                        : SlotDisplay.Empty.INSTANCE;
+                display = new StonecutterRecipeDisplay(stonecutterInput, result, station);
+                break;
+
+            case "smithing_transform":
+                // A real SmithingRecipeDisplay: the query viewer renders
+                // template / base / addition / result and matches the entry
+                // back to its JEI layout; the shapeless fallback below renders
+                // as a blank placeholder.
+                display = new SmithingRecipeDisplay(
+                        makeSlotFromAlternatives(firstAlternatives(templateIngredients)),
+                        makeSlotFromAlternatives(firstAlternatives(baseIngredients)),
+                        makeSlotFromAlternatives(firstAlternatives(additionIngredients)),
+                        result, station);
+                break;
+
+            case "smithing_trim":
+                // Trim recipes: the result is the pattern-derived demo display
+                // (same structure as SmithingTrimRecipe.display()), not an item
+                // slot — the recipe JSON has no result field.
+                SlotDisplay trimBase = makeSlotFromAlternatives(firstAlternatives(baseIngredients));
+                SlotDisplay trimAddition = makeSlotFromAlternatives(firstAlternatives(additionIngredients));
+                Holder<TrimPattern> pattern = trimPattern == null ? null : trimPatternHolder(trimPattern);
+                if (pattern == null) return null;
+                display = new SmithingRecipeDisplay(
+                        makeSlotFromAlternatives(firstAlternatives(templateIngredients)),
+                        trimBase, trimAddition,
+                        new SlotDisplay.SmithingTrimDemoSlotDisplay(trimBase, trimAddition, pattern),
+                        station);
+                break;
+
             case "transmute":
                 // Transmute recipes (shulker box dyeing, bundle dyeing) have two
                 // ingredients: input (the thing being transformed) and material
@@ -170,7 +240,7 @@ public final class CacheableRecipeDisplayEntry {
                 break;
 
             default:
-                // Fallback: minimal shapeless display for unknown/smithing/stonecutter
+                // Fallback: minimal shapeless display for unknown recipe types
                 List<SlotDisplay> fallback = new ArrayList<>();
                 if (ingredients != null) {
                     for (List<String> alts : ingredients) {
@@ -247,5 +317,24 @@ public final class CacheableRecipeDisplayEntry {
         return children.isEmpty()
                 ? SlotDisplay.Empty.INSTANCE
                 : new SlotDisplay.Composite(children);
+    }
+
+    /** The alternatives list of one smithing slot field, or null when absent. */
+    private static List<String> firstAlternatives(List<List<String>> slot) {
+        return slot == null || slot.isEmpty() ? null : slot.get(0);
+    }
+
+    /** The trim-pattern holder for {@code patternId} from the current level's
+     *  registry, or null when unavailable (the entry is then filtered). */
+    private static Holder<TrimPattern> trimPatternHolder(String patternId) {
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level == null) return null;
+            Registry<TrimPattern> registry =
+                    mc.level.registryAccess().lookupOrThrow(Registries.TRIM_PATTERN);
+            return registry.get(Identifier.parse(patternId)).orElse(null);
+        } catch (Exception e) {
+            return null;
+        }
     }
 }

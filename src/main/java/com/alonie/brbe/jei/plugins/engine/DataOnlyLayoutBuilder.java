@@ -4,6 +4,9 @@ import mezz.jei.api.gui.builder.IIngredientAcceptor;
 import mezz.jei.api.gui.builder.IRecipeLayoutBuilder;
 import mezz.jei.api.gui.builder.IRecipeSlotBuilder;
 import mezz.jei.api.recipe.RecipeIngredientRole;
+import net.minecraft.client.Minecraft;
+import net.minecraft.util.context.ContextMap;
+import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -18,12 +21,32 @@ public final class DataOnlyLayoutBuilder implements IRecipeLayoutBuilder {
 
     private final int width;
     private final int height;
+    /** Slot-display resolution context (level-backed), so recipe categories
+     *  that resolve SlotDisplays through {@code getContextMap()} (e.g. JEI's
+     *  vanilla smithing category extension) work during collection. */
+    private final ContextMap contextMap;
     private final List<DataOnlySlotBuilder> slots = new ArrayList<>();
     private final List<DataOnlyIngredientAcceptor> invisible = new ArrayList<>();
 
     public DataOnlyLayoutBuilder(int width, int height) {
+        this(width, height, buildContext());
+    }
+
+    public DataOnlyLayoutBuilder(int width, int height, ContextMap contextMap) {
         this.width = width;
         this.height = height;
+        this.contextMap = contextMap;
+    }
+
+    /** The current level's slot-display context, or null when no level is up
+     *  (SlotDisplays then resolve with the null-context fallback). */
+    private static ContextMap buildContext() {
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            return mc.level == null ? null : SlotDisplayContext.fromLevel(mc.level);
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     public int width() {
@@ -36,7 +59,7 @@ public final class DataOnlyLayoutBuilder implements IRecipeLayoutBuilder {
 
     @Override
     public IRecipeSlotBuilder addSlot(RecipeIngredientRole role) {
-        DataOnlySlotBuilder slot = new DataOnlySlotBuilder(role);
+        DataOnlySlotBuilder slot = new DataOnlySlotBuilder(role, contextMap);
         slots.add(slot);
         return slot;
     }

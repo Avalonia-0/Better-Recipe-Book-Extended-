@@ -60,7 +60,11 @@ public final class PinnableRecipeCollection implements Pinnable {
         CACHE.remove(collection);
     }
 
-    private static Identifier idFor(RecipeDisplayEntry entry) {
+    /** The stable pin id of one display entry (category | group | display).
+     *  The same derivation is used by the recipe book and the query viewer, so
+     *  a pin created in either place matches the entry wherever its display
+     *  value is equal ({@code RecipeDisplayEntry} value semantics). */
+    public static Identifier idFor(RecipeDisplayEntry entry) {
         String stableKey = entry.category() + "|" + entry.group().orElse(-1) + "|" + entry.display();
         return Identifier.fromNamespaceAndPath(BetterRecipeBook.MOD_ID, "pin/" + sha1Hex(stableKey));
     }

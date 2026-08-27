@@ -86,7 +86,8 @@ public final class RecipePopupLayer {
     public static void render(GuiGraphics gui, float delta) {
         if (!active || button == null || id == null) return;
         OverlayRecipeComponent outer = ((OverlayRecipeButtonAccessor) button).brbe$getOuterComponent();
-        int selIdx = ((OverlayRecipeComponentAccessor) outer).getSlotSelectTime().currentIndex();
+        int selIdx = RecipeViewerOverlay.currentSlotSelectIndex(
+                ((OverlayRecipeComponentAccessor) outer).getSlotSelectTime().currentIndex());
         PopupRenderer.renderRecipePopup(gui, id, entry, mode, craftable, partial,
                 slots, selIdx, button.getX(), button.getY(), button.getWidth(), button.getHeight(),
                 true, PopupGeometry.VANILLA_SCALE);
@@ -123,7 +124,8 @@ public final class RecipePopupLayer {
 
     private static int currentSlotSelectIndex() {
         OverlayRecipeComponent outer = ((OverlayRecipeButtonAccessor) button).brbe$getOuterComponent();
-        return ((OverlayRecipeComponentAccessor) outer).getSlotSelectTime().currentIndex();
+        return RecipeViewerOverlay.currentSlotSelectIndex(
+                ((OverlayRecipeComponentAccessor) outer).getSlotSelectTime().currentIndex());
     }
 
     private static boolean computePartial(OverlayRecipeComponent outer, RecipeCollection collection) {
@@ -139,9 +141,6 @@ public final class RecipePopupLayer {
     }
 
     private static int computeMode() {
-        if (RecipeViewerOverlay.isFurnaceMode()) return PinOverlay.MODE_FURNACE;
-        if (RecipeViewerOverlay.isStonecuttingMode()) return PinOverlay.MODE_STONECUTTING;
-        if (RecipeViewerOverlay.isSmithingMode()) return PinOverlay.MODE_SMITHING;
-        return PinOverlay.MODE_CRAFTING;
+        return RecipeViewerOverlay.viewerMode();
     }
 }

@@ -377,7 +377,7 @@ public abstract class RecipeBookPageAnimationMixin {
         // （快照按钮是手工渲染），原注入不会运行，且快照按钮的 getX/getY 是陈旧值。
         // 仅收集不绘制：绘制推迟到网格 scissor 关闭之后，pin 超出配方区的悬出部分
         // 才不被裁剪。
-        if (BetterRecipeBook.pinnedRecipeManager.has(PinnableRecipeCollection.of(c))) {
+        if (BetterRecipeBook.pinnedRecipeManager.isFullyPinned(PinnableRecipeCollection.of(c))) {
             this.brbe$animPinIcons.add(new int[] { effX, y });
         }
     }

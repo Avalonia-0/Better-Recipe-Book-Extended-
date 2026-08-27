@@ -183,7 +183,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
             if (prev != this.rbip$page) {
                 this.rbip$page = prev;
                 this.rbip$applyPagination(false);
-                AbstractWidget.playButtonClickSound(this.minecraft.getSoundManager());
+                com.alonie.brbe.util.ClientCompat.playPageFlipSound(this.minecraft);
                 cir.setReturnValue(true);
             }
         } else if (this.rbip$isInside(x, y, this.rbip$pageControlX + 15, this.rbip$pageControlY, RBIP_PAGE_BUTTON_WIDTH, RBIP_PAGE_BUTTON_HEIGHT)) {
@@ -194,7 +194,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
             if (next != this.rbip$page) {
                 this.rbip$page = next;
                 this.rbip$applyPagination(false);
-                AbstractWidget.playButtonClickSound(this.minecraft.getSoundManager());
+                com.alonie.brbe.util.ClientCompat.playPageFlipSound(this.minecraft);
                 cir.setReturnValue(true);
             }
         }
@@ -224,10 +224,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         if (nextPage != this.rbip$page) {
             this.rbip$page = nextPage;
             this.rbip$applyPagination(false);
-            if (com.alonie.brbe.BetterRecipeBook.config.scrollPageSound
-                    && this.minecraft.getSoundManager() != null) {
-                AbstractWidget.playButtonClickSound(this.minecraft.getSoundManager());
-            }
+            com.alonie.brbe.util.ClientCompat.playPageFlipSound(this.minecraft);
         }
         return true;
     }

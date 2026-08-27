@@ -43,6 +43,11 @@ public final class CraftingRecipeCategory implements RecipeViewerCategory {
     }
 
     @Override
+    public List<RecipeDisplayEntry> allEntries() {
+        return RecipeViewerEngine.allRecipes(TYPE);
+    }
+
+    @Override
     public boolean appliesTo(ItemStack target) {
         return !target.isEmpty();
     }

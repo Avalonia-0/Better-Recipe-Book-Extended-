@@ -23,7 +23,9 @@ public final class RecipeViewerCategories {
     private static final List<RecipeViewerCategory> BUILTIN =
             List.of(new FurnaceRecipeCategory(), new CraftingRecipeCategory(),
                     new FuelRecipeCategory(), new StonecuttingRecipeCategory(),
-                    new SmithingRecipeCategory());
+                    new SmithingRecipeCategory(), new AnvilRecipeCategory(),
+                    new BrewingRecipeCategory(), new GrindstoneRecipeCategory(),
+                    new CompostRecipeCategory(), new InfoRecipeCategory());
 
     /** Categories appended by the companion mod (mod recipe types). */
     private static final List<RecipeViewerCategory> EXTERNAL = new CopyOnWriteArrayList<>();
@@ -97,11 +99,12 @@ public final class RecipeViewerCategories {
                 if (!category.appliesToStation(target)) continue;
                 // The "hide objects of workstations without a recipe book"
                 // toggle cuts the workstation-category connection of an
-                // illegal station: the fuel category is exempt (a fuel-burning
-                // station still shows the fuel it can take), and a legal
-                // (recipe-book-backed) station keeps its categories.
+                // illegal station: the grid categories (fuel / compost / info)
+                // are exempt — a fuel-burning station still shows the fuel it
+                // can take — and a legal (recipe-book-backed) station keeps
+                // its categories.
                 if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
-                        && !category.isFuelCategory()
+                        && !category.isGridCategory()
                         && !RecipeViewerEngine.isRecipeBookStation(target)) {
                     continue;
                 }
@@ -120,9 +123,25 @@ public final class RecipeViewerCategories {
                 }
             }
             if (firstMatch != null) {
+                // The station categories have no content (e.g. the smithing
+                // table with no unlocked recipes).  Before settling on the
+                // empty default — which drops the query to the external
+                // viewer — prefer any category that CAN show this query: the
+                // fuel tab for a burnable workstation (a workstation can also
+                // be a fuel item, e.g. the smithing table).
+                RecipeViewerCategory alternative = bestByPriority(target, usage);
+                if (alternative != null) {
+                    return alternative;
+                }
                 return firstMatch;
             }
         }
+        return bestByPriority(target, usage);
+    }
+
+    /** The applicable category with the highest {@link RecipeViewerCategory
+     *  #defaultPriority} whose query yields at least one entry, or null. */
+    private static RecipeViewerCategory bestByPriority(ItemStack target, boolean usage) {
         RecipeViewerCategory best = null;
         int bestPriority = -1;
         for (RecipeViewerCategory category : all()) {

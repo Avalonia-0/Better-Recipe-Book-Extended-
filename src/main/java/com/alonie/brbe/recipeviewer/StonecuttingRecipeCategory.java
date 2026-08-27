@@ -42,6 +42,11 @@ public final class StonecuttingRecipeCategory implements RecipeViewerCategory {
     }
 
     @Override
+    public List<RecipeDisplayEntry> allEntries() {
+        return RecipeViewerEngine.allRecipes(TYPE);
+    }
+
+    @Override
     public boolean appliesTo(ItemStack target) {
         return RecipeViewerEngine.hasContent(TYPE, target, false)
                 || RecipeViewerEngine.hasContent(TYPE, target, true);

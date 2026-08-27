@@ -73,6 +73,15 @@ public final class PopupGeometry {
         return Math.min(24f / layout.width(), 24f / layout.height()) * CONTENT_ZOOM / 2f;
     }
 
+    /** Half of a 0.6-scaled 16px icon: {@code PopupRenderer.scaledItem} paints
+     *  the icon with its TOP-LEFT at the translate point (no centre offset),
+     *  so the icon's centre sits at (tx+ICON_HALF, ty+ICON_HALF).  The fixed
+     *  pair / generic hit slots centre on that point; using the raw tx/ty
+     *  shifted the hit area up-left by ~4.8 content px (~9.6 screen px at the
+     *  vanilla 2x popup).  (The crafting-grid branch centres its icons
+     *  explicitly via translate(-8,-8) and is unaffected.) */
+    public static final float ICON_HALF = 0.6f * 16f / 2f;
+
     private static final java.util.Set<RecipeDisplayId> diagIds = java.util.concurrent.ConcurrentHashMap.newKeySet();
 
     /** One interactive slot in content coordinates: its centre, every variant
@@ -147,13 +156,15 @@ public final class PopupGeometry {
         return vanilla(id, entry, mode, slots, x, y, w, h);
     }
 
-    /** Adapted synthetic: native layout at CONTENT_ZOOM inside the 9-sliced
-     *  panel.  Null when the recipe has no usable layout. */
+    /** Adapted synthetic: the native layout at its ORIGINAL 1:1 size (JEI's
+     *  own recipe-page size) inside the 9-sliced panel, so the preview shows
+     *  the complete recipe UI exactly as JEI does — no button-fit zoom.
+     *  Exceptionally large layouts are scaled down just enough to stay fully
+     *  on screen.  Null when the recipe has no usable layout. */
     private static PopupGeometry adaptedSynthetic(RecipeDisplayId id, int x, int y, int w, int h) {
         RecipeViewerEngine.RecipeLayout layout = RecipeViewerEngine.getLayout(id);
         if (layout == null || layout.width() <= 0 || layout.height() <= 0) return null;
-        float fit = Math.min(w / (float) layout.width(), h / (float) layout.height())
-                * CONTENT_ZOOM;
+        float fit = originalSizeFit(layout.width(), layout.height());
         int cw = Math.round(layout.width() * fit);
         int ch = Math.round(layout.height() * fit);
         float ox = x + (w - cw) / 2f;
@@ -167,6 +178,36 @@ public final class PopupGeometry {
         int py = Math.round(oy) - CONTAINER_PADDING;
         int pw = cw + CONTAINER_PADDING * 2;
         int ph = ch + CONTAINER_PADDING * 2;
+        // Keep the whole panel on screen (it is centred on the 24px button,
+        // which may sit near a screen edge): shift the panel — and with it the
+        // content origin, so the painted UI and the hit volume never drift.
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.getWindow() != null) {
+                int guiW = mc.getWindow().getGuiScaledWidth();
+                int guiH = mc.getWindow().getGuiScaledHeight();
+                int maxX = Math.max(2, guiW - pw - 2);
+                int maxY = Math.max(2, guiH - ph - 2);
+                if (px > maxX) {
+                    ox -= px - maxX;
+                    px = maxX;
+                }
+                if (py > maxY) {
+                    oy -= py - maxY;
+                    py = maxY;
+                }
+                if (px < 2) {
+                    ox += 2 - px;
+                    px = 2;
+                }
+                if (py < 2) {
+                    oy += 2 - py;
+                    py = 2;
+                }
+            }
+        } catch (Exception ignored) {
+            // no window yet: keep the centred position
+        }
         List<Slot> out = new ArrayList<>();
         for (RecipeViewerEngine.RecipeSlotLayout slot : layout.slots()) {
             if (slot.stacks().isEmpty()) continue;
@@ -174,6 +215,28 @@ public final class PopupGeometry {
             out.add(new Slot(slot.x() + 8, slot.y() + 8, slot.stacks(), 8));
         }
         return new PopupGeometry(px, py, pw, ph, ox, oy, fit, lw, lh, out);
+    }
+
+    /** The 1:1 original-size fit of a delegated preview: the layout shows at
+     *  its raw pixel size (exactly like JEI's own recipe page); only layouts
+     *  too large for the screen (in practice mod categories) are scaled down
+     *  just enough to remain fully visible (80% of the window per axis). */
+    private static float originalSizeFit(int width, int height) {
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.getWindow() != null && width > 0 && height > 0) {
+                int guiW = mc.getWindow().getGuiScaledWidth();
+                int guiH = mc.getWindow().getGuiScaledHeight();
+                float maxW = guiW * 0.8f - CONTAINER_PADDING * 2f;
+                float maxH = guiH * 0.8f - CONTAINER_PADDING * 2f;
+                if (width > maxW || height > maxH) {
+                    return Math.min(maxW / width, maxH / height);
+                }
+            }
+        } catch (Exception ignored) {
+            // no window yet
+        }
+        return 1f;
     }
 
     /** Vanilla-style geometry: the fixed 2x scale about the button centre.
@@ -189,10 +252,10 @@ public final class PopupGeometry {
             // Layout-attached entry (synthetic / recipe-book driven): the
             // layout (collected from the plugin's DataOnlyLayoutBuilder) is
             // available even without the real JEI, so the JEI-style panel and
-            // native slot grid render at the SAME size as the adapted
-            // (JEI-present) popup — the panel is the layout at CONTENT_ZOOM,
-            // centred on the button; a declared background texture is painted
-            // on top, layouts without one use the uniform vanilla sprite.
+            // native slot grid still render (at the no-JEI button-fit scale;
+            // the JEI-delegated preview itself shows the layout's original
+            // 1:1 size).  A declared background texture is painted on top,
+            // layouts without one use the uniform vanilla sprite.
             RecipeViewerEngine.RecipeLayout layout = RecipeViewerEngine.getLayout(id);
             for (UnadaptedSlot slot : backgroundFitPositions(layout)) {
                 out.add(new Slot(slot.x(), slot.y(), slot.stacks(), 5));
@@ -258,14 +321,15 @@ public final class PopupGeometry {
                     List<ItemStack> stacks = new ArrayList<>();
                     ing.items().forEach(holder -> stacks.add(new ItemStack(holder.value())));
                     if (!stacks.isEmpty()) {
-                        out.add(new Slot(2 + (i % 3) * 5, 2 + (i / 3) * 5, stacks, 5));
+                        out.add(new Slot(2 + (i % 3) * 5 + ICON_HALF,
+                                2 + (i / 3) * 5 + ICON_HALF, stacks, 5));
                     }
                 }
             }
             Minecraft mc = Minecraft.getInstance();
             if (mc.level != null) {
                 List<ItemStack> results = entry.resultItems(SlotDisplayContext.fromLevel(mc.level));
-                if (!results.isEmpty()) out.add(new Slot(17, 2, results, 5));
+                if (!results.isEmpty()) out.add(new Slot(17 + ICON_HALF, 2 + ICON_HALF, results, 5));
             }
         } catch (Exception ignored) {
             // one broken ingredient must not break the hit volume
@@ -293,10 +357,12 @@ public final class PopupGeometry {
         }
     }
 
-    private static void addSlot(List<Slot> out, int x, int y, SlotDisplay display) {
+    private static void addSlot(List<Slot> out, float x, float y, SlotDisplay display) {
         List<ItemStack> stacks = RecipeViewerIndex.resolveSlotDisplay(display);
         if (!stacks.isEmpty()) {
-            out.add(new Slot(x, y, stacks, 5));
+            // See ICON_HALF: the icon is painted top-left at (x,y), so the hit
+            // circle centres on (x+ICON_HALF, y+ICON_HALF).
+            out.add(new Slot(x + ICON_HALF, y + ICON_HALF, stacks, 5));
         }
     }
 

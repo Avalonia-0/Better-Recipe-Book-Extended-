@@ -91,7 +91,7 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         gui.renderFakeItem(result, getX() + offset, getY() + offset);
 
         // if pinned recipe, blit the pin texture over it
-        if (BetterRecipeBook.pinnedRecipeManager.has(collection)) {
+        if (BetterRecipeBook.pinnedRecipeManager.isFullyPinned(collection)) {
             ClientCompat.blitSprite(gui, BRBTextures.RECIPE_BOOK_PIN_SPRITE, getX() - 4, getY() - 4, 32, 32);
         }
     }

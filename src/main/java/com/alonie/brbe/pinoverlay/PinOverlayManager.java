@@ -429,11 +429,9 @@ public final class PinOverlayManager {
         RecipeDisplayEntry entry = RecipeViewerOverlay.entryFor(recipeId);
         if (entry == null) return;
         // Freeze the query viewer's layout mode so the container keeps mirroring
-        // the furnace / stonecutter / smithing / crafting button.
-        int mode = RecipeViewerOverlay.isFurnaceMode() ? PinOverlay.MODE_FURNACE
-                : RecipeViewerOverlay.isStonecuttingMode() ? PinOverlay.MODE_STONECUTTING
-                : RecipeViewerOverlay.isSmithingMode() ? PinOverlay.MODE_SMITHING
-                : PinOverlay.MODE_CRAFTING;
+        // the furnace / stonecutter / smithing / anvil / brewing / grindstone /
+        // crafting button.
+        int mode = RecipeViewerOverlay.viewerMode();
         PinOverlay pin = PinOverlay.create(entry, mode, z, mx, my);
         if (pin != null) {
             pins.add(pin);
@@ -470,7 +468,7 @@ public final class PinOverlayManager {
         ItemStack target = PinOverlay.itemFromKey(spec.resultItem());
         if (target.isEmpty()) return null;
         for (RecipeViewerCategory cat : RecipeViewerCategories.all()) {
-            if (cat.isFuelCategory()) continue;
+            if (cat.isGridCategory()) continue;
             List<RecipeDisplayEntry> hits = cat.query(target, false);
             for (RecipeDisplayEntry hit : hits) {
                 if (PinOverlay.fingerprint(hit).equals(spec.inputs())) {
@@ -486,6 +484,9 @@ public final class PinOverlayManager {
             case "furnace" -> PinOverlay.MODE_FURNACE;
             case "stonecutting" -> PinOverlay.MODE_STONECUTTING;
             case "smithing" -> PinOverlay.MODE_SMITHING;
+            case "anvil" -> PinOverlay.MODE_ANVIL;
+            case "brewing" -> PinOverlay.MODE_BREWING;
+            case "grindstone" -> PinOverlay.MODE_GRINDSTONE;
             default -> PinOverlay.MODE_CRAFTING;
         };
     }
@@ -534,7 +535,7 @@ public final class PinOverlayManager {
             components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
                     .create(line.getVisualOrderText()));
         }
-        Identifier style = hovered.get(net.minecraft.core.component.DataComponents.TOOLTIP_STYLE);
+        Identifier style = ClientCompat.VIEWER_TOOLTIP_STYLE;
         net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner positioner =
                 net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner.INSTANCE;
         if (RecipeViewerOverlay.isActive()) {

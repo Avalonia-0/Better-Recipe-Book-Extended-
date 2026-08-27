@@ -7,6 +7,7 @@ import com.alonie.brbe.search.SearchCache;
 import com.alonie.brbe.search.SearchQuery;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.util.context.ContextMap;
+import net.minecraft.world.entity.player.StackedItemContents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 
@@ -135,14 +136,21 @@ public final class CollectionPipeline {
     // ---- Stage 3: Pins sort (in-place) ----
 
     /**
-     * Moves pinned collections to the front of the list.  Mutates the list
-     * in place (removes and re-inserts at index 0).
+     * Moves <b>fully-pinned</b> collections (every recipe pinned — standalone
+     * pin recipes and whole pin groups) to the front of the list.  Mutates
+     * the list in place (removes and re-inserts at index 0).
+     *
+     * <p>Partially-pinned groups are <b>not</b> moved: per the alternative-group
+     * rule, pinning a single variant must not reorder the original group — its
+     * pinned variant is extracted to the front by {@link #applyPinCopyGroups}
+     * (Stage 6) instead.
      */
     public static void applyPins(List<RecipeCollection> collections) {
         // Iterate a snapshot to avoid ConcurrentModificationException
         List<RecipeCollection> snapshot = new ArrayList<>(collections);
         for (RecipeCollection collection : snapshot) {
-            if (BetterRecipeBook.pinnedRecipeManager.has(PinnableRecipeCollection.of(collection))) {
+            if (BetterRecipeBook.pinnedRecipeManager.isFullyPinned(
+                    PinnableRecipeCollection.of(collection))) {
                 collections.remove(collection);
                 collections.add(0, collection);
             }
@@ -173,7 +181,9 @@ public final class CollectionPipeline {
         List<RecipeCollection> unpinnedUncraftable = new ArrayList<>();
 
         for (RecipeCollection c : collections) {
-            boolean isPinned = BetterRecipeBook.pinnedRecipeManager.has(
+            // 局部 pin 的原组按"未 pin"参与排序（pin 变体由 Stage 6 剥离置顶，
+            // 原组排序不受影响）
+            boolean isPinned = BetterRecipeBook.pinnedRecipeManager.isFullyPinned(
                         PinnableRecipeCollection.of(c));
 
             if (hasPartialData) {
@@ -291,5 +301,93 @@ public final class CollectionPipeline {
             if (keep) result.add(coll);
         }
         return result;
+    }
+
+    // ---- Stage 6: Pin extraction ----
+
+    /** 本阶段生成的重打包组身份（弱集合：随列表重建 GC，不造成残留）。 */
+    private static final java.util.Set<RecipeCollection> PIN_COPIES =
+            java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
+
+    /**
+     * pin 剥离 stage（管线末端调用）——用户规则：pin 的变体从原组**剥离**，
+     * 原组（重打包）只保留未 pin 变体且**位置不变**（pin 单个变体不得使原组
+     * 重新排序）；pin 集合的展示**置顶**（与"pin 置顶"规则一致）：
+     * <ul>
+     *   <li><b>1 个 pin</b>：生成**独立单配方组**（该变体单独成组，带 pin 贴图）
+     *      排在列表最前；</li>
+     *   <li><b>≥2 个 pin</b>：生成**副本替代配方组**（只含这些 pin 配方，全 pin
+     *      → 贴图判定自然命中）排在列表最前；多个原组的 pin 组保持原组顺序；</li>
+     *   <li><b>全 pin</b>：原组不再重打包（它就是 pin 组形态，直接保留贴图）；</li>
+     *   <li>取消 pin 后变体回归原组（下次管线重算自动还原）。</li>
+     * </ul>
+     * 幂等：上一轮生成的重打包组先从列表移除再重新生成。
+     */
+    public static void applyPinCopyGroups(List<RecipeCollection> collections) {
+        if (collections == null || collections.isEmpty()) return;
+
+        // 1) 移除上一轮生成的重打包组（管线缓存列表可能已带有）
+        List<RecipeCollection> stale = new ArrayList<>();
+        for (RecipeCollection c : collections) {
+            if (PIN_COPIES.contains(c)) stale.add(c);
+        }
+        if (!stale.isEmpty()) {
+            collections.removeAll(stale);
+            PIN_COPIES.removeAll(stale);
+        }
+
+        // 2) 逐组剥离：原组 → [重打包 rest 组（未 pin 变体，原位）] + [pin 组（置顶）]
+        java.util.Map<RecipeCollection, RecipeCollection> restPacks =
+                new java.util.LinkedHashMap<>();
+        java.util.List<RecipeCollection> pinPacks = new ArrayList<>();
+        for (RecipeCollection collection : collections) {
+            List<RecipeDisplayEntry> pinned = new ArrayList<>();
+            List<RecipeDisplayEntry> rest = new ArrayList<>();
+            for (RecipeDisplayEntry entry : collection.getRecipes()) {
+                if (entry != null && BetterRecipeBook.pinnedRecipeManager.isPinnedEntry(entry)) {
+                    pinned.add(entry);
+                } else if (entry != null) {
+                    rest.add(entry);
+                }
+            }
+            if (pinned.isEmpty()) continue;
+            if (pinned.size() == collection.getRecipes().size()) {
+                // 全 pin：原组本身就是 pin 组形态（保留，贴图由 isFullyPinned 命中）
+                continue;
+            }
+            RecipeCollection restPack = buildPack(rest, collection);
+            RecipeCollection pinPack = buildPack(pinned, collection);
+            PIN_COPIES.add(restPack);
+            PIN_COPIES.add(pinPack);
+            restPacks.put(collection, restPack);
+            pinPacks.add(pinPack);
+            BetterRecipeBook.LOGGER.info(
+                    "[BRBE-PINS] pin-extract: {} recipes, {} pinned variants -> rest {} + pin-group {}",
+                    collection.getRecipes().size(), pinned.size(), rest.size(), pinned.size());
+        }
+        if (restPacks.isEmpty()) return;
+
+        // 3) 原位替换：原组位置只保留 rest 组（未 pin 变体；排序不受影响）
+        for (java.util.Map.Entry<RecipeCollection, RecipeCollection> e : restPacks.entrySet()) {
+            int idx = collections.indexOf(e.getKey());
+            if (idx < 0) continue;
+            collections.remove(e.getKey());
+            collections.add(idx, e.getValue());
+        }
+
+        // 4) pin 组置顶（按原组遍历顺序，与 pin 置顶规则一致）
+        if (!pinPacks.isEmpty()) {
+            collections.addAll(0, pinPacks);
+        }
+    }
+
+    /** 由一组变体构建重打包组（同原组语义：全选中，craftable 按玩家物品栏）。 */
+    private static RecipeCollection buildPack(List<RecipeDisplayEntry> entries,
+                                              RecipeCollection template) {
+        RecipeCollection pack = new RecipeCollection(new ArrayList<>(entries));
+        StackedItemContents stacked = new StackedItemContents();
+        PartialCraftingUtil.fillSearchSpaceStackedContents(stacked);
+        pack.selectRecipes(stacked, display -> true);
+        return pack;
     }
 }

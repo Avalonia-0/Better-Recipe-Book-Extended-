@@ -291,9 +291,15 @@ public final class InternalKeyMappings implements IInternalKeyMappings {
 			.buildKeyboardKey(GLFW.GLFW_KEY_PAGE_DOWN)
 			.register(registerMethod);
 
+		// [BRBE fork] Pause-recipe-cycling is bound to ALT (either side): the
+		// Right-Shift rule is removed — BRBE uses Shift as its preview hotkey,
+		// so the pause key moved to Alt (the CycleTicker/CycleTimer pause
+		// check reads the physical ALT keys directly, independent of this
+		// binding — this line only keeps the key-list / tooltip display in
+		// sync; the key shown in JEI's key settings is Alt).
 		pauseRecipeCycling = recipeGui.createMapping("key.jei.pauseRecipeCycling")
 			.setContext(JeiKeyConflictContext.GUI)
-			.buildKeyboardKey(GLFW.GLFW_KEY_LEFT_SHIFT)
+			.buildKeyboardKey(GLFW.GLFW_KEY_LEFT_ALT)
 			.register(registerMethod);
 
 		previousCategory = recipeGui.createMapping("key.jei.previousCategory")

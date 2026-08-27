@@ -2,11 +2,16 @@ package com.alonie.brbe.cache;
 
 import com.alonie.brbe.BetterRecipeBook;
 import net.minecraft.client.ClientRecipeBook;
+import net.minecraft.client.Minecraft;
+import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
+import net.minecraft.world.item.equipment.trim.TrimPattern;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -135,6 +140,12 @@ public final class VanillaRecipeCache {
             String rid = extractResultItemId(entry.display().result());
             if (rid != null) {
                 keys.add(rid);
+            } else {
+                // Trim recipes have no item result — dedupe by pattern instead.
+                String trimId = extractTrimPatternId(entry.display().result());
+                if (trimId != null) {
+                    keys.add("trim:" + trimId);
+                }
             }
         }
         BetterRecipeBook.LOGGER.info("[BRBE-CACHE] server covers {} unique result items",
@@ -159,6 +170,15 @@ public final class VanillaRecipeCache {
                 // category is authoritative for the client recipe book UI.
                 if (complementMode && cEntry.resultItem() != null) {
                     if (serverResultItems.contains(cEntry.resultItem())) {
+                        skippedCount++;
+                        continue;
+                    }
+                }
+                // Trim recipes: dedupe by pattern (they have no result item;
+                // otherwise every server trim would be duplicated with a
+                // pattern-derived — but empty — product).
+                if (complementMode && cEntry.trimPattern() != null) {
+                    if (serverResultItems.contains("trim:" + cEntry.trimPattern())) {
                         skippedCount++;
                         continue;
                     }
@@ -206,6 +226,21 @@ public final class VanillaRecipeCache {
         if (!lastCategoryBreakdown.isEmpty())
             BetterRecipeBook.LOGGER.info("  By category (injected): {}", lastCategoryBreakdown);
         BetterRecipeBook.LOGGER.info("================================================");
+    }
+
+    /** Pattern id of a {@link SlotDisplay.SmithingTrimDemoSlotDisplay}, or null. */
+    private static String extractTrimPatternId(SlotDisplay slot) {
+        if (!(slot instanceof SlotDisplay.SmithingTrimDemoSlotDisplay demo)) return null;
+        try {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.level == null) return null;
+            Registry<TrimPattern> registry =
+                    mc.level.registryAccess().lookupOrThrow(Registries.TRIM_PATTERN);
+            Identifier key = registry.getKey(demo.pattern().value());
+            return key == null ? null : key.toString();
+        } catch (Exception e) {
+            return null;
+        }
     }
 
     static String extractResultItemId(SlotDisplay slot) {

@@ -4,7 +4,11 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.compat.SyntheticRecipeRenderer;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.render.PopupGeometry;
+import com.alonie.brbe.util.RecipeViewerOverlay;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
+import mezz.jei.api.gui.ingredient.IRecipeSlotDrawable;
+import mezz.jei.api.gui.ingredient.IRecipeSlotView;
+import mezz.jei.api.ingredients.ITypedIngredient;
 import net.minecraft.world.item.ItemStack;
 import mezz.jei.api.recipe.IRecipeManager;
 import mezz.jei.api.recipe.category.IRecipeCategory;
@@ -16,6 +20,7 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -60,6 +65,7 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
 
     public static void invalidate() {
         LAYOUT_CACHE.clear();
+        SLOT_COUNTERS.clear();
     }
 
     /** Diagnostics: logged once each for the render-skip cause and a failed
@@ -110,10 +116,27 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
             }
         }
 
+        // Alt (the BRBE cycle-pause key): freeze every JEI-delegated UI's
+        // variant cycling by simply not ticking its drawable — this works
+        // under both the real JEI runtime and the vendored fork, with no
+        // reliance on JEI's own pause key mapping.  On release any overrides
+        // pinned by {@link #stepVariants} are cleared and JEI's native cycle
+        // resumes.
+        boolean altDown = RecipeViewerOverlay.isCycleAltDown();
+        if (altDown != lastAltState) {
+            lastAltState = altDown;
+            if (!altDown) {
+                clearVariants(drawable);
+                SLOT_COUNTERS.clear();
+            }
+        }
+
         long tick = net.minecraft.util.Util.getMillis() / 50;
         if (tick != lastTick) {
             lastTick = tick;
-            drawable.tick();
+            if (!altDown) {
+                drawable.tick();
+            }
         }
 
         // The caller already fitted the category's aspect ratio into the
@@ -159,6 +182,85 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
                     .orElse(ItemStack.EMPTY);
         } catch (Exception | LinkageError e) {
             return ItemStack.EMPTY;
+        }
+    }
+
+    /** Last Alt state the renderer saw, so the pause-to-resume transition
+     *  clears the variant overrides exactly once. */
+    private static boolean lastAltState = false;
+
+    /**
+     * Per-slot manual step counters for Alt+wheel quick-flip: each slot walks
+     * its own candidate list one step per wheel tick.  No {@code indexOf} on
+     * JEI's internal lists — {@code TypedIngredient} has no value equals (the
+     * displayed instance always differs from the list's instances), so
+     * indexOf always missed and every wheel re-pinned the slot to the same
+     * wrong candidate.  The counter is aligned to the slot's shown variant on
+     * its first step (by item VALUE), then advanced exactly ±1 — every
+     * candidate of every slot is reached exactly once per full cycle.
+     */
+    private static final Map<IRecipeSlotDrawable, Integer> SLOT_COUNTERS = new HashMap<>();
+
+    @Override
+    public void stepVariants(int delta) {
+        for (IRecipeLayoutDrawable<?> drawable : LAYOUT_CACHE.values()) {
+            try {
+                for (IRecipeSlotView view : drawable.getRecipeSlotsView().getSlotViews()) {
+                    // The live slot impl is the full drawable slot (JEI 27.4 /
+                    // 30.24 both do): the reduced IRecipeSlotView has no
+                    // override API, so cast back when available.
+                    if (!(view instanceof IRecipeSlotDrawable slot)) continue;
+                    List<ITypedIngredient<?>> all = slot.getAllIngredientsList();
+                    if (all == null || all.size() <= 1) continue;
+                    Integer counter = SLOT_COUNTERS.get(slot);
+                    if (counter == null) {
+                        // First step: best-effort alignment to the variant that
+                        // was showing (by item VALUE — the displayed
+                        // TypedIngredient instance differs from the list's).
+                        counter = slot.getDisplayedIngredient()
+                                .flatMap(ITypedIngredient::getItemStack)
+                                .map(shown -> indexOfValue(all, shown))
+                                .orElse(0);
+                    }
+                    counter += delta;
+                    SLOT_COUNTERS.put(slot, counter);
+                    ITypedIngredient<?> target = all.get(Math.floorMod(counter, all.size()));
+                    if (target == null) continue;
+                    target.getItemStack().ifPresent(stack -> {
+                        slot.clearDisplayOverrides();
+                        slot.createDisplayOverrides().addItemStack(stack);
+                    });
+                }
+            } catch (Exception | LinkageError ignored) {
+                // one broken drawable must not break the whole quick-flip
+            }
+        }
+    }
+
+    /** Index of the candidate whose item value equals {@code shown}, or 0. */
+    private static int indexOfValue(List<ITypedIngredient<?>> all, ItemStack shown) {
+        for (int i = 0; i < all.size(); i++) {
+            ITypedIngredient<?> candidate = all.get(i);
+            if (candidate == null) continue;
+            if (candidate.getItemStack().map(shown::equals).orElse(false)) {
+                return i;
+            }
+        }
+        return 0;
+    }
+
+    /** Clear every slot's display overrides (Alt released — JEI resumes its
+     *  native variant cycling). */
+    private static void clearVariants(IRecipeLayoutDrawable<?> drawable) {
+        try {
+            for (IRecipeSlotView view : drawable.getRecipeSlotsView().getSlotViews()) {
+                if (!(view instanceof IRecipeSlotDrawable slot)) continue;
+                try {
+                    slot.clearDisplayOverrides();
+                } catch (Throwable ignored) {
+                }
+            }
+        } catch (Exception | LinkageError ignored) {
         }
     }
 
