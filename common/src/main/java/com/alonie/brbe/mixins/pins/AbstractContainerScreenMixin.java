@@ -11,6 +11,7 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.recipebook.*;
+import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -33,26 +34,48 @@ public abstract class AbstractContainerScreenMixin {
 
         EditBox searchBox = ((RecipeBookComponentAccessor) book).getSearchBox();
 
-        // when F is pressed, handle pinning/unpinning of recipes except when searchBox is consuming input
-        if (BetterRecipeBook.PIN_MAPPING.matches(keyCode, scanCode) && !searchBox.canConsumeInput()) {
-            // handle alternatives widget first
+        // when pin key is pressed, handle pinning/unpinning of recipes except when searchBox is consuming input
+        if (BetterRecipeBook.PIN_MAPPING.matches(keyCode, scanCode) && (searchBox == null || !searchBox.canConsumeInput())) {
             if (alternatesWidget.isVisible()) {
-                for (AbstractWidget alternativeButton : ((OverlayRecipeComponentAccessor) alternatesWidget).getRecipeButtons()) {
-                    if (alternativeButton.isHoveredOrFocused()) {
-                        PinnedRecipeManager.handlePinRecipe(book, page, ((OverlayRecipeButtonAccessor) alternativeButton).getRecipe());
+                // 替代配方组不能直接 pin：固定键只作用于悬停的具体变体按钮
+                // （打开组后逐个 pin 组内配方）。未悬停变体时吞掉按键，防止
+                // 误 pin 下层（整个配方组）。
+                for (AbstractWidget button : ((OverlayRecipeComponentAccessor) alternatesWidget).getRecipeButtons()) {
+                    if (button.visible && button.isHoveredOrFocused()) {
+                        RecipeHolder<?> holder = ((OverlayRecipeButtonAccessor) button).getRecipe();
+                        if (holder != null) {
+                            BetterRecipeBook.pinnedRecipeManager.toggleFavourite(holder);
+                            ((RecipeBookComponentAccessor) book).updateCollectionsInvoker(false);
+                            if (minecraft.getSoundManager() != null) {
+                                button.playDownSound(minecraft.getSoundManager());
+                            }
+                        }
                         cir.setReturnValue(true);
                         return;
                     }
                 }
+                cir.setReturnValue(true);
                 return;
             }
 
+            // 网格按钮：普通配方（单配方组）直接固定/取消固定；替代配方组
+            // （多变体组）不能直接 pin——组只能在打开后 pin 其中的单个变体，
+            // 悬停时吞掉固定键（无副作用）。
             for (RecipeButton button : ((RecipeBookPageAccessor) page).getButtons()) {
-                if (button.isHoveredOrFocused()) {
-                    PinnedRecipeManager.handlePinRecipe(book, page, button.getRecipe());
-                    cir.setReturnValue(true);
-                    return;
+                if (!button.visible || !button.isHoveredOrFocused()) continue;
+                RecipeCollection collection = button.getCollection();
+                if (collection != null && collection.getRecipes().size() == 1) {
+                    RecipeHolder<?> holder = collection.getRecipes().get(0);
+                    if (holder != null) {
+                        BetterRecipeBook.pinnedRecipeManager.toggleFavourite(holder);
+                        ((RecipeBookComponentAccessor) book).updateCollectionsInvoker(false);
+                        if (minecraft.getSoundManager() != null) {
+                            button.playDownSound(minecraft.getSoundManager());
+                        }
+                    }
                 }
+                cir.setReturnValue(true);
+                return;
             }
         }
 
