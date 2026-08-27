@@ -842,3 +842,22 @@ Mixin apply for mod zzzbrbe failed ... pins.OverlayRecipeButtonMixin
 - **离开**：再按 Ctrl+O / 点击任意标签（含原类别标签）/ 滚轮切类别（`switchCategory` 重置 browse）→ `leaveBrowseAll` 恢复原类别**页面**（`browseAllReturnPage`）+ 工作站列
 - **交互修正**：render 的按钮扫描不再受 `isGridMode` 限制（原类别是 grid 时 browse 也有按钮）；`mouseClicked` 的按钮点击判定 `(isGridMode() && !browseAllMode) ? false : overlay.mouseClicked(...)`（browse 下按钮可点击放置）；grid 分支/工作站列在 browse 下跳过
 - 已构建、已部署两实例（26.2 备份 `20260826-22:2x`、md5 `daae8e3c…`；1.21.11 备份同刻、md5 `68b803c5…`；部署前确认无实例运行）。验证：R/U 打开 viewer → 鼠标在界内按 Ctrl+O → 全部类别对象一页页展示（每类按钮 + 燃料等单元格），再按 Ctrl+O 恢复原类别与页码；鼠标在界面外按 Ctrl+O 无反应；点击/滚轮标签退出浏览；browse 下 Shift 预览/pin/红罩/放置配方正常
+
+## 2026-08-28：无头 JEI 独立化（jar-in-jar，核心分支移除内嵌完成）
+
+- **独立项目**（分支 headless-jei，1.21.11/ 工程）：mezz fork（854/841）+ 无头核心/收集 +
+  轻量桥（JeiRecipeRegistry/JeiPopupRenderer）→ 编译并产出
+  headless-jei-fabric-1.21.11-1.0.0.jar
+- **本分支移除内嵌**：删除 mezz.jei.* fork（854/841）+ com.alonie.brbe.jei.* 收集/核心
+  （保留 SRImpl/SDFF/PluginRecipeViewerCategory 适配；SRImpl 改反射渲染委托 +
+  BrbeJeiBridge 反射桥：registry → 引擎 registerType/registerLayout）；
+  InfoRecipeCategory/BetterRecipeBookJEIPlugin/BrbeJeiMinecraftMixin 反射化
+- **jar-in-jar**：headless-jei 产物嵌入 BRBE（src/main/resources/META-INF/jars/ +
+  fabric.mod.json "jars"）；**仅外部 JEI 缺席时注册**（BrbeJeiPlatform.realJeiLoaded
+  guard，既有）；外部 JEI 存在 → guard 跳过 + 类遮蔽（jei < zzzbrbe 不变）
+- 编译参考：1.21.11 使用 headless-jei-fabric-1.21.11-1.0.0.jar（**1.21.11 的官方映射/Extractor 签名，
+  no-remap 直接编译**；1.21.11 的 intermediary 产物不可编译——1.21.1 同因用真实
+  JEI 19.27 jar + 反射桥）；mezzdev（suffixtree/baked-substring）依赖移除
+- 部署：1.21.11-Fabric 实例已更新（备份 20260828-0242xx，md5 一致，单装 BRBE）
+- 测试要点：JOIN 后日志 [BRBE-JEI-BRIDGE] imported N JEI entries；U 查询铁砧/研磨石 →
+  JEI 配方条目 + Shift 完整 JEI UI；不装 headless-jei（BRBE 独立）时 BRBE 正常降级
