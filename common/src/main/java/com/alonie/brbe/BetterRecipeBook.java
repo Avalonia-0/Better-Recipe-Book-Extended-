@@ -34,7 +34,7 @@ import org.apache.logging.log4j.Logger;
  */
 public class BetterRecipeBook {
 
-    public static final String MOD_ID = "brbe";
+    public static final String MOD_ID = "zzzbrbe";
 
     private static int queuedScroll;
 

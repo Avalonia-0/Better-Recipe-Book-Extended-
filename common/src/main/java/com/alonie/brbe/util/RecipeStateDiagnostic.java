@@ -44,7 +44,7 @@ import java.util.*;
  */
 public final class RecipeStateDiagnostic {
 
-    private static final Logger LOG = LogManager.getLogger("brbe-diag");
+    private static final Logger LOG = LogManager.getLogger("zzzbrbe-diag");
     private static long lastDiagnosticSlotHash;
 
     private RecipeStateDiagnostic() {}

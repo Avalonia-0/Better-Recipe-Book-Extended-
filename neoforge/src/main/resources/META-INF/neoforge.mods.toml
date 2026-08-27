@@ -4,7 +4,7 @@ issueTrackerURL = "https://github.com/mrshmllow/BetterRecipeBook/issues"
 license = "MIT"
 
 [[mods]]
-modId = "brbe"
+modId = "zzzbrbe"
 version = "${version}"
 displayName = "Better Recipe Book (Adorable♡Girl aVa Seriously 🔥Extended🔥. Oh, and also Teamed Up with Great Mr.DeepSeek)"
 authors = "marshmallow"
@@ -12,23 +12,23 @@ credits = "th1s.aVa, melontini, ruvaldak, Felix14-v2, buiawpkgew1, TauCubed, Meh
 description = '''
 Adds some quality of life changes to the recipe book
 '''
-logoFile = "assets/brbe/icon.png"
+logoFile = "assets/zzzbrbe/icon.png"
 
-[[dependencies.brbe]]
+[[dependencies.zzzbrbe]]
 modId = "neoforge"
 type = "required"
 versionRange = "[21,)"
 ordering = "NONE"
 side = "CLIENT"
 
-[[dependencies.brbe]]
+[[dependencies.zzzbrbe]]
 modId = "minecraft"
 type = "required"
 versionRange = "[1.21.1,1.21.2)"
 ordering = "NONE"
 side = "CLIENT"
 
-[[dependencies.brbe]]
+[[dependencies.zzzbrbe]]
 modId = "jei"
 type = "optional"
 versionRange = "[19,)"

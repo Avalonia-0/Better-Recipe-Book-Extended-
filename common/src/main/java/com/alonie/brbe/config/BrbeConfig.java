@@ -16,7 +16,7 @@ import me.shedaniel.autoconfig.annotation.ConfigEntry;
  * When the user saves new settings, a fresh {@code BrbeConfig} is published
  * through {@link ConfigEventBus}.</p>
  */
-@Config(name = "brbe")
+@Config(name = "zzzbrbe")
 public class BrbeConfig implements ConfigData {
 
     // -- Top-level toggles ----------------------------------------------------

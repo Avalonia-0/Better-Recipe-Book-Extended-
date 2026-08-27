@@ -3,7 +3,7 @@ package com.alonie.brbe.config;
 import me.shedaniel.autoconfig.ConfigData;
 import me.shedaniel.autoconfig.annotation.ConfigEntry;
 
-@me.shedaniel.autoconfig.annotation.Config(name = "brbe")
+@me.shedaniel.autoconfig.annotation.Config(name = "zzzbrbe")
 public class Config implements ConfigData {
 
     // -- 配方书设置 ------------------------------------------------------------

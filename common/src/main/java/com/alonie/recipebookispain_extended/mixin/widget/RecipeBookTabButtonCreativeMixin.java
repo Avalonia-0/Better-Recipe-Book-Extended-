@@ -56,16 +56,16 @@ public abstract class RecipeBookTabButtonCreativeMixin
 
     @Unique
     private static final ResourceLocation TEX_BOTTOM =
-            ResourceLocation.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab.png");
+            ResourceLocation.fromNamespaceAndPath("zzzbrbe", "textures/rbip/bottom_tab.png");
     @Unique
     private static final ResourceLocation TEX_BOTTOM_SEL =
-            ResourceLocation.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab_selected.png");
+            ResourceLocation.fromNamespaceAndPath("zzzbrbe", "textures/rbip/bottom_tab_selected.png");
     @Unique
     private static final ResourceLocation TEX_TOP =
-            ResourceLocation.fromNamespaceAndPath("brbe", "textures/rbip/top_tab.png");
+            ResourceLocation.fromNamespaceAndPath("zzzbrbe", "textures/rbip/top_tab.png");
     @Unique
     private static final ResourceLocation TEX_TOP_SEL =
-            ResourceLocation.fromNamespaceAndPath("brbe", "textures/rbip/top_tab_selected.png");
+            ResourceLocation.fromNamespaceAndPath("zzzbrbe", "textures/rbip/top_tab_selected.png");
 
     // ── Cancel unlock bounce for creative tabs ─────────────────
 
