@@ -27,7 +27,9 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
     @Inject(method = "renderWidget", at = @At(value = "RETURN", target = "Lnet/minecraft/client/gui/GuiGraphics;renderFakeItem(Lnet/minecraft/world/item/ItemStack;II)V"))
     public void renderWidget_renderFakeItem(GuiGraphics gui, int x, int y, float delta, CallbackInfo ci) {
         // if pins are enabled, and the recipe is pinned, blit the pin texture after the recipe collection is rendered
-        if (BetterRecipeBook.pinnedRecipeManager.has(PinnableRecipeCollection.of(getCollection()))) {
+        // 仅"全 pin 组"（含 Stage 6 生成的副本组）显示 pin 贴图；部分 pin 的
+        // 原组不显示（其 pin 变体已被剥离为独立副本组）。
+        if (BetterRecipeBook.pinnedRecipeManager.isFullyPinned(getCollection())) {
             gui.blitSprite(BRBTextures.RECIPE_BOOK_PIN_SPRITE, getX() - 4, getY() - 4, 32, 32);
         }
     }

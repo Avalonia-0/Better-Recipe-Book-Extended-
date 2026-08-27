@@ -272,6 +272,22 @@ public final class RecipePipeline {
                     visible.size(), ctx.isFiltering, ctx.partialMarkingEnabled);
         }
 
+        // -- Stage 6: Pin extraction ----------------------------------
+        // pin 变体从原组剥离 → 置顶；原组只留未 pin 变体且位置不变。
+        // 幂等（PIN_COPIES 先清旧重打包组）。生成的新组是全新 RecipeCollection
+        // 对象，其残缺标记由 Stage 6b（reapplyPartialMarking）重放。
+        // BRBE/vanilla 两种排序路径都执行提取（pin 置顶语义全局一致）
+        CollectionPipeline.applyPinCopyGroups(result);
+
+        // -- Stage 6b: reapply partial marking on repacked packs ------
+        // 新组（rest/pin 包）无残缺标记（按对象身份记录）——重放标记，
+        // wasChecked 让原组自动跳过（无副作用），仅重打包组真正生效。
+        if (ctx.partialMarkingEnabled) {
+            for (RecipeCollection c : result) {
+                PartialCraftingUtil.markPartialMaterials(c, ctx.inventoryItems);
+            }
+        }
+
         return result;
     }
 

@@ -147,6 +147,52 @@ public class PinnedRecipeManager {
         return false;
     }
 
+    /** 是否"全 pin"（副本替代配方组特征）：组内**每个**配方都被 pin。
+     *  仅含部分 pin 配方的原组不返回 true——原组按钮不显示 pin 贴图，
+     *  避免"整体变成副本组"的观感（pin 贴图只属于真正的副本组）。
+     *  1.21.1 版：基于 RecipeHolder.id()（RecipeCollection.getRecipes()）。 */
+    public boolean isFullyPinned(RecipeCollection target) {
+        if (target == null) return false;
+        java.util.List<RecipeHolder<?>> recipes = target.getRecipes();
+        if (recipes.isEmpty()) return false;
+        for (RecipeHolder<?> recipe : recipes) {
+            if (!this.pinned.contains(recipe.id())) return false;
+        }
+        return true;
+    }
+
+    /** 同 {@link #isFullyPinned(RecipeCollection)}，自研配方书集合版。 */
+    public <R extends GenericRecipe, M extends AbstractContainerMenu> boolean isFullyPinned(
+            GenericRecipeBookCollection<R, M> target) {
+        if (target == null) return false;
+        List<R> recipes = target.getRecipes();
+        if (recipes.isEmpty()) return false;
+        for (R recipe : recipes) {
+            if (!this.pinned.contains(recipe.id())) return false;
+        }
+        return true;
+    }
+
+    /** Whether a single recipe holder is pinned（同一 key 语义：holder.id()）。 */
+    public boolean isPinnedEntry(RecipeHolder<?> holder) {
+        return holder != null && this.pinned.contains(holder.id());
+    }
+
+    /** 单配方 pin 切换（替代配方组规则：组不能直接 pin，只能在打开
+     *  替代配方组后按固定键切换组内单个变体）。 */
+    public void toggleFavourite(RecipeHolder<?> holder) {
+        if (holder == null) return;
+        ResourceLocation id = holder.id();
+        if (this.pinned.remove(id)) {
+            version++;
+            this.store();
+            return;
+        }
+        this.pinned.add(id);
+        version++;
+        this.store();
+    }
+
     public static void handlePinRecipe(RecipeBookComponent book, RecipeBookPage page, RecipeHolder<?> recipe) {
         RecipeCollection collection = new RecipeCollection(Minecraft.getInstance().level.registryAccess(), List.of(recipe));
         collection.updateKnownRecipes(page.getRecipeBook());

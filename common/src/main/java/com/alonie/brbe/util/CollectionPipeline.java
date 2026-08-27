@@ -5,7 +5,10 @@ import com.alonie.brbe.generic.pins.PinnableRecipeCollection;
 import com.alonie.brbe.generic.pins.PipelineCollection;
 import com.alonie.brbe.search.SearchCache;
 import com.alonie.brbe.search.SearchQuery;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
+import net.minecraft.resources.ResourceLocation;
+import net.minecraft.world.entity.player.StackedContents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.level.Level;
@@ -144,8 +147,7 @@ public final class CollectionPipeline {
 
         List<RecipeCollection> snapshot = new ArrayList<>(collections);
         for (RecipeCollection coll : snapshot) {
-            if (BetterRecipeBook.pinnedRecipeManager.has(
-                    PinnableRecipeCollection.of(coll))) {
+            if (BetterRecipeBook.pinnedRecipeManager.isFullyPinned(coll)) {
                 collections.remove(coll);
                 collections.add(0, coll);
             }
@@ -182,8 +184,7 @@ public final class CollectionPipeline {
         List<RecipeCollection> unpinnedUncraftable = new ArrayList<>();
 
         for (RecipeCollection c : collections) {
-            boolean isPinned = BetterRecipeBook.pinnedRecipeManager.has(
-                        PinnableRecipeCollection.of(c));
+            boolean isPinned = BetterRecipeBook.pinnedRecipeManager.isFullyPinned(c);
 
             if (hasPartialData) {
                 // Use EvenIfStale to prevent category flicker when sorting
@@ -264,7 +265,7 @@ public final class CollectionPipeline {
 
         List<T> snapshot = new ArrayList<>(collections);
         for (T coll : snapshot) {
-            if (BetterRecipeBook.pinnedRecipeManager.has(coll)) {
+            if (isFullyPinnedGeneric(coll)) {
                 collections.remove(coll);
                 collections.add(0, coll);
             }
@@ -290,7 +291,7 @@ public final class CollectionPipeline {
         List<T> unpinnedUncraftable = new ArrayList<>();
 
         for (T c : collections) {
-            boolean isPinned = BetterRecipeBook.pinnedRecipeManager.has(c);
+            boolean isPinned = isFullyPinnedGeneric(c);
 
             boolean craftable = c.hasAnyCraftable();
             boolean partial = c.hasAnyPartiallyCraftable();
@@ -336,5 +337,133 @@ public final class CollectionPipeline {
             if (keep) result.add(coll);
         }
         return result;
+    }
+    /** 泛型版"全 pin"判定：组内每个配方 id 都在 pin 集合中（等价
+     *  PinnedRecipeManager.isFullyPinned 的 RecipeCollection 版语义）。 */
+    private static <T extends PipelineCollection> boolean isFullyPinnedGeneric(T coll) {
+        List<?> recipes = coll.getRecipes();
+        if (recipes == null || recipes.isEmpty()) return false;
+        for (Object r : recipes) {
+            ResourceLocation id = recipeIdOf(r);
+            if (id == null || !BetterRecipeBook.pinnedRecipeManager.pinned.contains(id)) return false;
+        }
+        return true;
+    }
+
+    /** 从配方对象提取 ResourceLocation id（RecipeHolder / GenericRecipe 兼容）。 */
+    private static ResourceLocation recipeIdOf(Object recipe) {
+        if (recipe instanceof net.minecraft.world.item.crafting.RecipeHolder<?> h) return h.id();
+        if (recipe instanceof com.alonie.brbe.generic.GenericRecipe g) return g.id();
+        return null;
+    }
+
+    // ═══════════════════════════════════════════════════════════════
+    // Stage 6: Pin extraction (1.21.1 RecipeHolder 版)
+    // ═══════════════════════════════════════════════════════════════
+
+    /** 本阶段生成的重打包组身份（弱集合：随列表重建 GC，不造成残留）。 */
+    private static final java.util.Set<RecipeCollection> PIN_COPIES =
+            java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
+
+    /**
+     * pin 剥离 stage（管线末端调用）——用户规则：pin 的变体从原组**剥离**，
+     * 原组（重打包）只保留未 pin 变体且**位置不变**（pin 单个变体不得使原组
+     * 重新排序）；pin 集合的展示**置顶**（与"pin 置顶"规则一致）：
+     * <ul>
+     *   <li><b>1 个 pin</b>：生成**独立单配方组**（该变体单独成组，带 pin 贴图）
+     *      排在列表最前；</li>
+     *   <li><b>≥2 个 pin</b>：生成**副本替代配方组**（只含这些 pin 配方，全 pin
+     *      → 贴图判定自然命中）排在列表最前；多个原组的 pin 组保持原组顺序；</li>
+     *   <li><b>全 pin</b>：原组不再重打包（它就是 pin 组形态，直接保留贴图）；</li>
+     *   <li>取消 pin 后变体回归原组（下次管线重算自动还原）。</li>
+     * </ul>
+     * 幂等：上一轮生成的重打包组先从列表移除再重新生成。
+     */
+    public static void applyPinCopyGroups(List<RecipeCollection> collections) {
+        if (collections == null || collections.isEmpty()) return;
+
+        // 1) 移除上一轮生成的重打包组（管线缓存列表可能已带有）
+        List<RecipeCollection> stale = new ArrayList<>();
+        for (RecipeCollection c : collections) {
+            if (PIN_COPIES.contains(c)) stale.add(c);
+        }
+        if (!stale.isEmpty()) {
+            collections.removeAll(stale);
+            PIN_COPIES.removeAll(stale);
+        }
+
+        // 2) 逐组剥离：原组 → [重打包 rest 组（未 pin 变体，原位）] + [pin 组（置顶）]
+        java.util.Map<RecipeCollection, RecipeCollection> restPacks =
+                new java.util.LinkedHashMap<>();
+        java.util.List<RecipeCollection> pinPacks = new ArrayList<>();
+        for (RecipeCollection collection : collections) {
+            List<RecipeHolder<?>> pinned = new ArrayList<>();
+            List<RecipeHolder<?>> rest = new ArrayList<>();
+            for (RecipeHolder<?> holder : collection.getRecipes()) {
+                if (holder != null && BetterRecipeBook.pinnedRecipeManager.isPinnedEntry(holder)) {
+                    pinned.add(holder);
+                } else if (holder != null) {
+                    rest.add(holder);
+                }
+            }
+            if (pinned.isEmpty()) continue;
+            if (pinned.size() == collection.getRecipes().size()) {
+                // 全 pin：原组本身就是 pin 组形态（保留，贴图由 isFullyPinned 命中）
+                continue;
+            }
+            RecipeCollection restPack = buildPack(rest, collection);
+            RecipeCollection pinPack = buildPack(pinned, collection);
+            PIN_COPIES.add(restPack);
+            PIN_COPIES.add(pinPack);
+            restPacks.put(collection, restPack);
+            pinPacks.add(pinPack);
+            BetterRecipeBook.LOGGER.info(
+                    "[BRBE-PINS] pin-extract: {} recipes, {} pinned variants -> rest {} + pin-group {}",
+                    collection.getRecipes().size(), pinned.size(), rest.size(), pinned.size());
+        }
+        if (restPacks.isEmpty()) return;
+
+        // 3) 原位替换：原组位置只保留 rest 组（未 pin 变体；排序不受影响）
+        for (java.util.Map.Entry<RecipeCollection, RecipeCollection> e : restPacks.entrySet()) {
+            int idx = collections.indexOf(e.getKey());
+            if (idx < 0) continue;
+            collections.remove(e.getKey());
+            collections.add(idx, e.getValue());
+        }
+
+        // 4) pin 组置顶（按原组遍历顺序，与 pin 置顶规则一致）
+        if (!pinPacks.isEmpty()) {
+            collections.addAll(0, pinPacks);
+        }
+    }
+
+    /** 由一组变体构建重打包组（同原组语义：canCraft 按玩家物品栏重算）。
+     *  1.21.1 无 selectRecipes（1.21.5+ 拆分），用构造 + canCraft 一体式。 */
+    private static RecipeCollection buildPack(List<RecipeHolder<?>> entries,
+                                              RecipeCollection template) {
+        RecipeCollection pack = new RecipeCollection(template.registryAccess(), new ArrayList<>(entries));
+        if (Minecraft.getInstance().player != null) {
+            var player = Minecraft.getInstance().player;
+            var recipeBook = player.getRecipeBook();
+            var stacked = new StackedContents();
+            getStackedContents(stacked);
+            pack.canCraft(stacked, 2, 2, recipeBook);
+            pack.updateKnownRecipes(recipeBook);
+        }
+        return pack;
+    }
+
+    /** 填充当前玩家真实物品栏（items+armor+offhand）至 StackedContents。 */
+    private static void getStackedContents(StackedContents stacked) {
+        var p = Minecraft.getInstance().player;
+        if (p == null) return;
+        for (var stack : p.getInventory().items) {
+            if (!stack.isEmpty()) stacked.accountStack(stack);
+        }
+        for (var stack : p.getInventory().armor) {
+            if (!stack.isEmpty()) stacked.accountStack(stack);
+        }
+        var offhand = p.getInventory().offhand.get(0);
+        if (offhand != null && !offhand.isEmpty()) stacked.accountStack(offhand);
     }
 }

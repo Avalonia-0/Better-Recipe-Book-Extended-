@@ -88,7 +88,8 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         gui.renderFakeItem(result, getX() + offset, getY() + offset);
 
         // if pinned recipe, blit the pin texture at top-right outer corner
-        if (BetterRecipeBook.pinnedRecipeManager.has(collection)) {
+        // 仅"全 pin 组"（含 Stage 6 生成的副本组）显示 pin 贴图
+        if (BetterRecipeBook.pinnedRecipeManager.isFullyPinned(collection)) {
             gui.blitSprite(BRBTextures.RECIPE_BOOK_PIN_SPRITE,
                     getX() + getWidth() - BookLayout.PIN_SPRITE_OFFSET,
                     getY() - BookLayout.PIN_SPRITE_OFFSET,

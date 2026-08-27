@@ -12,6 +12,8 @@ public interface IPinningComponent<T extends Pinnable> {
 
         if (true) {
             for (T result : tempResults) {
+                // 泛型接口无稳定 isFullyPinned 重载（T 未绑定 RecipeCollection）：
+                // 保持原有 has 语义（自研书集合尚未接入 Stage 6 剥离）。
                 if (BetterRecipeBook.pinnedRecipeManager.has(result)) {
                     results.remove(result);
                     results.add(0, result);
