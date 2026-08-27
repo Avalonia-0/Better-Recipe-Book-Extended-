@@ -1,5 +1,6 @@
 package com.alonie.recipebookispain_extended.mixin.widget;
 
+import com.alonie.brbe.pin.TabPinManager;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.access.CreativeTabButtonAccess;
@@ -10,6 +11,7 @@ import com.mojang.math.Axis;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
 import net.minecraft.client.renderer.entity.ItemRenderer;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.ItemStack;
@@ -89,6 +91,48 @@ public abstract class RecipeBookTabButtonCreativeMixin
         gui.renderFakeItem(icon, self.getX() + 9 + xOff, self.getY() + 5);
     }
 
+    // ── 固定标签 pin 贴图 ────────────────────────────────────────
+
+    /** 固定了的创造标签画 pin 图标（最上层，32x32 与配方按钮 pin 一致）。
+     *  位置规则（1.21.11 最终版）：正常朝向 anchor (x-4, y-4)（左上角）；
+     *  上/下侧绕转条带 pinX+3（右移 3px），下侧 pinY+6；选中时 pin 随标签
+     *  偏移 1px（正常向左、上侧向上、下侧向下）。均为最终屏幕位置。 */
+    @Unique
+    private void rbip$drawTabPin(GuiGraphics gui) {
+        if (this.rbip$creativeTab == null) return;
+        ResourceLocation tabId = BuiltInRegistries.CREATIVE_MODE_TAB.getKey(this.rbip$creativeTab);
+        if (tabId == null || !TabPinManager.isPinned(tabId)) return;
+        RecipeBookTabButton self = (RecipeBookTabButton) (Object) this;
+        int pinX = self.getX() - 4;
+        int pinY = self.getY() - 4;
+        if (this.rbip$placement == RecipeGroupButtonPlacement.TOP
+                || this.rbip$placement == RecipeGroupButtonPlacement.BOTTOM) {
+            pinX += 3;
+        }
+        if (this.rbip$placement == RecipeGroupButtonPlacement.BOTTOM) {
+            pinY += 6;
+        }
+        if (self.isStateTriggered()) {
+            if (this.rbip$placement == RecipeGroupButtonPlacement.NORMAL) {
+                pinX--;
+            } else if (this.rbip$placement == RecipeGroupButtonPlacement.TOP) {
+                pinY--;
+            } else {
+                pinY++;
+            }
+        }
+        gui.blitSprite(BRBTextures.RECIPE_BOOK_PIN_SPRITE,
+                pinX, pinY, 32, 32);
+    }
+
+    // ── Normal placement: pin marker after default render ──────
+
+    @Inject(method = "renderWidget", at = @At("RETURN"))
+    private void rbip$drawPinMarkerNormal(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
+        if (this.rbip$placement != RecipeGroupButtonPlacement.NORMAL) return;
+        this.rbip$drawTabPin(gui);
+    }
+
     // ── Rotated rendering for TOP / BOTTOM placements ──────────
 
     @Inject(method = "renderWidget", at = @At("HEAD"), cancellable = true)
@@ -107,6 +151,9 @@ public abstract class RecipeBookTabButtonCreativeMixin
         if (!icon.isEmpty()) {
             gui.renderFakeItem(icon, this.rbip$getRotatedIconX(), this.rbip$getRotatedIconY());
         }
+
+        // 3) 固定标签 pin 贴图（旋转条带在 90° 旋转矩阵之外按最终屏幕坐标绘制）
+        this.rbip$drawTabPin(gui);
     }
 
     @Unique
