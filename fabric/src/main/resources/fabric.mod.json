@@ -50,5 +50,8 @@
   "depends": {
     "fabric-api": "*",
     "minecraft": ">=1.21.1"
-  }
+  },
+  "jars": [
+    "META-INF/jars/headless-jei-fabric-1.21.1-1.0.0.jar"
+  ]
 }
