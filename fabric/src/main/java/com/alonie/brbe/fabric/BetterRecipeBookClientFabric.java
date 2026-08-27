@@ -89,7 +89,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         ResourceManagerHelper.registerBuiltinResourcePack(
                 ResourceLocation.fromNamespaceAndPath("brbe", "brbe_unique_dark"),
                 FabricLoader.getInstance().getModContainer("brbe").orElseThrow(),
-                Component.literal("Unique Dark Lite ").append(Component.literal("✕").withStyle(ChatFormatting.YELLOW)).append(Component.literal(" BRBE")),
+                Component.literal("Unique Dark - Lite ").append(Component.literal("✕").withStyle(ChatFormatting.YELLOW)).append(Component.literal(" BRBE")),
                 ResourcePackActivationType.NORMAL);
     }
 }

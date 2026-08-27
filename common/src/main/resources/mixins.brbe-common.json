@@ -58,6 +58,7 @@
     "toasts.SuppressUnlockSound",
     "ungroup.ClientRecipeBookMixin",
     "ungroup.RecipeBookComponentMixin",
+    "localcache.RecipeCollectionMixin",
     "unlockrecipes.ClientPacketListenerMixin",
     "unlockrecipes.MultiPlayerGameModeMixin",
     "unlockrecipes.RecipeButtonMixin",

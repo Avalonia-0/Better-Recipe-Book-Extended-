@@ -31,6 +31,16 @@ import java.util.Set;
 public class PinnedRecipeManager {
     public HashSet<ResourceLocation> pinned;
 
+    /** Monotonic version incremented whenever the pin set changes.  Used as
+     *  a cheap cache-invalidation signal by the recipe-book pipeline cache
+     *  (pins order must be recomputed after any pin change). */
+    private int version;
+
+    /** Current pin-set version (see {@link #version}). */
+    public int version() {
+        return version;
+    }
+
     /** Async pin store — when non-null, reads and writes delegate here. */
     private PinStore store;
 
@@ -44,6 +54,7 @@ public class PinnedRecipeManager {
         if (store != null) {
             Set<ResourceLocation> loaded = store.load();
             pinned = (loaded instanceof HashSet) ? (HashSet<ResourceLocation>) loaded : new HashSet<>(loaded);
+            version++;
             return;
         }
 
@@ -97,6 +108,7 @@ public class PinnedRecipeManager {
             for (RecipeHolder<?> recipe : target.getRecipes()) {
                 if (recipe.id().equals(identifier)) {
                     this.pinned.remove(identifier);
+                    version++;
                     this.store();
                     return;
                 }
@@ -104,6 +116,7 @@ public class PinnedRecipeManager {
         }
 
         this.pinned.addAll(target.getRecipes().stream().map(RecipeHolder::id).toList());
+        version++;
         this.store();
     }
 
@@ -112,6 +125,7 @@ public class PinnedRecipeManager {
             for (R recipe : target.getRecipes()) {
                 if (recipe.id().equals(identifier)) {
                     this.pinned.remove(identifier);
+                    version++;
                     this.store();
                     return;
                 }
@@ -119,6 +133,7 @@ public class PinnedRecipeManager {
         }
 
         this.pinned.addAll(target.getRecipes().stream().map(R::id).toList());
+        version++;
         this.store();
     }
 

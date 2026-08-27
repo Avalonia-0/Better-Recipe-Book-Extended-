@@ -6,6 +6,7 @@ import com.alonie.brbe.util.CollectionPipeline;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.VanillaPipelineCollection;
 import net.minecraft.client.ClientRecipeBook;
+import net.minecraft.client.gui.screens.inventory.EffectRenderingInventoryScreen;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
@@ -103,6 +104,8 @@ public class RecipeBookComponentMixin {
         boolean brbeManagesFilter = BetterRecipeBook.ctx().config().partialCraftingEnabled;
         if (brbeManagesFilter || book.isFiltering(menu)) {
             PartialCraftingUtil.beginFilteringUpdate(true);
+            boolean twoByTwoInventory = net.minecraft.client.Minecraft.getInstance().screen
+                    instanceof EffectRenderingInventoryScreen;
             Set<Item> inventoryItems = PartialCraftingUtil.hashInventory(
                     menu.slots, menu.getResultSlotIndex(), menu.getCarried());
 
@@ -110,12 +113,12 @@ public class RecipeBookComponentMixin {
                 // BRBE mode: mark partials for sorting, but don't remove
                 // anything — let all recipes through to the pipeline.
                 for (RecipeCollection collection : list2) {
-                    PartialCraftingUtil.markPartialMaterials(collection, inventoryItems);
+                    PartialCraftingUtil.markPartialMaterials(collection, inventoryItems, inventoryItems, twoByTwoInventory);
                 }
             } else {
                 // Vanilla mode: mark partials AND remove non-craftable.
                 list2.removeIf(collection -> {
-                    PartialCraftingUtil.markPartialMaterials(collection, inventoryItems);
+                    PartialCraftingUtil.markPartialMaterials(collection, inventoryItems, inventoryItems, twoByTwoInventory);
                     return !collection.hasCraftable()
                             && !PartialCraftingUtil.hasPartialMaterials(collection);
                 });

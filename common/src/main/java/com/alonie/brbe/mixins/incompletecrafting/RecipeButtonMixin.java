@@ -79,7 +79,12 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         return collection.hasCraftable() || hasPartial;
     }
 
-    @Inject(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;renderFakeItem(Lnet/minecraft/world/item/ItemStack;II)V", shift = At.Shift.BEFORE))
+    // Inject AFTER the slot sprite (blitSprite) and BEFORE every item draw:
+    // a partial recipe's red mark must sit under BOTH icons of the vanilla
+    // "many recipes" stack (renderItem at offset+1, then renderFakeItem at
+    // offset) — injecting before renderFakeItem only would paint the red mark
+    // BETWEEN the two stacked icons, covering the back icon.
+    @Inject(method = "renderWidget", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphics;blitSprite(Lnet/minecraft/resources/ResourceLocation;IIII)V", shift = At.Shift.AFTER))
     private void brbe$renderPartialOverlay(GuiGraphics gui, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         List<RecipeHolder<?>> recipes = this.getOrderedRecipes();
         if (recipes.isEmpty()) return;

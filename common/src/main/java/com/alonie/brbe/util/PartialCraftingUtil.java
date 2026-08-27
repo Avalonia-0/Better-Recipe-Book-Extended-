@@ -210,6 +210,15 @@ public final class PartialCraftingUtil {
      * （或空集 → 完全不标 partial），3×3 材料齐全判定仍用完整库存。
      */
     public static boolean markPartialMaterials(RecipeCollection collection, Set<Item> inventoryItems, Set<Item> matchItems) {
+        return markPartialMaterials(collection, inventoryItems, matchItems, false);
+    }
+
+    /**
+     * {@code twoByTwoInventory}：当前是否为 2×2 生存背包网格。仅当为 true 且
+     * showAllRecipesInSurvival 关闭时才跳过 3×3 配方；工作台（3×3 网格）不受影响。
+     */
+    public static boolean markPartialMaterials(RecipeCollection collection, Set<Item> inventoryItems, Set<Item> matchItems,
+                                               boolean twoByTwoInventory) {
         if (!enabled()) return false;
         if (wasCheckedForPartialMaterials(collection)) return hasPartialMaterials(collection);
 
@@ -226,10 +235,14 @@ public final class PartialCraftingUtil {
             }
 
             // 3×3 配方：2×2 生存网格放不下。
-            // 材料齐全 → 不标 partial（网格问题，由 incompatible 警告处理）。
-            // 材料不足 → 标 partial（确实缺材料）。
+            // showAllRecipesInSurvival 关闭时，仅 2×2 背包网格不显示 3×3 配方——
+            // 不标 partial，否则会被注入 craftable 而残留显示（出现空气占位按钮）；
+            // 工作台（3×3 网格）的 3×3 残缺配方照常标记。
             Recipe<?> vanillaRecipe = recipe.value();
             if (needsLargerGrid(recipe)) {
+                if (twoByTwoInventory && !BetterRecipeBook.ctx().config().showAllRecipesInSurvival) continue;
+                // 材料齐全 → 不标 partial（网格问题，由 incompatible 警告处理）。
+                // 材料不足 → 标 partial（确实缺材料）。
                 if (hasAllIngredients(vanillaRecipe.getIngredients(), inventoryItems)) {
                     continue;
                 }

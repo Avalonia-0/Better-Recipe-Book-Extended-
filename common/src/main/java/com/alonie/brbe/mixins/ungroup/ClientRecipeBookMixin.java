@@ -3,15 +3,18 @@ package com.alonie.brbe.mixins.ungroup;
 import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.util.PartialCraftingUtil;
+import com.alonie.brbe.util.RecipeCraftingIndex;
 import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.RecipeBookCategories;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.stats.RecipeBook;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 import org.spongepowered.asm.mixin.injection.callback.LocalCapture;
 
@@ -22,6 +25,16 @@ import java.util.Map;
 @Mixin(ClientRecipeBook.class)
 public class ClientRecipeBookMixin extends RecipeBook {
     @Shadow private Map<RecipeBookCategories, List<RecipeCollection>> collectionsByTab;
+
+    /** Collection objects were (re)created — rebuild the incremental-canCraft
+     *  index so the next inventory pass can skip unaffected collections. */
+    @Inject(method = "setupCollections", at = @At("RETURN"))
+    private void brbe$rebuildCraftingIndex(Iterable<RecipeHolder<?>> recipes,
+                                           RegistryAccess registryAccess,
+                                           CallbackInfo ci) {
+        ClientRecipeBook self = (ClientRecipeBook) (Object) this;
+        RecipeCraftingIndex.rebuild(self.getCollections());
+    }
 
     @Inject(method = "getCollection", locals = LocalCapture.CAPTURE_FAILHARD, at = @At("RETURN"), cancellable = true)
     private void split(RecipeBookCategories category, CallbackInfoReturnable<List<RecipeCollection>> cir) {

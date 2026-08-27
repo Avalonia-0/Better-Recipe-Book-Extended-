@@ -53,7 +53,7 @@ public class BetterRecipeBookClientNeoForge {
             event.addPackFinders(
                     ResourceLocation.fromNamespaceAndPath("brbe", "resourcepacks/brbe_unique_dark"),
                     PackType.CLIENT_RESOURCES,
-                    Component.literal("Unique Dark Lite ").append(Component.literal("✕").withStyle(ChatFormatting.YELLOW)).append(Component.literal(" BRBE")),
+                    Component.literal("Unique Dark - Lite ").append(Component.literal("✕").withStyle(ChatFormatting.YELLOW)).append(Component.literal(" BRBE")),
                     PackSource.BUILT_IN,
                     false,
                     Pack.Position.TOP);

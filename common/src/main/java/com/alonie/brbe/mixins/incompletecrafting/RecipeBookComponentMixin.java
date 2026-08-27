@@ -58,6 +58,7 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
     @Shadow @Final private RecipeBookPage recipeBookPage;
     @Shadow private String lastSearch;
     @Shadow @Final protected GhostRecipe ghostRecipe;
+    @Shadow @Final private net.minecraft.world.entity.player.StackedContents stackedContents;
 
     @Unique
     private long brbe$lastSlotHash;
@@ -72,6 +73,41 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
 
     @Unique
     private ItemStack brbe$lastCarried = ItemStack.EMPTY;
+
+    // ---- Pipeline output cache ----
+    // When the inventory is unchanged (RecipeCraftingIndex.inventoryUnchanged),
+    // every collection's canCraft state is identical to the last pass, so the
+    // visibility/sort output is identical too.  Reusing the cached display
+    // list skips the O(collections) prepareDisplay work on every recipe-book
+    // open.  Invalidated on inventory change, pin change, filtering toggle,
+    // config change, collection rebuild, or tab reset.
+
+    @Unique
+    private List<RecipeCollection> brbe$cachedDisplayList;
+
+    @Unique
+    private int brbe$cacheGeneration = -1;
+
+    @Unique
+    private int brbe$cachePinVersion = -1;
+
+    @Unique
+    private boolean brbe$cacheFiltering;
+
+    @Unique
+    private boolean brbe$cacheConfigKey;
+
+    @Unique
+    private boolean brbe$cacheHasDisplay;
+
+    @Unique
+    private boolean brbe$configKey() {
+        if (BetterRecipeBook.ctx() == null
+                || BetterRecipeBook.ctx().config() == null) return false;
+        return BetterRecipeBook.ctx().config().partialCraftingEnabled
+                || BetterRecipeBook.ctx().config().partialMarkingEnabled
+                || BetterRecipeBook.ctx().config().alternativeRecipes.noGrouped;
+    }
 
     /**
      * 鼠标拿起物品 = 放入一个特殊槽位（carried）。槽位变化应触发配方书刷新，
@@ -133,9 +169,24 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         boolean rebuildDetected = firstCollHash != 0
                 && firstCollHash != brbe$lastFirstCollIdHash;
 
+        // Incremental canCraft diff: compute the changed-item set S from the
+        // inventory, then only run vanilla canCraft on collections whose
+        // ingredients reference an item in S.  Unaffected collections keep
+        // their craftable set from the last pass (canCraft is a pure function
+        // of ingredients × inventory contents).  Must run before the per-
+        // collection canCraft loop below.
+        int gridSig = menu != null
+                ? menu.getRecipeBookType().ordinal() : -1;
+        RecipeCraftingIndex.beginPass(stackedContents, gridSig);
+
         if (inventoryChanged || rebuildDetected) {
             PerfTimer.start("vanilla.forEach");
-            collections.forEach(vanillaConsumer);
+            for (RecipeCollection collection : collections) {
+                if (RecipeCraftingIndex.shouldSkip(collection)) {
+                    continue;
+                }
+                vanillaConsumer.accept(collection);
+            }
             PerfTimer.end("vanilla.forEach");
             brbe$lastSlotHash = slotHash;
             brbe$lastFirstCollIdHash = firstCollHash;
@@ -285,7 +336,30 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
 
         // Only visibility + sorting here — state was already updated
         // by brbe$forEachRedirect earlier in the same updateCollections call.
-        List<RecipeCollection> result = RecipePipeline.prepareDisplay(list, ctx);
+        //
+        // Pipeline output cache: when the inventory is unchanged, canCraft
+        // results (and thus the visibility/sort outcome) are identical to
+        // the last pass — reuse the cached display list and skip the
+        // O(collections) prepareDisplay work.
+        List<RecipeCollection> result;
+        boolean cacheHit = brbe$cacheHasDisplay
+                && RecipeCraftingIndex.inventoryUnchanged()
+                && brbe$cacheGeneration == RecipeCraftingIndex.generation()
+                && brbe$cachePinVersion == BetterRecipeBook.pinnedRecipeManager.version()
+                && brbe$cacheFiltering == isFiltering
+                && brbe$cacheConfigKey == brbe$configKey()
+                && !resetPageNumber;
+        if (cacheHit) {
+            result = brbe$cachedDisplayList;
+        } else {
+            result = RecipePipeline.prepareDisplay(list, ctx);
+            brbe$cachedDisplayList = result;
+            brbe$cacheGeneration = RecipeCraftingIndex.generation();
+            brbe$cachePinVersion = BetterRecipeBook.pinnedRecipeManager.version();
+            brbe$cacheFiltering = isFiltering;
+            brbe$cacheConfigKey = brbe$configKey();
+            brbe$cacheHasDisplay = true;
+        }
 
         if (result.isEmpty()) {
             BetterRecipeBook.LOGGER.warn(
@@ -296,7 +370,6 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         }
 
         page.updateCollections(result, resetPageNumber);
-
         // Post-check: verify the page actually got our list
         var pageAccessor = (com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor) page;
         List<RecipeCollection> stored = pageAccessor.getCollections();
