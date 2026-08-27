@@ -416,3 +416,14 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 - 辅助：`hoveredEntry(mouseX,mouseY)` 网格命中、`mouseXFor/mouseYFor`（MouseHandler xpos/ypos；1.21.1 无鼠标事件 record）
 
 **待办**：翻页动画 Mixin（视觉池整块重写）、anvil/brewing/grindstone（数据源缺失）、pinoverlay 浮层（独立的 pin 展示界面——当前为按钮就地 pin 标记，非 1.21.11 的弹层）、RBIP 标签固定键。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 12——RBIP 标签固定键）
+
+**已落地**：
+- `RecipeBookWidgetMixin`：`brbe$activeInstance`（updateTabs TAIL 记录）+ 静态桥 `rbip$tabToGroup(RecipeBookTabButton)`（活跃实例 rbip$buttonToTab 映射查询）
+- `pins/AbstractContainerScreenMixin.keyPressed`：网格按钮分支后加 RBIP 标签分支——悬停标签 → `rbip$tabToGroup` → BuiltInRegistries 取 tabId → `TabPinManager.toggle` + 音效 + `updateTabsInvoker()`（触发 rebuildTabList 置顶）
+- `BetterRecipeBook.init`：`TabPinManager.init(gameDir)`（zzzbrbe.tabpins.json 懒加载）
+
+**至此 RBIP 标签 pin 闭环**：A 键固定标签 → TabPinManager 持久化 → rebuildTabList 置顶 + 标签 pin 贴图（轮次 3）。
+
+**待办**：翻页动画 Mixin（视觉池整块重写）、anvil/brewing/grindstone（数据源缺失）、pinoverlay 浮层。

@@ -148,6 +148,8 @@ public class BetterRecipeBook {
         com.alonie.brbe.pin.JsonPinStore pinStore =
                 new com.alonie.brbe.pin.JsonPinStore(Minecraft.getInstance().gameDirectory.toPath());
         pinnedRecipeManager.setStore(pinStore);
+        // RBIP 固定标签持久化（zzzbrbe.tabpins.json，懒加载）
+        com.alonie.brbe.pin.TabPinManager.init(Minecraft.getInstance().gameDirectory.toPath());
 
         // -- Load pins (uses async store when wired, legacy fallback otherwise)
         pinnedRecipeManager.read();

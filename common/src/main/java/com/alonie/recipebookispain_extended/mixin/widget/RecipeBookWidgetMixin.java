@@ -182,8 +182,20 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     private void rbip$afterUpdateTabs(CallbackInfo ci) {
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         rbip$ensureFields();
+        brbe$activeInstance = this;
         if (rbip$creativeButtons.isEmpty()) return;
         this.rbip$rebuildTabList();
+    }
+
+    /** 活跃 RBIP 实例（调用方：标签固定键静态查询）。 */
+    @Unique private static volatile RecipeBookWidgetMixin brbe$activeInstance;
+
+    /** 标签 → 创造模式标签映射（活跃实例），供 keyPressed 固定键查询。 */
+    @Unique public static CreativeModeTab rbip$tabToGroup(RecipeBookTabButton tab) {
+        RecipeBookWidgetMixin inst = brbe$activeInstance;
+        if (inst == null || tab == null) return null;
+        inst.rbip$ensureFields();
+        return inst.rbip$buttonToTab.get(tab);
     }
 
     // ── render TAIL: scroll + page controls + tooltip ──────────

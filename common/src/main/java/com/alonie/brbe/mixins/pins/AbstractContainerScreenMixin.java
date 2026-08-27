@@ -77,6 +77,28 @@ public abstract class AbstractContainerScreenMixin {
                 cir.setReturnValue(true);
                 return;
             }
+
+            // RBIP 创造标签：固定键悬停在标签上时固定/取消固定该标签（固定标签排在
+            // 首页搜索标签之下）。无创造组映射的标签（搜索标签等）不可固定。
+            for (RecipeBookTabButton tab : ((RecipeBookComponentAccessor) book).getTabButtons()) {
+                if (!tab.visible || !tab.isHoveredOrFocused()) continue;
+                net.minecraft.world.item.CreativeModeTab group =
+                        com.alonie.recipebookispain_extended.mixin.widget.RecipeBookWidgetMixin
+                                .rbip$tabToGroup(tab);
+                if (group == null) continue;
+                net.minecraft.resources.ResourceLocation tabId =
+                        net.minecraft.core.registries.BuiltInRegistries.CREATIVE_MODE_TAB
+                                .getKey(group);
+                if (tabId == null) continue;
+                com.alonie.brbe.pin.TabPinManager.toggle(tabId);
+                if (minecraft.getSoundManager() != null) {
+                    tab.playDownSound(minecraft.getSoundManager());
+                }
+                // 重建标签列表：固定标签置顶（rebuildTabList 按 pinnedTabs 排序）
+                ((RecipeBookComponentAccessor) book).updateTabsInvoker();
+                cir.setReturnValue(true);
+                return;
+            }
         }
 
         // when <chat key> is pressed, focus recipes component for searchBox
