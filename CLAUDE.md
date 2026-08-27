@@ -438,3 +438,13 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 **API 差异备忘**：1.21.1 RecipeButton 无参构造（1.21.11 需 SlotSelectTime）；RecipeBookPage.render 5 参；PageFlipDirection.backward(int,int,int,boolean) 可直接复用。
 
 **待办**：anvil/brewing/grindstone（数据源缺失——JEI 19.27 运行时构建）、pinoverlay 浮层、资源/lang 全量补齐核对。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 14——brewing 类别）
+
+**已落地**：
+- `recipeviewer/BrewingRecipeCategory`（1.21.1 版 grid 类别）：数据源 PotionLoader.POTIONS（配方书同源的 PotionBrewing Mix 扫描）；U 查询酿造台/药水底材（水瓶/玻璃瓶/地狱疣/药水/喷溅药水）→ 全部药水网格；`BrewableResult.getResult(registryAccess, null)` 取结果；defaultPriority 1
+- 注册进 BUILTIN + lang zzzbrbe.category.brewing
+
+**设计说明**：anvil/grindstone 无 1.21.1 RecipeType（JEI 运行时构建配方），同一"信息类别"模式可延伸——anvil（U 查询铁砧=信息网格描述）与 grindstone（研磨石）后续按相同模式补充或以工作站信息提示代替。brewing 因配方书已有 PotionLoader 数据源而优先落地。
+
+**待办**：anvil/grindstone 信息类别、pinoverlay 浮层、资源/lang 全量补齐核对。
