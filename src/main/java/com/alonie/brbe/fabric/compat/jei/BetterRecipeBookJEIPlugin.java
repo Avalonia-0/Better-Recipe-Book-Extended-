@@ -2,7 +2,6 @@ package com.alonie.brbe.fabric.compat.jei;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.compat.jei.JeiCompat;
-import com.alonie.brbe.jei.plugins.engine.JeiRuntimeBridge;
 import com.alonie.brbe.pinoverlay.PinOverlayManager;
 import com.alonie.brbe.util.RecipeViewerOverlay;
 import com.mojang.blaze3d.platform.InputConstants;
@@ -39,9 +38,8 @@ public final class BetterRecipeBookJEIPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeAvailable(IJeiRuntime jeiRuntime) {
-        // Expose JEI's recipe manager so the synthetic recipe renderer can
-        // delegate the full JEI recipe UI to JEI itself.
-        JeiRuntimeBridge.set(jeiRuntime.getRecipeManager());
+        // 独立化后：渲染委托改由 BrbeJeiBridge 反射复用 headless-jei 运行时的
+        // JeiRuntimeBridge/PluginRecipeIndexer，无需在此注入 recipeManager。
 
         // Only bridge R/U fallback queries to the real JEI.  With the real JEI
         // absent, the embedded headless core's RecipesGui is a no-op dummy, so
@@ -81,7 +79,6 @@ public final class BetterRecipeBookJEIPlugin implements IModPlugin {
 
     @Override
     public void onRuntimeUnavailable() {
-        JeiRuntimeBridge.clear();
         JeiCompat.setHandler(null);
     }
 

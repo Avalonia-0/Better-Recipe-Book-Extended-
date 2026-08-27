@@ -52,5 +52,8 @@
     "fabric-api": "*",
     "minecraft": ">=1.21.11"
   },
-  "accessWidener": "brbe.common.accesswidener"
+  "accessWidener": "brbe.common.accesswidener",
+  "jars": [
+    "META-INF/jars/headless-jei-fabric-1.21.11-1.0.0.jar"
+  ]
 }

@@ -68,8 +68,9 @@ dependencies {
     // JEI core is vendored in-tree (src/main/java/mezz/) — no compile-time JEI
     // jar needed.  The two search libraries are JEI Common's only external
     // deps (Maven Central), bundled so the embedded core works without JEI.
-    implementation "net.mezzdev:baked-substring-index:0.1.0"
-    implementation "net.mezzdev:suffixtree:1.1.0"
+    // 无头 JEI 独立化：mezz.jei.api 编译参考 = 真实 JEI 27.4 jar（loom 会 remap 到
+    // 当前映射）；运行时由 jar-in-jar 内嵌的 headless-jei mod / 真实 JEI 提供。
+    modCompileOnly files(rootProject.file("libs/jei-1.21.11-fabric-27.4.0.22.jar"))
 }
 
 loom {
