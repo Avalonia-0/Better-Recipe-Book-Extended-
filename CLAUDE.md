@@ -386,3 +386,13 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 **API 差异备忘**：1.21.1 RecipeBookComponentAccessor 无 getBook()（getRecipeBook()）；updateCollectionsInvoker(boolean) 单参。
 
 **待办（下一轮次）**：翻页动画 Mixin（RecipeButton(SlotSelectTime) 构造器重适配——1.21.1 RecipeButton 构造器不同）、anvil/brewing/grindstone/compost/info 类别、Shift 预览弹窗、pinoverlay、RBIP 标签固定键。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 9——compost 类别）
+
+**已落地**：
+- `recipeviewer/CompostRecipeCategory`（1.21.1 版）：纯信息 grid 类别——数据源 `ComposterBlock.COMPOSTABLES`（Object2FloatMap<ItemLike>）；U 查询可堆肥物品显示该物品、U 查询堆肥桶显示全部（按概率降序）；`chanceOf(ItemLike/ItemStack)` 工具；hasContent/appliesToStation/defaultPriority 1
+- 注册进 BUILTIN + lang zzzbrbe.category.compost
+
+**API 差异备忘**：1.21.1 ComposterBlock.COMPOSTABLES 是 Object2FloatMap（需 object2FloatEntrySet 遍历、getOrDefault(item, 0.0F)）；1.21.1 ItemStack 无 ItemLike 构造（like.asItem()）；**1.21.1 无 anvil/brewing/grindstone RecipeType**（JEI 运行时构建配方），这些类别需按 JEI 19.27 插件方式运行时构建或延后。
+
+**待办**：翻页动画 Mixin（RecipeButton 构造器/init 4 参 vs 2 参——视觉池需整块重写）、anvil/brewing/grindstone（数据源缺失）、Shift 预览弹窗、pinoverlay、RBIP 标签固定键。
