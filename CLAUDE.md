@@ -375,3 +375,14 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 **设计说明**：对照 1.21.11 完整版，本版不含：RBIP 标签栏页码恢复（RecipeBookScrollAccess 1.21.1 无）、搜索变更页码策略（checkSearchStringUpdate 注入——避开与 1.21.1 search mixin 冲突）。
 
 **待办（下一轮次）**：^N^ 跳页命令（SearchPageJump 接线）、Ctrl 跳页、翻页动画 Mixin（RecipeBookPageAnimationMixin 需 RecipeButton(SlotSelectTime) 构造器重适配）、anvil/brewing/grindstone/compost/info 类别、Shift 预览弹窗、pinoverlay、RBIP 标签固定键。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 8——^N^ 跳页命令 + Ctrl 跳页）
+
+**已落地**：
+- `mixins/search/RecipeBookComponentPageJumpMixin`（1.21.1 版）：checkSearchStringUpdate HEAD 拦截 ^N^ 命令（纯 ASCII ^ 或 … 分隔符）；命中 → 清空搜索/取消聚焦/updateCollectionsInvoker(true) 恢复完整列表 → setCurrentPage(page-1) → updateButtonsForPageInvoker + ci.cancel；页码合法性用完整类别列表（20/页）判断；适配 updateCollectionsInvoker(boolean) 单参、getRecipeBook() 名
+- `mixins/scrollablepages/RecipeBookPageMixin`：新增 HEAD 拦截 `brbe$mouseClickedJumpToEdge`——Ctrl+点击箭头跳到首页/尾页（ClientCompat.isControlDown；1.21.1 mouseClicked(double,double,int) 签名；RecipeBookPageAnimBridge.markUserFlip）
+- 注册：mixins.brbe-common.json 加 search.RecipeBookComponentPageJumpMixin
+
+**API 差异备忘**：1.21.1 RecipeBookComponentAccessor 无 getBook()（getRecipeBook()）；updateCollectionsInvoker(boolean) 单参。
+
+**待办（下一轮次）**：翻页动画 Mixin（RecipeButton(SlotSelectTime) 构造器重适配——1.21.1 RecipeButton 构造器不同）、anvil/brewing/grindstone/compost/info 类别、Shift 预览弹窗、pinoverlay、RBIP 标签固定键。

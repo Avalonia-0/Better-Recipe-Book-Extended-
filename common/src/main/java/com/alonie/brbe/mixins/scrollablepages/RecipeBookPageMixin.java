@@ -40,6 +40,36 @@ public abstract class RecipeBookPageMixin {
         this.overlay.setVisible(false);
     }
 
+    /**
+     * Ctrl+点击翻页箭头直接跳到首页/尾页（HEAD 拦截，优先于原版逐页翻页）。
+     * 1.21.1 版：mouseClicked(double,double,int) 签名。
+     */
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    public void brbe$mouseClickedJumpToEdge(double mouseX, double mouseY, int button,
+                                            int areaLeft, int areaTop, int areaWidth, int areaHeight,
+                                            boolean widthTooNarrow, CallbackInfoReturnable<Boolean> cir) {
+        if (button != 0 || !com.alonie.brbe.util.ClientCompat.isControlDown()) {
+            return;
+        }
+        if (forwardButton.mouseClicked(mouseX, mouseY, button)) {
+            if (currentPage < totalPages - 1) {
+                com.alonie.brbe.util.RecipeBookPageAnimBridge.markUserFlip();
+                currentPage = totalPages - 1;
+                updateButtonsForPage();
+            }
+            cir.setReturnValue(true);
+            return;
+        }
+        if (backButton.mouseClicked(mouseX, mouseY, button)) {
+            if (currentPage > 0) {
+                com.alonie.brbe.util.RecipeBookPageAnimBridge.markUserFlip();
+                currentPage = 0;
+                updateButtonsForPage();
+            }
+            cir.setReturnValue(true);
+        }
+    }
+
     @Inject(method = "mouseClicked", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/StateSwitchingButton;mouseClicked(DDI)Z"), cancellable = true)
     public void mouseClickedBtn(double mouseX, double mouseY, int button, int areaLeft, int areaTop, int areaWidth, int areaHeight, CallbackInfoReturnable<Boolean> cir) {
         if (forwardButton.mouseClicked(mouseX, mouseY, button)) {

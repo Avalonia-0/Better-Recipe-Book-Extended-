@@ -53,6 +53,7 @@
     "pins.RecipeBookPageMixin",
     "pins.RecipeButtonMixin",
     "recipebookposition.RecipeBookComponentMixin",
+    "search.RecipeBookComponentPageJumpMixin",
     "scrollablepages.RecipeBookPageMixin",
     "settings.RecipeBookComponentMixin",
     "toasts.RemoveToasts",
