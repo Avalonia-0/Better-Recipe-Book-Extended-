@@ -496,3 +496,23 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 **说明**：1.21.11 的 PinOverlay 是完整独立浮层系统（display 依赖），1.21.1 轻量版在 viewer 内实现"固定即预览"——固定配方时放大弹窗展示材料/结果（PopupRenderer 复用），等效为用户核心诉求（固定后查看配方详情）。
 
 **待办**：最后轮收尾（提交部署 + 根 CLAUDE.md 状态更新）。
+
+## 2026-08-28：无头 JEI 全量落地（官方 1.21.1 源码内嵌，轮次 20）
+
+**背景**：用户提供官方源码包 `../JustEnoughItems-1.21.1`，要求"无头 JEI 移植了吗？再仔细对一遍吧"并确认全量移植 + 源码内嵌。1.21.1 的 anvil/grindstone 类别此前因无 RecipeType 只能降级为工作站信息，本轮回合把嵌入式 JEI 运行时跑通并接通数据源。
+
+**已落地（提交 46b278f8 / 6fa66b37 / 839651c5 / 457354fe / 8717c999，已推送）**：
+- **内嵌 fork（前序阶段）**：mezz.jei.api（CommonApi 172）+ common+library（432）官方 1.21.1 源码，605 文件，javax.annotation/FieldsAndMethodsAreNonnullByDefault 移除（与 1.21.11 一致）；mezzdev 依赖（baked-substring-index/suffixtree）
+- **平台实现**：`mezz.jei.fabric.platform`（14 文件）+ `mezz.jei.neoforge.platform`（14 文件）从官方源移植：IPlatformHelper 11 子接口全实现、ServiceLoader 注册（META-INF/services）；AW/AT 合并官方条目（AbstractContainerScreen hoveredSlot 等）；fabric 的 FabricLimitedQuadItemModel 用 identity（renderer API 13.x 无 ForwardingBakedModel）；键位分类器走 BrbeHeadlessKeyMappingStubs；neoforge InputHelper 的 TooltipFlagExtension（21.1.238+）降级
+- **无头核心**：`BrbeJeiHeadlessCore`（反射探测真实 JEI；头/尾 StartData(VanillaPlugin+JeiInternalPlugin+entrypoint 插件)→JeiStarter 启动/停止/onClientStopping 关 DelayedExecutor）；`HeadlessConnectionToServer`（isJeiOnServer=true 免警告）；`HeadlessKeyMappings`（全空映射，IInternalKeyMappings 33 方法）；`BrbeJeiPlatform`（fabric/neoforge 反射 isModLoaded）；`BrbeJeiPluginFinder`（反射 jei_mod_plugin entrypoint）
+- **接线**：fabric `BrbeJeiPluginsClientFabric`（joi 入口注册 JOIN/DISCONNECT/CLIENT_STOPPING + JeiGuiSpriteManager 重载监听器）；neoforge `BetterRecipeBookClientNeoForge`（RecipesUpdatedEvent 取同步配方 + LevelEvent.Load 兜底 + GameShuttingDownEvent 收尾 + RegisterClientReloadListenersEvent）
+- **收集/索引（1.21.11 改写）**：loader 4（RecipeCollector/RecipeCategoryCollector/CatalystCollector/WorkstationExporter）+ stub 5（GuiHelperStub/JeiHelpersStub 等，空 drawable 防 NPE）+ engine data-only 6（DataOnlyLayoutBuilder/SlotBuilder/IngredientAcceptor 记录 setRecipe 槽位）+ `PluginRecipeIndexer`（mod 配方走接口直取 or setRecipe 数据路径；原版 anvil/brewing/grindstone 走运行时 createRecipeLookup + 指纹去重 + 工作站物品）
+- **引擎/UI 接入**：`RecipeViewerEngine.registerJeiType`（JeiEntry 反索引；独立于 RecipeHolder 通道）、`RecipeViewerCategory.queryJei/allJeiEntries` 默认方法、anvil/grindstone 类别 queryJei（engine.jeiResultsFor/jeiUsagesFor）、`RecipeViewerOverlay` DisplayEntry 合并（持有/JEI 双条目 + JEI pin uid 键 + popup 分支）、`PopupRenderer.renderJeiPopup`（createRecipeLayoutDrawable 缩放渲染 + 缓存 + 20Hz tick）、PinnedRecipeManager.isPinnedUid/toggleFavouriteUid
+- **资源**：内嵌 `assets/jei`（官方 GUI 贴图/图集/99 文件 820K）——弹窗渲染完整 JEI 界面（铁砧背景/槽位/箭头/火焰）
+- **构建**：移除 fabric/neoforge 真实 JEI compileOnly（19.27 jar 的内部类与官方源码 fork 不一致——IPlatformScreenHelper.getBookArea(RecipeUpdateListener) vs (RecipeBookComponent)、IPlatformHelper 无 getBrewingHelper/getWorldHelper、Internal 无 setClientSyncedRecipes 等；混编错配）；fabric IconButton stub（mixin 编译用，真实 JEI 运行时遮蔽）
+
+**API 差异备忘（官方 1.21.1 源码 vs 真实 JEI 19.27 jar）**：官方仓库源码树比发布 jar 新（内部 common 接口已演进）——"源码即 fork 唯一真源"，与真实 JEI 共存靠类加载遮蔽（jei < zzzbrbe），不要求内部类一致。
+
+**已验证**：三模块编译通过、双端 build 通过、jar 含服务文件/平台类/引擎类/资产（md5 双端一致部署）。**待用户实测**：无 JEI 实例启动（1.21.1-Fabric/NeoForge）→ JOIN 后日志 `[BRBE-JEI-Plugins] embedded JEI core started` / `indexed N JEI types` → U 查询铁砧/研磨石显示配方条目 + Shift 弹窗完整 JEI 界面。
+
+**已知边界**：brewing 类别保持 PotionLoader 网格（已有数据源）；info 类别未接（需 Gui 模块文本渲染）；真实 JEI 共存场景未实测（理论上被遮蔽，风险低）。
