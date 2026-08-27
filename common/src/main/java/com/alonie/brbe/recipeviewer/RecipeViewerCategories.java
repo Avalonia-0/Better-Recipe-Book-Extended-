@@ -25,7 +25,8 @@ public final class RecipeViewerCategories {
             List.of(new CraftingRecipeCategory(), new FurnaceRecipeCategory(),
                     new FuelRecipeCategory(), new StonecuttingRecipeCategory(),
                     new SmithingRecipeCategory(), new CompostRecipeCategory(),
-                    new BrewingRecipeCategory());
+                    new BrewingRecipeCategory(), new AnvilRecipeCategory(),
+                    new GrindstoneRecipeCategory());
 
     /** Categories appended by the companion mod (mod recipe types). */
     private static final List<RecipeViewerCategory> EXTERNAL = new CopyOnWriteArrayList<>();

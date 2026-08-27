@@ -448,3 +448,12 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 **设计说明**：anvil/grindstone 无 1.21.1 RecipeType（JEI 运行时构建配方），同一"信息类别"模式可延伸——anvil（U 查询铁砧=信息网格描述）与 grindstone（研磨石）后续按相同模式补充或以工作站信息提示代替。brewing 因配方书已有 PotionLoader 数据源而优先落地。
 
 **待办**：anvil/grindstone 信息类别、pinoverlay 浮层、资源/lang 全量补齐核对。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 15——anvil/grindstone 工作站信息类别）
+
+**已落地**：
+- `recipeviewer/AnvilRecipeCategory` / `GrindstoneRecipeCategory`（1.21.1 版）：**工作站信息类别**——1.21.1 无 JEI 运行时构建的 anvil/grindstone 配方数据源（无 RecipeType），U 查询铁砧（三变体）/研磨石 → 类别显示（信息提示）；appliesToMenu（AnvilMenu/GrindstoneMenu）、appliesToStation、defaultPriority 1
+- 注册进 BUILTIN（现 9 类别）+ lang（zzzbrbe.category.anvil/grindstone）
+- lang 键全量核对：viewer.recipe/usage/materials + 全部 category 键（7 语言）
+
+**待办**：pinoverlay 浮层、info 类别（信息页——可选）、资源/textures 核对（1.21.1 新类别图标用 Items 现有项）。
