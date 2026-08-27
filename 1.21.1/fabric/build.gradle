@@ -1,0 +1,51 @@
+architectury {
+    platformSetupLoomIde()
+    fabric()
+}
+
+base {
+    archivesName = "${rootProject.archives_base_name}-fabric-${rootProject.minecraft_version}"
+}
+
+loom {
+    accessWidenerPath = project(":common").file("src/main/resources/headlessjei.accesswidener")
+}
+
+configurations {
+    common {
+        canBeResolved = true
+        canBeConsumed = false
+    }
+    compileClasspath.extendsFrom common
+    runtimeClasspath.extendsFrom common
+    developmentFabric.extendsFrom common
+}
+
+dependencies {
+    modImplementation "net.fabricmc:fabric-loader:${rootProject.fabric_loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${rootProject.fabric_api_version}"
+    // modImplementation("dev.architectury:architectury-fabric:${rootProject.architectury_version}") {
+    //     exclude group: "net.fabricmc.fabric-api"
+    // }
+    modImplementation "me.shedaniel.cloth:cloth-config-fabric:${rootProject.cloth_config_version}"
+
+    modCompileOnly "com.terraformersmc:modmenu:${rootProject.modmenu_version}"
+
+    def reiJarPath = rootProject.findProperty("rei_fabric_jar")?.toString()
+    if (reiJarPath == null || !file(reiJarPath).exists()) {
+        reiJarPath = rootProject.file("libs/RoughlyEnoughItems-16.0.799-fabric.jar").absolutePath
+    }
+    if (file(reiJarPath).exists()) {
+        modCompileOnly files(reiJarPath)
+    }
+
+    common(project(path: ":common", configuration: "namedElements")) { transitive false }
+}
+
+// Include common module (classes + resources)
+jar {
+    from project(":common").sourceSets.main.output
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    exclude "rbip-neoforge.mixins.json"
+    exclude "mixins.brbe-jei-common.json"
+}

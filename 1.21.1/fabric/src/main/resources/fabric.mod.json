@@ -1,0 +1,20 @@
+{
+  "schemaVersion": 1,
+  "id": "headlessjei",
+  "version": "1.0.0",
+  "name": "Headless JEI",
+  "description": "Embedded JEI runtime (full JEI api/common/library source, 1.21.1) that boots when the real JEI is absent, feeding headless query data + recipe UI rendering to consumers (e.g. Better Recipe Book). No JEI GUI is registered.",
+  "authors": ["Avalonia"],
+  "license": "MIT",
+  "icon": "assets/jei/jei-icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "com.alonie.brbe.fabric.jei.BrbeJeiPluginsClientFabric"
+    ]
+  },
+  "depends": {
+    "fabric-api": "*",
+    "minecraft": ">=1.21.1"
+  }
+}

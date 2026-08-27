@@ -1,89 +1,26 @@
-# Better-Recipe-Book-Extended-
+# headless-jei
 
-[中文](#中文) | [English](#english)
+无头 JEI 独立项目（每版本独立 Gradle 工程，架构对应各核心分支）：
 
----
+| 目录 | MC | 架构 | 状态 |
+|------|----|------|------|
+| `1.21.1/` | 1.21.1 | Architectury 三模块（common/fabric/neoforge，Java 21） | 源码+桥已就位；构建验证受限（见下） |
+| `1.21.11/` | 1.21.11 | Fabric 单模块（fabric-loom-remap 1.14.6，Java 21） | 源码已复制；桥切割进行中 |
+| `26.2/` | 26.2 | Fabric 单模块（fabric-loom 1.17.18 no-remap，Java 25） | 待复制 |
 
-## 中文
+## 定位
 
-这是[更好的配方书](https://modrinth.com/mod/brb)的非官方分支，旨在高版本迁移或拓展功能。  
+真实 JEI 缺席时提供嵌入式 JEI 运行时（官方源码内嵌 fork），对外暴露**轻量桥**：
 
-- 更好的配方书模组改进了原版的配方书（与JEI的理念相似），使其更加方便易用。
-- 就算你不喜欢配方书也可以安装此模组，因为它提供了禁用配方书入口的功能。
-- 访问他们的页面了解核心功能。
+- `JeiRecipeRegistry`（`com.alonie.brbe.jei.api`）：类型 uid → 配方条目值对象（物品输入/输出 + 槽位布局）
+- `JeiPopupRenderer`：把条目渲染为完整 JEI UI（类别背景/槽位/动画，`createRecipeLayoutDrawable`）
+- 收集由 `com.alonie.brbe.jei.plugins.*` 完成（入口点扫描 + anvil/brewing/grindstone 运行时配方）
 
-### 拓展功能
+消费者（BRBE 主 mod）编译依赖本工程产物（`libs/` 或直接 mod 打包），JOIN 时从 registry 拉数据转进自己的查询引擎。
 
-1. 在生存模式物品栏显示所有已解锁配方。（可配置）
-2. 可合成的配方会固定在配方书的最前面，不需要额外控制了。
-3. 显示来源模组名。（可配置）可通过资源包翻译模组名，键名为 `"jade.modName.<namespace>"`
-4. 配方书内的物品能够通过 REI/JEI 查看配方以及用途。
-5. 可以通过配置界面隐藏 REI/JEI 的界面（不影响查询合成/用途功能），对喜欢清爽界面但又需要某些工具的玩家很合适。（可配置）
+## 已知构建问题（2026-08-28）
 
-### 如何正确安装？
-
- - 仅需要客户端部署即可实现全部功能。
- - 需要与 Architectury API、Cloth Config API 同时部署。
-
-### 受支持的 Minecraft 版本及模组加载器
-
-| | Fabric | NeoForge |
-|---|---|---|
-| 26.1.2 | ✅ | ✅ |
-| 1.21.11 | ✅ | ✅ |
-| 1.21.1 | ✅ | ✅ |
-
-### 支持的语言
-
-| 语言 |
-|---|
-| en_us |
-| zh_cn |
-| zh_tw |
-| ja_jp |
-| ru_ru |
-| pl_pl |
-| tr_tr |
-
----
-
-## English
-
-This is an unofficial fork of [Better Recipe Book](https://modrinth.com/mod/brb), aimed at porting to newer Minecraft versions and extending functionality.
-
-- Better Recipe Book improves the vanilla recipe book (similar in concept to JEI), making it more convenient and user-friendly. 
-- Even if you don't like the recipe book, you can still install this mod because it provides a feature to disable the recipe book entry.
-- Visit their page to learn about the core features.
-
-### Extended Features
-
-1. **Show all unlocked recipes in survival inventory.** (configurable)
-2. **Craftable recipes are always pinned to the front of the recipe book** — no extra controls needed.
-3. **Display source mod name.** (configurable) Mod names can be translated via resource packs using the key `"jade.modName.<namespace>"`.
-4. **REI/JEI integration** — items inside the recipe book can be viewed in REI/JEI for recipes and usages.
-5. **Hide REI/JEI overlay via config** — does not affect recipe/usage lookup functionality. Ideal for players who prefer a clean UI but still need certain tools. (configurable)
-
-### How to Install?
-
-- **Client-side only** — all features work with a client-side installation only. No server-side mod required.
-- **Dependencies** — requires Architectury API and Cloth Config API to be installed alongside the mod.
-
-### Supported Minecraft Versions and Mod Loaders
-
-| | Fabric | NeoForge |
-|---|---|---|
-| 26.1.2 | ✅ | ✅ |
-| 1.21.11 | ✅ | ✅ |
-| 1.21.1 | ✅ | ✅ |
-
-### Supported Languages
-
-| Language |
-|---|
-| en_us |
-| zh_cn |
-| zh_tw |
-| ja_jp |
-| ru_ru |
-| pl_pl |
-| tr_tr |
+新建工程冷配置在 1.21.1（architectury + neoforge 平台）下偶发
+`Could not find method neoForge()` / `Failed to compute checksum`——与核心分支
+老旧 `.gradle` 缓存状态有关；fabric-loom-remap 冷管线（1.21.11）验证可用。
+修复方向：清 `~/.gradle/caches/fabric-loom` 或重启后全量重建。

@@ -1,0 +1,144 @@
+plugins {
+    id "net.fabricmc.fabric-loom-remap" version "1.14.6"
+}
+
+// ============================================================
+//  Version sanity check — prevent cross-branch contamination
+// ============================================================
+// Each git branch targets a specific Minecraft version. If
+// gradle.properties was accidentally carried over from another
+// branch, fail fast with a clear message.
+//
+// Expected mapping (branch → minecraft_version):
+//   1.21.1   → 1.21.1
+//   1.21.11  → 1.21.11
+//   26.2     → 26.2
+// ============================================================
+def currentBranch = providers.exec(execSpec -> {
+    execSpec.commandLine("git", "rev-parse", "--abbrev-ref", "HEAD")
+}).standardOutput.asText.get().trim()
+
+def expectedVersion = currentBranch
+// Strip "origin/" prefix if on a remote-tracking branch
+if (expectedVersion.startsWith("origin/")) expectedVersion = expectedVersion.substring(7)
+
+// If the branch name looks like a version (contains a dot or is a single major), validate
+if (expectedVersion.matches(/\d+\.\d+(\.\d+)?/) && expectedVersion != minecraft_version) {
+    throw new GradleException(
+        "Minecraft version mismatch!\n" +
+        "  Branch:            ${currentBranch}\n" +
+        "  Expected version:  ${expectedVersion}\n" +
+        "  gradle.properties: ${minecraft_version}\n" +
+        "\n" +
+        "This usually happens after switching branches without updating gradle.properties.\n" +
+        "Run one of these to fix:\n" +
+        "  - git checkout -- gradle.properties          (restore this branch's file)\n" +
+        "  - gradle cleanLoomCache && rm -rf .gradle   (full cache reset)\n" +
+        "  - Or manually set minecraft_version=${expectedVersion} in gradle.properties"
+    )
+}
+
+base {
+    archivesName = "${archives_base_name}-fabric-${minecraft_version}"
+}
+
+version = project.mod_version
+group = project.maven_group
+
+repositories {
+    maven { url = "https://maven.fabricmc.net/" }
+    maven { url = "https://maven.shedaniel.me/" }                  // cloth-config
+    maven { url = "https://maven.terraformersmc.com/releases/" }  // modmenu
+    maven { url = "https://api.modrinth.com/maven" }
+    mavenCentral()
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    mappings loom.officialMojangMappings()
+
+    modImplementation "net.fabricmc:fabric-loader:${fabric_loader_version}"
+    modImplementation("net.fabricmc.fabric-api:fabric-api:${fabric_api_version}") {
+        exclude group: "net.fabricmc.fabric-api", module: "fabric-api-base"
+    }
+    modImplementation "me.shedaniel.cloth:cloth-config-fabric:${cloth_config_version}"
+
+    modCompileOnly files("libs/modmenu-17.0.0.jar")
+
+    // JEI core is vendored in-tree (src/main/java/mezz/) — no compile-time JEI
+    // jar needed.  The two search libraries are JEI Common's only external
+    // deps (Maven Central), bundled so the embedded core works without JEI.
+    implementation "net.mezzdev:baked-substring-index:0.1.0"
+    implementation "net.mezzdev:suffixtree:1.1.0"
+}
+
+loom {
+    accessWidenerPath = file("src/main/resources/brbe.common.accesswidener")
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+    options.release = 21
+}
+
+tasks.named("compileJava") {
+    // JEI 缺失时排除 JEI plugin 类（原 fabric 模块的条件编译逻辑）
+    if (!file("libs/jei-1.21.11-fabric-27.4.0.22.jar").exists()) {
+        exclude("com/alonie/brbe/fabric/compat/jei/BetterRecipeBookJEIPlugin.java")
+    }
+}
+
+processResources {
+    // don't include things we don't need at runtime
+    exclude("**/*.ase", "**/*.kra")
+}
+
+// ============================================================
+//  setupLibs — ensure JEI library jars are available in libs/
+//  (copies from the test instance mods folders if missing)
+// ============================================================
+tasks.register("setupLibs") {
+    doLast {
+        def libsDir = file("libs")
+        libsDir.mkdirs()
+
+        def jeiEntries = [
+                "jei-1.21.11-fabric-27.4.0.22.jar":
+                        "/media/avalonia/data/MinecraftLib/versions/1.21.11-Fabric/mods/jei-1.21.11-fabric-27.4.0.22.jar.disabled"
+        ]
+        jeiEntries.each { fileName, sourcePath ->
+            def targetFile = new File(libsDir, fileName)
+            if (!targetFile.exists()) {
+                def sourceFile = new File(sourcePath)
+                if (sourceFile.exists()) {
+                    logger.lifecycle("Copying {} → libs/", fileName)
+                    targetFile.bytes = sourceFile.bytes
+                } else {
+                    logger.warn("Source not found: {}. {} will be excluded from compilation.", sourcePath, fileName)
+                }
+            }
+        }
+    }
+}
+compileJava.dependsOn(tasks.named("setupLibs"))
+
+// ============================================================
+//  cleanLoomCache — nuke all local loom / fabric caches
+// ============================================================
+tasks.register("cleanLoomCache") {
+    doLast {
+        def loomDirs = [
+            "${gradle.gradleUserHomeDir}/caches/fabric-loom",
+            "${gradle.gradleUserHomeDir}/caches/architectury-loom",
+            "${gradle.gradleUserHomeDir}/caches/loom",
+        ]
+        loomDirs.each { dir ->
+            def f = file(dir)
+            if (f.exists()) {
+                logger.lifecycle("Deleting {}", f)
+                delete f
+            }
+        }
+        logger.lifecycle("Run './gradlew' afterwards to re-download all mappings.")
+    }
+}
