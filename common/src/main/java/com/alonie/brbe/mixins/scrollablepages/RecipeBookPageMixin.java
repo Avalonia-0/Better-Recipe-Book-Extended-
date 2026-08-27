@@ -47,7 +47,7 @@ public abstract class RecipeBookPageMixin {
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     public void brbe$mouseClickedJumpToEdge(double mouseX, double mouseY, int button,
                                             int areaLeft, int areaTop, int areaWidth, int areaHeight,
-                                            boolean widthTooNarrow, CallbackInfoReturnable<Boolean> cir) {
+                                            CallbackInfoReturnable<Boolean> cir) {
         if (button != 0 || !com.alonie.brbe.util.ClientCompat.isControlDown()) {
             return;
         }
