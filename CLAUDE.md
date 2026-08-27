@@ -322,3 +322,17 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 **关键障碍（转下轮）**：1.21.11 的 RBIP 标签 pin 完整体系依赖 **ExtendedRecipeBookCategory + BiMap 映射**（RECIPE_BOOK_GROUP_TO_ITEM_GROUP 等，1.21.5+ API），**1.21.1 无此类**（RecipeBookCategory 是旧枚举）——`withCreativeTabs`/标签固定键（keyPressed 悬停标签 toggle）需在 1.21.1 旧 API 上重写等价实现（round 105 RBIP 增量级别）。
 
 **API 差异备忘**：1.21.1 的 RBIP 用 `rbip$buttonToTab`（Map<RecipeBookTabButton, CreativeModeTab>）实例字段映射，无 1.21.11 的静态 `toItemGroup(RecipeBookCategory)`——标签固定键需垂直访问 tabButtons。
+
+## 2026-08-27：向 1.21.1 全量移植（轮次 4——viewer 数据层骨架）
+
+**已落地**：
+- `recipeviewer/engine/RecipeViewerEngine`（1.21.1 版，RecipeHolder 索引）：registerType/resultsFor/usagesFor/allRecipes/isStation/hasContent/clear/clearVanilla/clearType/isVanillaType/addRebuildListener；RecipeTypeData 输出/输入反索引 + 组去重（与 1.21.11 匹配逻辑一致，仅 entry 类型换 RecipeHolder）
+- `recipeviewer/RecipeViewerCategory`（1.21.1 版接口）：query/allEntries 返回 RecipeHolder；isFuelCategory/isGridCategory/gridItems/stationIconsFor 默认实现
+- `recipeviewer/CraftingRecipeCategory`（第一个内置类别：type minecraft:crafting）
+- `recipeviewer/RecipeViewerCategories`：BUILTIN + EXTERNAL + defaultFor（工作站优先 → bestByPriority；先做 crafting）
+- `cache/RecipeViewerIndex`（1.21.1 版）：rebuildEngine 从 `RecipeManager.getRecipes()` 全量 → 按 RecipeType 分组 → registerType；toIndexed 提取 inputs（每 ingredient 取代表物品）/outputs（getResultItem）；stationsForCrafting = 工作台+合成器
+- `mixins/ungroup/ClientRecipeBookMixin` setupCollections RETURN 追加 rebuildEngine（配方集合重建 = 服务器配方同步/解锁变化时机）
+
+**API 差异备忘**：1.21.1 `AbstractCraftingMenu` → `CraftingMenu`（类名不同）；1.21.1 ClientRecipeBook 无 rebuildCollections（1.21.11 的注入点），用 setupCollections RETURN 替代。
+
+**待办（下一轮次）**：viewer UI（RecipeViewerOverlay 1.21.1 版 + PopupGeometry/PopupRenderer + pinoverlay）、其余类别（furnace/fuel/food 等 station 类型 + anvil/brewing/grindstone/compost/info）、R/U 键位接线（ItemViewCompat → 自研 viewer）、RBIP 标签固定键（旧 API 重写）。
