@@ -46,14 +46,14 @@ public abstract class RecipeBookPageMixin {
             cir.setReturnValue(true);
             cir.cancel();
             if (++currentPage >= totalPages) {
-                currentPage = BetterRecipeBook.config.scrollAround ? 0 : totalPages - 1;
+                currentPage = BetterRecipeBook.config.scrolling.scrollAround ? 0 : totalPages - 1;
             }
             updateButtonsForPage();
         } else if (backButton.mouseClicked(mouseX, mouseY, button)) {
             cir.setReturnValue(true);
             cir.cancel();
             if (--currentPage < 0) {
-                currentPage = BetterRecipeBook.config.scrollAround ? totalPages - 1 : 0;
+                currentPage = BetterRecipeBook.config.scrolling.scrollAround ? totalPages - 1 : 0;
             }
             updateButtonsForPage();
         }
@@ -65,9 +65,9 @@ public abstract class RecipeBookPageMixin {
             if (isMouseOverRecipeBookPage(k, l, i, j) && totalPages > 1) {
                 currentPage += BetterRecipeBook.getQueuedScroll();
                 if (currentPage >= totalPages) {
-                    currentPage = BetterRecipeBook.config.scrollAround ? currentPage % totalPages : totalPages - 1;
+                    currentPage = BetterRecipeBook.config.scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;
                 } else if (currentPage < 0) {
-                    currentPage = BetterRecipeBook.config.scrollAround ? (currentPage % totalPages) + totalPages : 0;
+                    currentPage = BetterRecipeBook.config.scrolling.scrollAround ? (currentPage % totalPages) + totalPages : 0;
                 }
 
                 updateButtonsForPage();
@@ -88,7 +88,7 @@ public abstract class RecipeBookPageMixin {
 
     @Inject(method = "updateArrowButtons", at = @At("RETURN"))
     private void updateArrowButtons(CallbackInfo ci) {
-        if (BetterRecipeBook.config.scrollAround && totalPages > 1) {
+        if (BetterRecipeBook.config.scrolling.scrollAround && totalPages > 1) {
             forwardButton.visible = true;
             backButton.visible = true;
         }

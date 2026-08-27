@@ -10,7 +10,7 @@ import com.alonie.brbe.layout.BookLayout;
 import com.alonie.brbe.pin.JsonPinStore;
 import com.alonie.brbe.pin.PinStore;
 import com.alonie.brbe.util.BRBHelper;
-import com.alonie.brbe.config.Config;
+import com.alonie.brbe.config.BrbeConfig;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.ConfigHolder;
 import me.shedaniel.autoconfig.serializer.Toml4jConfigSerializer;
@@ -43,8 +43,8 @@ public final class AppContext {
 
     // -- Core services --------------------------------------------------------
 
-    private final Config config;
-    private final ConfigHolder<Config> configHolder;
+    private final BrbeConfig config;
+    private final ConfigHolder<BrbeConfig> configHolder;
     private final ConfigEventBus events;
     private final PinnedRecipeManager pinnedRecipeManager;
     private final InstantCraftingManager instantCraftingManager;
@@ -64,8 +64,8 @@ public final class AppContext {
 
     private AppContext() {
         // Register config first so we have a config snapshot to pass around.
-        AutoConfig.register(Config.class, Toml4jConfigSerializer::new);
-        this.configHolder = AutoConfig.getConfigHolder(Config.class);
+        AutoConfig.register(BrbeConfig.class, Toml4jConfigSerializer::new);
+        this.configHolder = AutoConfig.getConfigHolder(BrbeConfig.class);
         this.config = configHolder.getConfig();
 
         // Populate backward-compatible static fields IMMEDIATELY — services
@@ -125,8 +125,8 @@ public final class AppContext {
 
     // -- Getters --------------------------------------------------------------
 
-    public Config config() { return config; }
-    public ConfigHolder<Config> configHolder() { return configHolder; }
+    public BrbeConfig config() { return config; }
+    public ConfigHolder<BrbeConfig> configHolder() { return configHolder; }
     public ConfigEventBus events() { return events; }
     public PinnedRecipeManager pins() { return pinnedRecipeManager; }
     public InstantCraftingManager instantCraft() { return instantCraftingManager; }

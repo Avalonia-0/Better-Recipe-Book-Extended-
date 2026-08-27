@@ -1,7 +1,7 @@
 package com.alonie.brbe.interfaces;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.config.Config;
+import com.alonie.brbe.config.BrbeConfig;
 import com.alonie.brbe.layout.BookLayout;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ConfigTipsHelper;
@@ -20,7 +20,7 @@ public interface ISettingsButton {
         if (BetterRecipeBook.ctx().config().settingsButton) {
             return new ImageButton(i + BookLayout.SETTINGS_X_OFFSET, j + BookLayout.settingsY(),
                     BookLayout.settingsSize(), BookLayout.settingsSize(), BRBTextures.SETTINGS_BUTTON_SPRITES, button ->
-                    ConfigTipsHelper.openConfigScreen(Config.class, Minecraft.getInstance().screen));
+                    ConfigTipsHelper.openConfigScreen(BrbeConfig.class, Minecraft.getInstance().screen));
         }
         return null;
     }

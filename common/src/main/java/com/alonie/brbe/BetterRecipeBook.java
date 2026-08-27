@@ -3,7 +3,7 @@ package com.alonie.brbe;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.config.AppContext;
-import com.alonie.brbe.config.Config;
+import com.alonie.brbe.config.BrbeConfig;
 import com.alonie.brbe.config.ConfigEventBus;
 import com.alonie.brbe.compat.emi.EmiCompat;
 import com.alonie.brbe.compat.rei.ReiCompat;
@@ -38,8 +38,8 @@ public class BetterRecipeBook {
 
     private static int queuedScroll;
 
-    public static Config config;
-    public static ConfigHolder<Config> configHolder;
+    public static BrbeConfig config;
+    public static ConfigHolder<BrbeConfig> configHolder;
 
     public static PinnedRecipeManager pinnedRecipeManager;
     public static InstantCraftingManager instantCraftingManager;
@@ -52,18 +52,32 @@ public class BetterRecipeBook {
     public static void addQueuedScroll(int delta) { queuedScroll += delta; }
 
     public static final KeyMapping PIN_MAPPING = new KeyMapping(
-            "key.brbe.pin",
+            "key.zzzbrbe.pin",
             InputConstants.Type.KEYSYM,
-            InputConstants.KEY_F,
-            "category.brbe"
+            InputConstants.KEY_A,
+            "category.zzzbrbe"
     );
 
-    /** Diagnostic dump key (F8).  Writes brbe-diagnostic.log to game dir. */
+    public static final KeyMapping RECIPE_VIEW_MAPPING = new KeyMapping(
+            "key.zzzbrbe.recipeView",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_R,
+            "category.zzzbrbe"
+    );
+
+    public static final KeyMapping USAGE_VIEW_MAPPING = new KeyMapping(
+            "key.zzzbrbe.usageView",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_U,
+            "category.zzzbrbe"
+    );
+
+    /** Diagnostic dump key (F8).  Writes zzzbrbe-diagnostic.log to game dir. */
     public static final KeyMapping DIAGNOSTIC_MAPPING = new KeyMapping(
-            "key.brbe.diagnostic",
+            "key.zzzbrbe.diagnostic",
             InputConstants.Type.KEYSYM,
             InputConstants.KEY_F8,
-            "category.brbe"
+            "category.zzzbrbe"
     );
 
     public static BRBHelper.Book BREWING = BRBHelper.createBook(MOD_ID, "brewing_stand");

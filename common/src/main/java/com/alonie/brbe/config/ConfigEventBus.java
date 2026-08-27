@@ -85,13 +85,13 @@ public final class ConfigEventBus {
 
     /** Published when any config value changes (full config snapshot). */
     public static final class ConfigChanged {
-        private final Config config;
+        private final BrbeConfig config;
 
-        public ConfigChanged(Config config) {
+        public ConfigChanged(BrbeConfig config) {
             this.config = config;
         }
 
-        public Config config() { return config; }
+        public BrbeConfig config() { return config; }
     }
 
     /** Published when {@code partialCraftingEnabled} or
