@@ -83,7 +83,7 @@ public abstract class AbstractContainerScreenMixin {
             for (RecipeBookTabButton tab : ((RecipeBookComponentAccessor) book).getTabButtons()) {
                 if (!tab.visible || !tab.isHoveredOrFocused()) continue;
                 net.minecraft.world.item.CreativeModeTab group =
-                        com.alonie.recipebookispain_extended.mixin.widget.RecipeBookWidgetMixin
+                        ((com.alonie.recipebookispain_extended.mixin.widget.RbipTabBridge) book)
                                 .rbip$tabToGroup(tab);
                 if (group == null) continue;
                 net.minecraft.resources.ResourceLocation tabId =
