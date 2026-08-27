@@ -10,9 +10,12 @@ import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.compat.emi.EmiCompat;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
+import com.alonie.brbe.config.KeybindingGuiRegistrar;
+import com.alonie.brbe.config.PinyinSearchGuiRegistrar;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.fabric.FabricPlatform;
 import net.fabricmc.api.ClientModInitializer;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
@@ -38,6 +41,25 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         // Register key mappings (previously in common via Architectury KeyMappingRegistry)
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.PIN_MAPPING);
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.DIAGNOSTIC_MAPPING);
+        KeyBindingHelper.registerKeyBinding(BetterRecipeBook.RECIPE_VIEW_MAPPING);
+        KeyBindingHelper.registerKeyBinding(BetterRecipeBook.USAGE_VIEW_MAPPING);
+
+        // 拼音搜索：中文语言（zh_*）默认开启（用户仍可手动关闭）；
+        // 非中文语言强制关闭（配置界面同时隐藏该选项，见 PinyinSearchGuiRegistrar）。
+        // 注：entrypoint 阶段 Minecraft.options 尚为 null，须延迟到 CLIENT_STARTED
+        // （客户端初始化完成、仅触发一次）。
+        ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
+            if (BetterRecipeBook.config == null || BetterRecipeBook.configHolder == null) return;
+            String languageCode = client.options.languageCode;
+            boolean chinese = languageCode != null && languageCode.startsWith("zh");
+            if (chinese && !BetterRecipeBook.config.pinyinSearch) {
+                BetterRecipeBook.config.pinyinSearch = true;
+                BetterRecipeBook.configHolder.save();
+            } else if (!chinese && BetterRecipeBook.config.pinyinSearch) {
+                BetterRecipeBook.config.pinyinSearch = false;
+                BetterRecipeBook.configHolder.save();
+            }
+        });
 
         // Register platform-specific providers
         PlatformPotionUtilImpl.init();
@@ -66,6 +88,8 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         // Register optional compat handlers
         ReiCompat.register();
         EmiCompat.register();
+        KeybindingGuiRegistrar.register();
+        PinyinSearchGuiRegistrar.register();
 
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             this.registeredScreens.remove(screen);
