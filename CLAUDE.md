@@ -516,3 +516,43 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 **已验证**：三模块编译通过、双端 build 通过、jar 含服务文件/平台类/引擎类/资产（md5 双端一致部署）。**待用户实测**：无 JEI 实例启动（1.21.1-Fabric/NeoForge）→ JOIN 后日志 `[BRBE-JEI-Plugins] embedded JEI core started` / `indexed N JEI types` → U 查询铁砧/研磨石显示配方条目 + Shift 弹窗完整 JEI 界面。
 
 **已知边界**：brewing 类别保持 PotionLoader 网格（已有数据源）；info 类别未接（需 Gui 模块文本渲染）；真实 JEI 共存场景未实测（理论上被遮蔽，风险低）。
+
+## 2026-08-28：无头 JEI 独立化（分支 headless-jei，1.21.1 核心分支移除内嵌完成）
+
+**背景**：用户决策——无头 JEI 作为独立项目维护（`headless-jei/{GAME_VERSION}`，主仓库
+`1.21.1/.git` 内建分支 `headless-jei` + worktree；各版本工程架构对应核心分支）；独立项目
+建立后**核心分支移除内嵌，改依赖独立产物**（"一趟搞定"）。
+
+**独立项目（分支 headless-jei，已推送）**：
+- `1.21.1/`（Architectury 三模块）+ `1.21.11/`（fabric-loom-remap 单模块）+ `26.2/`
+  （fabric-loom no-remap 单模块）：mezz fork（605/854/841 文件）+ 无头核心/收集 +
+  **轻量桥** `JeiRecipeRegistry`（typeUid→条目值对象）+ `JeiPopupRenderer`（完整 JEI UI
+  渲染）+ assets/jei + mod 清单（id `headlessjei`）+ AW/AT/ServiceLoader
+- **关键修复（1.21.1 冷配置缺陷根治）**：architectury-loom 全新工程下
+  `dependencies { neoForge ... }` 不注册 → neoforge 模块加 `loom { neoForge { } }` +
+  按项目 `gradle.properties` 设 `loom.platform=neoforge/fabric`——三模块冷编译通过，
+  双端 jar 构建成功（headless-jei-{fabric,neoforge}-1.21.1-1.0.0.jar）
+- 1.21.11/26.2 独立工程 compileJava/build 通过（jar 已产出）
+
+**1.21.1 核心分支移除（提交 c8630a8f，已推送）**：
+- 删除内嵌（766 文件）：mezz.jei.* fork、com.alonie.brbe.jei.*、assets/jei、fabric/neoforge
+  平台实现与接线、JEI 服务文件；AW/AT 恢复最小（PotionBrewing$Mix）；fabric IconButton
+  编译 stub 保留（mixin 用）
+- **反射桥**（headless-jei 产物为 intermediary 映射，不可编译依赖——同 JeiHudHider 模式）：
+  `cache/BrbeJeiBridge`（拉 JeiRecipeRegistry → RecipeViewerEngine.registerJeiType，
+  absent 静默降级）；`PopupRenderer.renderJeiPopup` 反射委托 JeiPopupRenderer
+- 接线：fabric JOIN / neoforge LevelEvent.Load + RecipesUpdatedEvent → BrbeJeiBridge.refresh()
+- 构建：fabric/neoforge 恢复真实 JEI 19.27 jar `modCompileOnly`（compat 插件 API 编译参考；
+  loom 自动 remap 到 mojang 映射）；运行时**双装** headless-jei mod（无 JEI 场景），
+  真实 JEI 场景照常遮蔽（jei < zzzbrbe）
+- jar 体积：fabric 1.89MB→842KB、neoforge 2.06MB→1.02MB
+- 部署：1.21.1-Fabric/NeoForge 实例 BRBE + headless-jei 均已更新（md5 一致，备份 20260828-022610）
+
+**测试要点**：实例启动后 JOIN → 日志 `[BRBE-JEI-BRIDGE] imported N JEI entries`；
+U 查询铁砧/研磨石 → anvil/grindstone 配方条目 + Shift 弹窗完整 JEI 界面；
+不装 headless-jei 时 BRBE 正常降级（信息页）。
+
+**下一步（未完成）**：1.21.11/26.2 核心分支移除（BRBE 侧 display 适配链
+[SyntheticRecipeRendererImpl/SyntheticRecipeDisplayEntryFactory/PluginRecipeViewerCategory/
+InfoRecipeCategory/RecipeViewerOverlay/BrbeJeiMinecraftMixin] 需改读 registry（反射）+
+真实 JEI 27.4 jar modCompileOnly——本轮未动，分支保持可用）。
