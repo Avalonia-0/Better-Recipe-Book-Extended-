@@ -282,9 +282,12 @@ public final class RecipeViewerOverlay {
             currentCategory = cat;
         }
         hostScreen = screen;
-        // 锚点 = 光标快照（限制在窗口内）
+        // 锚点 = 光标快照（限制在窗口内）。bottomAnchor 必须在此初始化
+        // （1.21.11 openFor 同款）：首个 fitBoxToPage 的 clampBoxToAnchor 依赖它
+        // ——漏初始化则首开框体被钳死在 Y=25、重开时用旧会话锚点。
         anchorScreenX = mouseXFor();
         anchorScreenY = mouseYFor();
+        bottomAnchor = anchorScreenY + 16;
         if (cat.isGridCategory()) {
             rebuildGrid(gridSource(cat));
         } else {
@@ -1364,8 +1367,12 @@ public final class RecipeViewerOverlay {
                 if (alt != null) currentCategory = alt;
             }
             refreshCurrentCategory();
-            page = Math.min(savedPage, Math.max(0, pageCount - 1));
-            showPage(hostScreen);
+            // 页面恢复仅配方类别执行：grid 类别的 entries 恒为空（rebuildGrid 不填），
+            // 对其调 showPage 会让 fitBoxToPage(0) 把框体塌缩（1.21.11 同款分支结构）。
+            if (!currentCategory.isGridCategory()) {
+                page = Math.min(savedPage, Math.max(0, pageCount - 1));
+                showPage(hostScreen);
+            }
             browseAllReturnCategory = null;
             browseAllReturnPage = 0;
         } else {

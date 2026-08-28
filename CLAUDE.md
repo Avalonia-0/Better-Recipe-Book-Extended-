@@ -867,3 +867,11 @@ tooltip 替代）、幽灵放置（配方格点击仅吞+音）、tooltip 样式
   "声称有内容实际为空"的类别（旧故障形态，无论根因）无法再劫持默认或导致拒绝；
   空内容一律回退实际有内容的最高优先级类别，再空才 refuse（带原因日志）。
 - 附带修复：queryTarget/queryUsage 在内容判定前落字段（hasActualContent 走字段）。
+
+**2026-08-29（二·续四）全文件通读复查两处修复（已重建部署）**：
+- **bottomAnchor 漏初始化（关键布局 bug）**：openFor 未初始化 bottomAnchor（1.21.11
+  在 openFor 设 `bottomAnchor = anchorY + 16`），首个 fitBoxToPage 的 clampBoxToAnchor
+  用旧值——首开框体被钳死在 Y=25、重开用旧会话锚点。修复：openFor 锚点区补初始化。
+- **grid 类别退出浏览全部框体塌缩**：toggleBrowseAll 退出分支无条件 page 恢复+showPage；
+  grid 类别 entries 恒空（rebuildGrid 不填）→ fitBoxToPage(0) 框体塌缩成 8px。
+  修复：页面恢复仅配方类别执行（1.21.11 refreshCurrentCategory 同款分支结构）。
