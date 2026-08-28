@@ -262,8 +262,16 @@ public final class RecipeViewerOverlay {
                     target.getHoverName().getString(), usage);
             return false;
         }
-        if (!cat.hasContent(target, usage)) {
-            // 默认类别的命中为空：换"有内容的最高优先级类别"（1.21.11 防御性重选）
+        // 实际内容判定（不信任 hasContent 的"声称"）：grid 类别看 grid 列表，
+        // 配方类别看合并命中——类别声称有内容而实际为空时（旧日志"cat=fuel
+        // empty content"类故障）换"实际有内容的最高优先级类别"，再没有才拒绝。
+        // 先落 queryTarget/queryUsage：hasActualContent 走 gridSource/categoryHits，
+        // 二者读字段而非参数。
+        resetBrowseAllState();
+        queryTarget = target;
+        queryUsage = usage;
+        currentCategory = cat;
+        if (!hasActualContent(cat)) {
             RecipeViewerCategory alt = bestContentCategory(target, usage, cat);
             if (alt == null) {
                 BetterRecipeBook.LOGGER.info("[BRBE-VIEWER] open refused: empty content cat={} item={} usage={}",
@@ -271,11 +279,8 @@ public final class RecipeViewerOverlay {
                 return false;
             }
             cat = alt;
+            currentCategory = cat;
         }
-        resetBrowseAllState();
-        queryTarget = target;
-        queryUsage = usage;
-        currentCategory = cat;
         hostScreen = screen;
         // 锚点 = 光标快照（限制在窗口内）
         anchorScreenX = mouseXFor();
@@ -293,7 +298,17 @@ public final class RecipeViewerOverlay {
         return true;
     }
 
-    /** 有内容且优先级最高的类别（排除 {@code exclude}）——1.21.11 语义。 */
+    /** 类别是否"实际"有可显示内容（grid 列表 / 合并命中非空）——openFor 与
+     *  最佳类别重选的唯一判据，不信任 hasContent 的声称。 */
+    private static boolean hasActualContent(RecipeViewerCategory category) {
+        if (category == null) return false;
+        if (category.isGridCategory()) {
+            return !gridSource(category).isEmpty();
+        }
+        return !categoryHits(category).isEmpty();
+    }
+
+    /** 实际有内容且优先级最高的类别（排除 {@code exclude}）——1.21.11 语义。 */
     private static RecipeViewerCategory bestContentCategory(ItemStack target, boolean usage,
                                                             RecipeViewerCategory exclude) {
         RecipeViewerCategory best = null;
@@ -302,7 +317,7 @@ public final class RecipeViewerOverlay {
             if (category == exclude) continue;
             int priority = category.defaultPriority(target);
             if (priority <= bestPriority) continue;
-            if (category.hasContent(target, usage)) {
+            if (hasActualContent(category)) {
                 best = category;
                 bestPriority = priority;
             }

@@ -850,3 +850,20 @@ tooltip 替代）、幽灵放置（配方格点击仅吞+音）、tooltip 样式
   此前缺省默认 false，usage 站循环跳过了合成类别）。
 - 诊断日志收窄为打开成败各一行（[BRBE-VIEWER] opened/refused，含类别/条目/页数），
   便于下一轮实测定位。
+
+**2026-08-29（二·续三）实际内容判定 + 旧日志 U 查询之谜调查（已重建部署）**：
+- 旧会话日志（01:27:34 连按 3 次）`U 工作台 opened=false`，反编译旧 jar 全链路
+  （open/keyPressed/defaultFor/bestByPriority/FuelRecipeCategory/RecipeViewerIndex/
+  引擎 usagesFor）逐一排除：旧代码静态推不出 cat=fuel 路径；JEI 桥在旧会话
+  **零导入**（日志无 BRBE-JEI 行——实例 mods 目录也无 headless-jei jar，两实例
+  均未部署 headless-jei，anvil/grindstone 降级信息页为预期）。
+- 关键 API 发现（NeoForge 21.1.x，javap 21.1.248 实证）：`AbstractFurnaceBlockEntity
+  .isFuel(stack)` = `stack.getBurnTime(null) > 0`，`Item.getBurnTime` 默认 = 
+  **数据映射 `neoforge:furnace_fuels` 查表**（无条目→0）——与本 mod 无关，但影响
+  isFuelItem 判定；实例中 aether/create/FarmersDelight 均带该数据映射（无
+  crafting_table 条目）。
+- 防御性修复：openFor/最佳类别重选改用**实际内容判定**（`hasActualContent`：
+  grid 看 gridSource 非空、配方看 categoryHits 非空），不信任 hasContent 声称——
+  "声称有内容实际为空"的类别（旧故障形态，无论根因）无法再劫持默认或导致拒绝；
+  空内容一律回退实际有内容的最高优先级类别，再空才 refuse（带原因日志）。
+- 附带修复：queryTarget/queryUsage 在内容判定前落字段（hasActualContent 走字段）。
