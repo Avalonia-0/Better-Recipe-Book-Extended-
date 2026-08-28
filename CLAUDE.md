@@ -556,3 +556,18 @@ U 查询铁砧/研磨石 → anvil/grindstone 配方条目 + Shift 弹窗完整 
 [SyntheticRecipeRendererImpl/SyntheticRecipeDisplayEntryFactory/PluginRecipeViewerCategory/
 InfoRecipeCategory/RecipeViewerOverlay/BrbeJeiMinecraftMixin] 需改读 registry（反射）+
 真实 JEI 27.4 jar modCompileOnly——本轮未动，分支保持可用）。
+
+## 2026-08-28：modid zzzbrbe → brbe 全链回退
+
+**背景**：用户决策——维护分支（1.21.1/1.21.11/26.2）modid 全部改回 `brbe`，资源包/lang/配置名/日志/pin 文件等引用同步。三分支同步落地。
+
+**1.21.1 已落地（提交 6112abdd）**：
+- fabric.mod.json `id` → `brbe`；neoforge.mods.toml `modId` + `[[dependencies.brbe]]` 段 + `logoFile` → assets/brbe/icon.png
+- assets/zzzbrbe → assets/brbe（common/fabric/neoforge 三处）+ resourcepacks/zzzbrbe_unique_dark → brbe_unique_dark
+- lang 键 `zzzbrbe.*` → `brbe.*` 全链（7 语言）；`MOD_ID` 常量；`@Config(name="brbe")`（brbe.toml 恢复）
+- pin 持久化：brbe.pins / brbe.tabpins.json / brbe.pinoverlays.json（旧 zzzbrbe.* 文件不再读取——玩家 pin 数据迁移需手动改名，仅影响旧数据）
+- 诊断日志 brbe-diagnostic.log；`brbe.debug` 属性；按键分类 category.brbe；BRBHelper.createBook("brbe", ...)；recipeviewer 类别 id；ResourceLocation namespace `brbe`
+- 内置资源包注册名：`brbe:brbe_unique_dark`（fabric）/ `brbe:resourcepacks/brbe_unique_dark`（neoforge）
+- 部署：1.21.1-Fabric/1.21.1-NeoForge 实例已更新（备份 20260828-131604，md5 一致）
+
+**注意**：CLAUDE.md 历史轮次中的 `zzzbrbe` 为当时事实描述，保持原样不改写。
