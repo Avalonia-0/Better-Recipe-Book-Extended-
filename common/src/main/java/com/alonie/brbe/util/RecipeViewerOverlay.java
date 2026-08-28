@@ -121,8 +121,14 @@ public final class RecipeViewerOverlay {
         if (stack == null || stack.isEmpty()) return false;
         RecipeViewerCategory cat = RecipeViewerCategories.defaultFor(
                 stack, usage, screen == null ? null : screen.getMenu());
-        if (cat == null) return false;
+        if (cat == null) {
+            BetterRecipeBook.LOGGER.info("[BRBE-VIEWER-DIAG] open: defaultFor=null item={} usage={}",
+                    stack.getHoverName().getString(), usage);
+            return false;
+        }
         if (cat.query(stack, usage).isEmpty() && cat.queryJei(stack, usage).isEmpty()) {
+            BetterRecipeBook.LOGGER.info("[BRBE-VIEWER-DIAG] open: empty content cat={} item={} usage={}",
+                    cat.id(), stack.getHoverName().getString(), usage);
             return false;
         }
 
@@ -198,11 +204,21 @@ public final class RecipeViewerOverlay {
         if (screen != null && hoveredSlot != null && hoveredSlot.hasItem()) {
             ItemStack hovered = hoveredSlot.getItem();
             if (BetterRecipeBook.RECIPE_VIEW_MAPPING.matches(keyCode, scanCode)) {
-                return open(hovered, false, screen);
+                boolean opened = open(hovered, false, screen);
+                BetterRecipeBook.LOGGER.info("[BRBE-VIEWER-DIAG] R key={} item={} opened={} active={}",
+                        keyCode, hovered.getHoverName().getString(), opened, active);
+                return opened;
             }
             if (BetterRecipeBook.USAGE_VIEW_MAPPING.matches(keyCode, scanCode)) {
-                return open(hovered, true, screen);
+                boolean opened = open(hovered, true, screen);
+                BetterRecipeBook.LOGGER.info("[BRBE-VIEWER-DIAG] U key={} item={} opened={} active={}",
+                        keyCode, hovered.getHoverName().getString(), opened, active);
+                return opened;
             }
+        } else if (BetterRecipeBook.RECIPE_VIEW_MAPPING.matches(keyCode, scanCode)
+                || BetterRecipeBook.USAGE_VIEW_MAPPING.matches(keyCode, scanCode)) {
+            BetterRecipeBook.LOGGER.info("[BRBE-VIEWER-DIAG] R/U key {} no slot (slot={} screen={})",
+                    keyCode, hoveredSlot == null ? "null" : "empty", screen == null ? "null" : screen.getClass().getSimpleName());
         }
         return false;
     }

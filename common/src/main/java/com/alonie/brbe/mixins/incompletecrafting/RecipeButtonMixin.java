@@ -104,6 +104,18 @@ public abstract class RecipeButtonMixin extends AbstractWidget {
         }
     }
 
+    @Inject(method = "init", at = @At("RETURN"))
+    private void brbe$refreshIndexAfterInit(RecipeCollection recipeCollection,
+                                            net.minecraft.client.gui.screens.recipebook.RecipeBookPage recipeBookPage,
+                                            CallbackInfo ci) {
+        // 集合换页（pin/搜索/翻页/动画期间 updateButtonsForPage）后 currentIndex 是
+        // 旧列表的索引——vanilla 只在 renderWidget 里重算，而叙述（updateNarration）
+        // 在渲染前执行：陈旧索引碰上缩小的列表 → IndexOutOfBounds 崩溃（2026-08-28
+        // 22:27 实测 "Narrating screen"）。init 是唯一集合交换点，这里直接归零，
+        // 下一帧 renderWidget 会按新列表重算。
+        this.currentIndex = 0;
+    }
+
     @Inject(method = "getOrderedRecipes", at = @At("RETURN"), cancellable = true)
     private void brbe$filterOrderedRecipes(CallbackInfoReturnable<List<RecipeHolder<?>>> cir) {
         List<RecipeHolder<?>> result = new ArrayList<>(cir.getReturnValue());

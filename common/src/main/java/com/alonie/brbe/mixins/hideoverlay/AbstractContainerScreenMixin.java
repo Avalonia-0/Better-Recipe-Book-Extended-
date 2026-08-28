@@ -40,6 +40,12 @@ public abstract class AbstractContainerScreenMixin {
             cir.setReturnValue(true);
             return;
         }
+        if (BetterRecipeBook.RECIPE_VIEW_MAPPING.matches(keyCode, scancode)
+                || BetterRecipeBook.USAGE_VIEW_MAPPING.matches(keyCode, scancode)) {
+            BetterRecipeBook.LOGGER.info("[BRBE-VIEWER-DIAG] keyPressed reached mixin: key={} scan={} rvEnabled={} slot={}",
+                    keyCode, scancode, BetterRecipeBook.ctx().config().recipeViewerEnabled,
+                    hoveredSlot == null ? "null" : (hoveredSlot.hasItem() ? hoveredSlot.getItem().getHoverName().getString() : "empty"));
+        }
         if (BetterRecipeBook.ctx().config().recipeViewerEnabled
                 && RecipeViewerOverlay.keyPressed(keyCode, scancode, modifiers,
                         (AbstractContainerScreen<?>) (Object) this, this.hoveredSlot)) {

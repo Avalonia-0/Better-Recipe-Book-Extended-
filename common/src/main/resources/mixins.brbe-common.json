@@ -24,6 +24,7 @@
     "accessors.OverlayRecipeComponentAccessor",
     "accessors.RecipeBookComponentAccessor",
     "accessors.RecipeCollectionAccessor",
+    "accessors.RecipeButtonAccessor",
     "accessors.RecipeBookPageAccessor",
     "accessors.GhostRecipeAccessor",
     "accessors.smithing.SmithingTransformRecipeAccessor",

@@ -643,3 +643,35 @@ zh_cn/zh_tw 大量类别键仍是英文占位（暂 en 值）；tip.2 仍写 F �
 **部署**：备份 20260828-XXXX（原子替换）；neoforge a657aeba、fabric 372d4f70。
 **验证**：neoforge runClient 启动无 mixin 报错；用户实测 R/U 打开 + 翻页动画 + 右键清空
 取消聚焦 + 配置界面/查询浮层中文文案。
+
+## 2026-08-28（晚三）：崩溃修复（叙述越界）+ 动画挤压视效 + R/U 诊断插桩（已部署双端）
+
+用户实测（NeoForge，崩溃信息 zip）报：①游戏崩溃（Narrating screen）；②动画不完整
+（细节）；③R/U 查询仍无法唤出。
+
+**①崩溃根因**：`IndexOutOfBoundsException: Index 5 out of bounds for length 1` at
+`RecipeButton.updateWidgetNarration`——`currentIndex` 只在 `renderWidget` 里重算
+（`floor(time/30) % size`），而叙述（`handleDelayedNarration` → `updateNarration`）
+在**渲染之前**执行；集合换页（pin/搜索/翻页，`updateButtonsForPage → button.init`）
+后 stale 索引碰上缩小为 1 的列表 → 越界崩溃。实测时间线：22:27:38.869 pin-extract
+（A 键 pin 触发 rebuild）→ 22:27:39.763 崩溃。修复：`incompletecrafting/RecipeButtonMixin`
+新增 `init` RETURN 注入 `brbe$refreshIndexAfterInit`——init 是唯一集合交换点，直接
+归零 currentIndex，下一帧 renderWidget 按新列表重算。
+**新 accessor**：`accessors/RecipeButtonAccessor`（getOrderedRecipes @Invoker +
+time/currentIndex @Accessor），已注册 mixins.brbe-common.json。
+
+**②动画细节补全**：快照渲染改为与 1.21.11 一致的**边缘挤压视效**——配方滑出视窗
+边界时内容裁剪在 [effX, edgeRight) 内（宽度随滑动收窄）、左右边界 2px 独立渲染
+（边框不缩放，PageAnimationEdges 读 edge_width.json）、残缺配方红罩
+（PartialCraftingUtil.isPartiallyCraftable）、已 pin 配方图标网格 scissor 外补画
+（isFullyPinned + RECIPE_BOOK_PIN_SPRITE）、图标轮循推进（time += f 后
+currentIndex 重算，renderItem/renderFakeItem 复刻 renderWidget 偏移布局）。
+槽位 sprite id 按 javap 核对直接构造（recipe_book/slot_{many_,}craftable/uncraftable）。
+
+**③R/U 诊断插桩**（[BRBE-VIEWER-DIAG] INFO 行，待用户实测后移除）：
+- hideoverlay.AbstractContainerScreenMixin：R/U 键到达 mixin 即打日志（键码/槽位）
+- RecipeViewerOverlay.keyPressed/new open()：defaultFor=null / 空内容 / opened 结果
+
+**部署**：备份 20260828-224x（原子替换）；neoforge 875b1d1a、fabric 6d4af704。
+**待用户实测**：无崩溃（pin/翻页/搜索后叙述安全）+ 动画挤压视效 + 复现 R/U 后收集
+[BRBE-VIEWER-DIAG] 日志定位根因。
