@@ -301,7 +301,7 @@ public abstract class RecipeBookPageAnimationMixin {
             gui.enableScissor(effX, y, edgeRight - 1, y + 25);
             gui.blitSprite(sprite, x, y, 25, 25);
             if (isPartial) {
-                gui.fill(effX + 1, y + 1, edgeRight - 1, y + 24, 0x60FF3333);
+                brbe$renderPartialMark(gui, effX, y, effW);
             }
             gui.disableScissor();
             brbe$renderItemIcon(snap, gui, x, y);
@@ -325,7 +325,7 @@ public abstract class RecipeBookPageAnimationMixin {
         } else {
             gui.blitSprite(sprite, effX, y, 25, 25);
             if (isPartial) {
-                gui.fill(effX + 1, y + 1, effX + 24, y + 24, 0x60FF3333);
+                brbe$renderPartialMark(gui, effX, y, 25);
             }
             if (effW > 20) {
                 brbe$renderItemIcon(snap, gui, effX, y);
@@ -334,6 +334,17 @@ public abstract class RecipeBookPageAnimationMixin {
         // 已固定配方：收集 pin 图标位置（最上层绘制，见 brbe$renderButton 收尾）
         if (BetterRecipeBook.pinnedRecipeManager.isFullyPinned(c)) {
             this.brbe$animPinIcons.add(new int[] { effX, y });
+        }
+    }
+
+    /** 残缺配方红罩：与静态路径一致——有 partial sprite（兼容包）时用
+     *  sprite（宽随挤压收窄），否则红底填充。 */
+    @Unique
+    private void brbe$renderPartialMark(GuiGraphics gui, int effX, int y, int effW) {
+        if (BRBTextures.hasPartialSprite()) {
+            gui.blitSprite(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_PARTIAL_SPRITE, effX, y, effW, 25);
+        } else {
+            gui.fill(effX + 1, y + 1, effX + effW - 1, y + 24, 0x60FF3333);
         }
     }
 

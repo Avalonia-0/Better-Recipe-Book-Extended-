@@ -25,6 +25,14 @@ public final class TopLayerOverlayRenderer {
         }
     }
 
+    /** 查询浮层：平台 after-render 钩子（整屏渲染完成后、最顶层）调用点。
+     *  与 {@link #render} 的 Screen TAIL 不同——那里在容器槽位/配方书绘制之前执行，
+     *  浮层会被盖住。 */
+    public static void renderViewer(Screen screen, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        com.alonie.brbe.util.RecipeViewerOverlay.render(guiGraphics, mouseX, mouseY, partialTick);
+        com.alonie.brbe.util.RecipeViewerOverlay.renderTooltip(guiGraphics, mouseX, mouseY);
+    }
+
     public static ScreenRectangle getOverlayBounds(Screen screen) {
         if (screen instanceof TopLayerOverlayProvider provider) {
             return provider.brbe$getTopLayerOverlayBounds();

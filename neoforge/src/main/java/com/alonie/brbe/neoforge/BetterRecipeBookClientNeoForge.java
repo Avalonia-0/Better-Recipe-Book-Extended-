@@ -113,6 +113,14 @@ public class BetterRecipeBookClientNeoForge {
             if (screen != null) {
                 registeredScreens.remove(screen);
                 OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
+                // 查询浮层：整屏渲染完成后绘制（最顶层）——Screen.render TAIL 在容器
+                // 内容之前执行，浮层会被背包/配方书盖住（R 打开但面板被遮挡 = "无法使用"）。
+                NeoForge.EVENT_BUS.addListener(ScreenEvent.Render.Post.class, renderEvent -> {
+                    if (renderEvent.getScreen() == screen) {
+                        TopLayerOverlayRenderer.renderViewer(screen, renderEvent.getGuiGraphics(),
+                                renderEvent.getMouseX(), renderEvent.getMouseY(), renderEvent.getPartialTick());
+                    }
+                });
             }
         });
 

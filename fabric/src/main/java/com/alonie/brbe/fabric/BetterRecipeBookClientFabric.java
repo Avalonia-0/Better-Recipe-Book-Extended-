@@ -96,6 +96,9 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             this.registeredScreens.remove(screen);
             OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
+            // 查询浮层：整屏渲染完成后绘制（最顶层）——Screen.render TAIL 在容器
+            // 内容之前执行，浮层会被背包/配方书盖住。
+            ScreenEvents.afterRender(screen).register(TopLayerOverlayRenderer::renderViewer);
         });
 
         ClientTickEvents.END_CLIENT_TICK.register(client -> {

@@ -98,11 +98,18 @@ public abstract class RecipeBookPageMixin {
             if (isMouseOverRecipeBookPage(k, l, i, j) && totalPages > 1) {
                 // 用户翻页标记（滚轮）：动画 mixin 依赖它区分用户翻页与程序恢复
                 com.alonie.brbe.util.RecipeBookPageAnimBridge.markUserFlip();
+                int oldPage = currentPage;
                 currentPage += BetterRecipeBook.getQueuedScroll();
                 if (currentPage >= totalPages) {
                     currentPage = BetterRecipeBook.config.scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;
                 } else if (currentPage < 0) {
                     currentPage = BetterRecipeBook.config.scrolling.scrollAround ? (currentPage % totalPages) + totalPages : 0;
+                }
+
+                // 翻页音效：仅实际翻页时播放（scrollPageSound + pageFlipVolume 由
+                // ClientCompat.playPageFlipSound 统一门控；滚到首/尾页不响）。
+                if (currentPage != oldPage) {
+                    com.alonie.brbe.util.ClientCompat.playPageFlipSound(Minecraft.getInstance());
                 }
 
                 updateButtonsForPage();

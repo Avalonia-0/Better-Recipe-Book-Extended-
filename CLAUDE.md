@@ -675,3 +675,32 @@ currentIndex 重算，renderItem/renderFakeItem 复刻 renderWidget 偏移布局
 **部署**：备份 20260828-224x（原子替换）；neoforge 875b1d1a、fabric 6d4af704。
 **待用户实测**：无崩溃（pin/翻页/搜索后叙述安全）+ 动画挤压视效 + 复现 R/U 后收集
 [BRBE-VIEWER-DIAG] 日志定位根因。
+
+## 2026-08-28（晚四）：查询浮层层级修复（根因！）+ 翻页音效接线 + 动画残缺标记对齐（已部署双端）
+
+用户继续实测：①动画细节仍损坏；②查询系统"无法使用"（建议重做）；③翻页音效损坏。
+**关键证据**（实例日志 [BRBE-VIEWER-DIAG] 插桩行，22:54-22:55 会话）：
+- R 键**到达** keyPressed mixin ✓（key=82 scan=27 rvEnabled=true）
+- 悬停工作台按 R → `opened=true active=true` ——**查询浮层确实打开了**！
+- 结论：按键/数据层正常，问题是**浮层渲染层级**——ScreenRenderMixin 挂在
+  `Screen.render` TAIL，而容器屏幕（CraftingScreen/InventoryScreen）在
+  `super.render()`（含 Screen TAIL）**之后**才绘制槽位/配方书 → 浮层被下层内容
+  完全盖住 → 用户看不见面板 → "无法使用"。（此前配置屏泄漏也是同一注入点，
+  方向相反的另一半问题。）
+
+**本次重做（参考 1.21.11 架构）**：
+- 查询浮层渲染从 `Screen.render` TAIL **移到平台 after-render 钩子**（整屏渲染完成
+  后、最顶层）：fabric `ScreenEvents.afterRender(screen)`（AFTER_INIT 内逐屏注册）；
+  neoforge `ScreenEvent.Render.Post`（Init.Post 内逐屏注册，复用既有模式）。
+  新入口 `TopLayerOverlayRenderer.renderViewer`（render + renderTooltip）；
+  ScreenRenderMixin 只留 TopLayerOverlayRenderer（顶层层原样）。
+- **翻页音效**：`ClientCompat.playPageFlipSound` 在 1.21.1 移植后**从未被调用**
+  （有定义无调用者——滚轮翻页静音根因）。scrollablepages/RecipeBookPageMixin 滚轮
+  处理补调用（仅实际翻页时播放；scrollPageSound/pageFlipVolume 由 helper 统一门控；
+  箭头点击走 vanilla AbstractWidget.playDownSound 原声）。
+- 动画残缺标记对齐静态路径：挤压分支的残缺红罩从纯 fill 改为
+  `BRBTextures.hasPartialSprite()` 时补画 partial sprite（宽随挤压收窄）。
+
+**部署**：备份 20260828-23xx（原子替换）；neoforge de585a82、fabric 52ce9e65。
+**待用户实测**：R/U 打开面板应**完整可见**（背包/配方书之上）；滚轮翻页有音效；
+翻页动画挤压/残缺标记与静态一致。诊断日志保留（定位后可移除）。
