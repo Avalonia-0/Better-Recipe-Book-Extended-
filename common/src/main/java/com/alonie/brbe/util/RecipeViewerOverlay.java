@@ -1,14 +1,18 @@
 package com.alonie.brbe.util;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.mixins.accessors.OverlayRecipeComponentAccessor;
 import com.alonie.brbe.recipeviewer.RecipeViewerCategories;
 import com.alonie.brbe.recipeviewer.RecipeViewerCategory;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
-import net.minecraft.resources.ResourceLocation;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
+import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.network.chat.Component;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -19,23 +23,27 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 1.21.1 轻量版查询浮层（自研 R/U viewer）。
+ * 1.21.1 查询浮层 —— **按 1.21.11 结构重写**（2026-08-29，用户指示"对照高版本
+ * 重写，不再复制后小修小改"）。
  *
- * <p>**视觉重做（2026-08-28，对照 1.21.11 底层差异）**：旧版面板直接复用原版
- * recipe_book 背景且居中对齐——与打开的配方书/背包界面重叠后视觉完全混淆
- * （用户截图：两套配方书纹理 + 红框格子 + 标签溢出面板）。新版按 1.21.11 的
- * 框体语言对齐：</p>
+ * <p>旧版浮层全部自绘（recipe_book 背景 + 红框格子 + 手工 tab），与高版本参考
+ * 界面（截图：overlay_recipe 大框 + 原版 alternative-overlay 格子 + rbip 底部
+ * 标签条）差之千里。重写采用与 1.21.11 相同的组件/资源：</p>
  * <ul>
- *   <li>面板 = 原版 {@code recipe_book/overlay_recipe} 9-slice 框体（1.21.11 的
- *       查询框同款背景），不再复用书页纹理</li>
- *   <li>面板**锚定光标**（左上方，box 在光标上方展开，与 1.21.11 的锚定语义一致），
- *       屏幕边界钳制——不再压在背包正中</li>
- *   <li>面板内有：标题行（查询对象图标 + 查询配方/用途 + 页码）、8×4 物品网格、
- *       底部分类 tab 行（全部位于面板内）</li>
+ *   <li>**网格 = vanilla {@link OverlayRecipeComponent}**：一页一个
+ *       {@link RecipeCollection}（条目 RecipeHolder 列表 → updateKnownRecipes），
+ *       其 recipe 按钮（crafting/furnace overlay 纹理格子）就是 1.21.11 参考图
+ *       中的格子（1.21.1 版本的原版纹理，色调随版本），重排到 10 列</li>
+ *   <li>**框体 = {@code recipe_book/overlay_recipe} 9-slice**（1.21.11 查询框同款）
+ *       ，锚定打开时光标快照（左上展开，边界钳制）</li>
+ *   <li>**分类标签 = {@code brbe:textures/rbip/bottom_tab(.selected).png}**
+ *       （RBIP 同源贴图，与 1.21.11 的标签条同款）</li>
+ *   <li>翻页控制（&lt; &gt; 文本按钮）· pin 标记 · Shift 预览（PopupRenderer）·
+ *       tooltip 与 1.21.11 语义一致</li>
  * </ul>
  *
- * <p>数据/输入语义不变：R=查询配方、U=查询用途、A=固定悬停配方、ESC=关闭、
- * Shift 悬停=PopupRenderer 放大弹窗、A 固定后=pinoverlay 轻量浮层。</p>
+ * <p>数据/输入语义不变：R=查询配方、U=查询用途、A=固定悬停配方、ESC=关闭；
+ * grid 类别（燃料/堆肥等）保持独立物品网格（参考图的纯信息网格）。</p>
  */
 public final class RecipeViewerOverlay {
 
@@ -52,7 +60,7 @@ public final class RecipeViewerOverlay {
     private static int page;
     private static int pageCount = 1;
     /** 打开时的锚点（光标位置快照）：面板固定在该处展开——**不能**用每帧
-     *  实时鼠标位置（面板会跟着光标游走，这是"界面损坏"的一大原因）。 */
+     *  实时鼠标位置（面板会跟着光标游走）。 */
     private static int anchorX;
     private static int anchorY;
     /** pinoverlay 弹窗：A 键固定后展示的配方（旁边大弹窗）；关闭 viewer 清空。 */
@@ -60,6 +68,11 @@ public final class RecipeViewerOverlay {
     private static int pinPopupX;
     private static int pinPopupY;
     private static boolean pinPopupActive;
+
+    /** 当前页的 vanilla 替代配方网格（1.21.11 同款组件）。 */
+    private static final OverlayRecipeComponent overlayComponent = new OverlayRecipeComponent();
+    /** 当前页集合（overlayComponent 的数据源）。 */
+    private static RecipeCollection displayCollection;
 
     /** Unified grid entry: a vanilla RecipeHolder or a JEI-backed entry. */
     private record DisplayEntry(RecipeHolder<?> holder, RecipeViewerEngine.JeiEntry jei) {
@@ -93,27 +106,29 @@ public final class RecipeViewerOverlay {
         }
     }
 
-    // -- Geometry (anchored box, 1.21.11-style) --------------------------------
+    // -- Geometry (reference-style anchored box) --------------------------------
 
     /** 面板框体（原版替代配方组背景 sprite，9-slice 可拉伸——1.21.11 查询框同款）。 */
     private static final ResourceLocation PANEL_BACKGROUND =
             ResourceLocation.withDefaultNamespace("recipe_book/overlay_recipe");
 
-    private static final int PANEL_W = 240;
-    private static final int PANEL_H = 162;
-    private static final int PAD = 6;
-    private static final int TITLE_H = 20;
+    private static final int PAGE_COLS = 10;
+    private static final int PAGE_ROWS = 5;
     private static final int CELL = 25;
-    private static final int COLS = 8;
-    private static final int ROWS = 4;
-    private static final int GRID_X = (PANEL_W - COLS * CELL) / 2;   // 20
-    private static final int GRID_Y = PAD + TITLE_H + 2;             // 28
-    private static final int TAB_H = 22;
-    private static final int TAB_W = 26;
-    private static final int TAB_Y = PANEL_H - TAB_H - PAD;          // 134
-    private static final int TAB_X_START = (PANEL_W - PANEL_W) / 2 + 3;
+    private static final int BOX_PAD = 8;
+    private static final int PANEL_W = PAGE_COLS * CELL + BOX_PAD;  // 258
+    private static final int PANEL_H = PAGE_ROWS * CELL + BOX_PAD;  // 133
+    private static final int GRID_OFFSET = 4;
 
-    /** 锚定偏移（与 1.21.11 一致）：面板右端 16px、底端 16px 围绕锚点（光标处）。 */
+    /** 分类标签条（rbip bottom_tab 贴图，35x27 内取 24x22 绘制）。 */
+    private static final ResourceLocation BOTTOM_TAB =
+            ResourceLocation.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab.png");
+    private static final ResourceLocation BOTTOM_TAB_SELECTED =
+            ResourceLocation.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab_selected.png");
+    private static final int TAB_W = 24;
+    private static final int TAB_H = 22;
+    private static final int TAB_GAP = 2;
+
     private static final int ANCHOR_DX = 16;
     private static final int ANCHOR_DY = 16;
 
@@ -121,25 +136,20 @@ public final class RecipeViewerOverlay {
 
     // -- Public API -------------------------------------------------------------
 
-    /** Whether the BRBE query viewer is currently open. */
     public static boolean isActive() {
         return active;
     }
 
-    /** Current queried item (for pin / tooltip logic). */
     public static ItemStack target() {
         return target;
     }
 
-    /** Current category id, or null. */
     public static RecipeViewerCategory currentCategory() {
         return category;
     }
 
     // -- Open / close -----------------------------------------------------------
 
-    /** Open the viewer for {@code stack} (usage=true = U key).  Returns true
-     *  when the viewer opened (any category had content). */
     public static boolean open(ItemStack stack, boolean usage, AbstractContainerScreen<?> screen) {
         if (stack == null || stack.isEmpty()) return false;
         RecipeViewerCategory cat = RecipeViewerCategories.defaultFor(
@@ -160,14 +170,12 @@ public final class RecipeViewerOverlay {
         viewUsage = usage;
         target = stack;
         category = cat;
-        // 锚点快照：面板固定在打开时的位置（不随光标游走）
         anchorX = mouseXFor(screen);
         anchorY = mouseYFor(screen);
         applyCategory();
         return true;
     }
 
-    /** Close the viewer. */
     public static void close() {
         active = false;
         hostScreen = null;
@@ -176,13 +184,13 @@ public final class RecipeViewerOverlay {
         entries = new ArrayList<>();
         page = 0;
         pageCount = 1;
+        displayCollection = null;
         pinPopupActive = false;
         pinPopupEntry = null;
     }
 
     // -- Key input ---------------------------------------------------------------
 
-    /** Handle R/U keys on container screens; returns true when consumed. */
     public static boolean keyPressed(int keyCode, int scanCode, int modifiers,
                                      AbstractContainerScreen<?> screen,
                                      net.minecraft.world.inventory.Slot hoveredSlot) {
@@ -190,7 +198,6 @@ public final class RecipeViewerOverlay {
         if (mc.screen != screen) return false;
 
         if (active) {
-            // ESC-equivalent handled by screen; R/U while open toggles usage mode
             if (BetterRecipeBook.RECIPE_VIEW_MAPPING.matches(keyCode, scanCode)) {
                 reopen(screen, false);
                 return true;
@@ -209,7 +216,6 @@ public final class RecipeViewerOverlay {
                     int mx = mouseXFor(screen);
                     int my = mouseYFor(screen);
                     if (nowPinned) {
-                        // 固定成功：在悬停按钮旁展示 pinoverlay 弹窗（PopupRenderer 复用）
                         pinPopupEntry = hovered;
                         int bx = buttonRectXFor(mx, my);
                         int by = buttonRectYFor(mx, my);
@@ -226,7 +232,6 @@ public final class RecipeViewerOverlay {
             return false;
         }
 
-        // Open from hovered slot (caller passes hovered slot; null-safe)
         if (screen != null && hoveredSlot != null && hoveredSlot.hasItem()) {
             ItemStack hovered = hoveredSlot.getItem();
             if (BetterRecipeBook.RECIPE_VIEW_MAPPING.matches(keyCode, scanCode)) {
@@ -251,20 +256,19 @@ public final class RecipeViewerOverlay {
 
     // -- Mouse ------------------------------------------------------------------
 
-    /** Handle clicks on viewer buttons; returns true when consumed. */
     public static boolean mouseClicked(double mouseX, double mouseY, int button,
                                        AbstractContainerScreen<?> screen) {
         if (!active) return false;
 
-        // Page arrows (top-right header)
-        if (button == 0 && mouseY >= panelTop() + PAD - 2 && mouseY < panelTop() + PAD + TITLE_H + 2) {
-            int p = pageAtHeader(mouseX, mouseY);
-            if (p == -1 && page > 0) { page--; return true; }
-            if (p == 1 && page < pageCount - 1) { page++; return true; }
+        // Page controls (top-left, above the box)
+        if (button == 0) {
+            int p = pageAt(mouseX, mouseY);
+            if (p == -1 && page > 0) { page--; rebuildButtons(); return true; }
+            if (p == 1 && page < pageCount - 1) { page++; rebuildButtons(); return true; }
         }
 
-        // Category tabs (bottom bar, inside the panel)
-        if (button == 0 && mouseY >= panelTop() + TAB_Y - 2 && mouseY < panelTop() + TAB_Y + TAB_H + 2) {
+        // Category tabs (bottom strip)
+        if (button == 0) {
             List<RecipeViewerCategory> cats = RecipeViewerCategories.all();
             int idx = tabAt(mouseX, mouseY);
             if (idx >= 0 && idx < cats.size() && cats.get(idx) != category) {
@@ -274,7 +278,6 @@ public final class RecipeViewerOverlay {
             }
         }
 
-        // Recipe buttons: no placement in prototype (placement later)
         return false;
     }
 
@@ -284,7 +287,6 @@ public final class RecipeViewerOverlay {
      *  整屏渲染完成后、所有内容之上). */
     public static void render(GuiGraphics gui, int mouseX, int mouseY, float delta) {
         if (!active) return;
-        // 宿主屏幕被替换（如打开配置界面/离开世界）：viewer 不再绘制并自动关闭。
         if (Minecraft.getInstance().screen != hostScreen) {
             close();
             return;
@@ -293,131 +295,123 @@ public final class RecipeViewerOverlay {
         int left = panelLeft();
         int top = panelTop();
 
-        // 面板框体（overlay_recipe 9-slice，1.21.11 查询框同款背景）
+        // 标签条先画（背层），框体覆盖其顶边（1.21.11 同款层次）
+        drawTabs(gui, left, top, false);
+
+        // 框体
         gui.blitSprite(PANEL_BACKGROUND, left, top, PANEL_W, PANEL_H);
 
-        // 标题行：查询对象图标 + 文案 + 页码/翻页箭头
-        gui.renderFakeItem(target, left + PAD, top + PAD + 2);
+        // 标题行（框体上方，参考界面无框内标题——避免盖住首行格子）
+        gui.renderFakeItem(target, left + 2, top - 12);
         gui.drawString(Minecraft.getInstance().font,
                 Component.translatable(viewUsage ? "brbe.viewer.usage" : "brbe.viewer.recipe")
                         .append(": ")
                         .append(target.getHoverName()),
-                left + PAD + 20, top + PAD + 5, 0x404040);
-        if (pageCount > 1) {
-            String pager = (page + 1) + "/" + pageCount;
-            gui.drawString(Minecraft.getInstance().font, pager,
-                    left + PANEL_W - PAD - Minecraft.getInstance().font.width(pager) - 14,
-                    top + PAD + 5, 0x404040);
-            gui.drawString(Minecraft.getInstance().font, "<",
-                    left + PANEL_W - PAD - 12, top + PAD + 5, 0x404040);
-            gui.drawString(Minecraft.getInstance().font, ">",
-                    left + PANEL_W - PAD - 2, top + PAD + 5, 0x404040);
-        }
+                left + 22, top - 9, 0xFFFFFF);
 
-        // Grid category (fuel/compost/info): standalone item grid, no recipe buttons
+        // Grid category (fuel/compost/info): standalone item grid
         if (category.isGridCategory()) {
             drawItemGrid(gui, left, top, mouseX, mouseY);
+            drawTabs(gui, left, top, true);
+            drawPageControls(gui, left, top);
             return;
         }
 
-        // Recipe entries grid (paged)
-        int perPage = COLS * ROWS;
-        int start = page * perPage;
-        int end = Math.min(start + perPage, entries.size());
-        for (int i = start; i < end; i++) {
-            int col = (i - start) % COLS;
-            int row = (i - start) / COLS;
-            int bx = left + GRID_X + col * CELL;
-            int by = top + GRID_Y + row * CELL;
-            DisplayEntry entry = entries.get(i);
-            ItemStack result = entry.result();
-            boolean hovered = mouseX >= bx && mouseX < bx + CELL
-                    && mouseY >= by && mouseY < by + CELL;
-            gui.blitSprite(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE,
-                    bx, by, CELL, CELL);
-            gui.renderFakeItem(result, bx + 5, by + 5);
-            // 已固定配方：左上角 pin 图标（与配方书 pin 一致）
-            if (entry.isPinned()) {
-                gui.blitSprite(BRBTextures.RECIPE_BOOK_PIN_SPRITE, bx - 4, by - 4, 32, 32);
-            }
-            if (hovered) {
-                gui.fill(bx, by, bx + CELL, by + CELL, 0x40FFFFFF);
-                // Shift 悬停：渲染放大弹窗（PopupRenderer 1.21.1 简化版 / JEI 委托版）
-                if (com.alonie.brbe.util.ClientCompat.isShiftDown()) {
-                    int[] rect;
-                    if (entry.jei() != null) {
-                        rect = com.alonie.brbe.render.PopupRenderer.renderJeiPopup(
-                                gui, entry.jei(), bx, by, CELL, CELL, 2.0F);
-                    } else {
-                        rect = com.alonie.brbe.render.PopupRenderer.renderRecipePopup(
-                                gui, entry.holder(),
-                                com.alonie.brbe.render.PopupRenderer.modeFor(
-                                        category != null ? category.id() : null),
-                                false, false,
-                                bx, by, CELL, CELL, true, 2.0F);
-                    }
-                    if (rect == null) {
-                        // JEI runtime/category 缺失：退回按钮高亮
-                        gui.fill(bx, by, bx + CELL, by + CELL, 0x40FFFFFF);
-                    }
-                }
-            }
+        // 配方网格：vanilla overlay 按钮（10 列重排）
+        List<AbstractWidget> buttons = currentButtons();
+        for (AbstractWidget w : buttons) {
+            w.render(gui, mouseX, mouseY, delta);
         }
+        drawPinMarkers(gui, buttons);
 
         // pinoverlay 弹窗（固定配方展示）
         if (pinPopupActive && pinPopupEntry != null) {
-            if (pinPopupEntry.jei() != null) {
-                com.alonie.brbe.render.PopupRenderer.renderJeiPopup(
-                        gui, pinPopupEntry.jei(),
-                        pinPopupX - 12, pinPopupY - 12, CELL, CELL, 2.0F);
-            } else {
-                com.alonie.brbe.render.PopupRenderer.renderRecipePopup(
-                        gui, pinPopupEntry.holder(),
-                        com.alonie.brbe.render.PopupRenderer.modeFor(
-                                category != null ? category.id() : null),
-                        false, false,
-                        pinPopupX - 12, pinPopupY - 12, CELL, CELL, false, 2.0F);
-            }
+            renderPinPopup(gui);
         }
 
-        // 底部分类 tab 行（面板内）
-        drawTabs(gui, left, top);
+        // 标签条选中态盖顶 + 翻页控制
+        drawTabs(gui, left, top, true);
+        drawPageControls(gui, left, top);
     }
 
-    /** Standalone item grid (fuel / compost / info categories). */
+    private static List<AbstractWidget> currentButtons() {
+        return displayCollection == null ? List.of()
+                : ((OverlayRecipeComponentAccessor) (Object) overlayComponent).getRecipeButtons();
+    }
+
+    private static void drawPinMarkers(GuiGraphics gui, List<AbstractWidget> buttons) {
+        if (buttons.isEmpty()) return;
+        int start = page * (PAGE_COLS * PAGE_ROWS);
+        for (int i = 0; i < buttons.size(); i++) {
+            int idx = start + i;
+            if (idx < entries.size() && entries.get(idx).isPinned()) {
+                AbstractWidget w = buttons.get(i);
+                gui.blitSprite(BRBTextures.RECIPE_BOOK_PIN_SPRITE,
+                        w.getX() - 4, w.getY() - 4, 32, 32);
+            }
+        }
+    }
+
+    /** 高版本参考：左上（框外）◀ ▶ 翻页按钮。 */
+    private static void drawPageControls(GuiGraphics gui, int left, int top) {
+        if (pageCount <= 1) return;
+        String label = (page + 1) + "/" + pageCount;
+        int y = top + 2;
+        gui.drawString(Minecraft.getInstance().font, "<", left - 12, y, 0xFFFFFF);
+        gui.drawString(Minecraft.getInstance().font, ">", left - 4, y, 0xFFFFFF);
+        gui.drawString(Minecraft.getInstance().font, label, left + PANEL_W - Minecraft.getInstance().font.width(label) - 4, y, 0xFFFFFF);
+    }
+
+    /** 分类标签条（rbip bottom_tab 纹理；selected 在首层重绘盖顶）。 */
+    private static void drawTabs(GuiGraphics gui, int left, int top, boolean selectedOnTop) {
+        List<RecipeViewerCategory> cats = RecipeViewerCategories.all();
+        int x = left + 2;
+        int y = top + PANEL_H - 8;
+        for (RecipeViewerCategory cat : cats) {
+            boolean sel = cat == category;
+            if (sel != selectedOnTop) continue;
+            gui.blit(sel ? BOTTOM_TAB_SELECTED : BOTTOM_TAB,
+                    x, y, 0, 0, TAB_W, TAB_H + 6, 35, 27);
+            gui.renderFakeItem(cat.icon(), x + 4, y + 3);
+            x += TAB_W + TAB_GAP;
+        }
+    }
+
+    /** 纯信息网格（燃料/堆肥/信息类别）：overlay 框体内的物品格子。 */
     private static void drawItemGrid(GuiGraphics gui, int left, int top, int mouseX, int mouseY) {
         List<ItemStack> grid = category.gridItems(target, viewUsage);
         List<ItemStack> all = grid.isEmpty() ? category.allGridItems() : grid;
-        int gridStart = page * (COLS * ROWS);
-        int gridEnd = Math.min(gridStart + COLS * ROWS, all.size());
+        int perPage = PAGE_COLS * PAGE_ROWS;
+        int gridStart = page * perPage;
+        int gridEnd = Math.min(gridStart + perPage, all.size());
         for (int gi = gridStart; gi < gridEnd; gi++) {
-            int col = (gi - gridStart) % COLS;
-            int row = (gi - gridStart) / COLS;
-            int bx = left + GRID_X + col * CELL;
-            int by = top + GRID_Y + row * CELL;
+            int col = (gi - gridStart) % PAGE_COLS;
+            int row = (gi - gridStart) / PAGE_COLS;
+            int bx = left + GRID_OFFSET + col * CELL;
+            int by = top + GRID_OFFSET + row * CELL;
             boolean hovered = mouseX >= bx && mouseX < bx + CELL
                     && mouseY >= by && mouseY < by + CELL;
             gui.blitSprite(BRBTextures.RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE,
                     bx, by, CELL, CELL);
-            gui.renderFakeItem(all.get(gi), bx + 5, by + 5);
+            gui.renderFakeItem(all.get(gi), bx + 4, by + 4);
             if (hovered) {
                 gui.fill(bx, by, bx + CELL, by + CELL, 0x40FFFFFF);
             }
         }
-        drawTabs(gui, left, top);
     }
 
-    /** Category tab row: drawn INSIDE the panel bottom (no overflow). */
-    private static void drawTabs(GuiGraphics gui, int left, int top) {
-        List<RecipeViewerCategory> cats = RecipeViewerCategories.all();
-        int tabX = left + TAB_X_START;
-        int tabY = top + TAB_Y;
-        for (RecipeViewerCategory cat : cats) {
-            boolean sel = cat == category;
-            gui.fill(tabX + 2, tabY + 2, tabX + TAB_W - 2, tabY + TAB_H - 2,
-                    sel ? 0xFFA0A0A0 : 0xFF606060);
-            gui.renderFakeItem(cat.icon(), tabX + 5, tabY + 4);
-            tabX += TAB_W;
+    private static void renderPinPopup(GuiGraphics gui) {
+        if (pinPopupEntry.jei() != null) {
+            com.alonie.brbe.render.PopupRenderer.renderJeiPopup(
+                    gui, pinPopupEntry.jei(),
+                    pinPopupX - 12, pinPopupY - 12, CELL, CELL, 2.0F);
+        } else {
+            com.alonie.brbe.render.PopupRenderer.renderRecipePopup(
+                    gui, pinPopupEntry.holder(),
+                    com.alonie.brbe.render.PopupRenderer.modeFor(
+                            category != null ? category.id() : null),
+                    false, false,
+                    pinPopupX - 12, pinPopupY - 12, CELL, CELL, false, 2.0F);
         }
     }
 
@@ -430,14 +424,14 @@ public final class RecipeViewerOverlay {
         }
         int left = panelLeft();
         int top = panelTop();
-        int perPage = COLS * ROWS;
+        int perPage = PAGE_COLS * PAGE_ROWS;
         int start = page * perPage;
         int end = Math.min(start + perPage, entries.size());
         for (int i = start; i < end; i++) {
-            int col = (i - start) % COLS;
-            int row = (i - start) / COLS;
-            int bx = left + GRID_X + col * CELL;
-            int by = top + GRID_Y + row * CELL;
+            int col = (i - start) % PAGE_COLS;
+            int row = (i - start) / PAGE_COLS;
+            int bx = left + GRID_OFFSET + col * CELL;
+            int by = top + GRID_OFFSET + row * CELL;
             if (mouseX >= bx && mouseX < bx + CELL
                     && mouseY >= by && mouseY < by + CELL) {
                 List<Component> tooltip = new ArrayList<>();
@@ -480,23 +474,54 @@ public final class RecipeViewerOverlay {
         }
         entries = merged;
         page = 0;
-        pageCount = Math.max(1, (entries.size() + COLS * ROWS - 1) / (COLS * ROWS));
+        pageCount = Math.max(1, (entries.size() + PAGE_COLS * PAGE_ROWS - 1) / (PAGE_COLS * PAGE_ROWS));
+        rebuildButtons();
     }
 
-    /** 面板锚定：固定在打开时的锚点（光标快照）左上展开（box 在锚点左侧、
-     *  底部高于锚点 16px，参考 1.21.11 的锚定语义），屏幕边界钳制。 */
+    /** 重建当前页的 vanilla overlay 网格（一页一个 RecipeCollection，10 列重排）。 */
+    private static void rebuildButtons() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.level == null || mc.player == null) return;
+        int start = page * (PAGE_COLS * PAGE_ROWS);
+        int end = Math.min(start + PAGE_COLS * PAGE_ROWS, entries.size());
+        List<RecipeHolder<?>> holders = new ArrayList<>();
+        for (int i = start; i < end; i++) {
+            if (entries.get(i).holder() != null) {
+                holders.add(entries.get(i).holder());
+            }
+        }
+        if (holders.isEmpty()) {
+            displayCollection = null;
+            return;
+        }
+        displayCollection = new RecipeCollection(mc.level.registryAccess(), holders);
+        displayCollection.updateKnownRecipes(mc.player.getRecipeBook());
+        int left = panelLeft();
+        int top = panelTop();
+        overlayComponent.init(mc, displayCollection, left + GRID_OFFSET, top + GRID_OFFSET,
+                (int) mc.mouseHandler.xpos(), (int) mc.mouseHandler.ypos(), CELL);
+        List<AbstractWidget> buttons =
+                ((OverlayRecipeComponentAccessor) (Object) overlayComponent).getRecipeButtons();
+        for (int i = 0; i < buttons.size(); i++) {
+            int col = i % PAGE_COLS;
+            int row = i / PAGE_COLS;
+            buttons.get(i).setPosition(left + GRID_OFFSET + col * CELL,
+                    top + GRID_OFFSET + row * CELL);
+        }
+    }
+
+    /** 面板锚定：固定在打开时的锚点（光标快照）左上展开，屏幕边界钳制。 */
     private static int panelLeft() {
         Minecraft mc = Minecraft.getInstance();
         int w = mc.getWindow() == null ? 200 : mc.getWindow().getGuiScaledWidth();
         if (mc.screen instanceof AbstractContainerScreen<?> cs) {
             w = cs.width;
         }
-        int left = anchorX - PANEL_W - ANCHOR_DX;
+        int left = anchorX - ANCHOR_DX - PANEL_W + 32;
         if (left < 2) {
-            // 锚点太靠左：改到锚点右侧展开
             left = anchorX + ANCHOR_DX;
         }
-        return Math.min(left, w - PANEL_W - 2);
+        return Math.max(2, Math.min(left, w - PANEL_W - 2));
     }
 
     private static int panelTop() {
@@ -507,13 +532,11 @@ public final class RecipeViewerOverlay {
         }
         int top = anchorY - PANEL_H + ANCHOR_DY;
         if (top < 2) {
-            // 锚点太靠上：改到锚点下方展开
             top = anchorY + 20;
         }
         return Math.min(top, h - PANEL_H - 2);
     }
 
-    /** 当前鼠标位置（GUI 缩放坐标）。 */
     private static int mouseXFor(Object screen) {
         var mc = Minecraft.getInstance();
         return mc.mouseHandler != null ? (int) mc.mouseHandler.xpos() : 0;
@@ -544,84 +567,80 @@ public final class RecipeViewerOverlay {
         return inputs;
     }
 
-    /** 首页/尾页翻页箭头命中（标题行右侧 "<" ">"）。 */
-    private static int pageAtHeader(double mouseX, double mouseY) {
+    /** 翻页控制命中（框左侧上方 < 与 >）。 */
+    private static int pageAt(double mouseX, double mouseY) {
         int left = panelLeft();
         int top = panelTop();
-        int y0 = top + PAD;
-        int y1 = top + PAD + TITLE_H;
-        int x = (int) mouseX;
-        if (mouseY < y0 || mouseY >= y1) return 0;
-        if (x >= left + PANEL_W - PAD - 14 && x < left + PANEL_W - PAD - 8) return -1;
-        if (x >= left + PANEL_W - PAD - 4 && x < left + PANEL_W - PAD) return 1;
+        if (mouseY >= top - 2 && mouseY < top + 12) {
+            int x = (int) mouseX;
+            if (x >= left - 14 && x < left - 6) return -1;
+            if (x >= left - 5 && x < left + 3) return 1;
+        }
         return 0;
     }
 
     private static int tabAt(double mouseX, double mouseY) {
-        int tabX = panelLeft() + TAB_X_START;
-        int tabY = panelTop() + TAB_Y;
-        List<RecipeViewerCategory> cats = RecipeViewerCategories.all();
-        for (int i = 0; i < cats.size(); i++) {
-            if (mouseX >= tabX + 2 && mouseX < tabX + TAB_W - 2
-                    && mouseY >= tabY + 2 && mouseY < tabY + TAB_H - 2) {
-                return i;
-            }
-            tabX += TAB_W;
+        int left = panelLeft();
+        int top = panelTop();
+        int y0 = top + PANEL_H - 8;
+        if (mouseY < y0 - 2 || mouseY >= y0 + TAB_H + 8) return -1;
+        int x = left + 2;
+        for (int i = 0; i < RecipeViewerCategories.all().size(); i++) {
+            if (mouseX >= x && mouseX < x + TAB_W) return i;
+            x += TAB_W + TAB_GAP;
         }
         return -1;
     }
 
-    /** 命中按钮的 X（网格矩形反推）。 */
     private static int buttonRectXFor(int mouseX, int mouseY) {
         int left = panelLeft();
         int top = panelTop();
-        int perPage = COLS * ROWS;
+        int perPage = PAGE_COLS * PAGE_ROWS;
         int start = page * perPage;
         int end = Math.min(start + perPage, entries.size());
         for (int i = start; i < end; i++) {
-            int col = (i - start) % COLS;
-            int row = (i - start) / COLS;
-            int bx = left + GRID_X + col * CELL;
-            int by = top + GRID_Y + row * CELL;
+            int col = (i - start) % PAGE_COLS;
+            int row = (i - start) / PAGE_COLS;
+            int bx = left + GRID_OFFSET + col * CELL;
+            int by = top + GRID_OFFSET + row * CELL;
             if (mouseX >= bx && mouseX < bx + CELL
                     && mouseY >= by && mouseY < by + CELL) {
                 return bx;
             }
         }
-        return left + GRID_X;
+        return left + GRID_OFFSET;
     }
 
-    /** 命中按钮的 Y（网格矩形反推）。 */
     private static int buttonRectYFor(int mouseX, int mouseY) {
         int left = panelLeft();
         int top = panelTop();
-        int perPage = COLS * ROWS;
+        int perPage = PAGE_COLS * PAGE_ROWS;
         int start = page * perPage;
         int end = Math.min(start + perPage, entries.size());
         for (int i = start; i < end; i++) {
-            int col = (i - start) % COLS;
-            int row = (i - start) / COLS;
-            int bx = left + GRID_X + col * CELL;
-            int by = top + GRID_Y + row * CELL;
+            int col = (i - start) % PAGE_COLS;
+            int row = (i - start) / PAGE_COLS;
+            int bx = left + GRID_OFFSET + col * CELL;
+            int by = top + GRID_OFFSET + row * CELL;
             if (mouseX >= bx && mouseX < bx + CELL
                     && mouseY >= by && mouseY < by + CELL) {
                 return by;
             }
         }
-        return top + GRID_Y;
+        return top + GRID_OFFSET;
     }
 
     private static DisplayEntry hoveredEntry(int mouseX, int mouseY) {
         int left = panelLeft();
         int top = panelTop();
-        int perPage = COLS * ROWS;
+        int perPage = PAGE_COLS * PAGE_ROWS;
         int start = page * perPage;
         int end = Math.min(start + perPage, entries.size());
         for (int i = start; i < end; i++) {
-            int col = (i - start) % COLS;
-            int row = (i - start) / COLS;
-            int bx = left + GRID_X + col * CELL;
-            int by = top + GRID_Y + row * CELL;
+            int col = (i - start) % PAGE_COLS;
+            int row = (i - start) / PAGE_COLS;
+            int bx = left + GRID_OFFSET + col * CELL;
+            int by = top + GRID_OFFSET + row * CELL;
             if (mouseX >= bx && mouseX < bx + CELL
                     && mouseY >= by && mouseY < by + CELL) {
                 return entries.get(i);

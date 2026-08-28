@@ -733,3 +733,25 @@ currentIndex 重算，renderItem/renderFakeItem 复刻 renderWidget 偏移布局
 **部署**：备份 20260828-23xx（原子替换）；neoforge 3e91c5a5、fabric 43f19016。
 **待用户实测**：翻页图标被格子裁边；滚轮翻页 = 原版按钮点击声；查询浮层 = 框体面板
 锚定光标、标题/页码/tab 均在面板内；R/U/A/Shift/ESC 交互正常。
+
+## 2026-08-29：查询浮层按 1.21.11 结构重写（vanilla overlay 网格 + rbip 标签条）
+
+用户指示："对照高版本和变更日志重写，而不是先整体复制然后小修小改"。附三图对比：
+1.21.1 旧浮层（overlay_recipe 灰框 + 红框自制格子）vs 1.21.11/26.2 参考（overlay_recipe
+大框 + **vanilla alternative-overlay 格子** + rbip bottom_tab 标签条）。
+**重写要点（RecipeViewerOverlay 整文件重写）**：
+- 网格 = vanilla `OverlayRecipeComponent`（一页一个 `RecipeCollection`：条目 holder
+  列表 → `updateKnownRecipes`），其 recipe 按钮（crafting/furnace overlay 纹理格子）
+  重排到 10 列——与 1.21.11 参考图同款组件/纹理（色调随 1.21.1 原版纹理）
+- 框体 = `recipe_book/overlay_recipe` 9-slice（258x133 = 10x5 格 + 8 padding）
+- 分类标签 = `brbe:textures/rbip/bottom_tab(.selected).png`（RBIP 同源贴图，35x27
+  中取 24x22；先画背层再画选中层——框体盖标签顶边，1.21.11 同款层次）
+- 标题行移到框体上方（框内会盖住首行格子）；翻页 < > 在框上方左侧 + 页码右上
+- pin 标记（drawPinMarkers 按按钮索引对应条目）+ Shift 预览（PopupRenderer）保留
+- 锚点（打开时光标快照）固定在左上展开——上一轮已修"面板随光标游走"
+
+**动画**：图标移回内容 scissor 外 + 边框条后画（与 1.21.11 renderVisualSquashed
+逐行一致——上轮"图标入 scissor"是偏离参考的，已回退为参考顺序）。
+
+**待用户实测**（5s 慢动画仍在 brbe.toml，测完恢复 0.5）：查询浮层 = 参考图同款
+组件 + 纹理；若动画仍有细节问题请录屏（截图无法体现运动 z 序）。
