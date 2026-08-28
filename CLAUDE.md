@@ -829,3 +829,13 @@ tooltip 替代）、幽灵放置（配方格点击仅吞+音）、tooltip 样式
 **待用户实测**（5s 慢动画仍在 brbe.toml，测完恢复 0.5）：①查询浮层 = 参考图同款
 结构（旋转标签条+工作站列+贴图翻页按钮）；②点击/滚轮/ESC/标签切换全链路；
 ③翻页动画图标在边框条之下。动画细节问题请录屏。
+
+**2026-08-29（二·续）自查修复两处（已重建部署，neoforge 20c22f1e / fabric 96c76b37）**：
+- 弹窗状态残留：popupOpen 原先只在配方模式的 Shift 分支清零——上一帧弹窗开着时
+  切到 grid 类别（燃料/堆肥/酿造）会永久吞点击。修复：render 开头无条件复位
+  popupOpen（上一帧值保存为 wasPopupOpen 供"光标在弹窗内保持打开"判定）。
+- tooltip 材料行错位：材料行被错误嵌套在"熔炼配方"分支内（合成/切石/锻造条目只有
+  名字行）；JEI 条目也无材料行。修复：材料行对所有条目生效（holder 走
+  inputsOf、JEI 走 jei.inputs()）。
+- 复核：OverlayRecipeComponent.init 每次 clear()+add 重建按钮列表（javap 字节码
+  306/433 偏移）——showPage 的按钮↔条目重排映射安全。

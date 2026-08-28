@@ -497,6 +497,11 @@ public final class RecipeViewerOverlay {
         pendingTabTooltip = null;
         pendingStationTooltip = null;
         boolean shift = ClientCompat.isShiftDown();
+        // 上一帧弹窗状态（"光标在已打开弹窗内保持打开"判定用），随后无条件复位——
+        // 复位必须每帧执行：切到 grid 类别后若残留 popupOpen=true 会永久吞点击。
+        boolean wasPopupOpen = popupOpen;
+        int[] lastPopupRect = popupRect;
+        popupOpen = false;
 
         // 纯信息网格类别（燃料/堆肥/酿造）：独立物品网格，无配方按钮
         if (isGridMode()) {
@@ -555,14 +560,11 @@ public final class RecipeViewerOverlay {
             }
             if (popupAnchorIndex >= 0 && popupAnchorIndex < entries.size()) {
                 if (hoveredIndex == popupAnchorIndex
-                        || (popupOpen && inRect(mouseX, mouseY, popupRect))) {
+                        || (wasPopupOpen && inRect(mouseX, mouseY, lastPopupRect))) {
                     renderShiftPopup(gui);
-                } else {
-                    popupOpen = false;
                 }
             }
         } else {
-            popupOpen = false;
             popupAnchorIndex = -1;
         }
     }
@@ -958,33 +960,35 @@ public final class RecipeViewerOverlay {
         if (result.isEmpty()) return;
         List<Component> lines = new ArrayList<>();
         lines.add(result.getHoverName());
-        if (e.holder() != null && e.holder().value() instanceof AbstractCookingRecipe cooking) {
-            lines.add(Component.empty());
-            float xp = cooking.getExperience();
-            String xpText = xp % 1.0f == 0f ? String.valueOf((int) xp)
-                    : String.format(Locale.ROOT, "%.2f", xp);
-            lines.add(Component.literal(xpText + " XP").withStyle(ChatFormatting.GREEN));
-            RecipeType<?> type = cooking.getType();
-            String labelKey;
-            Style style;
-            if (type == RecipeType.BLASTING) {
-                labelKey = "brbe.cooktime.blast";
-                style = Style.EMPTY.withColor(ChatFormatting.GRAY);
-            } else if (type == RecipeType.SMOKING) {
-                labelKey = "brbe.cooktime.smoker";
-                style = Style.EMPTY.withColor(0xF5DEB3);
-            } else if (type == RecipeType.CAMPFIRE_COOKING) {
-                labelKey = "brbe.cooktime.campfire";
-                style = Style.EMPTY.withColor(0xB5651D);
-            } else {
-                labelKey = "brbe.cooktime.furnace";
-                style = Style.EMPTY.withColor(ChatFormatting.RED);
+        if (e.holder() != null) {
+            if (e.holder().value() instanceof AbstractCookingRecipe cooking) {
+                lines.add(Component.empty());
+                float xp = cooking.getExperience();
+                String xpText = xp % 1.0f == 0f ? String.valueOf((int) xp)
+                        : String.format(Locale.ROOT, "%.2f", xp);
+                lines.add(Component.literal(xpText + " XP").withStyle(ChatFormatting.GREEN));
+                RecipeType<?> type = cooking.getType();
+                String labelKey;
+                Style style;
+                if (type == RecipeType.BLASTING) {
+                    labelKey = "brbe.cooktime.blast";
+                    style = Style.EMPTY.withColor(ChatFormatting.GRAY);
+                } else if (type == RecipeType.SMOKING) {
+                    labelKey = "brbe.cooktime.smoker";
+                    style = Style.EMPTY.withColor(0xF5DEB3);
+                } else if (type == RecipeType.CAMPFIRE_COOKING) {
+                    labelKey = "brbe.cooktime.campfire";
+                    style = Style.EMPTY.withColor(0xB5651D);
+                } else {
+                    labelKey = "brbe.cooktime.furnace";
+                    style = Style.EMPTY.withColor(ChatFormatting.RED);
+                }
+                String value = cookSeconds(cooking.getCookingTime());
+                lines.add(Component.translatable(labelKey).withStyle(style)
+                        .append(Component.literal("：").withStyle(style))
+                        .append(Component.literal(value).withStyle(style)));
             }
-            String value = cookSeconds(cooking.getCookingTime());
-            lines.add(Component.translatable(labelKey).withStyle(style)
-                    .append(Component.literal("：").withStyle(style))
-                    .append(Component.literal(value).withStyle(style)));
-            // 材料行
+            // 材料行（1.21.1 无内嵌预览——材料行是预览信息的文本替代）
             List<ItemStack> inputs = inputsOf(e.holder());
             if (!inputs.isEmpty()) {
                 String suffix = inputs.size() > 1 ? " …" : "";
@@ -993,6 +997,13 @@ public final class RecipeViewerOverlay {
                         .append(inputs.get(0).getHoverName().copy()
                                 .append(Component.literal(suffix))));
             }
+        } else if (e.jei() != null && e.jei().inputs() != null && !e.jei().inputs().isEmpty()) {
+            List<ItemStack> inputs = e.jei().inputs();
+            String suffix = inputs.size() > 1 ? " …" : "";
+            lines.add(Component.translatable("brbe.viewer.materials")
+                    .append(": ")
+                    .append(inputs.get(0).getHoverName().copy()
+                            .append(Component.literal(suffix))));
         }
         appendModName(lines, result);
         gui.renderComponentTooltip(mc.font, lines, mouseX, mouseY);
