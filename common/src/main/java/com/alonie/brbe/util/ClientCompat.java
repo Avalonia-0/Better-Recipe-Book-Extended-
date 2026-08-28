@@ -91,8 +91,11 @@ public final class ClientCompat {
         if (mc == null) return;
         float volume = 0.25f * BetterRecipeBook.config.pageFlipVolume;
         if (volume > 0.0f && mc.getSoundManager() != null) {
+            // 3 参重载 (sound, pitch, volume)：pitch=1.0 与按钮点击原声一致。
+            // ⚠️ 2 参 forUI(sound, p) 的 p 是 **pitch** 不是音量——此前把 volume
+            // 当 pitch 传入 → 点击音变成低频闷响（"音效源用错了"根因）。
             mc.getSoundManager().play(SimpleSoundInstance.forUI(
-                    SoundEvents.UI_BUTTON_CLICK.value(), volume));
+                    SoundEvents.UI_BUTTON_CLICK.value(), 1.0f, volume));
         }
     }
 

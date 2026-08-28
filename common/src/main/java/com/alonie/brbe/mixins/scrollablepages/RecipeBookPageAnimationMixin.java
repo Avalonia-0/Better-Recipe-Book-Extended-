@@ -297,14 +297,16 @@ public abstract class RecipeBookPageAnimationMixin {
         RecipeHolder<?> current = brbe$currentRecipeOf(snap);
         boolean isPartial = current != null && PartialCraftingUtil.isPartiallyCraftable(c, current);
         if (effW < 25) {
-            // 伪压缩：内容 scissor 右边界收窄 1px（原版 sprite 最右列顶部 1px 是透明的）
+            // 伪压缩：内容 scissor 右边界收窄 1px（原版 sprite 最右列顶部 1px 是透明的）。
+            // 图标在内容 scissor **内**渲染——滑动中图标被单元格边界裁住（"被边界
+            // 盖住"），不会越过边框跑出格子；边框条随后渲染覆盖图标边缘。
             gui.enableScissor(effX, y, edgeRight - 1, y + 25);
             gui.blitSprite(sprite, x, y, 25, 25);
             if (isPartial) {
                 brbe$renderPartialMark(gui, effX, y, effW);
             }
-            gui.disableScissor();
             brbe$renderItemIcon(snap, gui, x, y);
+            gui.disableScissor();
             // 移动方向的前方边缘盖住后方边缘：配方左移时左边界最后渲染（在上层）
             boolean movingLeft = x < effX;
             if (movingLeft) {
