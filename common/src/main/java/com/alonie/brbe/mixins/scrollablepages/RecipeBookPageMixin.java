@@ -48,7 +48,8 @@ public abstract class RecipeBookPageMixin {
     public void brbe$mouseClickedJumpToEdge(double mouseX, double mouseY, int button,
                                             int areaLeft, int areaTop, int areaWidth, int areaHeight,
                                             CallbackInfoReturnable<Boolean> cir) {
-        if (button != 0 || !com.alonie.brbe.util.ClientCompat.isControlDown()) {
+        if (button != 0 || !com.alonie.brbe.util.ClientCompat.isControlDown()
+                || com.alonie.brbe.util.RecipeViewerOverlay.isActive()) {
             return;
         }
         if (forwardButton.mouseClicked(mouseX, mouseY, button)) {
@@ -72,6 +73,12 @@ public abstract class RecipeBookPageMixin {
 
     @Inject(method = "mouseClicked", at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/components/StateSwitchingButton;mouseClicked(DDI)Z"), cancellable = true)
     public void mouseClickedBtn(double mouseX, double mouseY, int button, int areaLeft, int areaTop, int areaWidth, int areaHeight, CallbackInfoReturnable<Boolean> cir) {
+        // 查询浮层打开时锁定配方书页码：翻页箭头不响应、不发声（1.21.11 同款语义）。
+        if (com.alonie.brbe.util.RecipeViewerOverlay.isActive()) {
+            cir.cancel();
+            cir.setReturnValue(false);
+            return;
+        }
         if (forwardButton.mouseClicked(mouseX, mouseY, button)) {
             cir.setReturnValue(true);
             cir.cancel();
@@ -92,8 +99,13 @@ public abstract class RecipeBookPageMixin {
         }
     }
 
-    @Inject(at = @At("HEAD"), method = "render")
+    @Inject(at = @At("RETURN"), method = "render")
     public void render(GuiGraphics gui, int i, int j, int k, int l, float f, CallbackInfo ci) {
+        // 查询浮层打开时配方书锁定当前页：吞掉排队中的滚轮（1.21.11 同款语义）。
+        if (com.alonie.brbe.util.RecipeViewerOverlay.isActive()) {
+            BetterRecipeBook.setQueuedScroll(0);
+            return;
+        }
         if (BetterRecipeBook.getQueuedScroll() != 0 && true) {
             if (isMouseOverRecipeBookPage(k, l, i, j) && totalPages > 1) {
                 // 用户翻页标记（滚轮）：动画 mixin 依赖它区分用户翻页与程序恢复
@@ -133,6 +145,18 @@ public abstract class RecipeBookPageMixin {
         if (BetterRecipeBook.config.scrolling.scrollAround && totalPages > 1) {
             forwardButton.visible = true;
             backButton.visible = true;
+            forwardButton.active = true;
+            backButton.active = true;
+        }
+    }
+
+    /** 查询浮层打开时抑制配方书按钮 tooltip（viewer 自己的 tooltip 在最上层，
+     *  1.21.11 RecipeBookPageTooltipMixin 同款语义）。 */
+    @Inject(method = "renderTooltip", at = @At("HEAD"), cancellable = true)
+    private void brbe$suppressPageTooltipWhileViewer(GuiGraphics gui, int mouseX, int mouseY,
+                                                     CallbackInfo ci) {
+        if (com.alonie.brbe.util.RecipeViewerOverlay.isActive()) {
+            ci.cancel();
         }
     }
 }

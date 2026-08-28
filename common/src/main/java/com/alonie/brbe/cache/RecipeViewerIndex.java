@@ -159,4 +159,37 @@ public final class RecipeViewerIndex {
                 : net.minecraft.world.level.block.entity.AbstractFurnaceBlockEntity.getFuel()
                         .getOrDefault(fuel.getItem(), 0);
     }
+
+    /** 查询浮层左侧工作站列的物品（按类别 id；1.21.1 简化工作站注册表——
+     *  1.21.11 的 Family/BUILTIN_WORKSTATIONS 完整注册表降级为静态清单）。 */
+    public static List<ItemStack> stationColumnItemsFor(String categoryId) {
+        if (categoryId == null) return List.of();
+        List<ItemStack> out = new ArrayList<>();
+        switch (categoryId) {
+            case "crafting" -> {
+                out.add(new ItemStack(net.minecraft.world.level.block.Blocks.CRAFTING_TABLE));
+                out.add(new ItemStack(net.minecraft.world.level.block.Blocks.CRAFTER));
+            }
+            case "furnace", "fuel" -> {
+                out.add(new ItemStack(net.minecraft.world.level.block.Blocks.FURNACE));
+                out.add(new ItemStack(net.minecraft.world.level.block.Blocks.BLAST_FURNACE));
+                out.add(new ItemStack(net.minecraft.world.level.block.Blocks.SMOKER));
+                out.add(new ItemStack(net.minecraft.world.level.block.Blocks.CAMPFIRE));
+                out.add(new ItemStack(net.minecraft.world.level.block.Blocks.SOUL_CAMPFIRE));
+            }
+            case "stonecutting" -> out.add(new ItemStack(net.minecraft.world.level.block.Blocks.STONECUTTER));
+            case "smithing" -> out.add(new ItemStack(net.minecraft.world.level.block.Blocks.SMITHING_TABLE));
+            case "anvil" -> {
+                out.add(new ItemStack(net.minecraft.world.level.block.Blocks.ANVIL));
+                out.add(new ItemStack(net.minecraft.world.level.block.Blocks.CHIPPED_ANVIL));
+                out.add(new ItemStack(net.minecraft.world.level.block.Blocks.DAMAGED_ANVIL));
+            }
+            case "brewing" -> out.add(new ItemStack(net.minecraft.world.level.block.Blocks.BREWING_STAND));
+            case "grindstone" -> out.add(new ItemStack(net.minecraft.world.level.block.Blocks.GRINDSTONE));
+            case "compost" -> out.add(new ItemStack(net.minecraft.world.level.block.Blocks.COMPOSTER));
+            default -> {
+            }
+        }
+        return out;
+    }
 }

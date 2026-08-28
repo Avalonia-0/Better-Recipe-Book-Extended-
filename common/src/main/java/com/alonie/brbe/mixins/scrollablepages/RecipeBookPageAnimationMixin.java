@@ -63,11 +63,12 @@ public abstract class RecipeBookPageAnimationMixin {
     /** 最后一页指数减速所占时长（×配置时长）。 */
     private static final float FINAL_DECEL_MULTIPLIER = 1.0F;
 
-    /** 网格 scissor 原点（render 的 areaLeft/areaTop 参数，即页面背景左上角）。 */
+    /** 网格 scissor 原点（render 的 areaLeft/areaTop 参数，即页面背景左上角）。
+     *  与 1.21.11 完全一致：scissor = areaLeft+11..+136 × areaTop+31..+156。 */
     private static final int GRID_LEFT_PAD = 11;
     private static final int GRID_TOP_PAD = 31;
     private static final int GRID_WIDTH = 125;
-    private static final int GRID_HEIGHT = 100;
+    private static final int GRID_HEIGHT = 125;
 
     // 1.21.1 RecipeButton 的槽位 sprite 是 private static 字段——按 javap 核对的
     // 原版 id 直接构造（recipe_book/slot_*）。
@@ -297,16 +298,21 @@ public abstract class RecipeBookPageAnimationMixin {
         RecipeHolder<?> current = brbe$currentRecipeOf(snap);
         boolean isPartial = current != null && PartialCraftingUtil.isPartiallyCraftable(c, current);
         if (effW < 25) {
-            // 伪压缩：内容 scissor 右边界收窄 1px（原版 sprite 最右列顶部 1px 是透明的）。
-            // 图标在内容 scissor **内**渲染——滑动中图标被单元格边界裁住（"被边界
-            // 盖住"），不会越过边框跑出格子；边框条随后渲染覆盖图标边缘。
+            // 伪压缩：内容在 [effX, edgeRight] 内裁剪（中间随滑动变短），左右边界 2px
+            // 独立渲染（边框完整不缩放）。图标在边界线之后渲染，完整跟随配方滑出视窗。
+            // 内容 scissor 右边界收窄 1px：原版 sprite 最右列（col24）顶部 1px 是
+            // 透明的，若内容画到该列，滚动时下层配方会从缺口漏出。收窄后缺口处
+            // 不绘制任何下层内容，仅显示背景（保持透明效果）。
             gui.enableScissor(effX, y, edgeRight - 1, y + 25);
             gui.blitSprite(sprite, x, y, 25, 25);
             if (isPartial) {
                 brbe$renderPartialMark(gui, effX, y, effW);
             }
-            brbe$renderItemIcon(snap, gui, x, y);
             gui.disableScissor();
+            // 图标（边界线前渲染，边界线将盖住经过的图标）——与 1.21.11 的
+            // renderVisualSquashed 逐行一致：图标在内容 scissor 之外完整渲染，
+            // 随后绘制的边框条覆盖其经过的边缘。
+            brbe$renderItemIcon(snap, gui, x, y);
             // 移动方向的前方边缘盖住后方边缘：配方左移时左边界最后渲染（在上层）
             boolean movingLeft = x < effX;
             if (movingLeft) {

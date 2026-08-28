@@ -755,3 +755,77 @@ currentIndex 重算，renderItem/renderFakeItem 复刻 renderWidget 偏移布局
 
 **待用户实测**（5s 慢动画仍在 brbe.toml，测完恢复 0.5）：查询浮层 = 参考图同款
 组件 + 纹理；若动画仍有细节问题请录屏（截图无法体现运动 z 序）。
+
+## 2026-08-29（二）：动画与查询浮层系统性重做（反编译 ground truth 对齐 1.21.11）
+
+用户指示："直接系统性地一点点地照着 1.21.11 和变更详情（最好是直接反编译两边的
+本体 jar 包）来重新设计功能模块，这次要更加严谨地处理。"
+
+**方法**：三路并进——①CFR 反编译两端已部署 jar（62+42 类，产物在
+`1.21.11/build/decomp/`，报告 DECOMP_REPORT.md）证实**源码与 jar 完全一致**
+（1.21.11 常量表=移植准绳）；②深读 1.21.11 的 viewer（3532 行）+ 10 个
+recipeviewer mixin；③盘点 1.21.1 现状（accessor/接线/配置全清单）。
+
+**动画修复（此前轮次记录与代码不符，已按 1.21.11 逐行核对）**：
+- ⚠️ 上轮"图标移回 scissor 外"记录失实——f1fb9368 只改了 viewer 文件，动画
+  mixin 的图标仍在内容 scissor 内（"晚五"状态）。本次真正回退为 1.21.11 顺序：
+  内容 scissor → disableScissor → **图标（边界线前渲染，边界线盖住经过的图标）**
+  → 边框条
+- 网格 scissor 高度 100→**125**（底 = areaTop+156，与 1.21.11 逐字一致；此前 131）
+- 滚轮翻页注入点 HEAD→**RETURN**（1.21.11 语义：本帧先画旧页，下帧起动画）
+- 配方书翻页锁定：查询浮层打开时吞 queuedScroll、箭头点击 cancel+false、
+  Ctrl 跳页守卫（1.21.11 同款语义，此前 viewer 打开时下层书仍可翻页）
+- updateArrowButtons 补 active=true（1.21.11 有，此前漏）
+- playPageFlipSound 补 10ms 节流（1.21.11 滚轮路径同款，此前快速滚动叠音）
+
+**查询浮层按 1.21.11 结构整文件重写（651→~1250 行）**，补齐此前全部缺失件：
+- 分类标签条：-90° 旋转 + TAB_CUT=6 横向拼贴 + TAB_V_CUT 纵向切除（35x27 贴图，
+  与 1.21.11 常量逐字一致），未选标签垫高 2px 被框体盖顶边、选中标签首层重绘、
+  25px 列距对齐 icon、燃料类补火焰角标、标签 tooltip（类别名+模组名）、
+  **标签滚轮切换 + REI 式滑动窗口**、点击已选标签=浏览全部切换、空类别标签隐藏
+- 翻页按钮：RBIP recipe_book_buttons.png 贴图（14x13，悬停 u+28/禁用 v=13），
+  框上方，Ctrl 跳页/scrollAround 绕回/页码 tooltip（1.21.11 同款；旧版是文本
+  "< >" 悬浮框外）
+- **左侧工作站列**（此前完全没有）：框左外挂 25px 列，column_panel 9-slice
+  （贴图+mcmeta 从 1.21.11 复制），plain_overlay 24px 格自底向上、滚轮窗口滑动、
+  点击重新查询该工作站；数据源 = RecipeViewerIndex.stationColumnItemsFor
+  （1.21.11 Family 注册表降级为静态清单）
+- 纯信息网格：slot_uncraftable 红框（用户曾批"红框格子"）→ **plain_overlay/
+  plain_overlay_highlighted**（1.21.11 同款贴图与悬停高亮）
+- **标题行删除**（1.21.11 无框上标题——锚定光标即语境）
+- **模态交互闭环**（此前 mouseClicked/mouseScrolled 完全未接线，点击/滚轮全穿透）：
+  hideoverlay mixin 新增 mouseClicked/mouseScrolled/renderTooltip 三注入——
+  框内吞点击（配方格给按钮音）、框外关闭、弹窗硬模态、滚轮翻页/切标签/滑列、
+  viewer 打开时抑制容器槽位+配方书按钮 tooltip（RecipeBookPageMixin 补
+  renderTooltip cancel，1.21.11 RecipeBookPageTooltipMixin 语义）
+- 悬停配方按钮 2x 放大重绘（vanilla 替代配方网格观感；1.21.1 原版组件无此行为）
+- JEI 条目（anvil/grindstone，无 RecipeHolder）以 plain_overlay 格补画在网格位
+  （修复：此前 JEI 条目进不了 overlay 集合 = 完全不可见）
+- Shift 预览弹窗恢复（左/右 Shift 悬停 → PopupRenderer 2x；弹窗内保持打开、
+  硬模态吞点击滚轮）；pin 标记/固定即预览保留；Ctrl+O 浏览全部（allEntries/
+  allGridItems 通道）；A 键 pin 后重排置顶
+- 排序 = pin → 可合成 → 残缺 → 不可合成（recipeRank，1.21.11 同款）；viewer
+  集合残缺标记用 markPartialMaterials(集合, 玩家背包 compartments Set<Item>)
+  （1.21.11 prepareForViewer 的 1.21.1 等价物）
+- 熔炼 tooltip 补 XP + 分站耗时行（AbstractCookingRecipe.getExperience/
+  getCookingTime）；燃料三行烧炼量；堆肥概率（CompostRecipeCategory.chanceOf）
+- [BRBE-VIEWER-DIAG] 诊断日志移除（根因已定位修复）
+- accessor：AbstractContainerScreenAccessor 补 getTopPos（getGuiLeft/getGuiTop
+  是 NeoForge 补丁方法，common 编译不可见——javap 对比三档 merged jar 证实）
+
+**反编译地面真值核对结论**（DECOMP_REPORT.md）：两端源码=部署 jar；1.21.11 常量
+（PAGE_COLS=10/PAGE_ROWS=5/TAB 全套/STATION 24-25-25/RBIP 按钮 14x13/scissor
+11,31,136,156/红罩 0x60FF3333）全部逐字落进 1.21.1。
+
+**部署**：备份 20260829-0203xx（原子替换）；neoforge 9e39c4ed、fabric fee30529
+（md5 双端一致）。
+
+**1.21.1 已知降级（相对 1.21.11，本轮回合未动）**：PinOverlay 独立浮层（固定即
+预览替代）、RecipePopupLayer/Preview 内嵌 tooltip（轻量 PopupRenderer 文本
+tooltip 替代）、幽灵放置（配方格点击仅吞+音）、tooltip 样式/光标手势、工作站
+注册表（Family/brbe_workstations.json）、info 类别、recipeviewer mixin 包其余
+（isCraftable bypass/tryPlaceRecipe 链）。
+
+**待用户实测**（5s 慢动画仍在 brbe.toml，测完恢复 0.5）：①查询浮层 = 参考图同款
+结构（旋转标签条+工作站列+贴图翻页按钮）；②点击/滚轮/ESC/标签切换全链路；
+③翻页动画图标在边框条之下。动画细节问题请录屏。

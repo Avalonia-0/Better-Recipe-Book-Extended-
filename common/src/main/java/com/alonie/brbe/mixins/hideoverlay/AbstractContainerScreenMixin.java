@@ -3,6 +3,7 @@ package com.alonie.brbe.mixins.hideoverlay;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.compat.ItemViewCompat;
 import com.alonie.brbe.util.RecipeViewerOverlay;
+import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
@@ -12,6 +13,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
@@ -39,12 +41,6 @@ public abstract class AbstractContainerScreenMixin {
             com.alonie.brbe.util.RecipeViewerOverlay.close();
             cir.setReturnValue(true);
             return;
-        }
-        if (BetterRecipeBook.RECIPE_VIEW_MAPPING.matches(keyCode, scancode)
-                || BetterRecipeBook.USAGE_VIEW_MAPPING.matches(keyCode, scancode)) {
-            BetterRecipeBook.LOGGER.info("[BRBE-VIEWER-DIAG] keyPressed reached mixin: key={} scan={} rvEnabled={} slot={}",
-                    keyCode, scancode, BetterRecipeBook.ctx().config().recipeViewerEnabled,
-                    hoveredSlot == null ? "null" : (hoveredSlot.hasItem() ? hoveredSlot.getItem().getHoverName().getString() : "empty"));
         }
         if (BetterRecipeBook.ctx().config().recipeViewerEnabled
                 && RecipeViewerOverlay.keyPressed(keyCode, scancode, modifiers,
@@ -95,6 +91,34 @@ public abstract class AbstractContainerScreenMixin {
 
         if (handled) {
             cir.setReturnValue(true);
+        }
+    }
+
+    /** 查询浮层点击：viewer 打开的模态层吞掉所有点击（框内交互/框外关闭）。 */
+    @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
+    private void brbe$viewerMouseClicked(double mouseX, double mouseY, int button,
+                                         CallbackInfoReturnable<Boolean> cir) {
+        if (RecipeViewerOverlay.mouseClicked(mouseX, mouseY, button,
+                (AbstractContainerScreen<?>) (Object) this)) {
+            cir.setReturnValue(true);
+        }
+    }
+
+    /** 查询浮层滚轮：viewer 打开的模态层吞掉滚轮（翻页/切标签/滑工作站列）。 */
+    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
+    private void brbe$viewerMouseScrolled(double mouseX, double mouseY, double horizontal,
+                                          double vertical, CallbackInfoReturnable<Boolean> cir) {
+        if (RecipeViewerOverlay.mouseScrolled(mouseX, mouseY, vertical)) {
+            cir.setReturnValue(true);
+        }
+    }
+
+    /** viewer 打开时抑制容器槽位 tooltip（viewer 自己的 tooltip 在最上层绘制）。 */
+    @Inject(method = "renderTooltip", at = @At("HEAD"), cancellable = true)
+    private void brbe$suppressSlotTooltipWhileViewer(GuiGraphics gui, int mouseX, int mouseY,
+                                                     CallbackInfo ci) {
+        if (RecipeViewerOverlay.isActive()) {
+            ci.cancel();
         }
     }
 }

@@ -86,9 +86,15 @@ public final class ClientCompat {
      *  same scaling the recipe book's scroll flips use).  Every paging surface
      *  (query viewer object area / tab strip / station column, RBIP tab area)
      *  goes through here, so the toggle and the volume slider govern them all. */
+    /** 翻页音效上次播放时间（毫秒），0.01s 节流——快速滚动不叠音（1.21.11 语义）。 */
+    private static long brbe$lastPageFlipSoundTime;
+
     public static void playPageFlipSound(Minecraft mc) {
         if (BetterRecipeBook.config == null || !BetterRecipeBook.config.scrollPageSound) return;
         if (mc == null) return;
+        long now = net.minecraft.Util.getMillis();
+        if (now - brbe$lastPageFlipSoundTime < 10) return;
+        brbe$lastPageFlipSoundTime = now;
         float volume = 0.25f * BetterRecipeBook.config.pageFlipVolume;
         if (volume > 0.0f && mc.getSoundManager() != null) {
             // 3 参重载 (sound, pitch, volume)：pitch=1.0 与按钮点击原声一致。
