@@ -128,7 +128,12 @@ cp build/libs/brbe-ava-fabric-26.2-2.3-beta.3.jar /home/avalonia/data/MinecraftL
 
 Test instance path rule: `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSION}-{MOD_LOADER}/mods/` (`MOD_LOADER` capitalized: `Fabric`). 构建完必须部署；部署前将实例内同版本 JAR 备份为 `*.jar.bak.YYYYMMDD`。
 
-⚠️ **部署前必须确认目标实例未在运行**（`pgrep -f KnotClient` 应为空）：用 `cp` 覆盖**运行中游戏进程正在读取的 jar** 会让该会话的 zip 读取损坏（典型症状 `java.util.zip.ZipException: ZipFile invalid LOC header (bad signature)`，启动后运行途中随机崩溃——2026-08-25 20:47 部署时实例正开，20:35 启动的会话在 20:47 渲染时读 brbe jar 的类失败即此因）。
+⚠️ **部署用原子替换，实例运行中也可安全部署**：先 `cp` 到 `mods/` 下的临时文件，再 `mv` 改名到目标（同目录 rename 是原子操作）——正在运行的会话其 zip 句柄指向旧 inode、内容完好，新启动的会话加载新 jar。**禁止 `cp` 直写覆盖目标 jar**：同 inode 截断重写会让正在运行的会话 zip 读取损坏（典型症状 `java.util.zip.ZipException: ZipFile invalid LOC header (bad signature)`，启动后运行途中随机崩溃——2026-08-25 20:47 部署时实例正开，20:35 启动的会话在 20:47 渲染时读 brbe jar 的类失败即此因）。
+
+```bash
+# 原子替换部署（实例运行中也安全）
+cp build/libs/brbe-ava-fabric-26.2-*.jar /home/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/.brbe-deploy.tmp && mv /home/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/.brbe-deploy.tmp /home/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/brbe-ava-fabric-26.2-*.jar
+```
 
 ## Config features and their gates
 
@@ -909,3 +914,31 @@ Mixin apply for mod zzzbrbe failed ... pins.OverlayRecipeButtonMixin
 - 部署：26.2-Fabric 实例已更新（备份 20260828-131604，md5 一致）
 
 **注意**：CLAUDE.md 历史轮次中的 `zzzbrbe` 为当时事实描述，保持原样不改写。
+
+## 2026-08-28：真实 JEI 共存修复 + 烧炼 mod 工作站 + 部署规则升级（26.2 实测通过）
+
+### 真实 JEI 冲突完整底层逻辑（根因）
+Fabric Loader 0.19.3 `ModResolver.findCompatibleSet` 最终按 `ModCandidateImpl::getId` 字母序稳定
+排序，`FabricLoaderImpl.finishModLoading` 按此顺序 `addToClassPath`（`KnotClassDelegate.addCodeSource`
+→ `DynamicURLClassLoader.addURL`；URLClassLoader 按 URL 数组顺序查类）。内嵌无头 JEI 嵌套 mod id 原为
+`headlessjei`（h<j）排在真实 JEI（`jei`，root）之前 → 无头 fork 1136 个 `mezz.jei.*` 类遮蔽真实 JEI；
+fork 缺真实 JEI 70 类（含入口 `JustEnoughItemsClient`、fabric mixin/events、gui Scrollbar 等）→
+真实 JEI NoClassDefFoundError/错乱。迁移方案.md 的 `jei < zzzbrbe` 设计顺序被实施时破坏（顺序反转）。
+
+### 修复
+1. **嵌套 id `headlessjei`→`zheadlessjei`**（真实 JEI 类 100% 优先；无真实 JEI 时无头唯一提供者）。
+2. **真实 JEI = 无头只做数据搬运**：入口 real 分支 tick 检查 `JeiRuntimeBridge.recipeManager()!=null`
+   后一次性 `collectAndInject()`（插件+VanillaPlugin 运行时类型从真实 JEI manager 读入 registry），
+   不启动 runtime/不注册图集。主侧删除 `refreshFromRealJei`/`buildFromRecipe`反射链（
+   `createRecipeLookup(Object.class)` 签名错→每 tick NoSuchMethodException），统一 registry 数据流。
+3. **烧炼 mod 工作站**（断链：indexModData catalysts 被 `SKIP_VANILLA` 丢弃 + 主侧
+   `registerExternalWorkstations` 无调用者）：indexer catalysts 不跳 vanilla uid；主侧
+   `registerExternalWorkstations` 同 typeId 覆盖；`BrbeJeiBridge.importVanillaStationSpecs`
+   （10 原版类型→WorkstationSpec，fingerprint 纳 stations 数）；`builtinWorkstationItemIds()` 去重
+   （anvil/brewing/grindstone 的 vanillaStationsFor 与 BUILTIN 重复——工作站列曾每站两份）。
+4. **部署规则**：删"运行中禁部署"，改**原子替换**（cp → mods/.brbe-deploy.tmp + mv rename）；
+   禁 cp 直写覆盖（2026-08-25 20:47 事故根源）。
+
+### 验证/部署
+真实 JEI 同居实测通过（真实 JEI 正常、mod 站（BetterEnd 冶炼炉）显示、无重复、2695 条目导入）。
+备份链：175222→203500；最终产物 de633796…。

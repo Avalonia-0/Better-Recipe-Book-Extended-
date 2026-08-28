@@ -120,8 +120,10 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             // AFTER_CLIENT_LEVEL_CHANGE 完成（晚于 JOIN），tick 时若 registry
             // 已有数据则导入一次（导入后置 importedOnce 旗标，不再重复）。
             // anvil/brewing/grindstone 等 vanilla JEI 类别依赖此通道。
-            if (!com.alonie.brbe.cache.BrbeJeiBridge.importedOnce()
-                    && client.level != null) {
+            if (client.level != null) {
+                // refresh 内部指纹排重：headless 收集分两阶段
+                // （先 vanilla 后 mod，同步事件触发），registry 变化时才会
+                // 重新导入查询引擎（registerType 幂等）。
                 com.alonie.brbe.cache.BrbeJeiBridge.refresh();
             }
             // Coalesce recipe-book rebuilds: a pickup that unlocks several

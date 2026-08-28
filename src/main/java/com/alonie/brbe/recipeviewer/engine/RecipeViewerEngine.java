@@ -60,12 +60,14 @@ public final class RecipeViewerEngine {
      *  category's background texture (nullable when the category declares none). */
     public record RecipeLayout(int width, int height, List<RecipeSlotLayout> slots, RecipeBackground background) {}
 
-    /** The seven vanilla JEI recipe type ids.  {@link #clearVanilla()} only
-     *  drops these, leaving mod-registered types (from the companion mod)
-     *  intact across recipe-book rebuilds. */
+    /** Vanilla JEI recipe type ids still owned by {@link RecipeViewerIndex}
+     *  (datapack data).  {@link #clearVanilla()} drops only these, leaving
+     *  mod-registered types AND the headless-jei-provided types
+     *  (stonecutting / smithing / anvil / brewing / grindstone — registered by
+     *  {@code BrbeJeiBridge.refresh()}) intact across recipe-book rebuilds. */
     private static final Set<String> VANILLA_TYPES = Set.of(
             "minecraft:crafting", "minecraft:smelting", "minecraft:blasting",
-            "minecraft:smoking", "minecraft:campfire_cooking", "minecraft:stonecutting", "minecraft:smithing");
+            "minecraft:smoking", "minecraft:campfire_cooking");
 
     private static final Map<String, RecipeTypeData> TYPES = new LinkedHashMap<>();
     private static final Map<RecipeDisplayId, RecipeDisplayEntry> BY_ID = new HashMap<>();
