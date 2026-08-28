@@ -17,7 +17,7 @@ import java.util.Set;
 
 public class RecipeUnlockUtil {
 
-    private static final Logger LOG = LogManager.getLogger("zzzbrbe-diag");
+    private static final Logger LOG = LogManager.getLogger("brbe-diag");
 
     /** 上次生效的 unlockAll 状态，用于检测配置切换。 */
     private static Boolean lastUnlockAll;

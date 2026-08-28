@@ -26,7 +26,7 @@ public final class JsonPinStore implements PinStore {
     private final Path path;
 
     public JsonPinStore(Path gameDir) {
-        this.path = gameDir.resolve("zzzbrbe.pins");
+        this.path = gameDir.resolve("brbe.pins");
     }
 
     @Override

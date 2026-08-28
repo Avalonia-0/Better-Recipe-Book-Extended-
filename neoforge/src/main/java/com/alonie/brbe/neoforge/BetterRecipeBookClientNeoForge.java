@@ -51,7 +51,7 @@ public class BetterRecipeBookClientNeoForge {
         // Register built-in resource pack (Unique Dark filter textures)
         modEventBus.addListener(AddPackFindersEvent.class, event -> {
             event.addPackFinders(
-                    ResourceLocation.fromNamespaceAndPath("zzzbrbe", "resourcepacks/zzzbrbe_unique_dark"),
+                    ResourceLocation.fromNamespaceAndPath("brbe", "resourcepacks/brbe_unique_dark"),
                     PackType.CLIENT_RESOURCES,
                     Component.literal("Unique Dark - Lite ").append(Component.literal("✕").withStyle(ChatFormatting.YELLOW)).append(Component.literal(" BRBE")),
                     PackSource.BUILT_IN,

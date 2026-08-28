@@ -14,15 +14,15 @@ import java.util.Optional;
 /**
  * 翻页动画"左右边界宽度"的资源包配置源。
  *
- * <p>值存于 {@code assets/zzzbrbe/animation/edge_width.json}：本体默认左2右3，
- * unique dark 兼容包（内置资源包 {@code zzzbrbe_unique_dark}）以同路径文件覆盖为左0右0。
+ * <p>值存于 {@code assets/brbe/animation/edge_width.json}：本体默认左2右3，
+ * unique dark 兼容包（内置资源包 {@code brbe_unique_dark}）以同路径文件覆盖为左0右0。
  * 每次调用重新读取：26.2 的 {@code Minecraft.resourceManager} 是 final 字段，
  * 资源包热重载不替换实例，按实例缓存会读到旧值。</p>
  */
 public final class PageAnimationEdges {
 
     private static final ResourceLocation EDGE_WIDTH_ID =
-            ResourceLocation.fromNamespaceAndPath("zzzbrbe", "animation/edge_width.json");
+            ResourceLocation.fromNamespaceAndPath("brbe", "animation/edge_width.json");
     private static final int DEFAULT_LEFT = 2;
     private static final int DEFAULT_RIGHT = 3;
 

@@ -76,8 +76,8 @@ public final class AppContext {
         this.events = new ConfigEventBus();
 
         // Book and category registries (backward-compatible with existing static API)
-        this.brewing = BRBHelper.createBook("zzzbrbe", "brewing_stand");
-        this.smithing = BRBHelper.createBook("zzzbrbe", "smithing_table");
+        this.brewing = BRBHelper.createBook("brbe", "brewing_stand");
+        this.smithing = BRBHelper.createBook("brbe", "smithing_table");
         this.brewingPotion = brewing.createCategory(new ItemStack(Items.POTION));
         this.brewingSplashPotion = brewing.createCategory(new ItemStack(Items.SPLASH_POTION));
         this.brewingLingeringPotion = brewing.createCategory(new ItemStack(Items.LINGERING_POTION));

@@ -28,7 +28,7 @@ import java.time.format.DateTimeFormatter;
 public final class BrbeLogger {
 
     /** JVM property name: {@code brbe.debug}.  Set to {@code true} to enable. */
-    public static final String PROPERTY = "zzzbrbe.debug";
+    public static final String PROPERTY = "brbe.debug";
 
     /** Evaluated once at class load — never changes during the session. */
     private static final boolean ENABLED =
@@ -60,7 +60,7 @@ public final class BrbeLogger {
             Files.createDirectories(logsDir);
             writer = new PrintWriter(
                     Files.newBufferedWriter(
-                            logsDir.resolve("zzzbrbe-debug.log"),
+                            logsDir.resolve("brbe-debug.log"),
                             StandardCharsets.UTF_8),
                     true /* autoFlush */);
             writer.println("=== BRBE Debug Log ===");

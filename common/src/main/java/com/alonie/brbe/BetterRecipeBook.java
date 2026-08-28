@@ -34,7 +34,7 @@ import org.apache.logging.log4j.Logger;
  */
 public class BetterRecipeBook {
 
-    public static final String MOD_ID = "zzzbrbe";
+    public static final String MOD_ID = "brbe";
 
     private static int queuedScroll;
 
@@ -52,32 +52,32 @@ public class BetterRecipeBook {
     public static void addQueuedScroll(int delta) { queuedScroll += delta; }
 
     public static final KeyMapping PIN_MAPPING = new KeyMapping(
-            "key.zzzbrbe.pin",
+            "key.brbe.pin",
             InputConstants.Type.KEYSYM,
             InputConstants.KEY_A,
-            "category.zzzbrbe"
+            "category.brbe"
     );
 
     public static final KeyMapping RECIPE_VIEW_MAPPING = new KeyMapping(
-            "key.zzzbrbe.recipeView",
+            "key.brbe.recipeView",
             InputConstants.Type.KEYSYM,
             InputConstants.KEY_R,
-            "category.zzzbrbe"
+            "category.brbe"
     );
 
     public static final KeyMapping USAGE_VIEW_MAPPING = new KeyMapping(
-            "key.zzzbrbe.usageView",
+            "key.brbe.usageView",
             InputConstants.Type.KEYSYM,
             InputConstants.KEY_U,
-            "category.zzzbrbe"
+            "category.brbe"
     );
 
-    /** Diagnostic dump key (F8).  Writes zzzbrbe-diagnostic.log to game dir. */
+    /** Diagnostic dump key (F8).  Writes brbe-diagnostic.log to game dir. */
     public static final KeyMapping DIAGNOSTIC_MAPPING = new KeyMapping(
-            "key.zzzbrbe.diagnostic",
+            "key.brbe.diagnostic",
             InputConstants.Type.KEYSYM,
             InputConstants.KEY_F8,
-            "category.zzzbrbe"
+            "category.brbe"
     );
 
     public static BRBHelper.Book BREWING = BRBHelper.createBook(MOD_ID, "brewing_stand");
@@ -148,7 +148,7 @@ public class BetterRecipeBook {
         com.alonie.brbe.pin.JsonPinStore pinStore =
                 new com.alonie.brbe.pin.JsonPinStore(Minecraft.getInstance().gameDirectory.toPath());
         pinnedRecipeManager.setStore(pinStore);
-        // RBIP 固定标签持久化（zzzbrbe.tabpins.json，懒加载）
+        // RBIP 固定标签持久化（brbe.tabpins.json，懒加载）
         com.alonie.brbe.pin.TabPinManager.init(Minecraft.getInstance().gameDirectory.toPath());
 
         // -- Load pins (uses async store when wired, legacy fallback otherwise)

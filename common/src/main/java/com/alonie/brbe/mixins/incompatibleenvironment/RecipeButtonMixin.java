@@ -75,7 +75,7 @@ public abstract class RecipeButtonMixin {
 
         if (IncompatibleCraftingUtil.checkIncompatible(this.collection, current.id())) {
             list.add(Component.empty());
-            list.add(Component.translatable("zzzbrbe.gui.environmentIncompatible")
+            list.add(Component.translatable("brbe.gui.environmentIncompatible")
                     .withStyle(ChatFormatting.RED));
         }
     }

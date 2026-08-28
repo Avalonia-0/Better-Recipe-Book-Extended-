@@ -27,12 +27,12 @@ import java.util.List;
 public final class ClientCompat {
 
     /** 查询系统（R/U viewer + pin）tooltip 的自定义背景样式：解析为
-     *  {@code zzzbrbe:tooltip/viewer_background} / {@code viewer_frame}
+     *  {@code brbe:tooltip/viewer_background} / {@code viewer_frame}
      *  sprite（textures/gui/sprites/tooltip/ 下，背景 alpha 已调淡为 160）。
      *  传给原版 {@code renderTooltip(...)} 链路的最后一个 ResourceLocation 参数
      *  即可，不影响配方书/原版 tooltip。 */
     public static final ResourceLocation VIEWER_TOOLTIP_STYLE =
-            ResourceLocation.fromNamespaceAndPath("zzzbrbe", "viewer");
+            ResourceLocation.fromNamespaceAndPath("brbe", "viewer");
 
     private ClientCompat() {
     }

@@ -246,7 +246,7 @@ public final class RecipeViewerOverlay {
 
         // Title
         gui.drawString(Minecraft.getInstance().font,
-                Component.translatable(viewUsage ? "zzzbrbe.viewer.usage" : "zzzbrbe.viewer.recipe")
+                Component.translatable(viewUsage ? "brbe.viewer.usage" : "brbe.viewer.recipe")
                         .append(": ")
                         .append(target.getHoverName()),
                 left + 6, top + 5, 0x404040);
@@ -376,7 +376,7 @@ public final class RecipeViewerOverlay {
                 List<ItemStack> inputs = entries.get(i).inputs();
                 if (!inputs.isEmpty()) {
                     String suffix = inputs.size() > 1 ? " …" : "";
-                    tooltip.add(Component.translatable("zzzbrbe.viewer.materials")
+                    tooltip.add(Component.translatable("brbe.viewer.materials")
                             .append(": ")
                             .append(inputs.get(0).getHoverName().copy()
                                     .append(Component.literal(suffix))));

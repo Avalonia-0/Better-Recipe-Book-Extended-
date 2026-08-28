@@ -29,7 +29,7 @@ public final class AnvilRecipeCategory implements RecipeViewerCategory {
 
     @Override
     public Component name() {
-        return Component.translatable("zzzbrbe.category.anvil");
+        return Component.translatable("brbe.category.anvil");
     }
 
     private static final String TYPE = "minecraft:anvil";

@@ -11,14 +11,14 @@ import java.util.Map;
 /**
  * 打包的拼音字表（Unihan kMandarin 裁剪版）的懒加载容器。
  * <p>
- * 数据文件 {@code assets/zzzbrbe/search/pinyin.txt} 由
+ * 数据文件 {@code assets/brbe/search/pinyin.txt} 由
  * {@code tools/generate_pinyin_data.py} 生成，行格式：
  * <pre>{@code 汉字=读音1 读音2}</pre>
  * 保留原始声调符号（如 {@code 木=mù}），多音字以空格分隔（如 {@code 行=xíng háng}）。
  * 通过 classloader 直接读取，不经过 MC 资源系统，避免资源包加载时机问题。
  */
 public final class PinyinData {
-    private static final String RESOURCE = "/assets/zzzbrbe/search/pinyin.txt";
+    private static final String RESOURCE = "/assets/brbe/search/pinyin.txt";
 
     private static volatile Map<Integer, List<String>> data;
     private static volatile boolean loaded;

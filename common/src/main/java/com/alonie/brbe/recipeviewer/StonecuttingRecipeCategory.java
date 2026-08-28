@@ -29,7 +29,7 @@ public final class StonecuttingRecipeCategory implements RecipeViewerCategory {
 
     @Override
     public Component name() {
-        return Component.translatable("zzzbrbe.category.stonecutting");
+        return Component.translatable("brbe.category.stonecutting");
     }
 
     @Override

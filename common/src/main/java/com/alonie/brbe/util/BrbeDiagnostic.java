@@ -79,7 +79,7 @@ public final class BrbeDiagnostic {
         // Write to disk
         try {
             Path logFile = Minecraft.getInstance().gameDirectory.toPath()
-                    .resolve("zzzbrbe-diagnostic.log");
+                    .resolve("brbe-diagnostic.log");
             Files.writeString(logFile, sb.toString(),
                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
             BetterRecipeBook.LOGGER.info("[BRBE] Diagnostic written to {}", logFile);

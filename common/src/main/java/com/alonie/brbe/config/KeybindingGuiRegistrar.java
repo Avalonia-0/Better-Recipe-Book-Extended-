@@ -24,17 +24,17 @@ public final class KeybindingGuiRegistrar {
     }
 
     private static final List<KeybindingField> FIELDS = List.of(
-            new KeybindingField("pinKey", "text.autoconfig.zzzbrbe.option.pinKey",
+            new KeybindingField("pinKey", "text.autoconfig.brbe.option.pinKey",
                     KeybindingCodec.pinDefaultValue(),
-                    "text.autoconfig.zzzbrbe.option.pinKey.@Tooltip",
+                    "text.autoconfig.brbe.option.pinKey.@Tooltip",
                     BetterRecipeBook.PIN_MAPPING),
-            new KeybindingField("recipeViewKey", "text.autoconfig.zzzbrbe.option.recipeViewKey",
+            new KeybindingField("recipeViewKey", "text.autoconfig.brbe.option.recipeViewKey",
                     KeybindingCodec.recipeViewDefaultValue(),
-                    "text.autoconfig.zzzbrbe.option.recipeViewKey.@Tooltip",
+                    "text.autoconfig.brbe.option.recipeViewKey.@Tooltip",
                     BetterRecipeBook.RECIPE_VIEW_MAPPING),
-            new KeybindingField("usageViewKey", "text.autoconfig.zzzbrbe.option.usageViewKey",
+            new KeybindingField("usageViewKey", "text.autoconfig.brbe.option.usageViewKey",
                     KeybindingCodec.usageViewDefaultValue(),
-                    "text.autoconfig.zzzbrbe.option.usageViewKey.@Tooltip",
+                    "text.autoconfig.brbe.option.usageViewKey.@Tooltip",
                     BetterRecipeBook.USAGE_VIEW_MAPPING));
 
     private KeybindingGuiRegistrar() {

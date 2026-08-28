@@ -27,7 +27,7 @@ public final class FuelRecipeCategory implements RecipeViewerCategory {
 
     @Override
     public Component name() {
-        return Component.translatable("zzzbrbe.category.fuel");
+        return Component.translatable("brbe.category.fuel");
     }
 
     @Override

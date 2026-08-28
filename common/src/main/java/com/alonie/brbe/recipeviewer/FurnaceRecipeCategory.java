@@ -37,7 +37,7 @@ public final class FurnaceRecipeCategory implements RecipeViewerCategory {
 
     @Override
     public Component name() {
-        return Component.translatable("zzzbrbe.category.furnace");
+        return Component.translatable("brbe.category.furnace");
     }
 
     @Override

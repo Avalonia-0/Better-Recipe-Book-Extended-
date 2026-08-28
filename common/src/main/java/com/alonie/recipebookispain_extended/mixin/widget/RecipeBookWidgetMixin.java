@@ -86,7 +86,7 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess, R
     // ── Layout constants ──────────────────────────────────────────
 
     @Unique private static final ResourceLocation TEX_PAGE_BTNS =
-            ResourceLocation.fromNamespaceAndPath("zzzbrbe", "textures/rbip/recipe_book_buttons.png");
+            ResourceLocation.fromNamespaceAndPath("brbe", "textures/rbip/recipe_book_buttons.png");
     @Unique private static final int VANILLA_BOOK_W = 147;
     @Unique private static final int VANILLA_BOOK_H = 166;
     @Unique private static final int TAB_W = 35;
