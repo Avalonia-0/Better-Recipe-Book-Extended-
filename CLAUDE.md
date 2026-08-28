@@ -192,7 +192,12 @@ cp neoforge/build/libs/brbe-ava-neoforge-*.jar /home/avalonia/data/MinecraftLib/
 ```
 构建完必须部署；部署前将实例内同版本 JAR 备份为 `*.jar.bak.YYYYMMDD`，再覆盖旧版本产物。
 
-⚠️ **部署前必须确认目标实例未在运行**（`pgrep -f KnotClient` 应为空）：用 `cp` 覆盖**运行中游戏进程正在读取的 jar** 会让该会话的 zip 读取损坏（典型症状 `java.util.zip.ZipException: ZipFile invalid LOC header (bad signature)`，启动后运行途中随机崩溃——2026-08-25 20:47 部署时实例正开，20:35 启动的会话在 20:47 渲染时读 brbe jar 的类失败即此因）。
+⚠️ **部署用原子替换，实例运行中也可安全部署**：先 `cp` 到 `mods/` 下的临时文件，再 `mv` 改名到目标（同目录 rename 是原子操作）——正在运行的会话其 zip 句柄指向旧 inode、内容完好，新启动的会话加载新 jar。**禁止 `cp` 直写覆盖目标 jar**：同 inode 截断重写会让正在运行的会话 zip 读取损坏（典型症状 `java.util.zip.ZipException: ZipFile invalid LOC header (bad signature)`，启动后运行途中随机崩溃——2026-08-25 20:47 部署时实例正开，20:35 启动的会话在 20:47 渲染时读 brbe jar 的类失败即此因）。
+
+```bash
+# 原子替换部署（实例运行中也安全）
+cp build/libs/brbe-ava-fabric-1.21.11-*.jar /home/avalonia/data/MinecraftLib/versions/1.21.11-Fabric/mods/.brbe-deploy.tmp && mv /home/avalonia/data/MinecraftLib/versions/1.21.11-Fabric/mods/.brbe-deploy.tmp /home/avalonia/data/MinecraftLib/versions/1.21.11-Fabric/mods/brbe-ava-fabric-1.21.11-*.jar
+```
 - **pin/viewer 配方状态基于真实物品栏**（2026-08-21，两分支同步）：`PartialCraftingUtil.realInventorySlots()`（items+armor；offhand 由 `offhandStack()` 单独计入）替代屏幕容器槽位。`PinOverlayManager.refreshRecipeStates` 哈希、`PinOverlay.create/refreshRecipeState`（craftable 判定 + partial 标记）、`RecipeViewerOverlay` 两处 `prepareForViewer` 均改用真实物品栏——创造模式物品栏的合成网格与 carried 可能来自创造标签（虚拟物品），不再被当作材料。
 - **常规检索空间统一**（2026-08-21，两分支同步）：`PartialCraftingUtil.searchSpaceSlots()` 是配方状态判定的**唯一槽位来源**——玩家真实物品栏（items+armor）+ 打开容器菜单的合成网格（工作台 3×3 / 背包 2×2 / 熔炉 input+fuel），**排除合成台/熔炉结果栏**（刚合成的产物不算可用材料）。carried（拿起物品）由 `slotHash`/`prepareForViewer` 参数传入，offhand 由 `offhandStack()` 内部计入；craftable 判定（stacked）统一走 `fillSearchSpaceStackedContents`。配方书 mixin、pin（create/refreshRecipeState/refreshRecipeStates）、viewer（2 处 prepareForViewer）、幽灵浮层（PartialGhostOverlayUtil.prepare）、RecipeStateDiagnostic 全部改走该入口。
 - **预览/pin 残缺红罩**（2026-08-21，两分支同步）：残缺配方状态下界面本体盖整块红罩（`0x60FF3333`）。曾两度尝试按槽位标记/挖洞后按用户要求回退，保持整块红罩。
@@ -874,3 +879,24 @@ Mixin apply for mod zzzbrbe failed ... pins.OverlayRecipeButtonMixin
 - 部署：1.21.11-Fabric 实例已更新（备份 20260828-131604，md5 一致）
 
 **注意**：CLAUDE.md 历史轮次中的 `zzzbrbe` 为当时事实描述，保持原样不改写。
+
+## 2026-08-28：真实 JEI 共存修复 + 烧炼 mod 工作站 + 部署规则升级（移植自 26.2，已部署）
+
+- **嵌套 id `headlessjei`→`zheadlessjei`**（Fabric Loader 按 mod id 字母序 classpath；
+  h<j 曾致无头 fork 的 mezz 类遮蔽真实 JEI，fork 缺真实 JEI 70 类（含入口
+  `JustEnoughItemsClient`）→ NoClassDefFoundError。修复后真实 JEI 类 100% 优先。
+  波及：fabric.mod.json、zheadlessjei.accesswidener（文件名+build.gradle 引用）、
+  atlas listener id、JeiRecipeRegistry 注释。
+- **真实 JEI = 无头只做数据搬运**：入口 real 分支（tick 检查
+  `JeiRuntimeBridge.recipeManager()!=null` 后一次性 `collectAndInject()`，不启动
+  runtime/不注册图集）；主侧本无 refreshFromRealJei 反射链，统一 registry 数据流。
+- **烧炼 mod 工作站**：headless `PluginRecipeIndexer` catalysts 不再跳过 vanilla uid
+  （mod 站如 BetterEnd 末地石冶炼炉→minecraft:blasting 写入 registry STATIONS）；
+  主侧 `registerExternalWorkstations` 同 typeId 覆盖语义；`BrbeJeiBridge`
+  importVanillaStationSpecs（10 原版类型→WorkstationSpec，fingerprint 纳 stations 数）；
+  `builtinWorkstationItemIds()` 去重（anvil/brewing/grindstone vanillaStationsFor 与
+  BUILTIN 重复→工作站列曾每站两份）。
+- **部署规则**：删"运行中禁部署"，改**原子替换**（cp → mods/.brbe-deploy.tmp + mv
+  rename）；禁 cp 直写覆盖（2026-08-25 20:47 事故根源）。
+- 部署：1.21.11-Fabric 备份 20260828-213000、md5 5652ba7a（原子替换）。
+- **1.21.1 不在本轮**（无外部工作站注册体系——烧炼 mod 站修复不适用，已知降级）。

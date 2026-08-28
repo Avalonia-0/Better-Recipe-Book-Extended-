@@ -116,6 +116,12 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            if (client.level != null) {
+                // refresh 内部指纹排重：headless 收集分两阶段
+                // （先 vanilla 后 mod，同步事件触发），registry 变化时才会
+                // 重新导入查询引擎（registerType 幂等）。
+                com.alonie.brbe.cache.BrbeJeiBridge.refresh();
+            }
             // Coalesce recipe-book rebuilds: a pickup that unlocks several
             // recipes fires rebuildCollections per recipe; flush the engine
             // rebuild once per tick with the final known set.

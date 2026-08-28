@@ -167,6 +167,13 @@ public final class RecipeViewerIndex {
         BetterRecipeBook.LOGGER.info("[BRBE] rebuildEngine known-by-category: {} unmatched={}",
                 categoryCounts, unmatched);
         for (Map.Entry<String, List<RecipeViewerEngine.IndexedRecipe>> e : grouped.entrySet()) {
+            // 切石/锻造：条目与 layout 由 headless-jei（JEI 运行时）提供
+            // （其条目带原生 layout，弹窗可委托完整 JEI UI）——这里跳过，
+            // 避免与 headless 重复注册（同 uid 后注册者覆盖前者）。
+            if (e.getKey().equals("minecraft:stonecutting")
+                    || e.getKey().equals("minecraft:smithing")) {
+                continue;
+            }
             RecipeViewerEngine.registerType(e.getKey(), e.getValue(), stationItems.get(e.getKey()));
         }
         BetterRecipeBook.LOGGER.info("[BRBE] rebuildEngine: {} types, {} entries",
@@ -321,6 +328,21 @@ public final class RecipeViewerIndex {
      *  (the {@code brbe-jei-plugins} companion mod).  Built lazily on first
      *  query so the config file is read only after the client is up. */
     private static volatile List<Workstation> WORKSTATIONS;
+
+    /** Block item ids of the built-in vanilla workstations — the dedupe key
+     *  for external station registration.  Vanilla stations are already in the
+     *  builtin registry and must not be re-added from the registry: the vanilla
+     *  JEI runtime types (anvil / brewing / grindstone) push the same vanilla
+     *  stations into {@code JeiRecipeRegistry.stations}, which
+     *  {@code BrbeJeiBridge.importVanillaStationSpecs} would otherwise
+     *  duplicate. */
+    public static Set<Identifier> builtinWorkstationItemIds() {
+        Set<Identifier> out = new HashSet<>();
+        for (Workstation station : BUILTIN_WORKSTATIONS) {
+            out.addAll(station.stationItems);
+        }
+        return out;
+    }
 
     /** Programmatically registered external stations, injected before the
      *  registry is first built (or rebuilt immediately if it already was).
@@ -478,13 +500,19 @@ public final class RecipeViewerIndex {
     /** Registers externally collected stations (built-in + config + external
      *  three-source merge).  If the registry is already built it is rebuilt
      *  immediately; otherwise the specs are picked up on first build.
-     *  Idempotent: an identical spec is not registered twice. */
+     *  Idempotent: an identical spec is not registered twice, and a re-register
+     *  with the same {@code typeId} replaces (rather than accumulates) the old
+     *  spec — world re-joins or a changed mod set refresh the station list. */
     public static void registerExternalWorkstations(List<WorkstationSpec> specs) {
         if (specs == null || specs.isEmpty()) return;
         synchronized (RecipeViewerIndex.class) {
             int added = 0;
             for (WorkstationSpec spec : specs) {
-                if (spec != null && !EXTERNAL_SPECS.contains(spec)) {
+                if (spec == null) continue;
+                if (spec.typeId() != null) {
+                    EXTERNAL_SPECS.removeIf(existing -> spec.typeId().equals(existing.typeId()));
+                }
+                if (!EXTERNAL_SPECS.contains(spec)) {
                     EXTERNAL_SPECS.add(spec);
                     added++;
                 }

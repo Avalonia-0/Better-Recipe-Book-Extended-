@@ -65,7 +65,7 @@ public final class RecipeViewerEngine {
      *  intact across recipe-book rebuilds. */
     private static final Set<String> VANILLA_TYPES = Set.of(
             "minecraft:crafting", "minecraft:smelting", "minecraft:blasting",
-            "minecraft:smoking", "minecraft:campfire_cooking", "minecraft:stonecutting", "minecraft:smithing");
+            "minecraft:smoking", "minecraft:campfire_cooking");
 
     private static final Map<String, RecipeTypeData> TYPES = new LinkedHashMap<>();
     private static final Map<RecipeDisplayId, RecipeDisplayEntry> BY_ID = new HashMap<>();
