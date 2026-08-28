@@ -168,6 +168,11 @@ public final class BrbeJeiHeadlessCore {
                     JeiRuntimeBridge.set(runtime.getRecipeManager()));
             LOGGER.info("[BRBE-JEI-Plugins] embedded JEI core started ({} plugins)", plugins.size());
             injectSyncedModRecipes();
+            // 收集（collectAndInject）可能已在核心启动前跑过——那时
+            // JeiRuntimeBridge 为空，indexVanillaRuntimeTypes 直接返回，
+            // 原版 anvil/brewing/grindstone 类别 0 索引。核心就绪后补跑一次
+            // 收集：registry replace 幂等，重复运行安全。
+            BrbeJeiPlugins.collectAndInject();
         } catch (Exception | LinkageError e) {
             LOGGER.warn("[BRBE-JEI-Plugins] embedded JEI core failed to start: {}", e.toString());
         }
