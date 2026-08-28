@@ -42,7 +42,7 @@ public final class BrewingRecipeCategory implements RecipeViewerCategory {
 
     @Override
     public Component name() {
-        return Component.translatable("zzzbrbe.category.brewing");
+        return Component.translatable("brbe.category.brewing");
     }
 
     @Override

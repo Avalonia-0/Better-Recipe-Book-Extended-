@@ -12,7 +12,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
 /**
  * Registry of viewer categories.  Add new categories (furnace, smithing, …)
  * here and they automatically appear as bottom tabs on the overlay.  The
- * companion {@code zzzbrbe-jei-plugins} mod appends dynamic categories for each
+ * companion {@code brbe-jei-plugins} mod appends dynamic categories for each
  * mod recipe type via {@link #registerExternal}.
  */
 public final class RecipeViewerCategories {

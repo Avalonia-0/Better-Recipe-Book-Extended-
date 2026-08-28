@@ -24,7 +24,7 @@ import org.apache.logging.log4j.Logger;
 
 public class BetterRecipeBook {
 
-    public static final String MOD_ID = "zzzbrbe";
+    public static final String MOD_ID = "brbe";
 
     public static int queuedScroll;
     public static boolean isFilteringNone;
@@ -46,21 +46,21 @@ public class BetterRecipeBook {
     );
 
     public static final KeyMapping PIN_MAPPING = new KeyMapping(
-            "key.zzzbrbe.pin",
+            "key.brbe.pin",
             InputConstants.Type.KEYSYM,
             InputConstants.KEY_A,
             KEY_CATEGORY
     );
 
     public static final KeyMapping RECIPE_VIEW_MAPPING = new KeyMapping(
-            "key.zzzbrbe.recipeView",
+            "key.brbe.recipeView",
             InputConstants.Type.KEYSYM,
             InputConstants.KEY_R,
             KEY_CATEGORY
     );
 
     public static final KeyMapping USAGE_VIEW_MAPPING = new KeyMapping(
-            "key.zzzbrbe.usageView",
+            "key.brbe.usageView",
             InputConstants.Type.KEYSYM,
             InputConstants.KEY_U,
             KEY_CATEGORY

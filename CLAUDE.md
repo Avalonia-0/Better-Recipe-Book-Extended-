@@ -897,3 +897,15 @@ Mixin apply for mod zzzbrbe failed ... pins.OverlayRecipeButtonMixin
 - 部署：26.2-Fabric 实例已更新（备份 20260828-0242xx，md5 一致，单装 BRBE）
 - 测试要点：JOIN 后日志 [BRBE-JEI-BRIDGE] imported N JEI entries；U 查询铁砧/研磨石 →
   JEI 配方条目 + Shift 完整 JEI UI；不装 headless-jei（BRBE 独立）时 BRBE 正常降级
+
+## 2026-08-28：modid zzzbrbe → brbe 全链回退（轮次记录）
+
+**背景**：用户决策——维护分支 modid 全部改回 `brbe`（资源包/lang/配置名/日志/pin 文件等引用同步）。
+
+**已落地**：
+- fabric.mod.json `id` → `brbe`；assets/zzzbrbe → assets/brbe（icon/lang 7 语言/textures/pinyin.txt/animation）
+- resourcepacks/zzzbrbe_unique_dark → brbe_unique_dark；注册名同步
+- lang 键 `zzzbrbe.*` → `brbe.*` 全链；MOD_ID、pin 文件（brbe.pins 等）、日志名、Identifier namespace
+- 部署：26.2-Fabric 实例已更新（备份 20260828-131604，md5 一致）
+
+**注意**：CLAUDE.md 历史轮次中的 `zzzbrbe` 为当时事实描述，保持原样不改写。

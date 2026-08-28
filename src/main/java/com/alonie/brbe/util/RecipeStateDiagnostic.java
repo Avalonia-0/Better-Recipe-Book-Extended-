@@ -56,7 +56,7 @@ public final class RecipeStateDiagnostic {
      *  配方书刷新。需要时以 {@code -Dbrbe.diagnostics=true} 启动启用。 */
     private static final boolean ENABLED = Boolean.getBoolean("brbe.diagnostics");
 
-    private static final Logger LOG = LogManager.getLogger("zzzbrbe-diag");
+    private static final Logger LOG = LogManager.getLogger("brbe-diag");
     private static long lastDiagnosticSlotHash;
 
     private RecipeStateDiagnostic() {}

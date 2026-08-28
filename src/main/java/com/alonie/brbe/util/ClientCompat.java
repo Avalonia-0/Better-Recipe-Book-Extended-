@@ -32,12 +32,12 @@ public final class ClientCompat {
     public static final RenderPipeline GUI_TEXTURED = RenderPipelines.GUI_TEXTURED;
 
     /** 查询系统（R/U viewer + pin）tooltip 的自定义背景样式：解析为
-     *  {@code zzzbrbe:tooltip/viewer_background} / {@code viewer_frame}
+     *  {@code brbe:tooltip/viewer_background} / {@code viewer_frame}
      *  sprite（textures/gui/sprites/tooltip/ 下，背景 alpha 已调淡为 160）。
      *  传给原版 {@code tooltip(...)} 链路的最后一个 Identifier 参数即可，
      *  不影响配方书/原版 tooltip。 */
     public static final Identifier VIEWER_TOOLTIP_STYLE =
-            Identifier.fromNamespaceAndPath("zzzbrbe", "viewer");
+            Identifier.fromNamespaceAndPath("brbe", "viewer");
 
     private static final Logger LOGGER = LoggerFactory.getLogger(ClientCompat.class);
     private static boolean spriteDiagLogged = false;
@@ -170,7 +170,7 @@ public final class ClientCompat {
             LOGGER.warn("[BRBE-DIAG] hasSpriteResource: sprite={} fileId={} stackSize={} packs={}",
                     spriteId, fileId, stack.size(), packs);
             // Control: a sprite shipped in the mod's OWN assets (not the built-in pack)
-            Identifier pinFile = Identifier.fromNamespaceAndPath("zzzbrbe", "textures/gui/sprites/recipe_book/pin.png");
+            Identifier pinFile = Identifier.fromNamespaceAndPath("brbe", "textures/gui/sprites/recipe_book/pin.png");
             java.util.List<Resource> pinStack = minecraft.getResourceManager().getResourceStack(pinFile);
             java.util.List<String> pinPacks = new java.util.ArrayList<>();
             for (Resource r : pinStack) pinPacks.add(r.sourcePackId());

@@ -49,7 +49,7 @@ import java.util.concurrent.CompletableFuture;
  * not block the container behind them (clicks fall through, container tooltips
  * show normally); only direct pin interaction (drag, click, Shift-hover for the
  * slot item's tooltip, the preview key, Esc) is intercepted.  Pins persist to
- * disk ({@code zzzbrbe.pinoverlays.json}: recipe identity + mode + position +
+ * disk ({@code brbe.pinoverlays.json}: recipe identity + mode + position +
  * z-order) and restore on the next container screen.</p>
  */
 public final class PinOverlayManager {
@@ -87,7 +87,7 @@ public final class PinOverlayManager {
         initialized = true;
         Minecraft mc = Minecraft.getInstance();
         if (mc.gameDirectory == null) return;
-        pinFile = mc.gameDirectory.toPath().resolve("zzzbrbe.pinoverlays.json");
+        pinFile = mc.gameDirectory.toPath().resolve("brbe.pinoverlays.json");
         load();
     }
 

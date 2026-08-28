@@ -120,7 +120,7 @@ public final class RecipeViewerOverlay {
     private static final Identifier OVERLAY_RECIPE_SPRITE =
             Identifier.withDefaultNamespace("recipe_book/overlay_recipe");
     private static final Identifier RBIP_PAGE_BUTTONS =
-            Identifier.fromNamespaceAndPath("zzzbrbe", "textures/rbip/recipe_book_buttons.png");
+            Identifier.fromNamespaceAndPath("brbe", "textures/rbip/recipe_book_buttons.png");
     private static final int PAGE_COLS = 10;
     private static final int PAGE_ROWS = 5;
     private static final int PAGE_SIZE = PAGE_COLS * PAGE_ROWS;
@@ -146,9 +146,9 @@ public final class RecipeViewerOverlay {
     // ── Category tabs (BRBE's bottom-tab textures, drawn rotated -90°:
     //    the 35x27 texture displays as a 27x35 tab hanging below the box) ──
     private static final Identifier UNSELECTED_BOTTOM_TAB =
-            Identifier.fromNamespaceAndPath("zzzbrbe", "textures/rbip/bottom_tab.png");
+            Identifier.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab.png");
     private static final Identifier SELECTED_BOTTOM_TAB =
-            Identifier.fromNamespaceAndPath("zzzbrbe", "textures/rbip/bottom_tab_selected.png");
+            Identifier.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab_selected.png");
     private static final int TAB_TEX_WIDTH = 35;
     private static final int TAB_TEX_HEIGHT = 27;
     /** The rotated tab is too tall, so the texture's middle 4px (along its
@@ -1347,7 +1347,7 @@ public final class RecipeViewerOverlay {
      *  (same convention as {@link #OVERLAY_RECIPE_SPRITE}) — including the full
      *  path makes the sprite look-up miss and render the error texture. */
     private static final Identifier COLUMN_PANEL_SPRITE =
-            Identifier.fromNamespaceAndPath("zzzbrbe", "recipe_book/column_panel");
+            Identifier.fromNamespaceAndPath("brbe", "recipe_book/column_panel");
 
     /** Variant used when the column fills the whole object area: the trimmed
      *  top then lands exactly on the main box's top border (colTop == boxTop),
@@ -1356,7 +1356,7 @@ public final class RecipeViewerOverlay {
      *  sprite's TR T-junction would cut it).  Same open right side / bottom
      *  band as {@link #COLUMN_PANEL_SPRITE}. */
     private static final Identifier COLUMN_PANEL_TOP_SPRITE =
-            Identifier.fromNamespaceAndPath("zzzbrbe", "recipe_book/column_panel_top");
+            Identifier.fromNamespaceAndPath("brbe", "recipe_book/column_panel_top");
 
     private static void drawStationColumnSurfaces(GuiGraphicsExtractor gui) {
         if (stationColumnItems.isEmpty()) return;
@@ -1870,7 +1870,7 @@ public final class RecipeViewerOverlay {
                 && mc.gui.screen() instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen) {
             if (IncompatibleCraftingUtil.checkIncompatible(overlay.getRecipeCollection(), id)) {
                 lines.add(Component.empty());
-                lines.add(Component.translatable("zzzbrbe.gui.environmentIncompatible")
+                lines.add(Component.translatable("brbe.gui.environmentIncompatible")
                         .withStyle(net.minecraft.ChatFormatting.RED));
             }
         }
@@ -1926,11 +1926,11 @@ public final class RecipeViewerOverlay {
 
     private static String stationLabel(int i) {
         return switch (i) {
-            case 0 -> "zzzbrbe.cooktime.furnace";
-            case 1 -> "zzzbrbe.cooktime.blast";
-            case 2 -> "zzzbrbe.cooktime.smoker";
-            case 3 -> "zzzbrbe.cooktime.campfire";
-            default -> "zzzbrbe.cooktime.furnace";
+            case 0 -> "brbe.cooktime.furnace";
+            case 1 -> "brbe.cooktime.blast";
+            case 2 -> "brbe.cooktime.smoker";
+            case 3 -> "brbe.cooktime.campfire";
+            default -> "brbe.cooktime.furnace";
         };
     }
 
@@ -2341,7 +2341,7 @@ public final class RecipeViewerOverlay {
         components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
                 .create(Component.empty().getVisualOrderText()));
         components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
-                .create(Component.translatable("zzzbrbe.category.compost.chance", percent)
+                .create(Component.translatable("brbe.category.compost.chance", percent)
                         .withStyle(ChatFormatting.GREEN).getVisualOrderText()));
         return components;
     }
@@ -2373,7 +2373,7 @@ public final class RecipeViewerOverlay {
         // JEI-style: report how many standard (furnace 200-tick) items the fuel
         // can smelt, regardless of the station's own cook time.
         int[] cookTimes = { 200, 200, 200 };
-        String unit = Component.translatable("zzzbrbe.cooktime.unit.items").getString();
+        String unit = Component.translatable("brbe.cooktime.unit.items").getString();
         List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
                 new ArrayList<>();
         components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent

@@ -80,8 +80,8 @@ public final class AppContext {
         // Book and category registries — deferred because ItemStack
         // construction fails before the game registry is fully bound in 26.2.
         // Initialized lazily via ensureCategories().
-        this.brewing = BRBHelper.createBook("zzzbrbe", "brewing_stand");
-        this.smithing = BRBHelper.createBook("zzzbrbe", "smithing_table");
+        this.brewing = BRBHelper.createBook("brbe", "brewing_stand");
+        this.smithing = BRBHelper.createBook("brbe", "smithing_table");
         // categories populated by ensureCategories()
 
         // Services (Pin I/O deferred — needs gameDir from BetterRecipeBook.init())

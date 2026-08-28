@@ -32,10 +32,10 @@ public abstract class RecipeGroupButtonMixin extends ImageButton implements Reci
     @Unique private static final int RBIP_TAB_HEIGHT = 27;
     @Unique private static final int RBIP_ROTATED_TAB_WIDTH = 27;
     @Unique private static final int RBIP_ROTATED_TAB_HEIGHT = 35;
-    @Unique private static final Identifier RBIP_BOTTOM_TAB = Identifier.fromNamespaceAndPath("zzzbrbe", "textures/rbip/bottom_tab.png");
-    @Unique private static final Identifier RBIP_BOTTOM_TAB_SELECTED = Identifier.fromNamespaceAndPath("zzzbrbe", "textures/rbip/bottom_tab_selected.png");
-    @Unique private static final Identifier RBIP_TOP_TAB = Identifier.fromNamespaceAndPath("zzzbrbe", "textures/rbip/top_tab.png");
-    @Unique private static final Identifier RBIP_TOP_TAB_SELECTED = Identifier.fromNamespaceAndPath("zzzbrbe", "textures/rbip/top_tab_selected.png");
+    @Unique private static final Identifier RBIP_BOTTOM_TAB = Identifier.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab.png");
+    @Unique private static final Identifier RBIP_BOTTOM_TAB_SELECTED = Identifier.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab_selected.png");
+    @Unique private static final Identifier RBIP_TOP_TAB = Identifier.fromNamespaceAndPath("brbe", "textures/rbip/top_tab.png");
+    @Unique private static final Identifier RBIP_TOP_TAB_SELECTED = Identifier.fromNamespaceAndPath("brbe", "textures/rbip/top_tab_selected.png");
 
     @Unique private RecipeGroupButtonPlacement rbip$placement = RecipeGroupButtonPlacement.NORMAL;
 
