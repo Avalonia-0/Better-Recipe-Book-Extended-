@@ -599,3 +599,47 @@ InfoRecipeCategory/RecipeViewerOverlay/BrbeJeiMinecraftMixin] 需改读 registry
   `BetterRecipeBookClientNeoForge` 补注册（已验证 Cloth 15.0.140 的 KeyCodeEntry 渲染走
   `getLocalizedName()`——注册后键名自动翻译、控件变按键捕获）。
 - 部署：备份 20260828-225500（原子替换）；neoforge 9da2c5c6、fabric 5b4e5e64。
+
+## 2026-08-28（晚二）：1.21.1 四缺陷修复（查询打不开/翻页动画/右键清搜索聚焦/文案缺失，已部署双端）
+
+用户实测（NeoForge）报四问题：①R/U 查询系统完全打不开；②翻页动画损坏；③右键清
+理搜索栏后无法取消聚焦；④文案缺失（要求直接复制高版本资源包）。
+
+**①R/U 查询打不开——两层根因**：
+- **搜索框聚焦吞键**（主因）：vanilla `RecipeBookComponent.keyPressed` 有「聚焦搜索框
+  且可见 → 吞噬所有按键」分支；右键清除后 mixin 遗留 `setFocused(true)`（见③）→
+  聚焦无法取消 → R/U 永远到不了 `AbstractContainerScreen.keyPressed` 的 viewer 分支。
+- **NeoForge 漏注册 R/U 键位**：`RegisterKeyMappingsEvent` 只注册 PIN/DIAGNOSTIC
+  （fabric 侧 48dc588b 起注册全 4 个，neoforge 移植时遗漏）——1.21.1 的
+  `KeyMapping.matches()` 虽不查 isDown（纯键码比较），未注册仍导致控制界面无 R/U
+  条目、无法重绑。修复：neoforge 入口注册 R/U（与 fabric 对称）。
+- 修复③后聚焦可取消 → R/U 恢复正常路径。（1.21.11 的 RecipeBookComponent 有同样的
+  聚焦吞键语义——保持版本一致，不改。）
+
+**②翻页动画损坏——根因两处**（对照 1.21.11）：
+- **用户翻页未标记**：`scrollablepages/RecipeBookPageMixin` 的箭头点击（mouseClickedBtn）
+  与滚轮（render HEAD）都未调用 `RecipeBookPageAnimBridge.markUserFlip()` ——动画 mixin
+  在 `updateButtonsForPage` HEAD 消费不到标记 → 永远走「直接切换」分支，动画从不启动。
+- **结束不归位**：旧动画 mixin 直接 `setPosition` 平移真实按钮，收尾（SNAP）时只清
+  `animActive` 不恢复基准位置 → 翻页完成后按钮永久停在末帧偏移（≈-125px，网格外），
+  页面内容消失/错乱；且 render 参数误读（第 3/4 参是 mouseX/mouseY，被当作
+  areaWidth/areaHeight 传入 scissor）。
+- 修复：动画 mixin **重写为 1.21.11 式 @Redirect 模型**——动画期间完全不移动真实按钮，
+  用双快照池（`brbe$snapshotButtons`/`In`）在视觉位置渲染「滑出页 + 滑入页」，
+  scissor 只包网格区（areaLeft+11..136 × areaTop+31..131），tooltip 跟随光标命中的
+  快照按钮（render RETURN 覆盖 hoveredButton）；捕捉追逐/旅行目标/压缩追逐逻辑与
+  1.21.11 一致（版本降级仅保留简单平移视效，无挤压）。箭头点击与滚轮路径补
+  `markUserFlip()`。
+
+**③右键清搜索聚焦**：`search/RecipeBookComponentMixin` 右键清空后 `setFocused(true)`
+→ 改 `setFocused(false)`（1.21.11 语义：清空即取消聚焦）。
+
+**④文案缺失**：1.21.1 lang 与 1.21.11 diff——缺 13 键（compost.chance/info/cooktime.*/
+tooltip.station/key.category.brbe.category/soundCategory.brbe_page_flip/scrollAround*）；
+zh_cn/zh_tw 大量类别键仍是英文占位（暂 en 值）；tip.2 仍写 F 键（应为 A）；tip.8/9
+文案过时。修复：直接合并 1.21.11 的 7 语言 lang（值以 1.21.11 为准），保留 1.21.1
+独有键（brbe.viewer.recipe/usage/materials——1.21.1 查询浮层标题用）。
+
+**部署**：备份 20260828-XXXX（原子替换）；neoforge a657aeba、fabric 372d4f70。
+**验证**：neoforge runClient 启动无 mixin 报错；用户实测 R/U 打开 + 翻页动画 + 右键清空
+取消聚焦 + 配置界面/查询浮层中文文案。

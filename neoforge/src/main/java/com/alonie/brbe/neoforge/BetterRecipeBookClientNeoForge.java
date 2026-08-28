@@ -44,9 +44,13 @@ public class BetterRecipeBookClientNeoForge {
 
     public static void init(IEventBus modEventBus) {
 
-        // Register key mappings (F = pin recipe, K = diagnostic dump)
+        // Register key mappings (A = pin recipe, R = view recipe, U = view usage,
+        // F8 = diagnostic dump).  R/U 此前在 neoforge 端漏注册（fabric 对称注册）——
+        // 未注册的 KeyMapping 不进入 options.keyMappings，控制界面不可见且无法重绑。
         modEventBus.addListener(RegisterKeyMappingsEvent.class, event -> {
             event.register(BetterRecipeBook.PIN_MAPPING);
+            event.register(BetterRecipeBook.RECIPE_VIEW_MAPPING);
+            event.register(BetterRecipeBook.USAGE_VIEW_MAPPING);
             event.register(BetterRecipeBook.DIAGNOSTIC_MAPPING);
         });
         // Register built-in resource pack (Unique Dark filter textures)

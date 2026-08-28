@@ -21,3 +21,8 @@
 # local/experimental
 .claude/
 resourcepacks/
+
+# dev run dirs (runClient artifacts)
+/neoforge/run/
+/fabric/run/
+/common/run/

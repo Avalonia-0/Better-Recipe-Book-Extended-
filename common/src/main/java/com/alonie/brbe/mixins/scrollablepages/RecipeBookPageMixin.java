@@ -75,6 +75,8 @@ public abstract class RecipeBookPageMixin {
         if (forwardButton.mouseClicked(mouseX, mouseY, button)) {
             cir.setReturnValue(true);
             cir.cancel();
+            // 用户翻页标记：动画 mixin 只在用户主动翻页时启动
+            com.alonie.brbe.util.RecipeBookPageAnimBridge.markUserFlip();
             if (++currentPage >= totalPages) {
                 currentPage = BetterRecipeBook.config.scrolling.scrollAround ? 0 : totalPages - 1;
             }
@@ -82,6 +84,7 @@ public abstract class RecipeBookPageMixin {
         } else if (backButton.mouseClicked(mouseX, mouseY, button)) {
             cir.setReturnValue(true);
             cir.cancel();
+            com.alonie.brbe.util.RecipeBookPageAnimBridge.markUserFlip();
             if (--currentPage < 0) {
                 currentPage = BetterRecipeBook.config.scrolling.scrollAround ? totalPages - 1 : 0;
             }
@@ -93,6 +96,8 @@ public abstract class RecipeBookPageMixin {
     public void render(GuiGraphics gui, int i, int j, int k, int l, float f, CallbackInfo ci) {
         if (BetterRecipeBook.getQueuedScroll() != 0 && true) {
             if (isMouseOverRecipeBookPage(k, l, i, j) && totalPages > 1) {
+                // 用户翻页标记（滚轮）：动画 mixin 依赖它区分用户翻页与程序恢复
+                com.alonie.brbe.util.RecipeBookPageAnimBridge.markUserFlip();
                 currentPage += BetterRecipeBook.getQueuedScroll();
                 if (currentPage >= totalPages) {
                     currentPage = BetterRecipeBook.config.scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;

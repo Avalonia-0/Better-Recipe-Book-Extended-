@@ -43,6 +43,9 @@ public class RecipeBookComponentMixin {
 
     /**
      * 右键点击搜索框时清空搜索文字并刷新。
+     * 清空后取消聚焦（与 1.21.11 语义一致）：聚焦状态保留会让后续 R/U/A 等
+     * 按键被 RecipeBookComponent.keyPressed 的「聚焦搜索框吞键」分支拦截
+     * （vanilla 行为），查询系统打不开；且点击别处也无法取消聚焦。
      */
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void betterRecipeBook$rightClickClearSearch(double mouseX, double mouseY, int button,
@@ -50,7 +53,7 @@ public class RecipeBookComponentMixin {
         if (button != 1 || searchBox == null) return;
         if (!searchBox.isMouseOver(mouseX, mouseY)) return;
         searchBox.setValue("");
-        searchBox.setFocused(true);
+        searchBox.setFocused(false);
         ((RecipeBookComponentAccessor) this).updateCollectionsInvoker(true);
         cir.setReturnValue(true);
     }
