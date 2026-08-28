@@ -839,3 +839,14 @@ tooltip 替代）、幽灵放置（配方格点击仅吞+音）、tooltip 样式
   inputsOf、JEI 走 jei.inputs()）。
 - 复核：OverlayRecipeComponent.init 每次 clear()+add 重建按钮列表（javap 字节码
   306/433 偏移）——showPage 的按钮↔条目重排映射安全。
+
+**2026-08-29（二·续二）引擎注册时机修复（已重建部署，neoforge 3c5263ab / fabric 006cd7af）**：
+- 旧会话日志（01:27:54）证据：`U key=85 item=工作台 opened=false`——R/U 查询在
+  进游戏后、配方书组件首次 setupCollections 之前打不开（rebuildEngine 唯一触发点
+  是配方书 mixin，引擎空 → defaultFor 无内容 → 拒绝打开）。
+- 修复：`openFor` 开头按需重建——`flushEngineRebuildIfDirty()` + 四类 vanilla 类型
+  全空时直接 `rebuildEngine()`（查询前兜底，一次/会话，正常路径零开销）。
+- `CraftingRecipeCategory` 补 `appliesToStation`（工作台/合成器——1.21.11 语义，
+  此前缺省默认 false，usage 站循环跳过了合成类别）。
+- 诊断日志收窄为打开成败各一行（[BRBE-VIEWER] opened/refused，含类别/条目/页数），
+  便于下一轮实测定位。

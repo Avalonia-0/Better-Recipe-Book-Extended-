@@ -61,6 +61,15 @@ public final class CraftingRecipeCategory implements RecipeViewerCategory {
     }
 
     @Override
+    public boolean appliesToStation(ItemStack target) {
+        // 1.21.11 语义：工作台/合成器是合成类别的工作站（usage 查询 = 该站
+        // 能产出的全部合成配方——引擎 usagesFor 的 station 回退）。
+        return target != null && !target.isEmpty() && (
+                target.is(net.minecraft.world.level.block.Blocks.CRAFTING_TABLE.asItem())
+                        || target.is(net.minecraft.world.level.block.Blocks.CRAFTER.asItem()));
+    }
+
+    @Override
     public int defaultPriority(ItemStack target) {
         // Fallback category; furnace / fuel / stonecutter / smithing return a
         // higher priority for items they can process.

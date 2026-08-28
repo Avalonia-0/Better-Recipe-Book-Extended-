@@ -245,13 +245,31 @@ public final class RecipeViewerOverlay {
     private static boolean openFor(AbstractContainerScreen<?> screen, ItemStack target, boolean usage) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return false;
+        // 引擎按需重建：rebuildEngine 正常由配方书 setupCollections 触发，
+        // 但进游戏后、配方书组件首次初始化前引擎是空的——此时 R/U 会打不开
+        // （旧日志"U 查询工作台 opened=false"即此窗口）。查询前兜底重建一次。
+        RecipeViewerIndex.flushEngineRebuildIfDirty();
+        if (RecipeViewerEngine.allRecipes("minecraft:crafting").isEmpty()
+                && RecipeViewerEngine.allRecipes("minecraft:smelting").isEmpty()
+                && RecipeViewerEngine.allRecipes("minecraft:stonecutting").isEmpty()
+                && RecipeViewerEngine.allRecipes("minecraft:smithing").isEmpty()) {
+            RecipeViewerIndex.rebuildEngine();
+        }
         RecipeViewerCategory cat = RecipeViewerCategories.defaultFor(
                 target, usage, screen == null ? null : screen.getMenu());
-        if (cat == null) return false;
+        if (cat == null) {
+            BetterRecipeBook.LOGGER.info("[BRBE-VIEWER] open refused: no category item={} usage={}",
+                    target.getHoverName().getString(), usage);
+            return false;
+        }
         if (!cat.hasContent(target, usage)) {
             // 默认类别的命中为空：换"有内容的最高优先级类别"（1.21.11 防御性重选）
             RecipeViewerCategory alt = bestContentCategory(target, usage, cat);
-            if (alt == null) return false;
+            if (alt == null) {
+                BetterRecipeBook.LOGGER.info("[BRBE-VIEWER] open refused: empty content cat={} item={} usage={}",
+                        cat.id(), target.getHoverName().getString(), usage);
+                return false;
+            }
             cat = alt;
         }
         resetBrowseAllState();
@@ -270,6 +288,8 @@ public final class RecipeViewerOverlay {
         repaginateToSelected();
         rebuildStationColumn();
         active = true;
+        BetterRecipeBook.LOGGER.info("[BRBE-VIEWER] opened cat={} entries={} pages={} item={} usage={}",
+                cat.id(), entries.size(), pageCount, target.getHoverName().getString(), usage);
         return true;
     }
 
