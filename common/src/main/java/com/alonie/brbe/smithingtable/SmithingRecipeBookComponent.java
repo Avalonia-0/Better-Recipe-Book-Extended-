@@ -25,7 +25,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 public class SmithingRecipeBookComponent extends GenericRecipeBookComponent<SmithingMenu, SmithingRecipeCollection, BRBSmithingRecipe> {
-    private static final MutableComponent ONLY_CRAFTABLES_TOOLTIP = Component.translatable("brb.gui.smithable");
+    private static final MutableComponent ONLY_CRAFTABLES_TOOLTIP = Component.translatable("brbe.gui.smithable");
 
     public void init(int width, int height, Minecraft minecraft, boolean widthNarrow, SmithingMenu menu, Consumer<ItemStack> onGhostRecipeUpdate, RegistryAccess registryAccess, RecipeManager recipeManager) {
         this.recipeManager = recipeManager;

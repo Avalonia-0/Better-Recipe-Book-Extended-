@@ -74,7 +74,7 @@ public abstract class RecipeBookComponentMixin {
         if (this._$settingsButton != null && this._$settingsButton.isHoveredOrFocused()
                 && BetterRecipeBook.ctx().config().settingsButton && Minecraft.getInstance().screen != null) {
             gui.renderTooltip(Minecraft.getInstance().font,
-                    net.minecraft.network.chat.Component.translatable("brb.gui.settings.open"), mouseX, mouseY);
+                    net.minecraft.network.chat.Component.translatable("brbe.gui.settings.open"), mouseX, mouseY);
         }
     }
 }

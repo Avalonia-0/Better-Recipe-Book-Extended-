@@ -133,7 +133,7 @@ public abstract class RecipeBookComponentMixin {
     }
 
     static {
-        TOGGLE_INSTANT_CRAFT_ON_TEXT = Component.translatable("brb.gui.instantCraft.on");
-        TOGGLE_INSTANT_CRAFT_OFF_TEXT = Component.translatable("brb.gui.instantCraft.off");
+        TOGGLE_INSTANT_CRAFT_ON_TEXT = Component.translatable("brbe.gui.instantCraft.on");
+        TOGGLE_INSTANT_CRAFT_OFF_TEXT = Component.translatable("brbe.gui.instantCraft.off");
     }
 }

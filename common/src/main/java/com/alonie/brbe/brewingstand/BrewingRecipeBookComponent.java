@@ -37,7 +37,7 @@ import static com.alonie.brbe.brewingstand.PlatformPotionUtil.getIngredient;
 
 @Environment(EnvType.CLIENT)
 public class BrewingRecipeBookComponent extends GenericRecipeBookComponent<BrewingStandMenu, BrewingRecipeCollection, BrewableResult> implements IPinningComponent<BrewingRecipeCollection> {
-    private static final Component ONLY_CRAFTABLES_TOOLTIP = Component.translatable("brb.gui.togglePotions.brewable");
+    private static final Component ONLY_CRAFTABLES_TOOLTIP = Component.translatable("brbe.gui.togglePotions.brewable");
 
     @Override
     public void init(int parentWidth, int parentHeight, Minecraft client, boolean narrow, BrewingStandMenu menu, Consumer<ItemStack> onGhostRecipeUpdate, RegistryAccess registryAccess) {
