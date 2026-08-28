@@ -51,6 +51,10 @@ public final class RecipeViewerOverlay {
     private static List<DisplayEntry> entries = new ArrayList<>();
     private static int page;
     private static int pageCount = 1;
+    /** 打开时的锚点（光标位置快照）：面板固定在该处展开——**不能**用每帧
+     *  实时鼠标位置（面板会跟着光标游走，这是"界面损坏"的一大原因）。 */
+    private static int anchorX;
+    private static int anchorY;
     /** pinoverlay 弹窗：A 键固定后展示的配方（旁边大弹窗）；关闭 viewer 清空。 */
     private static DisplayEntry pinPopupEntry;
     private static int pinPopupX;
@@ -156,6 +160,9 @@ public final class RecipeViewerOverlay {
         viewUsage = usage;
         target = stack;
         category = cat;
+        // 锚点快照：面板固定在打开时的位置（不随光标游走）
+        anchorX = mouseXFor(screen);
+        anchorY = mouseYFor(screen);
         applyCategory();
         return true;
     }
@@ -476,19 +483,18 @@ public final class RecipeViewerOverlay {
         pageCount = Math.max(1, (entries.size() + COLS * ROWS - 1) / (COLS * ROWS));
     }
 
-    /** 面板锚定：光标左上展开（box 在光标左侧、底部高于光标 16px，参考
-     *  1.21.11 的锚定语义），屏幕边界钳制。 */
+    /** 面板锚定：固定在打开时的锚点（光标快照）左上展开（box 在锚点左侧、
+     *  底部高于锚点 16px，参考 1.21.11 的锚定语义），屏幕边界钳制。 */
     private static int panelLeft() {
         Minecraft mc = Minecraft.getInstance();
         int w = mc.getWindow() == null ? 200 : mc.getWindow().getGuiScaledWidth();
         if (mc.screen instanceof AbstractContainerScreen<?> cs) {
             w = cs.width;
         }
-        int mx = mouseXFor(mc.screen);
-        int left = mx - PANEL_W - ANCHOR_DX;
+        int left = anchorX - PANEL_W - ANCHOR_DX;
         if (left < 2) {
-            // 光标太靠左：改到光标右侧展开
-            left = mx + ANCHOR_DX;
+            // 锚点太靠左：改到锚点右侧展开
+            left = anchorX + ANCHOR_DX;
         }
         return Math.min(left, w - PANEL_W - 2);
     }
@@ -499,11 +505,10 @@ public final class RecipeViewerOverlay {
         if (mc.screen instanceof AbstractContainerScreen<?> cs) {
             h = cs.height;
         }
-        int my = mouseYFor(mc.screen);
-        int top = my - PANEL_H + ANCHOR_DY;
+        int top = anchorY - PANEL_H + ANCHOR_DY;
         if (top < 2) {
-            // 光标太靠上：改到光标下方展开
-            top = my + 20;
+            // 锚点太靠上：改到锚点下方展开
+            top = anchorY + 20;
         }
         return Math.min(top, h - PANEL_H - 2);
     }
