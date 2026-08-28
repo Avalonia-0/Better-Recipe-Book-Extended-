@@ -900,3 +900,10 @@ Mixin apply for mod zzzbrbe failed ... pins.OverlayRecipeButtonMixin
   rename）；禁 cp 直写覆盖（2026-08-25 20:47 事故根源）。
 - 部署：1.21.11-Fabric 备份 20260828-213000、md5 5652ba7a（原子替换）。
 - **1.21.1 不在本轮**（无外部工作站注册体系——烧炼 mod 站修复不适用，已知降级）。
+
+## 2026-08-28（晚）：打开查询界面不再隐藏真实 JEI（26.2 + 1.21.11）
+
+用户反馈（真实 JEI 共存）：打开 BRBE 查询界面后真实 JEI 界面消失。根因：
+hideoverlay 两个 mixin + 主 tick 隐藏判定带 "viewer 激活 || 有 pin" 条件（防 JEI
+盖 BRBE tooltip 的历史设计），与共存期望冲突。修复：只保留 hideReiJeiOverlay 配置
+开关触发。1.21.1 无需改（本就只认配置）。已部署（备份 20260828-221500，原子替换）。

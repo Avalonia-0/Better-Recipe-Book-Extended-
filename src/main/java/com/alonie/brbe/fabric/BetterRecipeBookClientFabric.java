@@ -127,16 +127,11 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             // rebuild once per tick with the final known set.
             RecipeViewerIndex.flushEngineRebuildIfDirty();
             Screen screen = client.screen;
-            // While a BRBE overlay is open (query viewer or a pin — not the
-            // vanilla recipe-book overlay) the JEI/REI overlay is hidden
-            // outright: its ingredient list is drawn after BRBE's layer and
-            // would cover BRBE's tooltips.  The user's config state is
-            // restored as soon as no BRBE overlay is open.
+            // Only the user's config toggle hides the JEI/REI overlay — BRBE
+            // overlays (query viewer / pins) must co-exist with the real JEI
+            // ingredient list instead of hiding it.
             if (screen != null) {
-                boolean brbeOverlay = com.alonie.brbe.util.RecipeViewerOverlay.isActive()
-                        || com.alonie.brbe.pinoverlay.PinOverlayManager.hasPins();
-                OverlayHider.setOverlaysHidden(
-                        brbeOverlay || BetterRecipeBook.config.hideReiJeiOverlay);
+                OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
                 if (BetterRecipeBook.config.hideReiJeiOverlay) {
                     OverlayHider.ensureJeiOverlayHidden();
                 }
