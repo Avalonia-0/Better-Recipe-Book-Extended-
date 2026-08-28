@@ -44,7 +44,7 @@ public class SearchCache {
 
     /**
      * Returns the mod namespace for the given stack's item.
-     * e.g., "minecraft", "zzzbrbe"
+     * e.g., "minecraft", "brbe"
      */
     public String getModNamespace(ItemStack stack) {
         return namespaceCache.computeIfAbsent(stack.getItem(), item ->

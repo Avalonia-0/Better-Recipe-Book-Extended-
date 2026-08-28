@@ -25,12 +25,12 @@ public final class JsonPinStore implements PinStore {
 
     /** New home (same directory level as the query pins / tab pins). */
     private final Path path;
-    /** Legacy pre-rename location ({@code zzzbrbe.pins}), read once for migration. */
+    /** Legacy pre-rename location ({@code brbe.pins}), read once for migration. */
     private final Path legacyPath;
 
     public JsonPinStore(Path gameDir) {
-        this.path = gameDir.resolve("zzzbrbe.pins.json");
-        this.legacyPath = gameDir.resolve("zzzbrbe.pins");
+        this.path = gameDir.resolve("brbe.pins.json");
+        this.legacyPath = gameDir.resolve("brbe.pins");
     }
 
     @Override
@@ -39,7 +39,7 @@ public final class JsonPinStore implements PinStore {
             return readFrom(path);
         }
         if (Files.exists(legacyPath)) {
-            // Migration: the recipe-book pins moved to zzzbrbe.pins.json to sit
+            // Migration: the recipe-book pins moved to brbe.pins.json to sit
             // next to the query/tab pin files; read the legacy file and write
             // the new one (async) so the old file stops being authoritative.
             Set<Identifier> legacy = readFrom(legacyPath);

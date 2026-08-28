@@ -145,8 +145,8 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
         // Register built-in resource pack (Unique Dark filter textures)
         ResourceManagerHelper.registerBuiltinResourcePack(
-                Identifier.fromNamespaceAndPath("zzzbrbe", "zzzbrbe_unique_dark"),
-                FabricLoader.getInstance().getModContainer("zzzbrbe").orElseThrow(),
+                Identifier.fromNamespaceAndPath("brbe", "brbe_unique_dark"),
+                FabricLoader.getInstance().getModContainer("brbe").orElseThrow(),
                 Component.literal("Unique Dark - Lite ").append(Component.literal("✕").withStyle(ChatFormatting.YELLOW)).append(Component.literal(" BRBE")),
                 ResourcePackActivationType.NORMAL);
     }

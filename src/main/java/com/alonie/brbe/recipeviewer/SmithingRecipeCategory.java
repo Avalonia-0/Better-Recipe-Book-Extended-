@@ -32,7 +32,7 @@ public final class SmithingRecipeCategory implements RecipeViewerCategory {
 
     @Override
     public Component name() {
-        return Component.translatable("zzzbrbe.category.smithing");
+        return Component.translatable("brbe.category.smithing");
     }
 
     @Override

@@ -45,7 +45,7 @@ import java.util.List;
  * （{@code brbe$snapshotButtons}）动态渲染视觉当前页与下一页，scissor 只包住
  * 按钮网格区（不影响页码、箭头、替代配方弹层）。非动画路径完全放行原版。</p>
  *
- * <p>受 {@code zzzbrbe.toml} 的 {@code pageAnimation.pageAnimationEnabled}（开关）
+ * <p>受 {@code brbe.toml} 的 {@code pageAnimation.pageAnimationEnabled}（开关）
  * 与 {@code pageAnimationDuration}（时长，秒）控制。</p>
  */
 @Mixin(RecipeBookPage.class)

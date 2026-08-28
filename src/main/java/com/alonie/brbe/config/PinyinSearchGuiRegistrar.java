@@ -32,10 +32,10 @@ public final class PinyinSearchGuiRegistrar {
                 BrbeConfig brbe = (BrbeConfig) config;
                 return List.of(ConfigEntryBuilder.create()
                         .startBooleanToggle(
-                                Component.translatable("text.autoconfig.zzzbrbe.option.pinyinSearch"),
+                                Component.translatable("text.autoconfig.brbe.option.pinyinSearch"),
                                 brbe.pinyinSearch)
                         .setDefaultValue(true)
-                        .setTooltip(Component.translatable("text.autoconfig.zzzbrbe.option.pinyinSearch.@Tooltip"))
+                        .setTooltip(Component.translatable("text.autoconfig.brbe.option.pinyinSearch.@Tooltip"))
                         .setSaveConsumer(value -> brbe.pinyinSearch = value)
                         .build());
             }, field -> field.getName().equals("pinyinSearch"));

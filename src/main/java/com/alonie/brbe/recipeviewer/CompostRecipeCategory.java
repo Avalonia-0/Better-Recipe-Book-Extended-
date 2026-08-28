@@ -42,7 +42,7 @@ public final class CompostRecipeCategory implements RecipeViewerCategory {
 
     @Override
     public Component name() {
-        return Component.translatable("zzzbrbe.category.compost");
+        return Component.translatable("brbe.category.compost");
     }
 
     @Override

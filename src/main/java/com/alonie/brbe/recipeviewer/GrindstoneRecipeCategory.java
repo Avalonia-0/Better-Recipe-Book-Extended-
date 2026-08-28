@@ -40,7 +40,7 @@ public final class GrindstoneRecipeCategory implements RecipeViewerCategory {
 
     @Override
     public Component name() {
-        return Component.translatable("zzzbrbe.category.grindstone");
+        return Component.translatable("brbe.category.grindstone");
     }
 
     @Override

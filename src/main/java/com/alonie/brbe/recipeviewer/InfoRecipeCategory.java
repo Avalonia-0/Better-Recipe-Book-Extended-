@@ -44,7 +44,7 @@ public final class InfoRecipeCategory implements RecipeViewerCategory {
 
     @Override
     public Component name() {
-        return Component.translatable("zzzbrbe.category.info");
+        return Component.translatable("brbe.category.info");
     }
 
     @Override

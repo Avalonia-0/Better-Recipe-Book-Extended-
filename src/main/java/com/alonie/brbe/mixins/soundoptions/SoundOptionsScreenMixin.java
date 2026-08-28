@@ -22,7 +22,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * 都是包私有，无法从外部构造 {@code OptionInstance}。因此这里直接向
  * {@code SoundOptionsScreen.addOptions()} 返回后的 {@code OptionsList} 追加
  * 自建的 {@link AbstractSliderButton}（与一个占位控件配对成两列布局），
- * 样式与原生音量源一致。值落到 {@code zzzbrbe.toml}（{@code pageFlipVolume}），
+ * 样式与原生音量源一致。值落到 {@code brbe.toml}（{@code pageFlipVolume}），
  * 不污染 options.txt。</p>
  *
  * <p>滑块 0–1 ↔ 音量 0–1.5（默认 1.0 = 原生音量，翻页音效用 0.25 系数），
@@ -34,7 +34,7 @@ public abstract class SoundOptionsScreenMixin {
     /** 滑块 0–1 ↔ 音量 0–1.5 的放大系数（与 26.2 的 xmap 一致）。 */
     private static final float VOLUME_SCALE = 1.5f;
 
-    private static final Component CAPTION = Component.translatable("soundCategory.zzzbrbe_page_flip");
+    private static final Component CAPTION = Component.translatable("soundCategory.brbe_page_flip");
 
     @Inject(method = "addOptions", at = @At("RETURN"))
     private void brbe$appendPageFlipVolume(CallbackInfo ci) {

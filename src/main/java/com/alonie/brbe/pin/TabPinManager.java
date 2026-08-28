@@ -21,8 +21,8 @@ import java.util.concurrent.CompletableFuture;
  *
  * <p>固定身份 = 创造模式标签的注册 id（{@link Identifier}，跨会话稳定；RBIP 为每个
  * 创造标签现造的 {@code RecipeBookCategory} 是会话内的，不能持久化）。固定标签排在
- * 配方书首页（搜索标签下），与查询对象的 pin 界面同一目录（{@code zzzbrbe.tabpins.json}，
- * 与 {@code zzzbrbe.pinoverlays.json} / {@code zzzbrbe.pins.json} 并排）。</p>
+ * 配方书首页（搜索标签下），与查询对象的 pin 界面同一目录（{@code brbe.tabpins.json}，
+ * 与 {@code brbe.pinoverlays.json} / {@code brbe.pins.json} 并排）。</p>
  *
  * <p>读取同步（启动后首次使用），写入异步（渲染线程不阻塞磁盘 I/O）。</p>
  */
@@ -40,7 +40,7 @@ public final class TabPinManager {
     /** Point the manager at the game directory (same level as the query pins).
      *  Called from {@code BetterRecipeBook.init()}; the file is read lazily. */
     public static void init(Path gameDir) {
-        path = gameDir.resolve("zzzbrbe.tabpins.json");
+        path = gameDir.resolve("brbe.tabpins.json");
         loaded = false;
     }
 

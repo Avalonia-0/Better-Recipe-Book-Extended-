@@ -11,7 +11,7 @@ import net.minecraft.world.item.crafting.display.RecipeDisplayId;
  * <p>Defined in common so the front-end mixins can call it without a compile
  * dependency on the JEI API ({@code IRecipeCategory}/{@code IRecipeSlotsView}
  * only exist in the companion mod's fork).  The companion mod
- * (zzzbrbe-jei-plugins) provides the real implementation and registers it via
+ * (brbe-jei-plugins) provides the real implementation and registers it via
  * {@link SyntheticRecipeRenderers}.</p>
  *
  * <p>The {@code (x, y, w, h)} rect is the recipe's <b>content area</b> (already

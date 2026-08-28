@@ -84,7 +84,7 @@ public abstract class RecipeBookComponentMixin {
         if (this._$settingsButton != null && this._$settingsButton.isHoveredOrFocused()
                 && BetterRecipeBook.ctx().config().settingsButton && Minecraft.getInstance().screen != null) {
             ClientCompat.setComponentTooltipForNextFrame(gui,
-                    java.util.List.of(Component.translatable("zzzbrbe.gui.settings.open")), mouseX, mouseY);
+                    java.util.List.of(Component.translatable("brbe.gui.settings.open")), mouseX, mouseY);
         }
     }
 }

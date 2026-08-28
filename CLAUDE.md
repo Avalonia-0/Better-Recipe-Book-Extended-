@@ -105,10 +105,10 @@ Cloth Config provides the configuration GUI. It's `implementation`+`include` (bu
 
 ## 2026-08-21 全量移植（26.2 → 1.21.11）
 
-以 26.2 源码为基线全量移植（约 8 子系统、~150 文件），mod id 统一为 **`zzzbrbe`**（资源/配置/数据文件直接复用 26.2；玩家 `brbe.toml`/`brbe.pins` 换名失效）。已部署 1.21.11-Fabric，runClient 启动验证通过（主菜单无崩溃、mixin 全部应用成功、RecipeViewerEngine 1458 条目重建成功）。
+以 26.2 源码为基线全量移植（约 8 子系统、~150 文件），mod id 统一为 **`brbe`**（资源/配置/数据文件直接复用 26.2；玩家 `brbe.toml`/`brbe.pins` 换名失效）。已部署 1.21.11-Fabric，runClient 启动验证通过（主菜单无崩溃、mixin 全部应用成功、RecipeViewerEngine 1458 条目重建成功）。
 
 **移植的功能**：
-- 配置系统重构：`Config`→`BrbeConfig`（`@Config(name="zzzbrbe")`），键位可配置（KeybindingCodec/GuiRegistrar/KeyMappingSyncMixin），新增字段先行就位
+- 配置系统重构：`Config`→`BrbeConfig`（`@Config(name="brbe")`），键位可配置（KeybindingCodec/GuiRegistrar/KeyMappingSyncMixin），新增字段先行就位
 - 拼音搜索（search/Pinyin* + pinyin.txt，中文语言自动开启）
 - 翻页动画 + Ctrl 跳页 + 搜索页码跳转命令（^N^）+ 配方书位置记忆
 - 自研 R/U 查看引擎生态：recipeviewer/（RecipeViewerEngine/Categories）、RecipeViewerOverlay 浮层、PinOverlay（pin 浮层）、render/（PopupGeometry/PopupRenderer）
@@ -127,8 +127,8 @@ Cloth Config provides the configuration GUI. It's `implementation`+`include` (bu
 **26.2 → 1.21.11**：
 - 翻页音效滑块（`mixins/soundoptions/SoundOptionsScreenMixin`）：1.21.11 无 `OptionInstance.UnitDouble/xmap`，改为直接实现公共接口 `OptionInstance.ValueSet<Double>` + 自建 `AbstractSliderButton`，行为与 26.2 一致（滑块 0–1 ↔ 音量 0–1.5）。已注册进 `mixins.brbe-common.json`
 - `mixins.brbe-common.json` 补注册 4 个已存在但未注册的 accessor（AbstractContainerScreenAccessor / ImageButtonAccessor / OverlayRecipeButtonAccessor / ScreenAccessor）——此前相关代码路径运行时未生效
-- 配置界面提示：`ConfigTipsHelper` 修正 `brbe.gui.tip.*` → `zzzbrbe.gui.tip.*` 并补齐 tip 8/9（Ctrl 跳页 / ^N^ 跳页提示）
-- 翻译键修正：`brbe.gui.togglePotions.brewable`、`brbe.gui.smithable`、`brbe.gui.environmentIncompatible` → `zzzbrbe.*`（lang 文件早已是 zzzbrbe 命名空间，旧键不生效）
+- 配置界面提示：`ConfigTipsHelper` 修正 `brbe.gui.tip.*` → `brbe.gui.tip.*` 并补齐 tip 8/9（Ctrl 跳页 / ^N^ 跳页提示）
+- 翻译键修正：`brbe.gui.togglePotions.brewable`、`brbe.gui.smithable`、`brbe.gui.environmentIncompatible` → `brbe.*`（lang 文件早已是 brbe 命名空间，旧键不生效）
 - ghost 配方工具提示支持 `showModName`（GenericGhostRecipe.drawTooltip）
 - `CacheableRecipeDisplayEntry.makeSlotDisplay`：数量 >1 的结果改用 `SlotDisplay.ItemStackSlotDisplay`（1.21.11 构造器收 ItemStack，26.2 收 ItemStackTemplate）
 - instantcraft 点击加 `RecipeViewerIndex.isViewerActive()` 守卫（浮层打开时不触发即时合成）
@@ -197,7 +197,7 @@ cp neoforge/build/libs/brbe-ava-neoforge-*.jar /home/avalonia/data/MinecraftLib/
 - **常规检索空间统一**（2026-08-21，两分支同步）：`PartialCraftingUtil.searchSpaceSlots()` 是配方状态判定的**唯一槽位来源**——玩家真实物品栏（items+armor）+ 打开容器菜单的合成网格（工作台 3×3 / 背包 2×2 / 熔炉 input+fuel），**排除合成台/熔炉结果栏**（刚合成的产物不算可用材料）。carried（拿起物品）由 `slotHash`/`prepareForViewer` 参数传入，offhand 由 `offhandStack()` 内部计入；craftable 判定（stacked）统一走 `fillSearchSpaceStackedContents`。配方书 mixin、pin（create/refreshRecipeState/refreshRecipeStates）、viewer（2 处 prepareForViewer）、幽灵浮层（PartialGhostOverlayUtil.prepare）、RecipeStateDiagnostic 全部改走该入口。
 - **预览/pin 残缺红罩**（2026-08-21，两分支同步）：残缺配方状态下界面本体盖整块红罩（`0x60FF3333`）。曾两度尝试按槽位标记/挖洞后按用户要求回退，保持整块红罩。
 
-**2026-08-22 凌晨：隐藏无配方书工作站所属的对象（两分支同步）**——新配置项 `hideNoRecipeBookStationObjects`（默认关、无 tooltip、GUI 标题"隐藏无配方书工作站所属的对象"，位于"启用BRBE的查询功能"下方；7 语言翻译键 `text.autoconfig.zzzbrbe.option.hideNoRecipeBookStationObjects`）：
+**2026-08-22 凌晨：隐藏无配方书工作站所属的对象（两分支同步）**——新配置项 `hideNoRecipeBookStationObjects`（默认关、无 tooltip、GUI 标题"隐藏无配方书工作站所属的对象"，位于"启用BRBE的查询功能"下方；7 语言翻译键 `text.autoconfig.brbe.option.hideNoRecipeBookStationObjects`）：
 - 语义：开启后，查询结果中**所有工作站都没有配方书体系**的对象被隐藏；若对象还包含有配方书体系的工作站则保留对象本身，仅 **tooltip 隐藏非法工作站图标**
 - 判定数据：`RecipeViewerEngine.RECIPE_BOOK_STATION_ITEMS`——每次 JEI 收集重建 = vanilla 类型全部工作站（`RecipeViewerIndex.vanillaWorkstationItems()`，含注册到 vanilla type 的 external 站如 end_stone_smelter）+ 配方书驱动 mod 类型的 stations（bookDriven）；`isRecipeBookStation(ItemStack)` 查询
 - 过滤点（`RecipeViewerOverlay`）：`open`/`switchCategory` 的查询结果过 `filterByRecipeBookStations`（内置类别 furnace/crafting/stonecutting/smithing/fuel 的对象恒合法——`isBuiltinCategory`）；`stationIconsTooltipComponents` 图标过滤（过滤后空则省略图标行）
@@ -210,7 +210,7 @@ cp neoforge/build/libs/brbe-ava-neoforge-*.jar /home/avalonia/data/MinecraftLib/
 
 **2026-08-22 下午：杂项配置类别 + 隐藏配置界面 Tips（两分支同步）**——新增 Cloth 配置类别 `miscellaneous`（翻译"杂项"），下含开关 `hideConfigTips`（标题"隐藏配置界面的Tips"，tooltip"就是'实用功能'页面那个每次打开配置界面都会变化的Tips。"，默认关）：
 - `ConfigTipsHelper.addCarousels` 开头守卫 `BetterRecipeBook.config.hideConfigTips`（开启则不再向"实用功能"类别注入轮循提示行）
-- 翻译键：`text.autoconfig.zzzbrbe.category.miscellaneous` / `option.hideConfigTips` / `option.hideConfigTips.@Tooltip`（7 语言）
+- 翻译键：`text.autoconfig.brbe.category.miscellaneous` / `option.hideConfigTips` / `option.hideConfigTips.@Tooltip`（7 语言）
 - 已部署两实例（备份 20260822-143214）
 
 **2026-08-22 傍晚：FD cooking shift 预览空白修复（两分支同步）**——用户反馈（1.21.11）U 查询厨锅后按 Shift 预览显示的是 crafting_overlay_highlighted.png 放大背景且无任何物品。根因：FD 的 cooking 配方是自定义 display（CookingPotRecipeDisplay），vanilla 按钮槽位为空 → PopupRenderer/PopupGeometry 的 crafting 分支无槽位可渲染。
@@ -261,18 +261,18 @@ cp neoforge/build/libs/brbe-ava-neoforge-*.jar /home/avalonia/data/MinecraftLib/
 - `rbip$drawTabPin`：BOTTOM 的 pinY 由 `y-4` 改为 `y+2`（锚点 (x-1, y+2)）；TOP / NORMAL 不变；选中偏移方向不变。
 - 已编译、已部署两实例（备份 20260825-170712）。
 
-**2026-08-25（八）：残缺配方 tip 文案追加"灵感源自基岩版"（三分支同步）**——用户要求 `zzzbrbe.gui.tip.3`（配置界面"实用功能"提示）中文文案末尾追加"，灵感源自基岩版"，其他语言同步追加各自译法（en/ja/pl/ru/tr/zh_tw）：
-- 三个维护分支的 lang 文件（26.2 / 1.21.11：`assets/zzzbrbe/lang/*.json` 键 `zzzbrbe.gui.tip.3`；1.21.1：`assets/brbe/lang/*.json` 键 `brb.gui.tip.3`）共 21 个文件，各自追加：en "Inspired by Bedrock Edition."、ja "Bedrock Edition から着想を得ています。"、pl "Inspirowane edycją Bedrock."、ru "Вдохновлено Bedrock Edition."、tr "Bedrock Edition'dan ilham alınmıştır."、zh_cn "，灵感源自基岩版。"、zh_tw "，靈感源自基岩版。"。26.1.2 停维不改。
+**2026-08-25（八）：残缺配方 tip 文案追加"灵感源自基岩版"（三分支同步）**——用户要求 `brbe.gui.tip.3`（配置界面"实用功能"提示）中文文案末尾追加"，灵感源自基岩版"，其他语言同步追加各自译法（en/ja/pl/ru/tr/zh_tw）：
+- 三个维护分支的 lang 文件（26.2 / 1.21.11：`assets/brbe/lang/*.json` 键 `brbe.gui.tip.3`；1.21.1：`assets/brbe/lang/*.json` 键 `brb.gui.tip.3`）共 21 个文件，各自追加：en "Inspired by Bedrock Edition."、ja "Bedrock Edition から着想を得ています。"、pl "Inspirowane edycją Bedrock."、ru "Вдохновлено Bedrock Edition."、tr "Bedrock Edition'dan ilham alınmıştır."、zh_cn "，灵感源自基岩版。"、zh_tw "，靈感源自基岩版。"。26.1.2 停维不改。
 - 已编译、已部署四实例（备份 20260825-171439）。
 
-**2026-08-25（九）：拼音搜索 tooltip 移除 REI 出处（26.2 / 1.21.11）**——用户要求 `text.autoconfig.zzzbrbe.option.pinyinSearch.@Tooltip` 中文文案移除"，灵感来自REI"，其他语言同步移除各自 REI 出处（en "Inspired by REI."、zh_tw "，靈感來自REI。"）：
+**2026-08-25（九）：拼音搜索 tooltip 移除 REI 出处（26.2 / 1.21.11）**——用户要求 `text.autoconfig.brbe.option.pinyinSearch.@Tooltip` 中文文案移除"，灵感来自REI"，其他语言同步移除各自 REI 出处（en "Inspired by REI."、zh_tw "，靈感來自REI。"）：
 - 每分支 3 个文件（zh_cn / zh_tw / en_us）共 6 个文件；ja/pl/ru/tr 无该键（回退 en_us），1.21.1 无拼音功能，26.1.2 停维，均不改。
 - 已编译、已部署两实例（备份 20260825-171911）。
 
-**2026-08-25（十）：内置资源包 Unique Dark Lite 修复（26.2 / 1.21.11）**——用户反馈"unique dark lite 兼容材质包在游戏中找不到了"。根因（两处叠加，为 efffb7b8 全量移植（mod id brbe→zzzbrbe）时的遗漏）：
-- ① 注册路径不匹配（仅 26.2）：`ResourceLoader.registerBuiltinPack("zzzbrbe:zzzbrbe_unique_dark",...)` 但 JAR 内目录仍是 `resourcepacks/brbe_unique_dark` → Fabric 找不到包 → 资源包列表无 "Unique Dark Lite ✕ BRBE"；（cd9c7e1d 单模块化时注册名/目录名均为 brbe 匹配，efffb7b8 只改了注册名，目录未同步改名——回归点）
-- ② 包内容命名空间未迁移：包内文件仍为 `assets/brbe/...`（老命名空间），而 26.2/1.21.11 的 mod 资源全部在 `assets/zzzbrbe/...`（sprite id `zzzbrbe:recipe_book/*`、`PageAnimationEdges` 读 `zzzbrbe:animation/edge_width.json`）→ 即使包加载也无任何覆盖效果（1.21.11 上即此状态：目录名匹配能列出但无效果）。
-- 修复：26.2 目录改名 `brbe_unique_dark`→`zzzbrbe_unique_dark`（git mv）；两分支包内 `assets/brbe`→`assets/zzzbrbe`；1.21.11 包补 `animation/edge_width.json`（左0右0，与 26.2 一致）。1.21.1 全链路本就正确（brbe 命名空间、目录名、pack_format 34），未改。pack.mcmeta 格式值（26.2 [88,0] / 1.21.11 [75,0]）未变（版本未升级，此前可用）。
+**2026-08-25（十）：内置资源包 Unique Dark Lite 修复（26.2 / 1.21.11）**——用户反馈"unique dark lite 兼容材质包在游戏中找不到了"。根因（两处叠加，为 efffb7b8 全量移植（mod id brbe→brbe）时的遗漏）：
+- ① 注册路径不匹配（仅 26.2）：`ResourceLoader.registerBuiltinPack("brbe:brbe_unique_dark",...)` 但 JAR 内目录仍是 `resourcepacks/brbe_unique_dark` → Fabric 找不到包 → 资源包列表无 "Unique Dark Lite ✕ BRBE"；（cd9c7e1d 单模块化时注册名/目录名均为 brbe 匹配，efffb7b8 只改了注册名，目录未同步改名——回归点）
+- ② 包内容命名空间未迁移：包内文件仍为 `assets/brbe/...`（老命名空间），而 26.2/1.21.11 的 mod 资源全部在 `assets/brbe/...`（sprite id `brbe:recipe_book/*`、`PageAnimationEdges` 读 `brbe:animation/edge_width.json`）→ 即使包加载也无任何覆盖效果（1.21.11 上即此状态：目录名匹配能列出但无效果）。
+- 修复：26.2 目录改名 `brbe_unique_dark`→`brbe_unique_dark`（git mv）；两分支包内 `assets/brbe`→`assets/brbe`；1.21.11 包补 `animation/edge_width.json`（左0右0，与 26.2 一致）。1.21.1 全链路本就正确（brbe 命名空间、目录名、pack_format 34），未改。pack.mcmeta 格式值（26.2 [88,0] / 1.21.11 [75,0]）未变（版本未升级，此前可用）。
 - 已编译、已部署两实例（备份 20260825-172941）。如进游戏后包仍显示"不兼容"警告，需重取两版本的 RESOURCE_PACK_FORMAT 数值。
 
 **2026-08-25（十一）：内置资源包显示名改为 "Unique Dark - Lite ✕ BRBE"（三分支同步）**——用户要求在资源包名的 Lite 前加 "- "：
@@ -314,7 +314,7 @@ cp neoforge/build/libs/brbe-ava-neoforge-*.jar /home/avalonia/data/MinecraftLib/
 - **堆肥/信息 = 纯信息行类别**（与燃料同款网格）：`RecipeViewerCategory` 新增 `isGridCategory()`/`gridItems()`，燃料类别也标记为 grid；`RecipeViewerOverlay` 泛化 `isFuelMode` → `isGridMode`（drawItemGrid/rebuildGrid/computeGridBoxSize/gridHoverStack），网格 tooltip 按类别分派 `gridTooltipComponents`：燃料烧炼行 / 堆肥"概率：25%"（`floor(chance*100)`，数据源 `ComposterBlock.COMPOSTABLES`——JEI CompostingRecipeMaker 同源，无 JEI 也工作）/ 信息页文案行（`jei:information` recipes 的 `IJeiIngredientInfoRecipe.description`，经 `Language.getVisualOrder` 渲染，无 JEI 时类别自动缺席）。堆肥/信息 priority 2/0（信息最后兜底，不抢配方类别的默认 tab）
 - **工作站注册**：`RecipeViewerIndex.BUILTIN_WORKSTATIONS` 新增 anvil（三变体）/brewing_stand/grindstone/composter 条目（`recipeBook=false`，与切石机同列——都是无配方书工作站）；Family 枚举加 ANVIL/BREWING/GRINDSTONE/COMPOSTING
 - **"隐藏无配方书工作站所属的对象"语义**：anvil/brewing/grindstone 与切石机完全一致——过滤开启时 `indexVanillaPluginTypes` 直接 `RecipeViewerEngine.clearType()` 源级移除（否则 defaultFor 会绕过过滤打开类别）；堆肥/信息与燃料一致豁免（信息表，非工作站对象）。`PinOverlay`/`PinButtonRenderOverride` 新增 `MODE_ANVIL/BREWING/GRINDSTONE`（弹窗/pin 残缺红罩与非 crafting 模式一致），`viewerMode()`/`RecipePopupLayer.computeMode`/`PinOverlayManager.modeFor`/createPin 统一走 `RecipeViewerOverlay.viewerMode()`
-- 语言键（en/zh_cn/zh_tw；ja/pl/ru/tr 回退 en_us）：`zzzbrbe.category.anvil`(铁砧)/`brewing`(酿造)/`grindstone`(研磨)/`compost`(堆肥)/`info`(信息) + `zzzbrbe.category.compost.chance`("概率：%s%%"/"Chance: %s%%"/"機率：%s%%")
+- 语言键（en/zh_cn/zh_tw；ja/pl/ru/tr 回退 en_us）：`brbe.category.anvil`(铁砧)/`brewing`(酿造)/`grindstone`(研磨)/`compost`(堆肥)/`info`(信息) + `brbe.category.compost.chance`("概率：%s%%"/"Chance: %s%%"/"機率：%s%%")
 - 已编译、已部署两实例（备份 20260825-202550）。验证：① U 查询铁砧/酿造台/研磨石 → 各类别打开，Shift 预览与 A 键 pin 为完整 JEI UI；② U 查询可堆肥物品（如小麦）→ "堆肥"类别，悬停单元格 tooltip 显示"概率：25%"；③ U 查询有 JEI 信息文案的物品 → "信息"类别显示文案；④ 开"隐藏无配方书工作站所属的对象"→ U 查询铁砧/酿造台/研磨石/堆肥桶不应打开（查询材料时这些类别被过滤，与切石机一致）
 
 **2026-08-25（十七）：预览/pin 完整以原始 1:1 大小显示（两分支同步）**——用户要求"预览界面能完整在 tooltip 中以原始大小显示"。此前委托渲染的预览是把类别**塞进 24px 按钮再放大**（`PopupGeometry.adaptedSynthetic` 的 `min(24/w, 24/h) * CONTENT_ZOOM`）：铁砧 125x38 这种宽布局反而被缩到 ~85%（文字模糊、不像 JEI 原界面），窄布局则被放大。
@@ -376,7 +376,7 @@ cp neoforge/build/libs/brbe-ava-neoforge-*.jar /home/avalonia/data/MinecraftLib/
 **2026-08-25（二十八）：查询界面翻页按钮移入容器底部页脚（两分支同步）**——用户要求：容器 UI 将翻页按钮包裹在内（延展界面，判定区域同步拓展）；翻页按钮在底边靠右（右侧与盒子齐平）；延展区域左侧显示当前打开类别的标题：
 - 新增 `PAGE_BAR_HEIGHT = 17`（页脚条高）+ `PAGE_BAR_MARGIN = 4`（按钮右内边距，与左侧 4px 内容内边距对称）；页脚条位于盒内底部，盒子向下延展包裹它（原来翻页按钮画在盒子上方、判定区也只在盒外按钮条）
 - `computeBoxSize` 末尾 `boxH += PAGE_BAR_HEIGHT`（容器高含页脚：盒子背景 blit、`contains`/`exclusionArea`/`overScrollZone`、`bottomAnchor` 锚定、屏幕钳位自动跟随）；`showPage` 按钮网格布局高改用 `boxH - PAGE_BAR_HEIGHT`（内容区，行数不变）
-- 新坐标 helper：`footerTop()`（页脚顶）/`pageBtnX()`（右对齐盒子右缘-4）/`pageBtnY()`（页脚垂直居中）；`drawPageControls` 现在 = 页脚左侧当前类别标题（`zzzbrbe.category.<id>` 键，26.2 `gui.text` / 1.21.11 `gui.drawString`，0xFFC0C0C0）+ 右侧翻页按钮（仅分页时）；单页也显示标题（页脚常驻）
+- 新坐标 helper：`footerTop()`（页脚顶）/`pageBtnX()`（右对齐盒子右缘-4）/`pageBtnY()`（页脚垂直居中）；`drawPageControls` 现在 = 页脚左侧当前类别标题（`brbe.category.<id>` 键，26.2 `gui.text` / 1.21.11 `gui.drawString`，0xFFC0C0C0）+ 右侧翻页按钮（仅分页时）；单页也显示标题（页脚常驻）
 - 判定区同步：`handlePageButtonClick` / `drawPageButton` hover / 页码 tooltip 均用新按钮矩形；`overScrollZone` 简化为整个盒子（含页脚）；类别的标题对 grid 类别（燃料/堆肥/信息）同样生效
 - 已编译、已部署两实例（备份 20260825-26xxxx；部署前确认无游戏实例运行）。验证：R/U 查询任意对象 → 盒子底部出现页脚条（左=类别名如"烧炼"/"铁砧"，右=翻页按钮，仅多页时显示），按钮与盒子右缘对齐、在容器背景内；悬停/点击按钮翻页正常，页码 tooltip 出现；单页时仅显示标题
 
@@ -438,13 +438,13 @@ cp neoforge/build/libs/brbe-ava-neoforge-*.jar /home/avalonia/data/MinecraftLib/
 - 仿真（Python 复现精灵+绘制顺序）验证：无缝、无一像素圆角伪影。已编译、已部署两实例（备份 20260826-015358；部署前确认无游戏实例运行）。验证：① 列与主盒之间纯灰连续、无任何边框线/圆角错位；② 列顶边框平直 T 形汇入主盒左边框；③ 列底边带与主盒底边框共线；④ 列左/上边框色序与主盒一致（黑1白2）；⑤ 格子/点击=查合成/悬停 R/U/滚轮/tooltip 正常
 
 **2026-08-26（三十八）：列面板专属 9-slice 纹理（右开口版）——两顶角圆角 + 左下拐角无黑边（两分支同步）**——用户反馈（三十七）纯色条带方案：两顶角变直角（非原纹理圆角）、左下拐角内侧有黑 L 边不美观。要求"拐角内去掉黑边，两顶角保持原纹理（圆角）"。
-- **新增专属纹理** `assets/zzzbrbe/textures/gui/sprites/recipe_book/column_panel.png`（+mcmeta，32x32 nine_slice border 4，两分支同文件）：从 `overlay_recipe` 派生，**右侧开口**——右中 3 列（x=29..31, y=4..27）与 BR 角（x=28..31, y=28..31）重涂为内容灰 `0xC6C6C6`；左/上/下边框与 TL/TR/BL 圆角**保持原纹理像素**（BL 角内侧为白 2px+内容灰，无黑边；顶边框黑行+白行完整、两端圆角）
+- **新增专属纹理** `assets/brbe/textures/gui/sprites/recipe_book/column_panel.png`（+mcmeta，32x32 nine_slice border 4，两分支同文件）：从 `overlay_recipe` 派生，**右侧开口**——右中 3 列（x=29..31, y=4..27）与 BR 角（x=28..31, y=28..31）重涂为内容灰 `0xC6C6C6`；左/上/下边框与 TL/TR/BL 圆角**保持原纹理像素**（BL 角内侧为白 2px+内容灰，无黑边；顶边框黑行+白行完整、两端圆角）
 - `drawStationColumnSurfaces` 由 7 段纯色 fill 改为一次 `blitSprite(COLUMN_PANEL_SPRITE, panelLeft, colTop, STATION_COL_WIDTH+4, colH)`：右缘 4px（覆盖主盒左边框区）为内容灰 → 与主盒无缝；底带黑行延伸至面板右缘（= 主盒左边界）与主盒底边框共线；顶部随内容裁切（5px 内边距）保留 TL/TR 圆角；BR 角灰化避免与主盒 BL 圆角撞角
 - Python 仿真（原纹理+绘制顺序）验证：两顶角原圆角、左下拐角内侧无黑边、右侧无接缝、底边共线。已编译、已部署两实例（备份 20260826-020902；部署前确认无游戏实例运行）。验证：① 列面板左/上/下三边框纹理与主盒一致（黑1白2圆角）；② 左下角圆角内侧无黑 L 边；③ 右侧与主盒灰面无缝、底部黑线与主盒共线；④ 格子/点击=查合成/悬停 R/U/滚轮/tooltip 正常
 
 **2026-08-26（三十九）：侧翼黑紫错误纹理修复——精灵 ID 带全路径导致查找失败（两分支同步）**——用户反馈（三十八）部署后侧翼显示黑紫错误纹理（missing texture）。
-- 根因：`COLUMN_PANEL_SPRITE` 误写成 `Identifier.fromNamespaceAndPath("zzzbrbe", "textures/gui/sprites/recipe_book/column_panel")`——**GUI 精灵 ID 是相对 `textures/gui/sprites/` 的路径**（对照同文件可用的 `OVERLAY_RECIPE_SPRITE` = `recipe_book/overlay_recipe`，及 `BRBTextures` 全部精灵均 `recipe_book/...` 形式）；带全路径的 ID 在 gui 图集中查不到 → `blitSprite` 渲染错误纹理（黑紫格）
-- 修复：两分支 ID 改为 `Identifier.fromNamespaceAndPath("zzzbrbe", "recipe_book/column_panel")`，javadoc 注明约定（防回归）。mcmeta（`{"gui":{"scaling":{"type":"nine_slice",...}}}`）与 PNG（32x32 RGBA）经与原版 jar 内精灵对照确认无误，未动
+- 根因：`COLUMN_PANEL_SPRITE` 误写成 `Identifier.fromNamespaceAndPath("brbe", "textures/gui/sprites/recipe_book/column_panel")`——**GUI 精灵 ID 是相对 `textures/gui/sprites/` 的路径**（对照同文件可用的 `OVERLAY_RECIPE_SPRITE` = `recipe_book/overlay_recipe`，及 `BRBTextures` 全部精灵均 `recipe_book/...` 形式）；带全路径的 ID 在 gui 图集中查不到 → `blitSprite` 渲染错误纹理（黑紫格）
+- 修复：两分支 ID 改为 `Identifier.fromNamespaceAndPath("brbe", "recipe_book/column_panel")`，javadoc 注明约定（防回归）。mcmeta（`{"gui":{"scaling":{"type":"nine_slice",...}}}`）与 PNG（32x32 RGBA）经与原版 jar 内精灵对照确认无误，未动
 - 已编译、已部署两实例（备份 20260826-133612；部署前确认无游戏实例运行），md5 一致，jar 内精灵+mcmeta 在、class 常量池为 `recipe_book/column_panel`。验证：R/U 查询任意类别 → 侧翼列面板应显示正常纹理（两顶角圆角、左下无黑边、右侧无缝），不再是黑紫格
 
 **2026-08-26（四十）：侧翼右上/右下角与主盒衔接修复（两分支同步）**——用户反馈（三十九）部署后：右上角和右下角的衔接没做好（截图：TR 角有悬浮灰方块+黑/白碎屑，BR 角底带被打断出现白十字）。
@@ -474,7 +474,7 @@ cp neoforge/build/libs/brbe-ava-neoforge-*.jar /home/avalonia/data/MinecraftLib/
 
 **2026-08-26（四十四）：侧翼顶与主盒顶齐平时使用顶对齐纹理变体（两分支同步）**——用户要求：当侧翼列面板顶部与主界面（主盒）顶部齐平时（列满、面板裁切顶=盒顶），面板顶部改用专用纹理 `column_panel_top.png`（用户提供，放在 26.2 资源目录；已同步到 1.21.11 并补九宫格 mcmeta，两文件同 md5=888f9f…）。
 - 变体设计（32x32，同九宫格 border 4）：顶边框（黑行 y0 + 2 白行 y1-2）**通到右缘 x31**——面板顶边框与主盒顶边框（同为 K+WW，行对齐）连成一条直线；TL 圆角保留；右侧开口（y3+ 灰面）、底带 D/D/K 贯穿与 `column_panel` 一致
-- 代码（两分支 `RecipeViewerOverlay`）：新增 `COLUMN_PANEL_TOP_SPRITE`（`zzzbrbe:recipe_book/column_panel_top`）；`drawStationColumnSurfaces` 按 `stationColumnPanelRect(shown)[0] == boxTop()` 选择变体（colTop==boxTop ⟺ shown==行数，即列满、面板顶=盒顶；行数低于盒高时仍用普通 `column_panel` 的 TR T 形衔接）
+- 代码（两分支 `RecipeViewerOverlay`）：新增 `COLUMN_PANEL_TOP_SPRITE`（`brbe:recipe_book/column_panel_top`）；`drawStationColumnSurfaces` 按 `stationColumnPanelRect(shown)[0] == boxTop()` 选择变体（colTop==boxTop ⟺ shown==行数，即列满、面板顶=盒顶；行数低于盒高时仍用普通 `column_panel` 的 TR T 形衔接）
 - 已编译、已部署两实例（备份 20260826-150611；部署前确认无游戏实例运行），md5 一致，jar 内 top png+mcmeta 在（TR y0=[K,K,K,K]、y3=[G,G,G,G]）。验证：查询一类工作站数量 ≥ 盒行数（列满顶齐平）→ 面板顶边框与主盒顶边框连成一条直线、无 T 形截断；列不满时行为不变（TR 平直 T 汇入）
 
 **2026-08-26（四十五）：工作站列滑动窗口三角翻页标记（两分支同步）**——用户要求：工作站列启用滑动窗口时，每个工作站 tooltip 上放 ▲△▼▽ 标记翻页情况（无滑动窗口则不放置）：
@@ -601,12 +601,12 @@ cp neoforge/build/libs/brbe-ava-neoforge-*.jar /home/avalonia/data/MinecraftLib/
 - 已构建、已部署两实例（26.2 备份 `20260827-003346`、md5 `1b06ca3c…`；1.21.11 备份同刻、md5 `f398cf6d…`；部署前确认无实例运行）。验证：① R/U 查询 → 按 O（不再是 Ctrl+O）→ 全部对象展示，盒子顶部/底部应保持 ≥30px 屏幕边缘间距（不再贴边/出界），切换类别、进出浏览位置稳定；② 界面外按 O 无反应
 
 **2026-08-27（七十三）：信息类别模组名改本模组 + 切石机类别改名切石 + 模组名精简（两分支同步）**——用户三项要求：
-- **信息类别所属模组**：`drawTabTooltip` 的模组名行对 `InfoRecipeCategory` 特判——其图标是原版物品（成书）本会解析为 "Minecraft"，现改为 `ModNameUtil.resolveModName("zzzbrbe")`（反射读本模组 metadata 名，样式与其它类别一致 BLUE+ITALIC）
-- **切石机类别名 → 切石**：语言键 `zzzbrbe.category.stonecutting`：zh_cn "切石机"→"切石"、zh_tw "切石機"→"切石"、en_us "Stonecutter"→"Stone Cutting"（ja/pl/ru/tr 回退 en_us 无需改）
+- **信息类别所属模组**：`drawTabTooltip` 的模组名行对 `InfoRecipeCategory` 特判——其图标是原版物品（成书）本会解析为 "Minecraft"，现改为 `ModNameUtil.resolveModName("brbe")`（反射读本模组 metadata 名，样式与其它类别一致 BLUE+ITALIC）
+- **切石机类别名 → 切石**：语言键 `brbe.category.stonecutting`：zh_cn "切石机"→"切石"、zh_tw "切石機"→"切石"、en_us "Stonecutter"→"Stone Cutting"（ja/pl/ru/tr 回退 en_us 无需改）
 - **模组名精简**：两分支 `fabric.mod.json` 的 name 由 "Better Recipe Book (Adorable♡Girl aVa Seriously 🔥Extended🔥. Oh, and also Teamed Up with Great Mr.DeepSeek)" 改为 **"Better Recipe Book (Adorable♡Girl aVa Seriously Extended)"**（信息类别模组名行/ModMenu 等显示同步生效；tip.7 的 DeepSeek 文案未动）
 - 已构建、已部署两实例（26.2 备份 `20260827-003538`、md5 `83a02e33…`；1.21.11 备份同刻、md5 `3f94eaac…`；部署前确认无实例运行）。验证：① 悬停"信息"标签 → 模组名行显示"Better Recipe Book (Adorable♡Girl aVa Seriously Extended)"；② 标签条/类别名显示"切石"；③ 模组列表（ModMenu/暂停界面 mod 列表）显示新名
 
-**2026-08-27（七十四）：信息类别模组名修复——改为直接调用 FabricLoader API（两分支同步）**——用户反馈（七十三版）信息类别来源模组名显示的是 "zzzbrbe" 而不是完整名。根因：七十三版用 `ModNameUtil.resolveModName("zzzbrbe")`——它走**反射**调 FabricLoader，独立实验证实该反射链路在 Java 25 + fabric-loader 0.19.3 下抛 NoClassDefFoundError（asm 依赖解析问题）等异常被 catch 吞掉 → 落到 fallback。
+**2026-08-27（七十四）：信息类别模组名修复——改为直接调用 FabricLoader API（两分支同步）**——用户反馈（七十三版）信息类别来源模组名显示的是 "brbe" 而不是完整名。根因：七十三版用 `ModNameUtil.resolveModName("brbe")`——它走**反射**调 FabricLoader，独立实验证实该反射链路在 Java 25 + fabric-loader 0.19.3 下抛 NoClassDefFoundError（asm 依赖解析问题）等异常被 catch 吞掉 → 落到 fallback。
 - 修复：新增 `RecipeViewerOverlay.selfModName()`——**直接 import `net.fabricmc.loader.api.FabricLoader` 调用** `getModContainer(MOD_ID).getMetadata().getName()`（fabric 单模块编译期依赖，无需反射），样式与其他模组名行一致（BLUE+ITALIC）；`drawTabTooltip` 特判分支改用之
 - 已构建、已部署两实例（26.2 备份 `20260827-004005`、md5 `dd3699a8…`；1.21.11 备份同刻、md5 `23e86bd5…`；部署前确认无实例运行）。验证：悬停"信息"标签 → 模组名行显示 "Better Recipe Book (Adorable♡Girl aVa Seriously Extended)"
 
@@ -651,7 +651,7 @@ cp neoforge/build/libs/brbe-ava-neoforge-*.jar /home/avalonia/data/MinecraftLib/
 
 **2026-08-27（一百零二）：修复 OverlayRecipeButtonMixin 使替代浮层崩溃（两分支同步）**——用户反馈：一百零一部署后所有替代配方组无法展示配方（组为空）。日志实锤（26.2-Fabric/logs/latest.log）：
 ```
-Mixin apply for mod zzzbrbe failed ... pins.OverlayRecipeButtonMixin 
+Mixin apply for mod brbe failed ... pins.OverlayRecipeButtonMixin 
 → @Shadow method getX()I ... was not located in the target class OverlayRecipeComponent$OverlayRecipeButton
 → mouseClicked ... Mixin transformation of OverlayRecipeComponent$OverlayRecipeButton failed
 ```
@@ -660,7 +660,7 @@ Mixin apply for mod zzzbrbe failed ... pins.OverlayRecipeButtonMixin
 - 已构建、已部署两实例（1.21.11 备份 `20260827-170454`、md5 `4287d0a3…`；26.2 备份同刻、md5 `d034628d…`；部署前确认无实例运行）。验证：① 任意替代配方组点击打开 → 变体按钮正常显示（不再为空）；② 组内 pin 变体左上角图钉仍在；③ 日志无 OverlayRecipeButtonMixin 相关 ERROR
 
 **2026-08-27（一百零一）：替代浮层变体按钮 pin 贴图 + 清理 26.2 实例 pin 缓存（两分支同步）**——用户两项：① 清理 26.2 测试实例的配方 pin 缓存；② 副本替代配方组（/替代配方组打开后浮层）中被 pin 的配方按钮左上角也要显示 pin 贴图。
-- ① 缓存清理：26.2 实例 gameDir 的 `brbe.pins`（旧命名空间）/`zzzbrbe.pins`/`zzzbrbe.pins.json`/`zzzbrbe.pinoverlays.json` 共 4 个文件移入 `/tmp/brbe-pins-backup-20260827/`（实例目录清空；`zzzbrbe.tabpins.json`（RBIP 标签 pin）保留——非配方 pin 缓存）
+- ① 缓存清理：26.2 实例 gameDir 的 `brbe.pins`（旧命名空间）/`brbe.pins`/`brbe.pins.json`/`brbe.pinoverlays.json` 共 4 个文件移入 `/tmp/brbe-pins-backup-20260827/`（实例目录清空；`brbe.tabpins.json`（RBIP 标签 pin）保留——非配方 pin 缓存）
 - ② 贴图：新增 `mixins/pins/OverlayRecipeButtonMixin`（26.2 注入 `extractWidgetRenderState` RETURN / 1.21.11 注入 `renderWidget` RETURN，target `OverlayRecipeComponent$OverlayRecipeButton`）：变体按钮绘制后按 `OverlayRecipeButtonAccessor.brbe$getRecipe()` 在组集合中定位 entry、`isPinnedEntry` 判定 → `RECIPE_BOOK_PIN_SPRITE`（x-4, y-4, 32×32，与网格按钮/查询 viewer 同款左上角）——替代配方浮层（含副本替代配方组）打开时，被 pin 的变体带图钉。注册进 `mixins.brbe-common.json`（client 段 `pins.RecipeButtonMixin` 之后）
 - 已构建、已部署两实例（1.21.11 备份 `20260827-165821`、md5 `485adae2…`；26.2 备份同刻、md5 `82f4a8e9…`；部署前确认无实例运行）。验证：① 顶替组内 pin ≥2 个变体 → 打开副本组（或原组）→ 浮层中被 pin 的变体按钮左上角出现图钉，未 pin 变体无标记；② 查询 viewer 与网格按钮行为不受影响
 
@@ -690,7 +690,7 @@ Mixin apply for mod zzzbrbe failed ... pins.OverlayRecipeButtonMixin
 
 **2026-08-27（九十六）：查询系统全部 tooltip 背景调淡（两分支同步）**——用户要求：查询系统（R/U viewer + pin）所有 tooltip 的背景透明度调高（更透明）。经确认：背景 alpha 240（94% 不透明）→ 160（63%）。
 - 机制：原版 tooltip 背景是 sprite 渲染（`TooltipRenderUtil`：`tooltip/background` + `tooltip/frame` 九宫格，alpha 在 PNG 里）；tooltip 链路的最后一个 `Identifier` 参数（物品 `TOOLTIP_STYLE` 组件，`{id}.withPath(p -> "tooltip/"+p+"_background")`）可换背景命名空间
-- 实现：新增 `ClientCompat.VIEWER_TOOLTIP_STYLE`（`zzzbrbe:viewer`）→ 解析为 `zzzbrbe:tooltip/viewer_background` / `viewer_frame` sprite；打包两分支 `assets/zzzbrbe/textures/gui/sprites/tooltip/viewer_*.png`（背景 alpha 240→160、边框保持原版 80，含 nine_slice mcmeta）
+- 实现：新增 `ClientCompat.VIEWER_TOOLTIP_STYLE`（`brbe:viewer`）→ 解析为 `brbe:tooltip/viewer_background` / `viewer_frame` sprite；打包两分支 `assets/brbe/textures/gui/sprites/tooltip/viewer_*.png`（背景 alpha 240→160、边框保持原版 80，含 nine_slice mcmeta）
 - 覆盖出口（查询系统全部 tooltip）：`RecipeViewerOverlay`（对象/网格 tooltip、详细配方 tooltip、弹窗槽位 `renderPopupSlotTooltip`、标签悬停 `flushTabTooltip`、工作站列悬停 `flushStationTooltip`、页码提示 `setTooltipForNextFrame`）、`PinOverlayManager` pin 物品 tooltip——全部强制 viewer 风格，忽略物品自带 style
 - 不影响：配方书 hover tooltip、原版/其他 mod tooltip、物品自带 custom style（仅查询系统内统一替换）
 - 已构建、已部署两实例（1.21.11 备份 `20260827-151141`、md5 `1b417c55…`；26.2 备份同刻、md5 `82c6b228…`；部署前确认无实例运行）。验证：R/U 查询任意物品 → 悬停对象/配方按钮/网格/弹窗槽位 → tooltip 背景明显变淡（63%），文字清晰；A 键 pin 内物品 tooltip 同款；配方书悬停 tooltip 背景不变
@@ -854,7 +854,7 @@ Mixin apply for mod zzzbrbe failed ... pins.OverlayRecipeButtonMixin
   InfoRecipeCategory/BetterRecipeBookJEIPlugin/BrbeJeiMinecraftMixin 反射化
 - **jar-in-jar**：headless-jei 产物嵌入 BRBE（src/main/resources/META-INF/jars/ +
   fabric.mod.json "jars"）；**仅外部 JEI 缺席时注册**（BrbeJeiPlatform.realJeiLoaded
-  guard，既有）；外部 JEI 存在 → guard 跳过 + 类遮蔽（jei < zzzbrbe 不变）
+  guard，既有）；外部 JEI 存在 → guard 跳过 + 类遮蔽（jei < brbe 不变）
 - 编译参考：1.21.11 使用 headless-jei-fabric-1.21.11-1.0.0.jar（**1.21.11 的官方映射/Extractor 签名，
   no-remap 直接编译**；1.21.11 的 intermediary 产物不可编译——1.21.1 同因用真实
   JEI 19.27 jar + 反射桥）；mezzdev（suffixtree/baked-substring）依赖移除

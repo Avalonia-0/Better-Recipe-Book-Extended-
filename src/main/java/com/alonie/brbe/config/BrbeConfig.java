@@ -12,7 +12,7 @@ import me.shedaniel.autoconfig.annotation.ConfigEntry;
  * same package — same structure as the 1.21.1 branch.  Only
  * {@code RecipeBookIsPain} is nested here (matches 1.21.1's {@code Config}).</p>
  */
-@Config(name = "zzzbrbe")
+@Config(name = "brbe")
 public class BrbeConfig implements ConfigData {
 
     // -- 配方书设置（general 标签）--------------------------------------------

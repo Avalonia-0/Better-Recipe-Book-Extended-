@@ -2,7 +2,7 @@ package com.alonie.brbe.compat;
 
 /**
  * Static holder for the {@link SyntheticRecipeRenderer} registered by the
- * companion mod (zzzbrbe-jei-plugins).  The default is a no-op, so the front-end
+ * companion mod (brbe-jei-plugins).  The default is a no-op, so the front-end
  * degrades to its static rendering when the companion mod is absent.
  */
 public final class SyntheticRecipeRenderers {

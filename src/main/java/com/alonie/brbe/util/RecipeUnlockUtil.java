@@ -46,7 +46,7 @@ import java.util.Set;
  */
 public class RecipeUnlockUtil {
 
-    private static final Logger LOG = LogManager.getLogger("zzzbrbe-unlock");
+    private static final Logger LOG = LogManager.getLogger("brbe-unlock");
 
     /** Displays injected by unlock-all (server display ids — non-negative,
      *  but tracked here so revoke removes exactly these and no others). */
