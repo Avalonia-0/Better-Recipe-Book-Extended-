@@ -584,3 +584,18 @@ InfoRecipeCategory/RecipeViewerOverlay/BrbeJeiMinecraftMixin] 需改读 registry
   主侧无 BUILTIN_WORKSTATIONS/registerExternalWorkstations，已知降级保持）。
 - **部署规则**：删"运行中禁部署"，改**原子替换**（cp → mods/.brbe-deploy.tmp + mv rename）。
 - 部署：备份 20260828-213500；fabric md5 48b4d652、neoforge md5 798fc2d5（原子替换）。
+
+## 2026-08-28（晚）：1.21.1 配置界面三个缺陷修复（已部署双端）
+
+用户实测（NeoForge）报三问题：①配置界面出现错误加载的查询浮层；②快捷键显示原始
+键名（key.keyboard.a/r/u）；③快捷键配置项变成文本框。
+- 根因①：viewer 是全局静态状态，`ScreenRenderMixin` 挂在**所有 Screen** 的 render TAIL；
+  打开后切到配置界面（Cloth 屏）时 active 仍为 true → 无条件绘制泄漏。修复：viewer 记录
+  `hostScreen`（open 时设置、close 清空），render/renderTooltip 在
+  `Minecraft.getInstance().screen != hostScreen` 时自动 close 并跳过（配置屏等非容器屏
+  不再绘制）。
+- 根因②③：`KeybindingGuiRegistrar.register()` 只在 fabric 入口调用，**neoforge 入口缺失**
+  → Cloth 配置界面把 String 字段当普通文本框（raw 值原样显示）。修复：neoforge
+  `BetterRecipeBookClientNeoForge` 补注册（已验证 Cloth 15.0.140 的 KeyCodeEntry 渲染走
+  `getLocalizedName()`——注册后键名自动翻译、控件变按键捕获）。
+- 部署：备份 20260828-225500（原子替换）；neoforge 9da2c5c6、fabric 5b4e5e64。

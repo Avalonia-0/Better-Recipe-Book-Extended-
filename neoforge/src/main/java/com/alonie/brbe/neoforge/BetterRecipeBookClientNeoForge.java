@@ -2,6 +2,7 @@ package com.alonie.brbe.neoforge;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.neoforge.PlatformPotionUtilImpl;
+import com.alonie.brbe.config.KeybindingGuiRegistrar;
 import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.impl.hud.EmiHudHider;
 import com.alonie.brbe.impl.hud.JeiHudHider;
@@ -87,6 +88,10 @@ public class BetterRecipeBookClientNeoForge {
         OverlayHider.register(new JeiHudHider());
         OverlayHider.register(new ReiHudHider());
         OverlayHider.register(new EmiHudHider());
+
+        // Cloth Config 键位配置项（R/U/A 键）：与 fabric 端对称注册，
+        // 否则配置界面显示为原始文本框（raw 键名未翻译）。
+        KeybindingGuiRegistrar.register();
 
         // Initialize RBIP platform (NeoForge)
         RecipeBookIsPain.PLATFORM = new NeoForgePlatform();

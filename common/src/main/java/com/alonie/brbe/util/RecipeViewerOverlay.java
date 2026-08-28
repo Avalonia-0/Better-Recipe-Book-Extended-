@@ -33,6 +33,9 @@ public final class RecipeViewerOverlay {
     // -- State -----------------------------------------------------------------
 
     private static boolean active;
+    /** 打开 viewer 的宿主屏幕：只在该屏幕打开时绘制（配置界面等其他屏幕
+     *  打开时自动关闭，不会把查询浮层泄漏到非容器屏上）。 */
+    private static AbstractContainerScreen<?> hostScreen;
     private static boolean viewUsage;
     private static ItemStack target = ItemStack.EMPTY;
     private static RecipeViewerCategory category;
@@ -124,6 +127,7 @@ public final class RecipeViewerOverlay {
         }
 
         active = true;
+        hostScreen = screen;
         viewUsage = usage;
         target = stack;
         category = cat;
@@ -134,6 +138,7 @@ public final class RecipeViewerOverlay {
     /** Close the viewer. */
     public static void close() {
         active = false;
+        hostScreen = null;
         target = ItemStack.EMPTY;
         category = null;
         entries = new ArrayList<>();
@@ -236,6 +241,11 @@ public final class RecipeViewerOverlay {
     /** Render the viewer overlay (called from ScreenRenderMixin after screen render). */
     public static void render(GuiGraphics gui, int mouseX, int mouseY, float delta) {
         if (!active) return;
+        // 宿主屏幕被替换（如打开配置界面/离开世界）：viewer 不再绘制并自动关闭。
+        if (Minecraft.getInstance().screen != hostScreen) {
+            close();
+            return;
+        }
 
         int left = panelLeft(Minecraft.getInstance().screen);
         int top = panelTop(Minecraft.getInstance().screen);
@@ -359,6 +369,10 @@ public final class RecipeViewerOverlay {
     /** Render the entry tooltip (called from the deferred tooltip channel). */
     public static void renderTooltip(GuiGraphics gui, int mouseX, int mouseY) {
         if (!active) return;
+        if (Minecraft.getInstance().screen != hostScreen) {
+            close();
+            return;
+        }
         int left = panelLeft(Minecraft.getInstance().screen);
         int top = panelTop(Minecraft.getInstance().screen);
         int perPage = COLS * ROWS;
