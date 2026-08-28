@@ -16,7 +16,7 @@ import java.util.Map;
  * {@link #entriesFor} 转进自己的查询引擎；渲染委托 {@link JeiPopupRenderer}。</p>
  *
  * <p>条目是不可变值对象（{@link Entry}），不含任何 mezz.jei 内部引用——
- * 外部只需 {@code com.alonie.headlessjei} 编译依赖即可。</p>
+ * 外部只需 {@code com.alonie.zheadlessjei} 编译依赖即可。</p>
  */
 public final class JeiRecipeRegistry {
 
@@ -42,14 +42,47 @@ public final class JeiRecipeRegistry {
 
     private static final Map<ResourceLocation, List<Entry>> ENTRIES = new HashMap<>();
     private static final Map<ResourceLocation, List<ItemStack>> STATIONS = new HashMap<>();
+    private static final Map<ResourceLocation, String> TITLES = new HashMap<>();
 
-    /** Replace the whole registry (called by the indexer on every rebuild). */
-    public static synchronized void replace(Map<ResourceLocation, List<Entry>> entries,
-                                            Map<ResourceLocation, List<ItemStack>> stations) {
-        ENTRIES.clear();
-        STATIONS.clear();
-        if (entries != null) ENTRIES.putAll(entries);
-        if (stations != null) STATIONS.putAll(stations);
+    /** Merge entries/stations/titles into the registry (per-uid replace; other
+     *  uids are preserved).  The indexer calls this for mod plugins and vanilla
+     *  runtime categories as separate passes — a whole-registry replace would
+     *  drop the earlier pass's data. */
+    public static synchronized void putAll(Map<ResourceLocation, List<Entry>> entries,
+                                           Map<ResourceLocation, List<ItemStack>> stations,
+                                           Map<ResourceLocation, String> titles) {
+        if (entries != null) {
+            for (Map.Entry<ResourceLocation, List<Entry>> e : entries.entrySet()) {
+                if (e.getValue() == null || e.getValue().isEmpty()) {
+                    ENTRIES.remove(e.getKey());
+                } else {
+                    ENTRIES.put(e.getKey(), e.getValue());
+                }
+            }
+        }
+        if (stations != null) {
+            for (Map.Entry<ResourceLocation, List<ItemStack>> e : stations.entrySet()) {
+                if (e.getValue() == null || e.getValue().isEmpty()) {
+                    STATIONS.remove(e.getKey());
+                } else {
+                    STATIONS.put(e.getKey(), e.getValue());
+                }
+            }
+        }
+        if (titles != null) {
+            for (Map.Entry<ResourceLocation, String> e : titles.entrySet()) {
+                if (e.getValue() == null || e.getValue().isBlank()) {
+                    TITLES.remove(e.getKey());
+                } else {
+                    TITLES.put(e.getKey(), e.getValue());
+                }
+            }
+        }
+    }
+
+    /** Display title of a type uid (raw string; consumer wraps in Component). */
+    public static synchronized String titleFor(ResourceLocation typeUid) {
+        return TITLES.get(typeUid);
     }
 
     /** All JEI entries of a type uid (unmodifiable view). */

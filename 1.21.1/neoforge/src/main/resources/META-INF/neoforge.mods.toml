@@ -4,19 +4,19 @@ license="MIT"
 issueTrackerURL="https://github.com/Avalonia-0/Better-Recipe-Book-Extended-/issues"
 
 [[mods]]
-modId="headlessjei"
+modId="zheadlessjei"
 version="${version}"
 displayName="Headless JEI"
 description='''Embedded JEI runtime (1.21.1 source) that boots when the real JEI is absent, feeding headless query data + recipe UI rendering to consumers. No JEI GUI is registered.'''
 authors=["Avalonia"]
 logoFile="assets/jei/jei-icon.png"
 
-[[dependencies.headlessjei]]
+[[dependencies.zheadlessjei]]
 modId="neoforge"
 type="required"
 versionRange="[21.1,)"
 
-[[dependencies.headlessjei]]
+[[dependencies.zheadlessjei]]
 modId="minecraft"
 type="required"
 versionRange="[1.21, 1.21.1]"

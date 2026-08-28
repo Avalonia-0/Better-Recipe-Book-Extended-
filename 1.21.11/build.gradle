@@ -68,7 +68,7 @@ dependencies {
 }
 
 loom {
-    accessWidenerPath = file("src/main/resources/headlessjei.accesswidener")
+    accessWidenerPath = file("src/main/resources/zheadlessjei.accesswidener")
 }
 
 tasks.withType(JavaCompile) {

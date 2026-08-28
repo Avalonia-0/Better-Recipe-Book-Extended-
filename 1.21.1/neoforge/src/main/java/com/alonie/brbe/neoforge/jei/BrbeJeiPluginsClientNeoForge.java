@@ -20,17 +20,21 @@ public final class BrbeJeiPluginsClientNeoForge {
     private BrbeJeiPluginsClientNeoForge() {}
 
     public static void init(IEventBus modEventBus) {
-        // JEI GUI 图集（assets/jei 内嵌）：注册为客户端资源重载监听器，
-        // 让弹窗渲染完整 JEI 界面（等价官方 RegisterClientReloadListenersEvent 接线）。
-        modEventBus.addListener(net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent.class, event -> {
-            try {
-                mezz.jei.common.gui.textures.JeiGuiSpriteManager spriteManager =
-                        mezz.jei.common.Internal.getTextures().getGuiSpriteManager();
-                event.registerReloadListener(spriteManager);
-            } catch (Exception | LinkageError e) {
-                LOGGER.debug("JEI gui sprite manager skipped: {}", e.toString());
-            }
-        });
+        // 真实 JEI 存在：跳过图集双注册（真实 JEI 自己注册）；start() 自带
+        // real 守卫（BrbeJeiPlatform.realJeiLoaded），收集照常（数据搬运）。
+        if (!com.alonie.brbe.jei.plugins.BrbeJeiPlatform.realJeiLoaded()) {
+            // JEI GUI 图集（assets/jei 内嵌）：注册为客户端资源重载监听器，
+            // 让弹窗渲染完整 JEI 界面（等价官方 RegisterClientReloadListenersEvent 接线）。
+            modEventBus.addListener(net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent.class, event -> {
+                try {
+                    mezz.jei.common.gui.textures.JeiGuiSpriteManager spriteManager =
+                            mezz.jei.common.Internal.getTextures().getGuiSpriteManager();
+                    event.registerReloadListener(spriteManager);
+                } catch (Exception | LinkageError e) {
+                    LOGGER.debug("JEI gui sprite manager skipped: {}", e.toString());
+                }
+            });
+        }
 
         NeoForge.EVENT_BUS.addListener(net.neoforged.neoforge.client.event.RecipesUpdatedEvent.class, event -> {
             java.util.List<net.minecraft.world.item.crafting.RecipeHolder<?>> recipes =

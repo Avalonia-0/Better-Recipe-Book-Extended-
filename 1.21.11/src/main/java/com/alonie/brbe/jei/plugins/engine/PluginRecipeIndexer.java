@@ -55,12 +55,19 @@ public final class PluginRecipeIndexer {
 
     private PluginRecipeIndexer() {}
 
-    /** No-recipe-book vanilla JEI workstation types indexed from the JEI
-     *  runtime (anvil/brewing/grindstone). */
+    /** Vanilla JEI types indexed from the JEI runtime.  anvil/brewing/grindstone
+     *  are runtime-built (no datapack holders) — full entries.  stonecutting/
+     *  smithing have datapack holders indexed by the consumer; here they only
+     *  provide native layouts for the popup delegate (entries carry layout,
+     *  the consumer attaches them instead of re-registering). */
     private static final List<String> VANILLA_PLUGIN_TYPES =
-            List.of("minecraft:anvil", "minecraft:brewing", "minecraft:grindstone");
+            List.of("minecraft:anvil", "minecraft:brewing", "minecraft:grindstone",
+                    "minecraft:stonecutting", "minecraft:smithing");
 
     private static final Map<Identifier, IRecipeCategory<?>> CATEGORIES = new HashMap<>();
+    /** uid → JEI 类型（渲染委托用：createRecipeLayoutDrawable 需要 manager 的
+     *  真实类别实例——收集器实例的 background/arrow 来自 stub，绘制为空）。 */
+    private static final Map<Identifier, IRecipeType<?>> UID_TO_TYPE = new HashMap<>();
 
     /** Rebuild mod-plugin entries and register them into the query engine. */
     public static synchronized void indexModData(
@@ -77,6 +84,7 @@ public final class PluginRecipeIndexer {
                 IRecipeType<?> type = category.getRecipeType();
                 if (type != null && type.getUid() != null) {
                     CATEGORIES.put(type.getUid(), category);
+                    UID_TO_TYPE.put(type.getUid(), type);
                 }
             }
         }
@@ -88,18 +96,26 @@ public final class PluginRecipeIndexer {
                 Identifier uid = type.getUid();
                 if (SKIP_VANILLA.contains(uid.toString())) continue;
                 IRecipeCategory<?> category = CATEGORIES.get(uid);
+                int done = 0;
                 for (Object recipe : entry.getValue()) {
                     if (recipe == null) continue;
                     JeiRecipeRegistry.Entry jeiEntry = buildEntry(uid, category, recipe);
                     if (jeiEntry == null) continue;
                     entries.computeIfAbsent(uid, k -> new ArrayList<>()).add(jeiEntry);
+                    done++;
                 }
+                LOGGER.info("[BRBE-JEI-Plugins] mod type {}: {} recipes -> {} indexed (category={})",
+                        uid, entry.getValue().size(), done, category != null);
             }
         }
 
         if (catalysts != null) {
             for (Map.Entry<Identifier, Set<Identifier>> e : catalysts.entrySet()) {
-                if (e.getKey() == null || SKIP_VANILLA.contains(e.getKey().toString())) continue;
+                if (e.getKey() == null) continue;
+                // 不跳过 vanilla 类型：mod 工作站注册到原版类型（如 BetterEnd
+                // 末地石冶炼炉 → minecraft:blasting、FD 煎锅 → campfire）同样
+                // 写入 registry 的 stations——消费者（BRBE 主侧）据此把 mod 站
+                // 注册进工作站表（烧炼行图标/查询命中）。
                 List<ItemStack> stacks = resolveStations(e.getValue());
                 if (!stacks.isEmpty()) {
                     stations.put(e.getKey(), stacks);
@@ -134,6 +150,7 @@ public final class PluginRecipeIndexer {
             if (type != null && type.getUid() != null) {
                 categoriesByUid.put(type.getUid(), category);
                 CATEGORIES.put(type.getUid(), category);
+                UID_TO_TYPE.put(type.getUid(), type);
             }
         }
         for (String uid : VANILLA_PLUGIN_TYPES) {
@@ -173,11 +190,22 @@ public final class PluginRecipeIndexer {
         register(entries, stations, "vanilla runtime");
     }
 
-    /** Replace the bridge registry with {@code entries}. */
+    /** Merge {@code entries} into the bridge registry (per-uid replace, other
+     *  uids preserved — mod plugins and vanilla runtime are separate passes). */
     private static void register(Map<Identifier, List<JeiRecipeRegistry.Entry>> entries,
                                  Map<Identifier, List<ItemStack>> stations,
                                  String source) {
-        JeiRecipeRegistry.replace(entries, stations);
+        Map<Identifier, String> titles = new HashMap<>();
+        for (Identifier uid : entries.keySet()) {
+            IRecipeCategory<?> category = CATEGORIES.get(uid);
+            if (category != null) {
+                try {
+                    titles.put(uid, category.getTitle().getString());
+                } catch (Exception | LinkageError ignored) {
+                }
+            }
+        }
+        JeiRecipeRegistry.putAll(entries, stations, titles);
         com.alonie.brbe.jei.api.JeiPopupRenderer.invalidate();
         if (!entries.isEmpty()) {
             LOGGER.info("[BRBE-JEI-Plugins] indexed {} JEI types ({} entries, {})",
@@ -185,13 +213,27 @@ public final class PluginRecipeIndexer {
         }
     }
 
-    /** The collected category for a JEI type uid (popup rendering). */
+    /** The category for a JEI type uid (popup rendering).  Prefers the JEI
+     *  manager's real registered instance (its background/arrow drawables are
+     *  real); the collected instance (stub drawables) is only a fallback. */
     public static synchronized IRecipeCategory<?> categoryFor(Identifier typeUid) {
+        IRecipeType<?> type = UID_TO_TYPE.get(typeUid);
+        if (type != null) {
+            IRecipeManager manager = JeiRuntimeBridge.recipeManager();
+            if (manager != null) {
+                try {
+                    IRecipeCategory<?> real = manager.getRecipeCategory(type);
+                    if (real != null) return real;
+                } catch (Exception | LinkageError ignored) {
+                }
+            }
+        }
         return CATEGORIES.get(typeUid);
     }
 
     public static synchronized void clear() {
         CATEGORIES.clear();
+        UID_TO_TYPE.clear();
         JeiRecipeRegistry.clear();
     }
 
@@ -208,38 +250,134 @@ public final class PluginRecipeIndexer {
             Identifier uid, IRecipeCategory<?> category, Object recipe) {
         try {
             if (recipe instanceof IJeiAnvilRecipe anvil) {
-                return new JeiRecipeRegistry.Entry(uid, recipe,
-                        merge(anvil.getLeftInputs(), anvil.getRightInputs()), anvil.getOutputs());
+                return withLayout(uid, recipe,
+                        merge(anvil.getLeftInputs(), anvil.getRightInputs()), anvil.getOutputs(),
+                        category);
             }
             if (recipe instanceof IJeiGrindstoneRecipe grindstone) {
-                return new JeiRecipeRegistry.Entry(uid, recipe,
+                return withLayout(uid, recipe,
                         merge(grindstone.getTopInputs(), grindstone.getBottomInputs()),
-                        grindstone.getOutputs());
+                        grindstone.getOutputs(), category);
             }
             if (recipe instanceof IJeiBrewingRecipe brewing) {
-                return new JeiRecipeRegistry.Entry(uid, recipe,
+                return withLayout(uid, recipe,
                         merge(brewing.getPotionInputs(), brewing.getIngredients()),
-                        List.of(brewing.getPotionOutput()));
+                        List.of(brewing.getPotionOutput()), category);
             }
             if (recipe instanceof IJeiCompostingRecipe composting) {
-                return new JeiRecipeRegistry.Entry(uid, recipe,
-                        composting.getInputs(), List.of());
+                return withLayout(uid, recipe,
+                        composting.getInputs(), List.of(), category);
             }
             if (recipe instanceof IJeiFuelingRecipe fueling) {
-                return new JeiRecipeRegistry.Entry(uid, recipe,
-                        fueling.getInputs(), List.of());
+                return withLayout(uid, recipe,
+                        fueling.getInputs(), List.of(), category);
             }
             if (recipe instanceof IJeiIngredientInfoRecipe info) {
-                return new JeiRecipeRegistry.Entry(uid, recipe,
-                        new ArrayList<>(), new ArrayList<>());
+                return withLayout(uid, recipe,
+                        new ArrayList<>(), new ArrayList<>(), category);
             }
             return buildGenericEntry(uid, category, recipe);
         } catch (Exception | LinkageError e) {
-            LOGGER.debug("[BRBE-JEI-Plugins] entry build failed for {}: {}",
+            LOGGER.info("[BRBE-JEI-Plugins] entry build failed for {}: {}",
                     uid, e.toString());
             return null;
         }
     }
+
+    /** Interface-accessed vanilla recipes: keep the interface-extracted item
+     *  lists, but also run the category's setRecipe to capture the slot layout
+     *  (width/height/slots) — the JEI-delegated popup renderer needs it. */
+    private static JeiRecipeRegistry.Entry withLayout(
+            Identifier uid, Object recipe, List<ItemStack> inputs,
+            List<ItemStack> outputs, IRecipeCategory<?> category) {
+        LayoutData layout = null;
+        if (category != null) {
+            layout = captureLayout(category, recipe);
+        }
+        if (layout == null) {
+            return new JeiRecipeRegistry.Entry(uid, recipe, inputs, outputs);
+        }
+        return new JeiRecipeRegistry.Entry(uid, recipe, inputs, outputs,
+                layout.slots, layout.width, layout.height);
+    }
+
+    /** Run the category's setRecipe against a data-only builder and return
+     *  the recorded slot layout (null on any failure). */
+    private static LayoutData captureLayout(IRecipeCategory<?> category, Object recipe) {
+        try {
+            int width;
+            int height;
+            try {
+                width = category.getWidth();
+                height = category.getHeight();
+            } catch (Exception | LinkageError e) {
+                width = 0;
+                height = 0;
+            }
+            DataOnlyLayoutBuilder builder = new DataOnlyLayoutBuilder(width, height);
+            ((IRecipeCategory) category).setRecipe(builder, recipe, EmptyFocusGroup.INSTANCE);
+            List<SlotData> slots = builder.slotData();
+            List<JeiRecipeRegistry.Entry.Slot> layoutSlots = new ArrayList<>();
+            for (SlotData slot : slots) {
+                if (slot.stacks() == null || slot.stacks().isEmpty()) continue;
+                layoutSlots.add(new JeiRecipeRegistry.Entry.Slot(
+                        slot.x(), slot.y(), slot.role().ordinal(), slot.stacks()));
+            }
+            if (layoutSlots.isEmpty() && width <= 0 && height <= 0) return null;
+            return new LayoutData(layoutSlots, Math.max(width, 0), Math.max(height, 0));
+        } catch (Exception | LinkageError e) {
+            LOGGER.info("[BRBE-JEI-Plugins] layout capture failed for {}: {}",
+                    recipe, e.toString());
+            return null;
+        }
+    }
+
+    /** setRecipe 失败时的最小条目：仅 item 列表（无 layout），弹窗走 vanilla
+     *  兜底渲染，保证配方仍可查询。 */
+    private static JeiRecipeRegistry.Entry minimalEntry(Object recipe) {
+        try {
+            if (recipe instanceof net.minecraft.world.item.crafting.RecipeHolder<?> holder
+                    && holder.value() instanceof net.minecraft.world.item.crafting.SmithingRecipe smithing) {
+                // 锻造：template/base/addition（Ingredient → 代表物品）+ 产物
+                List<ItemStack> inputs = new ArrayList<>();
+                for (int i = 0; i < 3; i++) {
+                    net.minecraft.world.item.crafting.Ingredient ing = switch (i) {
+                        case 0 -> smithing.templateIngredient()
+                                .orElse(net.minecraft.world.item.crafting.Ingredient.of());
+                        case 1 -> smithing.baseIngredient();
+                        default -> smithing.additionIngredient()
+                                .orElse(net.minecraft.world.item.crafting.Ingredient.of());
+                    };
+                    ing.items().forEach(itemHolder -> {
+                        ItemStack st = new ItemStack(itemHolder.value());
+                        if (!st.isEmpty()) inputs.add(st);
+                    });
+                }
+                List<ItemStack> outputs = new ArrayList<>();
+                try {
+                    net.minecraft.world.item.crafting.display.SlotDisplay result = smithing.display().getFirst().result();
+                    List<ItemStack> stacks = result.resolveForStacks(
+                            net.minecraft.world.item.crafting.display.SlotDisplayContext.fromLevel(
+                                    net.minecraft.client.Minecraft.getInstance().level));
+                    if (stacks != null) {
+                        for (ItemStack item : stacks) {
+                            if (item != null && !item.isEmpty()) outputs.add(item);
+                        }
+                    }
+                } catch (Exception | LinkageError ignored2) {
+                }
+                if (!inputs.isEmpty() || !outputs.isEmpty()) {
+                    return new JeiRecipeRegistry.Entry(
+                            null, recipe, inputs, outputs);
+                }
+            }
+        } catch (Exception | LinkageError ignored) {
+        }
+        return null;
+    }
+
+    private record LayoutData(List<JeiRecipeRegistry.Entry.Slot> slots,
+                              int width, int height) {}
 
     /** Generic (mod recipe) path: run the category's setRecipe with a
      *  data-only layout builder and extract Input/Output stacks. */
@@ -260,9 +398,11 @@ public final class PluginRecipeIndexer {
         try {
             ((IRecipeCategory) category).setRecipe(builder, recipe, EmptyFocusGroup.INSTANCE);
         } catch (Exception | LinkageError e) {
-            LOGGER.debug("[BRBE-JEI-Plugins] setRecipe failed for {}: {}",
+            LOGGER.info("[BRBE-JEI-Plugins] setRecipe failed for {}: {}",
                     uid, e.toString());
-            return null;
+            // setRecipe 失败（如 smithing trim 的 tag 依赖未绑定）时保留配方
+            // 条目本身（仅缺 layout）——弹窗回退 vanilla 布局，不整类丢失。
+            return minimalEntry(recipe);
         }
         List<SlotData> slots = builder.slotData();
         List<ItemStack> inputs = new ArrayList<>();

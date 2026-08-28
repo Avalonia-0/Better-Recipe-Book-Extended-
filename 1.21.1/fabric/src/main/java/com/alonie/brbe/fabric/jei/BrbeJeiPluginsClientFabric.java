@@ -8,6 +8,7 @@ import mezz.jei.common.Internal;
 import mezz.jei.common.gui.textures.JeiGuiSpriteManager;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.resource.IdentifiableResourceReloadListener;
 import net.fabricmc.fabric.api.resource.ResourceManagerHelper;
@@ -34,8 +35,30 @@ public final class BrbeJeiPluginsClientFabric implements ClientModInitializer {
 
     private static final Logger LOGGER = LogManager.getLogger("headless-jei");
 
+    /** 真实 JEI 场景：数据搬运收集是否已完成（本次 world join）。 */
+    private static boolean realJeiCollected;
+
     @Override
     public void onInitializeClient() {
+        // 真实 JEI 存在：无头不启动 runtime（真实 JEI 自己运行），只做数据
+        // 搬运——插件收集读入 JeiRecipeRegistry（BRBE 桥走同一 registry
+        // 数据流）；不注册图集监听器（真实 JEI 自己注册）。
+        if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("jei")) {
+            ClientTickEvents.END_CLIENT_TICK.register(client -> {
+                if (client.level == null) {
+                    // 离开世界/重进：重置，下一 join 重新收集。
+                    realJeiCollected = false;
+                    return;
+                }
+                if (realJeiCollected) {
+                    return;
+                }
+                realJeiCollected = true;
+                BrbeJeiPlugins.collectAndInject();
+            });
+            return;
+        }
+
         // JEI GUI 图集（assets/jei 内嵌）：注册为资源重载监听器，让弹窗
         // 渲染完整 JEI 界面（槽位背景/箭头/火焰/背景板）。等价官方
         // JeiLifecycleEvents.REGISTER_RESOURCE_RELOAD_LISTENER 的接线。

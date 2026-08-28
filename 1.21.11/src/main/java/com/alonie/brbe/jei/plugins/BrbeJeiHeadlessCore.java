@@ -77,12 +77,21 @@ public final class BrbeJeiHeadlessCore {
         // like real JEI's JustEnoughItemsClient does on Fabric.
         ClientRecipeSynchronizedEvent.EVENT.register((minecraft, synchronizedRecipes) -> {
             Internal.setClientSyncedRecipes(RecipeMap.create(synchronizedRecipes.recipes()));
+            // 单人世界（integrated server）下 Internal.setClientSyncedRecipes
+            // 会因无远程连接地址而丢弃数据（getRemoteConnectionId() == null），
+            // 但 SynchronizedRecipes 对象本身始终可用——存档供
+            // RecipeCollector 的 fallback 读取（mod 配方数据源）。
+            BrbeJeiPlugins.setSyncedRecipes(synchronizedRecipes);
             start();
             // The sync event carries the FULL synchronized set (the JOIN
             // fallback may have started the core earlier with only vanilla
             // fallback recipes); re-inject now that the mod recipes are here.
             // injectSyncedModRecipes is idempotent per type (injectedTypes).
             injectSyncedModRecipes();
+            // 同步事件晚于 JOIN fallback 的 start() 时，start() 内的补收集
+            // 已因 running 守卫跳过——此刻 syncedRecipes 才就绪，必须补跑一次
+            // 收集（registry replace 幂等），否则 mod 配方永远索引不到。
+            BrbeJeiPlugins.collectAndInject();
         });
 
         // Fallback kick: the sync event may fire before the client level is
@@ -161,6 +170,11 @@ public final class BrbeJeiHeadlessCore {
             running = true;
             LOGGER.info("[BRBE-JEI-Plugins] embedded JEI core started ({} plugins)", plugins.size());
             injectSyncedModRecipes();
+            // 收集（collectAndInject）可能已在核心启动前跑过——那时
+            // JeiRuntimeBridge 为空，indexVanillaRuntimeTypes 直接返回，
+            // 原版 anvil/brewing/grindstone 类别 0 索引。核心就绪后补跑一次
+            // 收集：registry replace 幂等，重复运行安全。
+            BrbeJeiPlugins.collectAndInject();
         } catch (Exception | LinkageError e) {
             LOGGER.warn("[BRBE-JEI-Plugins] embedded JEI core failed to start: {}", e.toString());
         }

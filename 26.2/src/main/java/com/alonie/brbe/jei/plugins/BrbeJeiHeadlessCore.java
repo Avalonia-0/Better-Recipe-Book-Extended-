@@ -77,12 +77,21 @@ public final class BrbeJeiHeadlessCore {
         // like real JEI's JustEnoughItemsClient does on Fabric.
         ClientRecipeSynchronizedEvent.EVENT.register((minecraft, synchronizedRecipes) -> {
             Internal.setClientSyncedRecipes(RecipeMap.create(synchronizedRecipes.recipes()));
+            // 单人世界（integrated server）下 Internal.setClientSyncedRecipes
+            // 会因无远程连接地址而丢弃数据（getRemoteConnectionId() == null），
+            // 但 SynchronizedRecipes 对象本身始终可用——存档供
+            // RecipeCollector 的 fallback 读取（mod 配方数据源）。
+            BrbeJeiPlugins.setSyncedRecipes(synchronizedRecipes);
             start();
             // The sync event carries the FULL synchronized set (the JOIN
             // fallback may have started the core earlier with only vanilla
             // fallback recipes); re-inject now that the mod recipes are here.
             // injectSyncedModRecipes is idempotent per type (injectedTypes).
             injectSyncedModRecipes();
+            // 同步事件晚于 JOIN fallback 的 start() 时，start() 内的补收集
+            // 已因 running 守卫跳过——此刻 syncedRecipes 才就绪，必须补跑一次
+            // 收集（registry replace 幂等），否则 mod 配方永远索引不到。
+            BrbeJeiPlugins.collectAndInject();
         });
 
         // Fallback kick: the sync event may fire before the client level is
@@ -159,13 +168,6 @@ public final class BrbeJeiHeadlessCore {
             jeiStarter = new JeiStarter(startData);
             jeiStarter.start();
             running = true;
-            // 无头模式下 BRBE 的 BetterRecipeBookJEIPlugin.onRuntimeAvailable
-            // 有 isModLoaded("jei") 守卫会跳过，JeiRuntimeBridge 无人设置 →
-            // PluginRecipeIndexer.indexVanillaRuntimeTypes 读 manager == null
-            // 直接返回，原版 anvil/brewing/grindstone 类别整体丢失。
-            // 由无头核心自己在 runtime 就绪后设置 bridge。
-            mezz.jei.common.Internal.getOptionalJeiRuntime().ifPresent(runtime ->
-                    JeiRuntimeBridge.set(runtime.getRecipeManager()));
             LOGGER.info("[BRBE-JEI-Plugins] embedded JEI core started ({} plugins)", plugins.size());
             injectSyncedModRecipes();
             // 收集（collectAndInject）可能已在核心启动前跑过——那时
@@ -287,7 +289,6 @@ public final class BrbeJeiHeadlessCore {
         }
         running = false;
         injectedTypes.clear();
-        JeiRuntimeBridge.clear();
     }
 
     public static boolean isRunning() {

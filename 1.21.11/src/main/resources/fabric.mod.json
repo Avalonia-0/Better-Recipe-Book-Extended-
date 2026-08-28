@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "id": "headlessjei",
+  "id": "zheadlessjei",
   "version": "1.0.0",
   "name": "Headless JEI",
   "description": "Embedded JEI runtime (official source, 1.21.11) that boots when the real JEI is absent, feeding headless query data + recipe UI rendering to consumers (e.g. Better Recipe Book). No JEI GUI is registered.",
@@ -16,5 +16,5 @@
     "fabric-api": "*",
     "minecraft": ">=1.21.11"
   },
-  "accessWidener": "headlessjei.accesswidener"
+  "accessWidener": "zheadlessjei.accesswidener"
 }

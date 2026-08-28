@@ -151,6 +151,12 @@ public final class Internal {
 		var connectionId = getRemoteConnectionId();
 		if (connectionId != null) {
 			Internal.clientRecipes = new ClientRecipes(recipes, connectionId, syncedWithServer);
+		} else {
+			// [BRBE fork] 无头模式（集成服务器/单机）没有可解析的远程连接地址，
+			// 但配方数据已在手（VanillaPlugin.registerRecipes 依赖
+			// getClientSyncedRecipes）——用占位连接 id 兜底写入，否则
+			// smithing/stonecutting 等 holder 类型的 JEI 注册恒为空。
+			Internal.clientRecipes = new ClientRecipes(recipes, "embedded", syncedWithServer);
 		}
 	}
 
@@ -180,7 +186,10 @@ public final class Internal {
 	private static ClientRecipes getClientRecipes() {
 		if (clientRecipes != null) {
 			var connectionId = getRemoteConnectionId();
-			if (clientRecipes.connectionId().equals(connectionId)) {
+			// [BRBE fork] 无连接（单机/集成服务器）时 setClientRecipes 以
+			// "embedded" 兜底写入——读取同样放行，否则配方数据读不出。
+			if (connectionId == null
+					|| clientRecipes.connectionId().equals(connectionId)) {
 				return clientRecipes;
 			}
 		}
