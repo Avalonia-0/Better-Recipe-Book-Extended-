@@ -44,6 +44,10 @@ public final class BrbeJeiBridge {
     private static final Map<RecipeDisplayId, Identifier> UID_BY_ID = new HashMap<>();
     private static final Map<RecipeDisplayId, Object> RECIPE_BY_ID = new HashMap<>();
 
+    /** 本会话是否已导入过（registry 在收集完成前为空，JOIN 时导入会
+     *  空转；tick 循环在检测到非空后导入一次，此后跟随引擎重建）。 */
+    private static boolean importedOnce;
+
     /** Whether the headless-jei mod is present on the classpath. */
     public static synchronized boolean jeiAvailable() {
         if (registryClass != null) {
@@ -108,6 +112,13 @@ public final class BrbeJeiBridge {
         return UID_BY_ID.get(id);
     }
 
+    /** 引擎是否已收到过一次 JEI 条目（tick 轮询用：registry 在 headless
+     *  收集完成前为空，JOIN 时导入会空转；导入一次后 registry 的后续
+     *  重建也无需重复导入——注册者每次 replace 全量替换）。 */
+    public static boolean importedOnce() {
+        return importedOnce;
+    }
+
     /** Re-import every JEI registry type into the query engine (JOIN / 引擎重建)。 */
     @SuppressWarnings("unchecked")
     public static void refresh() {
@@ -164,6 +175,7 @@ public final class BrbeJeiBridge {
                 total += indexed.size();
             }
             if (total > 0) {
+                importedOnce = true;
                 BetterRecipeBook.LOGGER.info("[BRBE-JEI-BRIDGE] imported {} JEI entries from headless-jei ({} types)",
                         total, typeIds.size());
             }

@@ -116,6 +116,14 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            // 无头 JEI registry 导入查询引擎：headless 收集在
+            // AFTER_CLIENT_LEVEL_CHANGE 完成（晚于 JOIN），tick 时若 registry
+            // 已有数据则导入一次（导入后置 importedOnce 旗标，不再重复）。
+            // anvil/brewing/grindstone 等 vanilla JEI 类别依赖此通道。
+            if (!com.alonie.brbe.cache.BrbeJeiBridge.importedOnce()
+                    && client.level != null) {
+                com.alonie.brbe.cache.BrbeJeiBridge.refresh();
+            }
             // Coalesce recipe-book rebuilds: a pickup that unlocks several
             // recipes fires rebuildCollections per recipe; flush the engine
             // rebuild once per tick with the final known set.
