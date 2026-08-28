@@ -159,6 +159,13 @@ public final class BrbeJeiHeadlessCore {
             jeiStarter = new JeiStarter(startData);
             jeiStarter.start();
             running = true;
+            // 无头模式下 BRBE 的 BetterRecipeBookJEIPlugin.onRuntimeAvailable
+            // 有 isModLoaded("jei") 守卫会跳过，JeiRuntimeBridge 无人设置 →
+            // PluginRecipeIndexer.indexVanillaRuntimeTypes 读 manager == null
+            // 直接返回，原版 anvil/brewing/grindstone 类别整体丢失。
+            // 由无头核心自己在 runtime 就绪后设置 bridge。
+            mezz.jei.common.Internal.getOptionalJeiRuntime().ifPresent(runtime ->
+                    JeiRuntimeBridge.set(runtime.getRecipeManager()));
             LOGGER.info("[BRBE-JEI-Plugins] embedded JEI core started ({} plugins)", plugins.size());
             injectSyncedModRecipes();
         } catch (Exception | LinkageError e) {
@@ -275,6 +282,7 @@ public final class BrbeJeiHeadlessCore {
         }
         running = false;
         injectedTypes.clear();
+        JeiRuntimeBridge.clear();
     }
 
     public static boolean isRunning() {
