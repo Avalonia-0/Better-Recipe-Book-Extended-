@@ -28,6 +28,7 @@ public final class BrbeJeiBridge {
     private static Method typeIdsMethod;
     private static Method entriesForMethod;
     private static Method stationsForMethod;
+    private static Method titleForMethod;
 
     /** Whether the headless-jei mod is present on the classpath. */
     public static synchronized boolean available() {
@@ -39,6 +40,7 @@ public final class BrbeJeiBridge {
             typeIdsMethod = registryClass.getMethod("typeIds");
             entriesForMethod = registryClass.getMethod("entriesFor", ResourceLocation.class);
             stationsForMethod = registryClass.getMethod("stationsFor", ResourceLocation.class);
+            titleForMethod = registryClass.getMethod("titleFor", ResourceLocation.class);
             return true;
         } catch (ClassNotFoundException | NoSuchMethodException | LinkageError e) {
             registryClass = null;
@@ -70,6 +72,7 @@ public final class BrbeJeiBridge {
                 List<ItemStack> stations = (List<ItemStack>) stationsForMethod.invoke(null, typeId);
                 RecipeViewerEngine.registerJeiType(typeId.toString(), entries,
                         stations == null ? List.of() : stations);
+                registerPluginCategory(typeId, stations == null ? List.of() : stations);
                 total += entries.size();
             }
             if (total > 0) {
@@ -78,6 +81,31 @@ public final class BrbeJeiBridge {
             }
         } catch (Exception | LinkageError e) {
             BetterRecipeBook.LOGGER.warn("[BRBE-JEI-BRIDGE] import failed: {}", e.toString());
+        }
+    }
+
+    /** BRBE 内置类别（RecipeViewerCategories.BUILTIN）不重复注册。 */
+    private static final java.util.Set<String> BUILTIN_CATEGORY_TYPES =
+            java.util.Set.of("minecraft:crafting", "minecraft:smelting", "minecraft:blasting",
+                    "minecraft:smoking", "minecraft:campfire_cooking",
+                    "minecraft:stonecutting", "minecraft:smithing",
+                    "minecraft:anvil", "minecraft:brewing", "minecraft:grindstone",
+                    "minecraft:compostable");
+
+    /** 把 headless registry 的一个 mod JEI 类型注册为 BRBE 查询类别 tab。 */
+    private static void registerPluginCategory(ResourceLocation typeId, List<ItemStack> stations) {
+        try {
+            String uid = typeId.toString();
+            if (BUILTIN_CATEGORY_TYPES.contains(uid)) return;
+            String title = titleForMethod == null ? null : (String) titleForMethod.invoke(null, typeId);
+            net.minecraft.network.chat.Component titleText = title == null || title.isBlank()
+                    ? net.minecraft.network.chat.Component.literal(typeId.getPath())
+                    : net.minecraft.network.chat.Component.literal(title);
+            com.alonie.brbe.recipeviewer.RecipeViewerCategories.registerExternal(
+                    List.of(new com.alonie.brbe.recipeviewer.PluginRecipeViewerCategory(
+                            List.of(uid), titleText, stations)));
+        } catch (Exception | LinkageError e) {
+            // 类别注册失败不阻断数据导入
         }
     }
 

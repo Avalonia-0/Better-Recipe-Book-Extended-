@@ -571,3 +571,16 @@ InfoRecipeCategory/RecipeViewerOverlay/BrbeJeiMinecraftMixin] 需改读 registry
 - 部署：1.21.1-Fabric/1.21.1-NeoForge 实例已更新（备份 20260828-131604，md5 一致）
 
 **注意**：CLAUDE.md 历史轮次中的 `zzzbrbe` 为当时事实描述，保持原样不改写。
+
+## 2026-08-28：真实 JEI 共存入口修复 + 部署规则升级（移植自 26.2，已部署双端）
+
+- **嵌套 id `headlessjei`→`zheadlessjei`**（fabric.mod.json/neoforge.mods.toml modId+
+  依赖段；Fabric/NeoForge 按 id 字母序 classpath，h<j 曾致无头 mezz 类遮蔽真实 JEI）。
+- **真实 JEI 入口守卫**：fabric 入口 real 分支注册 END_CLIENT_TICK → 一次性
+  `collectAndInject()`（数据搬运），跳过图集监听器注册；neoforge 入口图集注册加
+  `BrbeJeiPlatform.realJeiLoaded()` 守卫（RecipesUpdated/LevelEvent 的收集照常；
+  `BrbeJeiHeadlessCore.start()` 本就有 real 守卫）。
+- **不适用**：烧炼 mod 工作站修复/去重（1.21.1 无外部工作站注册体系——
+  主侧无 BUILTIN_WORKSTATIONS/registerExternalWorkstations，已知降级保持）。
+- **部署规则**：删"运行中禁部署"，改**原子替换**（cp → mods/.brbe-deploy.tmp + mv rename）。
+- 部署：备份 20260828-213500；fabric md5 48b4d652、neoforge md5 798fc2d5（原子替换）。
