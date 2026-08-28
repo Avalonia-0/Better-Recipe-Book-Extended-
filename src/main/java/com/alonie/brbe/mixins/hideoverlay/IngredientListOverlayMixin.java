@@ -13,19 +13,17 @@ public abstract class IngredientListOverlayMixin {
 
     @Inject(method = "drawScreen", at = @At("HEAD"), cancellable = true, remap = false)
     private void brbe$cancelIngredientListOverlay(CallbackInfo ci) {
-        // Hidden while the config toggle is on OR while a BRBE overlay is open
-        // (query viewer / pin): the ingredient list is drawn after BRBE's
-        // layer and would cover BRBE's tooltips.  The reflection-based
-        // OverlayHider path is unreliable against real JEI, so this mixin is
-        // the authoritative gate.
+        // Hidden only while the config toggle is on.  BRBE overlays (query
+        // viewer / pins) must NOT hide the real JEI: co-existence is expected
+        // and the ingredient list stays interactive beside the viewer.  The
+        // reflection-based OverlayHider path is unreliable against real JEI,
+        // so this mixin is the authoritative gate for the config toggle.
         if (BetterRecipeBook.config != null
-                && (BetterRecipeBook.config.hideReiJeiOverlay
-                    || com.alonie.brbe.util.RecipeViewerOverlay.isActive()
-                    || com.alonie.brbe.pinoverlay.PinOverlayManager.hasPins())) {
+                && BetterRecipeBook.config.hideReiJeiOverlay) {
             if (!warned) {
                 warned = true;
                 BetterRecipeBook.LOGGER.warn(
-                        "[BRBE] JEI ingredient overlay hidden (config or BRBE overlay open)");
+                        "[BRBE] JEI ingredient overlay hidden (config toggle)");
             }
             ci.cancel();
         }

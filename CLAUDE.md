@@ -942,3 +942,13 @@ fork 缺真实 JEI 70 类（含入口 `JustEnoughItemsClient`、fabric mixin/eve
 ### 验证/部署
 真实 JEI 同居实测通过（真实 JEI 正常、mod 站（BetterEnd 冶炼炉）显示、无重复、2695 条目导入）。
 备份链：175222→203500；最终产物 de633796…。
+
+## 2026-08-28（晚）：打开查询界面不再隐藏真实 JEI（26.2 + 1.21.11）
+
+用户反馈（1.21.11，真实 JEI）：打开 BRBE 查询界面后真实 JEI 界面消失。根因：
+hideoverlay 的 IngredientListOverlay/BookmarkOverlay mixin 与主 tick 的隐藏判定带
+"BRBE viewer 激活 || 有 pin" 条件（当时为防 JEI 列表盖住 BRBE tooltip 加的）——与
+"查询界面与真实 JEI 共存"的期望冲突。修复：三个触发点（两个 mixin + 主 tick 的
+setOverlaysHidden）只保留 `hideReiJeiOverlay` 配置开关；BRBE 查询/pin 打开时 JEI
+照常显示（IngredientListOverlayMixin 仍是配置开关的权威 gate）。1.21.1 的守卫本就
+只认配置（无需改）。已部署两实例（备份 20260828-221500，原子替换）。

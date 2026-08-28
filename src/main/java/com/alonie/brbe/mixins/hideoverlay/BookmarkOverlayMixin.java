@@ -13,16 +13,14 @@ public abstract class BookmarkOverlayMixin {
 
     @Inject(method = "drawScreen", at = @At("HEAD"), cancellable = true, remap = false)
     private void brbe$cancelBookmarkOverlay(CallbackInfo ci) {
-        // Hidden while the config toggle is on OR while a BRBE overlay is open
-        // (query viewer / pin) — see IngredientListOverlayMixin.
+        // Hidden only while the config toggle is on — see
+        // IngredientListOverlayMixin (BRBE overlays must not hide real JEI).
         if (BetterRecipeBook.config != null
-                && (BetterRecipeBook.config.hideReiJeiOverlay
-                    || com.alonie.brbe.util.RecipeViewerOverlay.isActive()
-                    || com.alonie.brbe.pinoverlay.PinOverlayManager.hasPins())) {
+                && BetterRecipeBook.config.hideReiJeiOverlay) {
             if (!warned) {
                 warned = true;
                 BetterRecipeBook.LOGGER.warn(
-                        "[BRBE] JEI bookmark overlay hidden (config or BRBE overlay open)");
+                        "[BRBE] JEI bookmark overlay hidden (config toggle)");
             }
             ci.cancel();
         }
