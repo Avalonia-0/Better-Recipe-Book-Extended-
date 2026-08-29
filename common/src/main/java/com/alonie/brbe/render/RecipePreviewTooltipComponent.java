@@ -25,14 +25,24 @@ public final class RecipePreviewTooltipComponent implements ClientTooltipCompone
     private final RecipeHolder<?> holder;                 // 非空 = vanilla 预览
     private final RecipeViewerEngine.JeiEntry jei;        // 非空 = JEI 1:1*0.6 预览
     private final int mode;
+    private final boolean craftable;
+    private final boolean partial;
     private final int width;
     private final int height;
 
     public RecipePreviewTooltipComponent(RecipeHolder<?> holder,
                                          RecipeViewerEngine.JeiEntry jei, int mode) {
+        this(holder, jei, mode, false, false);
+    }
+
+    public RecipePreviewTooltipComponent(RecipeHolder<?> holder,
+                                         RecipeViewerEngine.JeiEntry jei, int mode,
+                                         boolean craftable, boolean partial) {
         this.holder = holder;
         this.jei = jei;
         this.mode = mode;
+        this.craftable = craftable;
+        this.partial = partial;
         if (jei != null && jei.layoutWidth() > 0 && jei.layoutHeight() > 0) {
             this.width = Math.round(jei.layoutWidth() * TOOLTIP_SCALE) + PADDING * 2;
             this.height = Math.round(jei.layoutHeight() * TOOLTIP_SCALE) + PADDING * 2;
@@ -66,15 +76,17 @@ public final class RecipePreviewTooltipComponent implements ClientTooltipCompone
             int lh = Math.max(1, Math.round(jei.layoutHeight() * TOOLTIP_SCALE));
             int[] rect = PopupRenderer.renderJeiPopupScaled(gui, jei,
                     x + PADDING, y + PADDING, lw, lh);
-            if (rect == null) {
-                // 无布局/无 JEI 运行时：固定布局回退
-                PopupRenderer.renderRecipePopup(gui, holder, mode, false, false,
-                        x + 12, y + 12, 24, 24, false, 2.0F);
+            if (rect == null && holder != null) {
+                // 无布局/无 JEI 运行时：固定布局回退（仅当有 holder 时——纯 JEI
+                // 条目且 rendjer 缺席会 NPE）。
+                PopupRenderer.renderRecipePopup(gui, holder, mode, craftable, partial,
+                        x + 12, y + 12, 24, 24, true, PopupGeometry.VANILLA_SCALE);
             }
         } else if (holder != null) {
-            // vanille：居中 24x24 按钮，由弹窗自身 2x 变换放大到 48x48
-            PopupRenderer.renderRecipePopup(gui, holder, mode, false, false,
-                    x + 12, y + 12, 24, 24, false, 2.0F);
+            // vanille：居中 24x24 按钮，由弹窗自身 2x 变换放大到 48x48。
+            // hover=true + VANILLA_SCALE（1.21.11 语义）。
+            PopupRenderer.renderRecipePopup(gui, holder, mode, craftable, partial,
+                    x + 12, y + 12, 24, 24, true, PopupGeometry.VANILLA_SCALE);
         }
     }
 }

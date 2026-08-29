@@ -999,3 +999,327 @@ JEI overlay 排除区。
 **验证**：runClient mixin 全量应用（仅两个既有 JEI overlay 缺席警告——运行时无 JEI 正常）；
 runClient 入口 crash 为既有 headless-jei JIJ 不入 dev classpath 问题（与本次无关）。
 已部署双端（备份 20260829-164730 / 164947，md5 一致）。
+
+## 2026-08-29（四轮）：查询浮层三实测缺陷修复（①被盖住/②类别缺失/③火焰z序，已部署双端）
+
+用户实测（1.21.1 查询系统）报三问题（本轮回合修复，逐项反编译核实）：
+①查询浮层被物品栏/配方书盖住（应最顶层）；②只有燃料/堆肥两个类别加载，其余全缺失；
+③烧炼燃料类别图标：火焰应盖在熔炉图标之上。
+
+**①②③ 共享一个根因线索：GUI 深度测试 z 序**。反编译核实（cfr 1.21.1 mojang jar）：
+- `GuiGraphics.renderItem` 用 `pose.translate(x+8,y+8, 150+...)`——物品图标一律画在 **z=150**；
+- 容器槽位/配方书内容都在 renderItem 走 z=150；配方书背景另加 `translate(0,0,100)`；
+- 参考 1.21.11 在 `TopLayerOverlayRenderer.render` 先 `guiGraphics.nextStratum()`
+  （1.21.5+ 新 API，把后续绘制推到新层、盖过所有既有 z），1.21.1 **无 nextStratum**——
+  本移植一直没用它，导致浮层/火焰画在缺省 z=0，被 z=150 的下层内容盖住。
+
+**① 浮层被盖住—根因+hink**：afterRender 钩子时序本身是对的（fabric `ScreenEvents.afterRender`
+经 `GameRendererMixin` 包裹 `screen.renderWithTooltip(...)`，而 `renderWithTooltip` 是 **final**，
+调用整个 virtual render 链含槽位+配方书；neoforge `ScreenEvent.Render.Post` 经
+`ClientHooks.drawScreenInternal` 在 `renderWithTooltip` 之后 post——二者都在整屏之后）。
+真正问题是 **z 序**：浮层面板 `blitSprite`(z=0)、图标 `renderItem`(z=150)，而容器槽位/配方书
+也在 z=150，GUI 深度测试下后者盖前者。修复：`TopLayerOverlayRenderer.renderViewer` 用
+`gui.pose().pushPose() + translate(0,0,400) + ... + popPose()` 把整层抬到所有内容之上
+（z=400 与 1.21.11 tooltip 顶部 z=400 同语义；vanilla 拖拽物品浮动 z=232 在其下）。
+
+**② 只加载燃料/堆肥—根因**：`RecipeViewerIndex.rebuildEngineInternal` 用 `categoryPath`
+（来自 RecipeType，返回裸 "crafting"/"furnace"/"blast_furnace"/"smoker"/"campfire"...）→
+`Workstation.matchesPath`。1.21.1 的类别前缀却是 `"crafting_"`/`"furnace_"`/`"blast_furnace_"`/
+`"smoker_"`（尾下划线，预期 1.21.11 recipe-book 子路径如 "furnace_food"）。`matchesPath` 对
+尾下划线前缀走 `path.startsWith(prefix)`；`"crafting".startsWith("crafting_")` = **false** →
+crafting/furnace 等 recipe 从**不匹配任何工作站** → 引擎 registerType 为空 → 这些类别
+`hasContent`/`query` 全空 → 不显示；而 fuel/compost 是 grid 类别（直接 allGridItems/gridItems，
+独立于引擎）→ 照常显示。修复：`matchesPath` 对尾下划线前缀 **同时**接受裸根
+`path.equals(prefix.substring(0, prefix.length()-1))` 与前缀子路径 `path.startsWith(prefix)`。
+（1.21.11 的 categoryPath 直接返回 recipe-book 类别路径如 "furnace_food"，故其前缀设计
+本就带下划线；1.21.1 从 RecipeType 推导裸路径，移植时前缀与路径约定不一致。）
+
+**③ 火焰被熔炉图标盖住—根因**：drawCategoryTabs 熔炉图标 `renderItem`（z=150），火焰
+`blitSprite(FURNACE_FIRE_SPRITE, iconX+10, iconY+10, 6, 6)`（**5 参无 z → z=0**）→ 火焰落在
+图标之下。修复：改用 **6 参 blitSprite**（`blitSprite(res, x, y, z, w, h)`，z 直通 vertex）
+`z=160`（> 150）→ 火焰盖在熔炉图标之上。同修 `PopupRenderer.renderVanillaContent MODE_FURNACE`
+的火焰（同样 renderItem z=150 vs blitSprite z=0）。
+
+**关键 API 差异备忘（本轮反编译核实）**：
+- 1.21.1 `blitSprite` 有 6 参重载 `blitSprite(res, x, y, z, w, h)`，第五参即 z 深度
+  （经 innerBlit vertex z 直通）；`ClientCompat.blitSprite` 是 5 参无 z 薄封装。
+- 1.21.1 无 `nextStratum()`（1.21.5+ `GuiGraphics` 才有）；顶层绘制用 pose translate z。
+  1.21.1 `GuiGraphics` 仅有 `flush()`（内部 disableDepthTest/endBatch/enableDepthTest）。
+- 1.21.1 vanilla GUI z 常量：配方书内容 translate z=100、物品图标 renderItem z=150、
+  拖拽浮动物品 translate z=232、tooltip renderTooltipInternal translate z=400。
+  **z=400 即"最顶"语义**，浮层 base 抬高取此值。
+
+**部署**：备份 20260829-222949（原子替换）；fabric md5 0d8445ee、neoforge md5 07ba5908。
+**待用户实测**：①R/U 打开浮层完整可见（物品栏/配方书之上）；②除燃料/堆肥外，crafting/
+furnace（=熔炉家族）等类别应出现；③燃料 tab 火焰盖在熔炉图标之上；Shift 预览弹窗火焰
+同修复。
+
+## 2026-08-29（五轮）：查询系统类别缺失 + tooltip/预览错乱修复（已部署双端）
+
+用户实测（NeoForge，截图 屏幕截图_20260829_223332.png）报：①查询界面仍缺大量原版类别，
+模组类别完全不加载；②自定义 tooltip 与 Shift 预览布局严重错乱（大空黑框 + 材料行被推到
+底部 + 大竖缝隙）。两个子代理（tooltip/类别）+ 本轮反编译 & 实例日志联合定位。
+
+**类别缺失（bug A）——多根因**：
+- **①无头 JEI 核心在 NeoForge 从不启动（主因，mod 类别/anvil/brewing/grindstone/info 全缺）**：
+  headless-jei 作为 jar-in-jar 打进去，其 neoforge 入口 `BrbeJeiPluginsClientNeoForge.init()`
+  **没有任何 @Mod 类调用**（neoforge.mods.toml 无 entrypoint、全 jar 无 @Mod 注解类、init
+  无调用者）→ `JeiRecipeRegistry` 恒空 → BRBE `BrbeJeiBridge.refresh()` 导入 0 条 → 无
+  JEI 类别。实例日志佐证：无 `[BRBE-JEI-BRIDGE] imported`、无 `[BRBE-JEI-Plugins] embedded
+  JEI core started`，仅 `[BRBE] rebuildEngine known=2798 types=7`（只 7 个 vanilla 类型，
+  JEI 通道 0）。
+- **②refresh 一次性 + 无轮询**：fabric JOIN / neoforge LevelEvent.Load+RecipesUpdated 只触发
+  一次，与 headless-jei 采集（分阶段/异步，插件生命周期在 later handler）race → 读到空
+  registry。1.21.11 是每 END_CLIENT_TICK 轮询 + 指纹去重。
+- **③切石/锻造被两边都不注册（double defer）**：`RecipeViewerIndex.rebuildEngineInternal`
+  跳过 stonecutting/smithing（注释"来自 headless-jei"），而 headless-jei 1.21.1
+  `PluginRecipeIndexer.SKIP_VANILLA` 同样排除 → 两边都不注册 → 切石/锻造 tab 恒空。
+- **④熔炉类只读 smelting**：`FurnaceRecipeCategory` 只 query `minecraft:smelting`，而 index
+  独立注册 smelting/blasting/smoking/campfire_cooking → 熔炉 tab 缺鼓风炉/烟熏炉/营火配方。
+
+**tooltip/预览错乱（bug B）——RC1/RC2/RC3/RC4**（tooltip 子代理反编译双端逐行核实）：
+- **RC1（主因，48x48 预览空 = 大黑框）**：`PopupRenderer.renderVanillaContent` 用**屏幕绝对
+  坐标**画 `fill(-4,-4,52,52)` + 图标 (2,2)/(38,2)/(40,2)，而在 `renderRecipePopup` 的
+  scale-about-center 变换（center=(x_row+24,y_row+24), scale=2）下，`T(p)=c+2(p−c)`——内容落在
+  `[−x_row−20, 92−x_row]`。凡 tooltip x_row≥92 内容全部 off-screen → 48x48 行只显示 vanilla
+  tooltip 背景（黑、空）。1.21.11 内容是 **button 相对**（sprite 在 (x,y,w,h)，槽位
+  (x+2,y+2)/(x+4,y+15)/(x+12,y+7) 等），与缩放正确复合。
+- **RC2：无 sprite 背景**：1.21.1 用平铺 56x56 黑 fill 代替 recipe-overlay sprite；1.21.11
+  用 `ButtonBackdrop`（crafting/furnace overlay sprite，按 craftable/partial/hover 状态）。
+  1.21.1 已有 `RECIPE_BOOK_CRAFTING/PLAIN_OVERLAY_SPRITE`（WidgetSprites）可直接用。
+- **RC3：tooltip 行序错 + 多出"材料"文本行**：1.21.1 行序 title→熔炼行→StationLine→材料行→
+  预览→空行+模组名；1.21.11 是 title→熔炼行→**预览**→StationLine→空行+模组名（无材料文本行，
+  材料在预览内）。导致预览被挤到底部、大竖缝。
+- **RC4**：tooltip vanilla 调用传 `false, 2.0F`（hover=false、硬编码）；1.21.11 传
+  `true, VANILLA_SCALE`。
+
+**修复（bug A）**：
+- `BrbeJeiBridge` 新增 `ensureHeadlessStarted()`：反射启动 `BrbeJeiHeadlessCore.start()` +
+  `BrbeJeiPlugins.collectAndInject()`（幂等 isRunning 守卫），在 `refresh()` 开头调用——绕过
+  NeoForge 缺失的 zheadlessjei 入口（BRBE 与 zheadlessjei 同 classloader，Class.forName 可达）。
+- `BrbeJeiBridge.refresh()` 加指纹去重（类型+条数签名 `lastSignature`）+ 每 tick 轮询
+  （fabric END_CLIENT_TICK / neoforge ClientTickEvent.Post，`client.level != null` 守卫）——
+  1.21.11 同策略，处理采集分阶段 race。
+- `RecipeViewerIndex.rebuildEngineInternal`：移除 stonecutting/smithing 的 skip（known 集
+  路径注册；headless-jei 也排除 → 不再重复，registerType 同 uid 幂等覆盖）。
+- `FurnaceRecipeCategory`：聚合 smelting/blasting/smoking/campfire_cooking 四类型（结果物品
+  去重），`query`/`allEntries`/`appliesTo` 同步。
+
+**修复（bug B）**：
+- `PopupRenderer.renderVanillaContent` 重写为 button 相对 + sprite 背景：`blitSprite(sprites.get
+  (craftable||partial, hover), x, y, w, h)`（furnace=plain overlay，其余=crafting overlay）；
+  槽位 button 相对（furnace (x+2,y+2)/(x+4,y+15)/(x+12,y+7)、fixed pair (x+2,y+2)/(x+12,y+7)、
+  crafting 3x2 (x+2+i%3*5, y+2+i/3*5) + result (x+17,y+2)）；partial 红罩移入（非 crafting 模式）
+  。`renderRecipePopup` 里删除旧 partial 覆盖（防重复）。
+- `RecipePreviewTooltipComponent`：构造器加 `craftable`/`partial`；vanilla 调用传
+  `hover=true` + `PopupGeometry.VANILLA_SCALE`；JEI 回退 guard `holder != null`（防纯 JEI
+  条目 + renderer 缺席时 NPE）。
+- `RecipeViewerOverlay.renderEntryTooltipRich`：行序改为 title→熔炼行→**预览**→StationLine→
+  空行+模组名；删除"材料"文本行；新增 `isViewerCraftable`/`isViewerPartial` 辅助（与 Shift
+  弹窗同源 PartialCraftingUtil）。
+
+**关键 API 差异备忘**：1.21.1 `ClientTooltipComponent.renderImage(Font,int,int,GuiGraphics)`
+无 whole-tooltip width/height 参数（1.21.11 有）——但 1.21.11 的 renderImage 忽略该参数
+（px=x, py=y 左/顶锚定），1.21.1 的 `getHeight()/getWidth(Font)` 完全匹配 vanilla 1.21.1
+接口，无需接口拆分/桥。1.21.1 无带 style 的公开 renderTooltip 重载——private
+`renderTooltipInternal` 是唯一 ClientTooltipComponent 路径，`GuiGraphicsAccessor` @Invoker
+正确且必要；`ClientCompat.VIEWER_TOOLTIP_STYLE` 在 1.21.1 为死代码（无 style 参数接口）。
+
+**部署**：备份 20260829-225312（原子替换）；fabric md5 c006f9b7、neoforge md5 d94a1c59。
+**待用户实测**：①查询界面应出现切石/锻造/铁砧/酿造/研磨/信息 + mod 类别（如 FD 厨锅）；
+②tooltip 内嵌预览完整（无空黑框），行序=物品名→预览→工作站→模组名；③Shift 预览 48x48
+完整；④熔炉类别含鼓风炉/烟熏炉/营火配方。
+
+## 2026-08-29（六轮）：查询系统卡顿修复——per-tick collectAndInject 每帧全量 JEI 收集（已部署双端）
+
+用户实测（NeoForge + Fabric，F3 面板 662ms max / TPS 20 但帧时间尖峰）报严重卡顿。
+反编译 + 代码走查定位根因：上一轮（五轮）把 `BrbeJeiBridge.refresh()` 加到**每
+END_CLIENT_TICK** 轮询（1.21.11 语义，解决 mod 类别时序），但 `refresh()` 内部
+`ensureHeadlessStarted()` **无条件**调用 `BrbeJeiPlugins.collectAndInject()`——即
+**每帧 ×全量 JEI 配方收集/索引**（重操作），在渲染线程造成 662ms 帧尖峰。
+
+**根因（五轮引入）**：`ensureHeadlessStarted` 在 `refresh()` 里每 tick 反射调
+`pluginsCollectMethod.invoke(null)`（collectAndInject，全量 JEI recipe indexing）。
+指纹去重只跳过了**导入循环**（registerJeiType），没跳过**收集调用**（collectAndInject）。
+1.21.11 的 `refresh()` 是在 `END_CLIENT_TICK` 上只做指纹导入，收集由 JEI 自身
+生命周期（RecipesUpdated 等）触发，不逐 tick。
+
+**修复**：收集与轮询分离。
+- `BrbeJeiBridge` 新增 `collectPending` 标志 + `requestCollect()`（配方同步事件置位）
+  + `doCollect()`（真正反射 collectAndInject，仅 collectPending 时由 refresh() 调用一次
+  后清位）。
+- `ensureHeadlessStarted()` 只 `start()`（幂等；start 转换时置 collectPending），
+  **不再**收集。
+- `refresh()`：ensureHeadlessStarted → 若 collectPending 则 doCollect 一次并清位 →
+  指纹导入（未变化 early-return）。每 tick 只剩幂等 start（isRunning 反射）+
+  指纹循环（读小 registry，廉价）。
+- 接线：fabric JOIN → `requestCollect()+refresh()`；neoforge LevelEvent.Load /
+  RecipesUpdatedEvent → `requestCollect()+refresh()`（配方同步时重新收集，覆盖 mod
+  配方晚到场景）；每 tick 轮询保持 `refresh()`（消费 pending 一次后廉价）。
+
+**效果**：collectAndInject 只在 start 转换/配方同步时执行（每会话/每次配方同步几次），
+不再每帧执行；每 tick 只剩指纹导入。662ms 帧尖峰应消失，且 mod 类别数据仍能通过
+配方同步事件到达（NeoForge 无 zheadlessjei 入口、BRBE 反射启动核心的用户先前修复
+保持生效）。
+
+**部署**：备份 20260829-234918（原子替换）；fabric md5 d6f49dbe、neoforge md5 0c2a7e34。
+**待用户实测**：游戏应恢复流畅（帧时间无 662ms 尖峰）；查询界面 mod 类别/anvil/brewing/
+grindstone 仍应出现（配方同步事件收集）；tooltip/预览/燃料/切石/锻造等功能不应回退。
+
+## 2026-08-29（七轮）：卡顿根因修复——headless-jei atlas 失败无限重试循环（已部署双端）
+
+用户实测仍严重卡顿（662ms，卡到没法玩）。反编译 + 实例日志定位真实根因：
+**headless-jei 核心 start() 在 NeoForge 因 JEI GUI 图集未初始化解不出 atlas，且失败后
+running 标志不置位 → BRBE 每 tick 重试一次完整 JEI 启动 → 每帧崩溃+日志 → 1854 次/百秒
+（百秒连续刷 662ms，渲染线程被卡）。**
+
+**证据**（实例 `logs/debug.log`）：
+- `grep -c "embedded JEI core failed to start"` = **1854 次**，首末时间 23:51:39.442 →
+  23:53:22.507（约 103 秒），每 ~60ms 一次（约每几 tick）。
+- 日志逐行：`[BRBE-JEI-Plugins] embedded JEI core failed to start: java.lang.IllegalStateException:
+  Tried to lookup sprite, but atlas is not initialized` → `no JEI plugins found` → 下一条重复。
+- 反编译 `BrbeJeiHeadlessCore.start()`：成功路径 `putstatic running:Z`（136 行），**失败路径
+  （"embedded JEI core failed to start"，165 行）不置位 running** → `isRunning()` 恒 false。
+- `BrbeJeiBridge.ensureHeadlessStarted()` 逻辑 `if (!running) start()` → 每 tick 都重试。
+
+**根因链**：①NeoForge 的 zheadlessjei 入口 `BrbeJeiPluginsClientNeoForge.init()` 无 @Mod 调用
+（前置轮次已修：BRBE 反射启动核心）；②但该 init 里还负责把 `JeiGuiSpriteManager`（Textures→
+getGuiSpriteManager，extends `TextureAtlasHolder`→implements `PreparableReloadListener`）注册到
+`RegisterClientReloadListenersEvent`——init 从不执行 → atlas 永不初始化 → start() 必抛
+"atlas is not initialized"；③start() 失败不置 running → 无限重试。
+
+**修复（BrbeJeiBridge + 双端接线）**：
+- **启动闸 `startAttempted`**：`ensureHeadlessStarted()` 尝试过一次（无论成败）后不再重复
+  start()——立即切断每 tick 重试。失败后真正启动由 atlas 就绪事件（retryStart）再试。
+- **atlas 反射注册**：`registerAtlasReloadListener(Object RegisterClientReloadListenersEvent)`
+  反射 `mezz.jei.common.Internal.getTextures().getGuiSpriteManager()` 得到 JeiGuiSpriteManager
+  （PreparableReloadListener），`event.registerReloadListener(...)` 注册——atlas 初始化后
+  start() 成功 → running=true → 循环彻底关闭。
+- **retryStart()**：`startAttempted=false; collectPending=true`——配方同步/level 载入事件重置
+  闸，允许在 atlas 就绪后真正启动一次，再由 refresh() 消费收集。
+- 接线：neoforge `RegisterClientReloadListenersEvent`（modEventBus）→ `registerAtlasReloadListener`；
+  LevelEvent.Load / RecipesUpdatedEvent → `retryStart()+refresh()`；fabric JOIN → `retryStart()+refresh()`；
+  每 tick 轮询 `refresh()` 只做幂等 start（startAttempted 守卫）+ 指纹导入。
+
+**验证**：反射链核验 `Internal.getTextures()`→`Textures.getGuiSpriteManager()`→`JeiGuiSpriteManager`
+（extends TextureAtlasHolder→implements PreparableReloadListener）存在。双端 build 通过，
+字节码确认 `startAttempted`/`retryStart`/`registerAtlasReloadListener` 及
+RegisterClientReloadListenersEvent 接线在位。
+
+**部署**：备份 20260829-235825（原子替换）；fabric md5 d98ba224、neoforge md5 33e31812。
+**待用户实测**：游戏应恢复流畅（662ms 尖峰消失）；查询界面 mod/anvil/brewing/grindstone 类别
+应出现（atlas 就绪后 start 成功 + 配方同步收集）；tooltip/预览等功能不应回退。
+
+## 2026-08-30（八轮）：查询前端系统化对齐阶段一（7 项用户可见差距，已部署双端）
+
+用户确认路径：先阶段一（7 项可修差距），再阶段二 B（BRBE 内建 display 等价模型）。
+基于 frontend-diff 子代理的精确清单逐项对齐 1.21.11。
+
+**已落地（阶段一 7 项）**：
+- **①JEI/mod 配方按钮补材料**：`RecipeViewerOverlay.render` 的 JEI 条目分支（原只有
+  plain 格+结果）→ 结果图标 + 前 3 项 JEI 输入材料（0.6 缩放排布在结果下方，
+  `renderScaledCellItem` 辅助）。对齐"按钮显示材料而非只有结果"。
+- **②熔炉 tooltip 按工作站多行+图标**：`renderEntryTooltipRich` 的熔炼块从单行耗时 →
+  1.21.11 `furnaceTooltipComponents` 语义——XP 行 + 四子站（furnace/blast/smoker/campfire）
+  各一行（颜色随站=`stationStyle`、白点 `•` 标记当前打开站=`stationMatches/menuIs`、
+  标签=`furnaceStationLabel`、前缀=`furnaceStationPrefix`）+ 该站工作站图标行
+  （`workstationsIconsForPrefix`，新增于 `RecipeViewerIndex`；hide 开时过滤）。
+- **③弹窗槽位 tooltip+点击放置**：`renderTooltip` 弹窗分支从"只吞"→ `popupSlotStack`
+  （`PopupGeometry.itemAt` + selIdx 游戏时间/30）+ 物品名/模组名 tooltip；
+  `mouseClicked` 弹窗内左键从"只发声"→ `placeRecipe`（有 holder 时）继承按钮放置。
+  `PopupRenderer.renderRecipePopup` 现在也缓存 `geometrySlotCache`（槽位命中用）。
+- **④悬停改高亮 sprite（弃 2× 放大）**：`render` 的悬停按钮块去掉 2× scale 变换 → 只
+  在最后重绘一遍（vanilla 按钮自绘 `_highlighted` sprite；1.21.11 "viewer 内悬停只换
+  高亮 sprite，放大只属 Shift 预览"语义）。
+- **⑤mod 类别站列**：`rebuildStationColumn` 对 `PluginRecipeViewerCategory` 用
+  `plugin.stations()`（原来 `stationColumnItemsFor` 对插件 id 返回空 → 站列空）。
+- **⑥info 类别 JEI 文案行**：`gridTooltipLines` 加 `InfoRecipeCategory` 分支——显示
+  `descriptionFor(stack)` 的 JEI 信息文案行（此前 info 网格 tooltip 无内容）。
+- **⑦tab 滑窗标记 ◀▶**：`drawCategoryTabs` tooltip 行在可见类别数 > MAX_TABS 时附
+  ◀▶/◀/▶ 标记（`tabWindowCount` 辅助；信息语义对齐 1.21.11）。
+  **VIEWER_TOOLTIP_STYLE 仍为死代码**（1.21.1 无带 style 参数的 renderTooltip 重载，
+  `renderTooltipInternal` 是唯一路径且固定 default 背景——API 限制，镜像记录）。
+
+**API 差异备忘**：`getFormattedModName` 返回单个 `Component`（非 List）；`Screen`/`Mth`
+需显式导入（`RecipeViewerOverlay` 在 `com.alonie.brbe.util` 包内，`Screen` 是
+`net.minecraft.client.gui.screens.Screen`、`Mth` 是 `net.minecraft.util.Mth`——本轮
+编译错误两处，已补导入）。
+
+**部署**：备份 20260830-004022（原子替换）；fabric md5 b2436789、neoforge md5 c4efa5f7d。
+**待用户实测**：①JEI 按钮显示材料图标；②熔炉 tooltip 按站多行+图标+白点；③Shift 弹窗
+槽位有 tooltip、点击弹窗放置配方；④悬停只高亮不 2× 放大；⑤mod 类别站列有内容；
+⑥info 类别显示 JEI 文案；⑦标签可滑动时 tooltip 带 ◀▶。之后进入阶段二 B。
+
+## 2026-08-30（九轮）：阶段二 B 起步——内建 display 等价模型 P1/P2（引擎 layout 注册表 + 条目身份）
+
+用户确认"先阶段一，再做阶段二 B"。阶段一（7 项）已完成部署（见八轮）。本轮启动
+阶段二 B：BRBE 内建 RecipeDisplayEntry/SlotDisplay 等价模型。设计审计子代理（87c360f1）
+运行中，本轮回合并行落地了已独立确认的部分。
+
+**P1：引擎 layout/身份模型（RecipeViewerEngine，1.21.11 逐字对齐）**：
+- `RecipeDisplayId(String key)`——条目稳定身份键（1.21.11 RecipeDisplayId 等价物）。
+- `RecipeSlotLayout(x, y, role, stacks)` / `RecipeBackground(texture, u, v, width, height,
+  textureWidth, textureHeight)` / `RecipeLayout(width, height, slots, background)`——
+  1.21.11 同名 record 逐字段等价（RecipeDisplay/SlotDisplay 缺席下的 mod 内建抽象）。
+- 注册表：`BY_ID`（id→holder）+ `LAYOUTS`（id→layout）+ `idFor(holder)` /
+  `idForJei(typeUid)` / `entryFor(id)` / `isSynthetic(id)`（无 holder = JEI 条目）/
+  `registerLayout(id, layout)` / `getLayout(id)`——1.21.11 引擎同款 API 面。
+- 数据挂靠：`registerType` 每 holder 条目挂 BY_ID；`registerJeiType` 每 JEI 条目挂 BY_ID
+  + 从 entry.slots()/layoutWidth/Height 注册 layout（槽位已有、背景 null 待填）。
+
+**P2：DisplayEntry 身份**——`RecipeViewerOverlay.DisplayEntry` 加 `id()`（holder→
+idFor(holder)，JEI→idForJei(typeUid)），前端可统一 entryFor/getLayout/isSynthetic。
+
+**设计说明**：1.21.1 引擎的 JeiEntry/JeiSlot 本就携带 layout 数据（bridge 反射透传），
+本模型补的是"身份键 + layout 注册表间接层"（1.21.11 借 RecipeDisplayId 把
+RecipeHolder 条目与 JEI 条目统一挂靠）——前端 P3-P5 可逐行对照 1.21.11 移植
+（entryFor/getLayout 驱动弹窗 1:1、tooltip 内嵌预览、pinoverlay 独立窗）。
+
+**部署**：本轮仅为引擎模型（无前端行为变化，弹窗仍走 JeiEntry 内联 layout），
+双端 build 通过、jar 核验 RecipeLayout/RecipeDisplayId 记录在位；未单独部署
+（与 P3-P5 一起部署验证）。待设计审计报告后按 P3（弹窗 1:1 移植）→ P4（预览/tooltip）
+→ P5（pinoverlay）推进。
+
+## 2026-08-30（十轮）：阶段二 B P3-P5——切石/锻造 holder 条目挂接 JEI 布局 + 弹窗/tooltip/pin 1:1 委托（已部署双端）
+
+设计审计报告（87c360f1）收尾：1.21.1 引擎 record 层（P1）与 DisplayEntry.id()
+（P2）已落地；剩余真空洞集中在**切石/锻造 holder 条目无 layout**——headless-jei
+1.21.1 的 `VANILLA_PLUGIN_TYPES` 不含这两个类型（其 JEI 运行时渠道被 SKIP_VANILLA
+排除、runtime 索引只做 anvil/brewing/grindstone）→ holder 条目的 Shift 预览/pin
+只能走 vanilla 固定双槽，无法委托完整 JEI UI（1.21.11 的 attachVanillaCategoryLayouts
+语义）。本轮补齐三件套：
+
+**P3a：headless-jei 索引器**（独立项目 `headless-jei/1.21.1`，仅 1 文件）：
+`VANILLA_PLUGIN_TYPES` 补 `minecraft:stonecutting`/`minecraft:smithing`（与
+1.21.11 版索引器一致；注释标明"有 datapack holder 的条目由消费者按 holder id
+附着，不重复注册"）。JEI 运行时收集期照常 buildEntry → setRecipe 原生槽位 +
+layout 尺寸（切石 82x34 输入(1,9)→输出(61,9)；锻造 108x28 模板/基底/附加/
+输出 91,6），进 JeiRecipeRegistry（占位校验通过：两类 recipe 是 RecipeHolder）。
+
+**P3b：BrbeJeiBridge attachVanillaLayouts**（BRBE 侧）：refresh() 对 ATTACH_TYPES
+（stonecutting/smithing）的注册表条目**不 import 进 JEI 通道**（类别 queryJei
+默认空、导入无人消费且与 holder 通道并列）→ 改 `attachVanillaLayouts`：按
+`holder.id()` 恒等匹配引擎已有 holder 条目（同一 RecipeManager 数据源）→
+`registerLayout(idFor(holder), layout)` + `ATTACHED_UID/RECIPE/ENTRY_BY_ID`
+三映射（attachedJeiEntry 公开查询）。引擎重建监听器（addRebuildListener →
+markAttachDirty：清附着映射+置位）→ refresh() 在签名未变时也重跑附着
+（重建晚于桥导入时不丢）。
+
+**P3c-P5：前端委托**：
+- `renderShiftPopup`：holder 条目先 `attachedJeiEntry(id)` 非空 → 1:1 完整 JEI UI
+  （renderJeiPopup1to1，回退 2.0F renderJeiPopup）+ 非 crafting 模式残缺红罩
+  （partial && mode!=CRAFTING，1.21.11 同语义）；否则原 vanilla 弹窗。
+- `drawPinPopup`（viewer 内 A 键固定弹窗）：同分支。
+- `renderEntryTooltipRich`（P4）：内嵌预览组件改传 `previewJei`（holder 条目带
+  布局时 = attachedJeiEntry）→ tooltip 内嵌完整 JEI 界面（0.6 缩放的
+  renderJeiPopupScaled 路径，原 48x48 vanilla 兜底仅无布局时）。
+- `PinOverlay.render`（P5）：holder 条目带布局 → 1:1 委托（pin 独立窗与
+  viewer 弹窗同几何；无布局走原 vanilla）。
+
+**部署**：headless-jei 重建（fabric 66eed05b / neoforge 943f9abf，替换 BRBE
+resources 内 META-INF/jars|jarjar 的 JIJ jar）→ BRBE 双端 build → 原子替换
+（备份 20260830-01xx）；fabric 892cdacd、neoforge 9efb51b1（JIJ 内嵌 md5 已核验）。
+**待用户实测**：R/U 查询切石机/锻造台条目 → Shift 预览/A 键 pin/tooltip 内嵌预览 =
+完整 JEI 界面（切石 82x34、锻造 108x28，含槽位背景/箭头）；无布局时回退正常。
+**下一步**：阶段二 B 剩余项（审计 §5 的引擎级 DisplayEntry 统一抽象——本轮回合
+以"holder 附着 + attachedJeiEntry"保行为等价，未做全量提升；如需逐行等价再补）。

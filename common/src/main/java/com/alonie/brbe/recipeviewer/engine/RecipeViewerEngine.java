@@ -57,6 +57,8 @@ public final class RecipeViewerEngine {
             for (IndexedRecipe recipe : recipes) {
                 if (recipe == null || recipe.holder() == null) continue;
                 data.addRecipe(recipe.holder(), recipe.inputs(), recipe.outputs(), recipe.groupKey());
+                // 阶段二 B：holder 条目挂靠身份表（entryFor/isSynthetic 用）。
+                BY_ID.put(idFor(recipe.holder()), recipe.holder());
             }
         }
         TYPES.put(uid, data);
@@ -182,6 +184,67 @@ public final class RecipeViewerEngine {
 
     private static final Map<String, JeiTypeData> JEI_TYPES = new LinkedHashMap<>();
 
+    // ── 阶段二 B：内建 display 等价模型（1.21.11 RecipeLayout/DisplayId 移植） ──
+    // 1.21.1 无 RecipeDisplay/SlotDisplay（1.21.5+）——在 mod 内部建等价抽象，
+    // 让前端可按 1.21.11 逐行移植。条目身份 = 稳定 key（RecipeHolder.id() 或
+    // JEI typeUid），layout 经注册表间接存取（registerLayout/getLayout）。
+
+    /** 条目稳定身份键（1.21.11 RecipeDisplayId 等价物）。 */
+    public record RecipeDisplayId(String key) {
+        @Override public String toString() { return key; }
+    }
+
+    /** 一个原生布局槽位（x/y 为布局内像素、role 为 RecipeIngredientRole
+     *  ordinal、stacks 为该槽物品）。1.21.11 RecipeSlotLayout 等价物。 */
+    public record RecipeSlotLayout(int x, int y, int role, List<ItemStack> stacks) {}
+
+    /** 类别背景纹理（JEI 类别 createDrawable 声明）。nullable。 */
+    public record RecipeBackground(ResourceLocation texture, int u, int v, int width, int height,
+                                   int textureWidth, int textureHeight) {}
+
+    /** 条目原生布局（宽/高/槽位/类别背景）。1.21.11 RecipeLayout 等价物；
+     *  JEI 条目已自带 layoutWidth/Height、槽位在此统一挂靠注册表。 */
+    public record RecipeLayout(int width, int height, List<RecipeSlotLayout> slots,
+                               RecipeBackground background) {}
+
+    private static final Map<RecipeDisplayId, RecipeHolder<?>> BY_ID = new HashMap<>();
+    private static final Map<RecipeDisplayId, RecipeLayout> LAYOUTS = new HashMap<>();
+
+    /** {@code RecipeHolder} 条目的稳定身份键（1.21.11 PinnableRecipeCollection.idFor
+     *  等价物：holder.id() 的 ResourceLocation 字符串）。 */
+    public static RecipeDisplayId idFor(RecipeHolder<?> holder) {
+        return new RecipeDisplayId(holder == null ? "" : holder.id().toString());
+    }
+
+    /** JEI 条目身份键（typeUid 唯一——每类内以类型为身份；1.21.11 JEI 条目同）。 */
+    public static RecipeDisplayId idForJei(ResourceLocation typeUid) {
+        return new RecipeDisplayId("jei:" + (typeUid == null ? "" : typeUid));
+    }
+
+    /** 按身份键取条目（BY_ID；未注册返回 null）。 */
+    public static RecipeHolder<?> entryFor(RecipeDisplayId id) {
+        return id == null ? null : BY_ID.get(id);
+    }
+
+    /** 是否合成/虚拟条目（1.21.11 isSynthetic 等价物：无 RecipeHolder 即 JEI 条目）。 */
+    public static boolean isSynthetic(RecipeDisplayId id) {
+        if (id == null) return false;
+        RecipeHolder<?> holder = BY_ID.get(id);
+        return holder == null;
+    }
+
+    /** 注册条目原生布局（1.21.11 registerLayout 等价物；幂等替换）。 */
+    public static void registerLayout(RecipeDisplayId id, RecipeLayout layout) {
+        if (id != null && layout != null) {
+            LAYOUTS.put(id, layout);
+        }
+    }
+
+    /** 已注册的条目布局，或 null。 */
+    public static RecipeLayout getLayout(RecipeDisplayId id) {
+        return id == null ? null : LAYOUTS.get(id);
+    }
+
     /** Register (or replace) a JEI type's recipes and its workstation items
      *  (collected from JEI plugins / vanilla JEI recipes). */
     public static void registerJeiType(String uid, List<JeiEntry> entries, List<ItemStack> stations) {
@@ -191,6 +254,19 @@ public final class RecipeViewerEngine {
             for (JeiEntry entry : entries) {
                 if (entry != null && entry.recipe() != null) {
                     data.addEntry(entry);
+                    // 阶段二 B：JEI 条目挂靠身份表 + 注册原生布局（槽位已有）。
+                    RecipeDisplayId id = idForJei(entry.typeUid());
+                    if (entry.slots() != null && !entry.slots().isEmpty()
+                            && entry.layoutWidth() > 0 && entry.layoutHeight() > 0) {
+                        List<RecipeSlotLayout> slotLayouts = new ArrayList<>();
+                        for (JeiSlot slot : entry.slots()) {
+                            slotLayouts.add(new RecipeSlotLayout(
+                                    slot.x(), slot.y(), slot.role(),
+                                    slot.stacks() == null ? List.of() : slot.stacks()));
+                        }
+                        registerLayout(id, new RecipeLayout(
+                                entry.layoutWidth(), entry.layoutHeight(), slotLayouts, null));
+                    }
                 }
             }
         }

@@ -130,7 +130,12 @@ public final class RecipeViewerIndex {
         boolean matchesPath(String path) {
             for (String prefix : categoryPrefixes) {
                 boolean match = prefix.endsWith("_")
-                        ? path.startsWith(prefix)
+                        // prefix like "furnace_" matches both a bare "furnace"
+                        // (1.21.1 categoryPath from RecipeType) and the
+                        // recipe-book subpaths like "furnace_food" expected in
+                        // 1.21.11 — otherwise crafting/furnace never register.
+                        ? (path.equals(prefix.substring(0, prefix.length() - 1))
+                                || path.startsWith(prefix))
                         : path.equals(prefix);
                 if (match) return true;
             }
@@ -347,13 +352,12 @@ public final class RecipeViewerIndex {
                 // 1.21.1 无已知路径命中（切石/锻造等只走 JEI 通道）——跳过
             }
         }
-        // 切石/锻造：条目与 layout 由 headless-jei（JEI 运行时）提供——这里跳过，
-        // 避免与 headless 重复注册（同 uid 后注册者覆盖前者，1.21.11 同规则）。
+        // 切石/锻造也走 known 集注册（1.21.1 原版有 STONECUTTING/SMITHING
+        // RecipeType，categoryPath/工作站均匹配）。此前在此 skip —— 但
+        // headless-jei 1.21.1 的 SKIP_VANILLA 同样排除这两类 → 两边都不注册
+        // → 切石/锻造 tab 恒空。故交由 known 集路径注册（重复注册由
+        // registerType 同 uid 覆盖，幂等）。
         for (Map.Entry<String, List<RecipeViewerEngine.IndexedRecipe>> e : grouped.entrySet()) {
-            if (e.getKey().equals("minecraft:stonecutting")
-                    || e.getKey().equals("minecraft:smithing")) {
-                continue;
-            }
             RecipeViewerEngine.registerType(e.getKey(), e.getValue(), stationItems.get(e.getKey()));
         }
         // hide 源级：无配方书站（切石机/铁砧/酿造/研磨/堆肥）在 workstations() 已剔除，
@@ -441,6 +445,20 @@ public final class RecipeViewerIndex {
         };
         if (family == null) return List.of();
         return family == Family.FURNACE ? furnaceStationColumnItems() : workstationItems(family);
+    }
+
+    /** 某类别前缀（如 "furnace_"）对应工作站块的物品图标（1.21.11
+     *  workstationsIconsForPrefix 等价物）——熔炉 tooltip 按站别行 + 图标用。 */
+    public static List<ItemStack> workstationsIconsForPrefix(String categoryPrefix) {
+        if (categoryPrefix == null) return List.of();
+        List<ItemStack> icons = new ArrayList<>();
+        for (Workstation station : workstations()) {
+            if (!station.matchesPath(categoryPrefix)) continue;
+            for (ItemStack icon : station.fallbackIcons()) {
+                icons.add(icon);
+            }
+        }
+        return icons;
     }
 
     /** 熔炉类别的四站烧炼耗时 {furnace, blast, smoker, campfire}（1.21.11

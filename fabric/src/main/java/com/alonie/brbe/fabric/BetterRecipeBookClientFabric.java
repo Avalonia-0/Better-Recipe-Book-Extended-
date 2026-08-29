@@ -67,7 +67,10 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         // Register PotionLoader lifecycle hooks (was in Architectury ClientLifecycleEvent.CLIENT_LEVEL_LOAD)
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {
             if (client.level != null) PotionLoader.load(client.level);
-            // 无头 JEI 桥：headless-jei 独立 mod 的配方条目索引进查询引擎
+            // 无头 JEI 桥：headless-jei 独立 mod 的配方条目索引进查询引擎。
+            // JOIN 重置启动闸（atlas 已载入）+ 置位收集；refresh 消费一次后
+            // 不再每 tick 重试（见 BrbeJeiBridge.startAttempted）。
+            com.alonie.brbe.cache.BrbeJeiBridge.retryStart();
             com.alonie.brbe.cache.BrbeJeiBridge.refresh();
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
@@ -105,6 +108,12 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             Screen screen = client.screen;
             // 查询引擎：dirty 合并 flush（配方书重建/解锁变化在 tick 末落盘一次）
             com.alonie.brbe.cache.RecipeViewerIndex.flushEngineRebuildIfDirty();
+            // 无头 JEI 桥：headless-jei 采集与配方同步是分阶段/异步的，JOIN 一次性
+            // refresh 会读到空 registry（mod 类别/anvil/brewing/grindstone 缺失）。
+            // 每 tick 轮询（指纹去重，见 BrbeJeiBridge.refresh），1.21.11 同策略。
+            if (client.level != null) {
+                com.alonie.brbe.cache.BrbeJeiBridge.refresh();
+            }
             if (BetterRecipeBook.config.hideReiJeiOverlay && screen != null) {
                 OverlayHider.ensureJeiOverlayHidden();
             }

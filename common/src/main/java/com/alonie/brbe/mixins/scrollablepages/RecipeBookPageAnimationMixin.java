@@ -3,7 +3,6 @@ package com.alonie.brbe.mixins.scrollablepages;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.mixins.accessors.RecipeButtonAccessor;
 import com.alonie.brbe.util.BRBTextures;
-import com.alonie.brbe.util.PageAnimationEdges;
 import com.alonie.brbe.util.PageFlipDirection;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.RecipeBookPageAnimBridge;
@@ -28,7 +27,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 1.21.1 翻页动画（快照池 + @Redirect 渲染 + 边缘挤压视效）。
+ * 1.21.1 翻页动画（快照池 + @Redirect 渲染 + 完全平滑离场）。
  *
  * <p>对照 1.21.11 的 RecipeBookPageAnimationMixin：1.21.1 的 RecipeButton 用
  * 无参构造 + {@code init(RecipeCollection, RecipeBookPage)}（2 参），无
@@ -40,9 +39,10 @@ import java.util.List;
  * 网格基准位，动画结束/被打断不会残留偏移（旧版直接 setPosition 平移真实
  * 按钮，结束时不归位 → 翻页后按钮永久位移出网格、「页面内容消失」）。</p>
  *
- * <p>视觉与 1.21.11 完整版一致：配方滑出视窗边界时**边缘挤压**（宽度收窄、
- * 边界独立渲染，用 {@link PageAnimationEdges} 读 {@code animation/edge_width.json}
- * 的左右边距）、残缺配方红罩、已固定配方 pin 图标（网格 scissor 外补画）；
+ * <p>**完全平滑离场（2026-08-29 用户决定）**：不再做 1.21.11 的边缘挤压/单元格
+ * 边界/边框条——1.21.1 旧版 item 渲染逃逸 scissor，复杂挤压视觉始终做不好。
+ * 按钮按滑动位置直接渲染（sprite + 图标 + 残缺标记），由网格 scissor 裁住，
+ * 图标随格子滑动退场；残缺配方红罩、已固定配方 pin 图标（网格 scissor 外补画）；
  * tooltip 跟随光标命中的快照按钮。</p>
  *
  * <p>受 {@code brbe.toml} 的 {@code pageAnimation.pageAnimationEnabled}（开关）
@@ -255,9 +255,10 @@ public abstract class RecipeBookPageAnimationMixin {
     }
 
     /**
-     * 边缘挤压渲染（与 1.21.11 版本一致）：配方滑出视窗边界时，内容裁剪在
-     * [effX, edgeRight) 内（中间随滑动变短），左右边界 2px 独立渲染（边框完整
-     * 不缩放）；图标在边界线之后渲染，完整跟随配方滑出视窗。
+     * 完全平滑离场：整页平移，按钮按滑动位置直接渲染（sprite + 图标 + 残缺标记），
+     * 由 {@code brbe$renderButton} 开启的网格 scissor 裁住 —— 无挤压、无单元格边界、
+     * 无边框条（1.21.1 旧版 item 渲染逃逸 scissor，复杂挤压视觉始终做不好，按用户
+     * 决定改为最简平滑方案）。图标仍随格子滑动。
      */
     @Unique
     private void brbe$renderVisualSquashed(RecipeButton snap, int k, int page, int x, int y,
@@ -270,78 +271,25 @@ public abstract class RecipeBookPageAnimationMixin {
         }
         snap.init(this.recipeCollections.get(idx), (RecipeBookPage) (Object) this);
         snap.visible = true;
-        int leftBound = this.brbe$scissorLeft + GRID_LEFT_PAD;
-        int rightBound = this.brbe$scissorLeft + GRID_LEFT_PAD + GRID_WIDTH;
-        int effX = x;
-        int effW = 25;
-        if (x < leftBound) {
-            effX = leftBound;
-            effW = x + 25 - leftBound;
-        } else if (x + 25 > rightBound) {
-            effX = x;
-            effW = rightBound - x;
-        }
-        if (effW <= 0) {
-            snap.visible = false;
-            return;
-        }
-        // 动画期间 tooltip 跟随移动配方：记录可见有效区内光标命中的快照按钮
-        if (mouseX >= effX && mouseX < effX + effW && mouseY >= y && mouseY < y + 25) {
-            this.brbe$animHovered = snap;
-        }
         RecipeCollection c = snap.getCollection();
         boolean many = c.getRecipes(false).size() > 1;
         ResourceLocation sprite = c.hasCraftable()
                 ? (many ? SLOT_MANY_CRAFTABLE : SLOT_CRAFTABLE)
                 : (many ? SLOT_MANY_UNCRAFTABLE : SLOT_UNCRAFTABLE);
-        int edgeRight = effX + effW;
+        gui.blitSprite(sprite, x, y, 25, 25);
         RecipeHolder<?> current = brbe$currentRecipeOf(snap);
         boolean isPartial = current != null && PartialCraftingUtil.isPartiallyCraftable(c, current);
-        if (effW < 25) {
-            // 伪压缩：内容在 [effX, edgeRight] 内裁剪（中间随滑动变短），左右边界 2px
-            // 独立渲染（边框完整不缩放）。
-            // 内容 scissor 右边界收窄 1px：原版 sprite 最右列（col24）顶部 1px 是
-            // 透明的，若内容画到该列，滚动时下层配方会从缺口漏出。收窄后缺口处
-            // 不绘制任何下层内容，仅显示背景（保持透明效果）。
-            gui.enableScissor(effX, y, edgeRight - 1, y + 25);
-            gui.blitSprite(sprite, x, y, 25, 25);
-            if (isPartial) {
-                brbe$renderPartialMark(gui, effX, y, effW);
-            }
-            // 图标在内容 scissor **内**渲染（用户验收标准：滑动中图标被单元格
-            // 边界裁住，不得盖在边界之上——2026-08-29 用户再次确认此要求）；
-            // 边框条随后渲染，覆盖图标经过的边缘。
-            brbe$renderItemIcon(snap, gui, x, y);
-            gui.disableScissor();
-            // 移动方向的前方边缘盖住后方边缘：配方左移时左边界最后渲染（在上层）
-            boolean movingLeft = x < effX;
-            if (movingLeft) {
-                gui.enableScissor(Math.max(edgeRight - PageAnimationEdges.right(), effX), y, edgeRight, y + 25);
-                gui.blitSprite(sprite, edgeRight - 25, y, 25, 25);
-                gui.disableScissor();
-                gui.enableScissor(effX, y, Math.min(effX + PageAnimationEdges.left(), edgeRight), y + 25);
-                gui.blitSprite(sprite, effX, y, 25, 25);
-                gui.disableScissor();
-            } else {
-                gui.enableScissor(effX, y, Math.min(effX + PageAnimationEdges.left(), edgeRight), y + 25);
-                gui.blitSprite(sprite, effX, y, 25, 25);
-                gui.disableScissor();
-                gui.enableScissor(Math.max(edgeRight - PageAnimationEdges.right(), effX), y, edgeRight, y + 25);
-                gui.blitSprite(sprite, edgeRight - 25, y, 25, 25);
-                gui.disableScissor();
-            }
-        } else {
-            gui.blitSprite(sprite, effX, y, 25, 25);
-            if (isPartial) {
-                brbe$renderPartialMark(gui, effX, y, 25);
-            }
-            if (effW > 20) {
-                brbe$renderItemIcon(snap, gui, effX, y);
-            }
+        if (isPartial) {
+            brbe$renderPartialMark(gui, x, y, 25);
+        }
+        brbe$renderItemIcon(snap, gui, x, y);
+        // 动画期间 tooltip 跟随移动配方：记录光标命中的快照按钮（可见区域内）
+        if (mouseX >= x && mouseX < x + 25 && mouseY >= y && mouseY < y + 25) {
+            this.brbe$animHovered = snap;
         }
         // 已固定配方：收集 pin 图标位置（最上层绘制，见 brbe$renderButton 收尾）
         if (BetterRecipeBook.pinnedRecipeManager.isFullyPinned(c)) {
-            this.brbe$animPinIcons.add(new int[] { effX, y });
+            this.brbe$animPinIcons.add(new int[] { x, y });
         }
     }
 

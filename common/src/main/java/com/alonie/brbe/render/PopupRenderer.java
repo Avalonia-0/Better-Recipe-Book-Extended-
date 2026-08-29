@@ -4,6 +4,7 @@ import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.WidgetSprites;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
@@ -158,36 +159,52 @@ public final class PopupRenderer {
         gui.pose().translate(x + w / 2f, y + h / 2f, 0);
         gui.pose().scale(scale, scale, 1.0F);
         gui.pose().translate(-(x + w / 2f), -(y + h / 2f), 0);
-        renderVanillaContent(gui, holder, mode, hover);
+        renderVanillaContent(gui, holder, mode, craftable, partial,
+                x, y, w, h, hover);
+        gui.pose().popPose();
+        // 存几何供槽位命中（slotStackInPopup 用；阶段一 #3）。
+        int[] panel = new int[] {geometry.x, geometry.y, geometry.w, geometry.h};
+        geometrySlotCache = new GeometryRef(geometry, panel);
+        return panel;
+    }
+
+    /** Vanilla popup content: the recipe-overlay sprite at the button rect, with
+     *  slots laid out at button-relative coordinates.  Fixes 1.21.1's previous
+     *  absolute-coordinate content (drew off-screen for any tooltip not hugging
+     *  the top-left corner, so the 48x48 preview row showed empty — "large empty
+     *  dark box").  1.21.11 renderVanillaPopup/renderSlotItems semantics. */
+    private static void renderVanillaContent(GuiGraphics gui, RecipeHolder<?> holder,
+                                             int mode, boolean craftable, boolean partial,
+                                             int x, int y, int w, int h, boolean hover) {
+        // 背景 sprite（熔炉类别 plain overlay，其余 crafting overlay；hover/
+        // partial 状态由 WidgetSprites.get(craftable||partial, hover) 决定）。
+        WidgetSprites sprites = mode == MODE_FURNACE
+                ? BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE
+                : BRBTextures.RECIPE_BOOK_CRAFTING_OVERLAY_SPRITE;
+        gui.blitSprite(sprites.get(craftable || partial, hover), x, y, w, h);
         if (partial && mode != MODE_CRAFTING) {
             gui.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x60FF3333);
         }
-        gui.pose().popPose();
-        return new int[] {geometry.x, geometry.y, geometry.w, geometry.h};
-    }
-
-    /** Vanilla popup content: 48x48 dark panel (按钮中心缩放保持旧调用兼容）。 */
-    private static void renderVanillaContent(GuiGraphics gui, RecipeHolder<?> holder,
-                                             int mode, boolean hover) {
-        gui.fill(-4, -4, 52, 52, 0xE0000000);
         List<ItemStack> inputs = inputsOf(holder);
         ItemStack result = resultOf(holder);
         switch (mode) {
             case MODE_FURNACE -> {
-                scaledItem(gui, inputs.isEmpty() ? ItemStack.EMPTY : inputs.get(0), 2, 2);
-                ClientCompat.blitSprite(gui, BRBTextures.FURNACE_FIRE_SPRITE, 6, 15, 6, 6);
-                if (!result.isEmpty()) scaledItem(gui, result, 38, 2);
+                scaledItem(gui, inputs.isEmpty() ? ItemStack.EMPTY : inputs.get(0), x + 2, y + 2);
+                gui.blitSprite(BRBTextures.FURNACE_FIRE_SPRITE, x + 4, y + 15, 6, 6);
+                if (!result.isEmpty()) scaledItem(gui, result, x + 12, y + 7);
             }
             case MODE_STONECUTTING, MODE_SMITHING, MODE_ANVIL, MODE_BREWING,
                  MODE_GRINDSTONE -> {
-                scaledItem(gui, inputs.isEmpty() ? ItemStack.EMPTY : inputs.get(0), 2, 2);
-                if (!result.isEmpty()) scaledItem(gui, result, 38, 2);
+                scaledItem(gui, inputs.isEmpty() ? ItemStack.EMPTY : inputs.get(0), x + 2, y + 2);
+                if (!result.isEmpty()) scaledItem(gui, result, x + 12, y + 7);
             }
             default -> {
+                // crafting：3x2 输入（间距 5）+ 结果右上。button 相对（1.21.11
+                // renderGenericCrafting 同布局）。
                 for (int i = 0; i < Math.min(inputs.size(), 6); i++) {
-                    scaledItem(gui, inputs.get(i), 2 + (i % 3) * 9, 2 + (i / 3) * 9);
+                    scaledItem(gui, inputs.get(i), x + 2 + (i % 3) * 5, y + 2 + (i / 3) * 5);
                 }
-                if (!result.isEmpty()) scaledItem(gui, result, 40, 2);
+                if (!result.isEmpty()) scaledItem(gui, result, x + 17, y + 2);
             }
         }
     }

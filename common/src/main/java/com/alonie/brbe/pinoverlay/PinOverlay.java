@@ -139,16 +139,27 @@ public final class PinOverlay {
                     PopupRenderer.renderJeiPopup(gui, jei, bx, by, boxW(), boxH(), 2.0F);
                 }
             } else if (holder != null) {
-                boolean craftable;
-                boolean partial = false;
-                try {
-                    craftable = isCraftableNow(mc);
-                    partial = isPartialNow(mc);
-                } catch (Exception e) {
-                    craftable = false;
+                // 阶段二 B P5：holder 条目带 JEI 布局（切石/锻造）→ 1:1 委托。
+                RecipeViewerEngine.JeiEntry attached =
+                        com.alonie.brbe.cache.BrbeJeiBridge.attachedJeiEntry(
+                                RecipeViewerEngine.idFor(holder));
+                if (attached != null) {
+                    int[] rect = PopupRenderer.renderJeiPopup1to1(gui, attached, cx, cy, 0, 0);
+                    if (rect == null) {
+                        PopupRenderer.renderJeiPopup(gui, attached, bx, by, boxW(), boxH(), 2.0F);
+                    }
+                } else {
+                    boolean craftable;
+                    boolean partial = false;
+                    try {
+                        craftable = isCraftableNow(mc);
+                        partial = isPartialNow(mc);
+                    } catch (Exception e) {
+                        craftable = false;
+                    }
+                    PopupRenderer.renderRecipePopup(gui, holder, mode, craftable, partial,
+                            bx + 12, by + 12, CELL, CELL, true, 2.0F);
                 }
-                PopupRenderer.renderRecipePopup(gui, holder, mode, craftable, partial,
-                        bx + 12, by + 12, CELL, CELL, true, 2.0F);
             }
         } finally {
             PinButtonRenderOverride.pop();

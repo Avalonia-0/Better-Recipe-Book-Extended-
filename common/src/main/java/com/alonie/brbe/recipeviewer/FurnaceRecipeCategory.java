@@ -17,13 +17,16 @@ import java.util.Set;
 /**
  * The furnace category: smelting recipes (furnace, blast furnace, smoker,
  * campfire).  R = which furnace recipes produce {@code target}; U = what
- * {@code target} smelts into.  1.21.1 版：smelting 类型聚合（blasting/smoking/
- * campfire 的 RecipeType 并入 smelting 注册——当前 engine 只注册 smelting，
- * 多类型合并待后续 RecipeViewerIndex 扩展）。
+ * {@code target} smelts into.  1.21.1 版：聚合四个熔炼 RecipeType
+ * （smelting/blasting/smoking/campfire_cooking——index 各自独立注册，类别按
+ * 1.21.11 语义合并展示）。
  */
 public final class FurnaceRecipeCategory implements RecipeViewerCategory {
 
-    private static final String TYPE = "minecraft:smelting";
+    /** 四个熔炼 RecipeType（index 各自注册，此处聚合）。 */
+    private static final List<String> TYPES = List.of(
+            "minecraft:smelting", "minecraft:blasting",
+            "minecraft:smoking", "minecraft:campfire_cooking");
 
     @Override
     public String id() {
@@ -42,20 +45,44 @@ public final class FurnaceRecipeCategory implements RecipeViewerCategory {
 
     @Override
     public List<RecipeHolder<?>> query(ItemStack target, boolean usage) {
-        return usage
-                ? RecipeViewerEngine.usagesFor(TYPE, target)
-                : RecipeViewerEngine.resultsFor(TYPE, target);
+        // 聚合四个熔炼类型，按结果物品去重（同一配方跨类型重复出现时只留一个）。
+        if (target == null || target.isEmpty()) return List.of();
+        List<RecipeHolder<?>> out = new ArrayList<>();
+        Set<RecipeHolder<?>> seen = new HashSet<>();
+        for (String type : TYPES) {
+            List<RecipeHolder<?>> hits = usage
+                    ? RecipeViewerEngine.usagesFor(type, target)
+                    : RecipeViewerEngine.resultsFor(type, target);
+            for (RecipeHolder<?> h : hits) {
+                if (seen.add(h)) out.add(h);
+            }
+        }
+        return out;
     }
 
     @Override
     public List<RecipeHolder<?>> allEntries() {
-        return RecipeViewerEngine.allRecipes(TYPE);
+        List<RecipeHolder<?>> out = new ArrayList<>();
+        Set<RecipeHolder<?>> seen = new HashSet<>();
+        for (String type : TYPES) {
+            for (RecipeHolder<?> h : RecipeViewerEngine.allRecipes(type)) {
+                if (seen.add(h)) out.add(h);
+            }
+        }
+        return out;
     }
 
     @Override
     public boolean appliesTo(ItemStack target) {
-        return RecipeViewerEngine.hasContent(TYPE, target, false)
-                || RecipeViewerEngine.hasContent(TYPE, target, true);
+        if (target == null || target.isEmpty()) return false;
+        boolean any = false;
+        for (String type : TYPES) {
+            if (RecipeViewerEngine.hasContent(type, target, false)
+                    || RecipeViewerEngine.hasContent(type, target, true)) {
+                any = true;
+            }
+        }
+        return any;
     }
 
     @Override

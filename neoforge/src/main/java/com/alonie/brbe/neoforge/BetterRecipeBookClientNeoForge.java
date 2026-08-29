@@ -82,11 +82,24 @@ public class BetterRecipeBookClientNeoForge {
         // 其 JeiRecipeRegistry 条目索引进查询引擎（absent 时静默跳过）。
         NeoForge.EVENT_BUS.addListener(LevelEvent.Load.class, event -> {
             if (event.getLevel().isClientSide() && event.getLevel() instanceof ClientLevel) {
+                // level 就绪：重置启动闸（允许真正的 JEI start——atlas 此时已载入）
+                // + 置位收集；refresh 消费。
+                com.alonie.brbe.cache.BrbeJeiBridge.retryStart();
                 com.alonie.brbe.cache.BrbeJeiBridge.refresh();
             }
         });
         NeoForge.EVENT_BUS.addListener(net.neoforged.neoforge.client.event.RecipesUpdatedEvent.class,
-                event -> com.alonie.brbe.cache.BrbeJeiBridge.refresh());
+                event -> {
+                    // 配方同步了（mod 配方晚于 vanilla）：重置启动闸再收集导入。
+                    com.alonie.brbe.cache.BrbeJeiBridge.retryStart();
+                    com.alonie.brbe.cache.BrbeJeiBridge.refresh();
+                });
+
+        // JEI GUI 图集重载监听：headless-jei 核心 start() 依赖 atlas 初始化，否则抛
+        // "atlas is not initialized" 且 running 不置位 → BRBE 每 tick 重试完整启动
+        // （1854 次/百秒卡顿）。原 neoforge 入口的 @Mod 从不调用，这里 BRBE 反射补注册。
+        modEventBus.addListener(net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent.class,
+                com.alonie.brbe.cache.BrbeJeiBridge::registerAtlasReloadListener);
 
         // Register HUD hiders (JEI + REI overlay control)
         OverlayHider.register(new JeiHudHider());
@@ -129,6 +142,13 @@ public class BetterRecipeBookClientNeoForge {
             Screen screen = client.screen;
             // 查询引擎：dirty 合并 flush（配方书重建/解锁变化在 tick 末落盘一次）
             com.alonie.brbe.cache.RecipeViewerIndex.flushEngineRebuildIfDirty();
+            // 无头 JEI 桥：headless-jei 采集与配方同步是分阶段/异步的，LevelEvent.Load/
+            // RecipesUpdated 一次性 refresh 会读到空 registry（mod 类别/anvil/brewing/
+            // grindstone 缺失）。每 tick 轮询（指纹去重，见 BrbeJeiBridge.refresh），
+            // 1.21.11 同策略。
+            if (client.level != null) {
+                com.alonie.brbe.cache.BrbeJeiBridge.refresh();
+            }
             if (BetterRecipeBook.config.hideReiJeiOverlay && screen != null) {
                 OverlayHider.ensureJeiOverlayHidden();
             }
