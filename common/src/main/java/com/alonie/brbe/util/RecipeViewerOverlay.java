@@ -1528,14 +1528,26 @@ public final class RecipeViewerOverlay {
         }
     }
 
+    /** GUI 缩放后的鼠标 X（1.21.1 无 getScaledXPos——按 vanilla 同款换算
+     *  xpos * guiScaledWidth / screenWidth；直接取原始窗口坐标会在 guiScale>1
+     *  时锚点/命中判定全错位）。 */
     private static int mouseXFor() {
         var mc = Minecraft.getInstance();
-        return mc.mouseHandler != null ? (int) mc.mouseHandler.xpos() : 0;
+        if (mc.mouseHandler == null || mc.getWindow() == null) return 0;
+        double x = mc.mouseHandler.xpos();
+        int guiW = mc.getWindow().getGuiScaledWidth();
+        int winW = mc.getWindow().getScreenWidth();
+        return winW <= 0 ? (int) x : (int) (x * guiW / winW);
     }
 
+    /** GUI 缩放后的鼠标 Y（同上换算）。 */
     private static int mouseYFor() {
         var mc = Minecraft.getInstance();
-        return mc.mouseHandler != null ? (int) mc.mouseHandler.ypos() : 0;
+        if (mc.mouseHandler == null || mc.getWindow() == null) return 0;
+        double y = mc.mouseHandler.ypos();
+        int guiH = mc.getWindow().getGuiScaledHeight();
+        int winH = mc.getWindow().getScreenHeight();
+        return winH <= 0 ? (int) y : (int) (y * guiH / winH);
     }
 
     private static ItemStack recipeResult(RecipeHolder<?> holder) {

@@ -875,3 +875,19 @@ tooltip 替代）、幽灵放置（配方格点击仅吞+音）、tooltip 样式
 - **grid 类别退出浏览全部框体塌缩**：toggleBrowseAll 退出分支无条件 page 恢复+showPage；
   grid 类别 entries 恒空（rebuildGrid 不填）→ fitBoxToPage(0) 框体塌缩成 8px。
   修复：页面恢复仅配方类别执行（1.21.11 refreshCurrentCategory 同款分支结构）。
+
+**2026-08-29（二·续五）启动崩溃修复（用户实测报 12:07 启动失败，已重建部署）**：
+- 崩溃根因：`hideoverlay.AbstractContainerScreenMixin.brbe$viewerMouseScrolled` 的
+  `@Inject(method="mouseScrolled")` 目标不存在——**1.21.1 无 Screen/AbstractContainerScreen
+  的 mouseScrolled 分发链**（1.21.2+ 才有 4 参版；javap 21.1.248 运行时 client jar 实锤
+  两类均无该方法），滚轮只有 MouseHandler.onScroll 一条路。启动时 mixin 校验失败 →
+  InvalidInjectionException → 游戏直接崩溃。此前 javap 核对时把 patched jar 的
+  MouseHandler 调用点误当成 Screen 方法（教训：**注入点签名必须以运行时 jar 的
+  javap 为准，不能从调用点反推**）。
+- 修复：滚轮路由移入既有 `MouseScrollHandler.onScroll`（HEAD，cancellable）——
+  viewer 激活时换算 GUI 缩放坐标后交给 `RecipeViewerOverlay.mouseScrolled`，消费则
+  cancel 吞掉原版滚轮处理；hideoverlay mixin 移除失效注入。
+- 连带修复（GUI 缩放坐标 bug）：`mouseXFor/mouseYFor` 原来直接取原始窗口坐标
+  （xpos），guiScale>1（如 854x480 窗口）时 viewer 锚点/按键命中判定全部错位。
+  改为 vanilla 同款换算 `xpos * guiScaledWidth / screenWidth`（1.21.1 无
+  getScaledXPos）。

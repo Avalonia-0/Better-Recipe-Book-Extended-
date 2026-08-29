@@ -104,15 +104,6 @@ public abstract class AbstractContainerScreenMixin {
         }
     }
 
-    /** 查询浮层滚轮：viewer 打开的模态层吞掉滚轮（翻页/切标签/滑工作站列）。 */
-    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true)
-    private void brbe$viewerMouseScrolled(double mouseX, double mouseY, double horizontal,
-                                          double vertical, CallbackInfoReturnable<Boolean> cir) {
-        if (RecipeViewerOverlay.mouseScrolled(mouseX, mouseY, vertical)) {
-            cir.setReturnValue(true);
-        }
-    }
-
     /** viewer 打开时抑制容器槽位 tooltip（viewer 自己的 tooltip 在最上层绘制）。 */
     @Inject(method = "renderTooltip", at = @At("HEAD"), cancellable = true)
     private void brbe$suppressSlotTooltipWhileViewer(GuiGraphics gui, int mouseX, int mouseY,
