@@ -220,4 +220,42 @@ public final class PopupRenderer {
             return ItemStack.EMPTY;
         }
     }
+
+    /** 按给定内容区 (x,y,w,h) 缩放渲染 JEI 条目完整 UI（tooltip 内嵌预览用；
+     *  fit = min(w/layoutW, h/layoutH)）。返回 null = 无布局/no-JEI。 */
+    public static int[] renderJeiPopupScaled(GuiGraphics gui, RecipeViewerEngine.JeiEntry entry,
+                                             int x, int y, int w, int h) {
+        if (entry == null || entry.layoutWidth() <= 0 || entry.layoutHeight() <= 0) {
+            return null;
+        }
+        float fit = Math.min(w / (float) entry.layoutWidth(), h / (float) entry.layoutHeight());
+        // 借用 1:1 委托：以 fit 为目标（renderer 内部 fit = min((60*s)/rw,(60*s)/rh)
+        // 且封顶 2*s——取 s = max(rw,rh)/floor(fit*60... 简化：直接用 1:1 委托并
+        // 以内容原点为中心；缩放由调用方 pose 控制。）
+        float s = Math.max(entry.layoutWidth(), entry.layoutHeight()) / 60.0f;
+        try {
+            Class<?> registryClass = Class.forName("com.alonie.brbe.jei.api.JeiRecipeRegistry");
+            Class<?> entryClass = Class.forName("com.alonie.brbe.jei.api.JeiRecipeRegistry$Entry");
+            Class<?> rendererClass = Class.forName("com.alonie.brbe.jei.api.JeiPopupRenderer");
+            Object bridgeEntry = entryClass.getConstructor(
+                            net.minecraft.resources.ResourceLocation.class,
+                            Object.class, List.class, List.class, List.class, int.class, int.class)
+                    .newInstance(entry.typeUid(), entry.recipe(),
+                            entry.inputs() == null ? List.of() : entry.inputs(),
+                            entry.outputs() == null ? List.of() : entry.outputs(),
+                            entry.slots() == null ? List.of() : entry.slots(), 0, 0);
+            gui.pose().pushPose();
+            gui.pose().translate(x + w / 2f, y + h / 2f, 0);
+            gui.pose().scale(fit, fit, 1.0F);
+            gui.pose().translate(-(entry.layoutWidth() / 2f), -(entry.layoutHeight() / 2f), 0);
+            Object result = rendererClass.getMethod("render", entryClass, GuiGraphics.class,
+                            int.class, int.class, int.class, int.class, float.class)
+                    .invoke(null, bridgeEntry, gui, 0, 0, 0, 0, s);
+            gui.pose().popPose();
+            return (int[]) result;
+        } catch (Exception | LinkageError e) {
+            return null;
+        }
+    }
+
 }

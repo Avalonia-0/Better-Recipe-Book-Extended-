@@ -605,6 +605,11 @@ public final class RecipeViewerOverlay {
         if (com.alonie.brbe.pinoverlay.PinOverlayManager.handleMouseScrolled(mouseX, mouseY, vertical)) {
             return true;
         }
+        // Alt+滚轮：步进轮循变体（最高优先，1.21.11 语义）
+        if (vertical != 0 && isCycleAltDown() && active) {
+            stepCycledVariants(vertical);
+            return true;
+        }
         if (!active) return false;
         // Shift 预览弹窗吞掉滚轮（翻页会重建按钮销毁弹窗）
         if (popupOpen) return true;
@@ -2053,6 +2058,13 @@ public final class RecipeViewerOverlay {
                     .append(inputs.get(0).getHoverName().copy()
                             .append(Component.literal(suffix)))));
         }
+        // 内嵌完整预览（1.21.11 RecipePreviewTooltipComponent 语义；JEI 0.6x
+        // / vanilla 48x48）——仅配方条目
+        if (e.holder() != null || (e.jei() != null && e.jei().layoutWidth() > 0)) {
+            components.add(new com.alonie.brbe.render.RecipePreviewTooltipComponent(
+                    e.holder(), e.jei(), PopupRenderer.modeFor(
+                            currentCategory == null ? null : currentCategory.id())));
+        }
         // 模组名
         if (BetterRecipeBook.config.showModName) {
             Component mod = ModNameUtil.getFormattedModName(result);
@@ -2089,6 +2101,56 @@ public final class RecipeViewerOverlay {
             return filtered;
         }
         return icons;
+    }
+
+
+    // ── 变体轮循（Alt+滚轮手工步进；1.21.11 stepCycledVariants 的 1.21.1 版） ──
+
+    /** 手动轮循开启期间冻结的 time 值（索引由 time/30 递推）。 */
+    private static float cycleFrozenTime = -1f;
+    /** 各按钮轮循偏移（按钮 index → 额外步进）。 */
+    private static final java.util.Map<Integer, Integer> manualCycleOffsets = new java.util.HashMap<>();
+    private static boolean cyclePaused;
+
+    private static boolean isCycleAltDown() {
+        return ClientCompat.isAltDown();
+    }
+
+    /** Alt+滚轮：步进悬停按钮的轮循变体（1.21.11 语义自由化版）。 */
+    private static void stepCycledVariants(double vertical) {
+        if (!active) return;
+        Minecraft mc = Minecraft.getInstance();
+        int mx = mouseXFor();
+        int my = mouseYFor();
+        // grid 模式无按钮
+        if (isGridMode() || currentCollection == null) return;
+        int li = cellIndexAt(mx, my);
+        if (li < 0) return;
+        int delta = vertical > 0 ? -1 : 1;
+        manualCycleOffsets.merge(li, delta, Integer::sum);
+        cyclePaused = true;
+        // 冻结 time：按钮 currentIndex = floor(time/30+offset) % size
+        if (cycleFrozenTime < 0) {
+            cycleFrozenTime = ((OverlayRecipeComponentAccessor) (Object) overlayComponent).getTime();
+        }
+    }
+
+    private static int cellIndexAt(double mx, double my) {
+        if (pageEntries == null) return -1;
+        for (int li = 0; li < pageEntries.size(); li++) {
+            int[] cell = gridCellFor(li);
+            if (inside(mx, my, cell[0], cell[1], 25, 25)) return li;
+        }
+        return -1;
+    }
+
+    /** 按钮的轮循索引（渲染期被 overlay 读用——实际实施：直接推进按钮的
+     *  time 字段不具备；1.21.1 的 OverlayRecipeButton.currentIndex 由组件 time
+     *  派生。此处以偏移注入替代——渲染 path 在 {@code showPage} 后无干预，
+     *  故轮循步进仅对 JEI 弹窗有效（headless-jei drawable 的 tick 步进）。 */
+    public static int currentSlotSelectIndex(int autoIndex) {
+        if (!cyclePaused || manualCycleOffsets.isEmpty()) return autoIndex;
+        return autoIndex + manualCycleOffsets.getOrDefault(0, 0);
     }
 
 }
