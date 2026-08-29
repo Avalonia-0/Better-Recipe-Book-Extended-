@@ -2104,53 +2104,44 @@ public final class RecipeViewerOverlay {
     }
 
 
-    // ── 变体轮循（Alt+滚轮手工步进；1.21.11 stepCycledVariants 的 1.21.1 版） ──
+    // ── 变体轮循（Alt+滚轮手工步进；1.21.11 SlotSelectTime 语义的 1.21.1 版） ──
 
-    /** 手动轮循开启期间冻结的 time 值（索引由 time/30 递推）。 */
-    private static float cycleFrozenTime = -1f;
-    /** 各按钮轮循偏移（按钮 index → 额外步进）。 */
-    private static final java.util.Map<Integer, Integer> manualCycleOffsets = new java.util.HashMap<>();
+    /** Alt 按住期间冻结的轮循索引（松开后自动轮循恢复）。 */
+    private static int manualCycleIndex = -1;
     private static boolean cyclePaused;
 
     private static boolean isCycleAltDown() {
         return ClientCompat.isAltDown();
     }
 
-    /** Alt+滚轮：步进悬停按钮的轮循变体（1.21.11 语义自由化版）。 */
-    private static void stepCycledVariants(double vertical) {
-        if (!active) return;
-        Minecraft mc = Minecraft.getInstance();
-        int mx = mouseXFor();
-        int my = mouseYFor();
-        // grid 模式无按钮
-        if (isGridMode() || currentCollection == null) return;
-        int li = cellIndexAt(mx, my);
-        if (li < 0) return;
-        int delta = vertical > 0 ? -1 : 1;
-        manualCycleOffsets.merge(li, delta, Integer::sum);
-        cyclePaused = true;
-        // 冻结 time：按钮 currentIndex = floor(time/30+offset) % size
-        if (cycleFrozenTime < 0) {
-            cycleFrozenTime = ((OverlayRecipeComponentAccessor) (Object) overlayComponent).getTime();
-        }
-    }
-
-    private static int cellIndexAt(double mx, double my) {
-        if (pageEntries == null) return -1;
-        for (int li = 0; li < pageEntries.size(); li++) {
-            int[] cell = gridCellFor(li);
-            if (inside(mx, my, cell[0], cell[1], 25, 25)) return li;
-        }
-        return -1;
-    }
-
-    /** 按钮的轮循索引（渲染期被 overlay 读用——实际实施：直接推进按钮的
-     *  time 字段不具备；1.21.1 的 OverlayRecipeButton.currentIndex 由组件 time
-     *  派生。此处以偏移注入替代——渲染 path 在 {@code showPage} 后无干预，
-     *  故轮循步进仅对 JEI 弹窗有效（headless-jei drawable 的 tick 步进）。 */
+    /** The slot-select cycle index used by every BRBE front-end (viewer overlay
+     *  buttons, popup, tooltip preview, pin): while Alt is held the rotation
+     *  freezes on the Alt-press index and Alt+wheel steps it; on release the
+     *  automatic cycle resumes (1.21.11 currentSlotSelectIndex 语义）。 */
     public static int currentSlotSelectIndex(int autoIndex) {
-        if (!cyclePaused || manualCycleOffsets.isEmpty()) return autoIndex;
-        return autoIndex + manualCycleOffsets.getOrDefault(0, 0);
+        boolean alt = isCycleAltDown();
+        if (alt) {
+            if (!cyclePaused) {
+                cyclePaused = true;
+                manualCycleIndex = autoIndex;
+            }
+        } else if (cyclePaused) {
+            cyclePaused = false;
+            manualCycleIndex = -1;
+        }
+        return cyclePaused ? manualCycleIndex : autoIndex;
     }
 
+    /** Alt+wheel: step the paused slot-select index for the viewer's overlay
+     *  buttons (the overlay .time / 30 % len auto-cycle freezes under Alt). */
+    private static boolean stepCycledVariants(double vertical) {
+        cyclePaused = true;
+        if (manualCycleIndex < 0) {
+            manualCycleIndex = (int) (((OverlayRecipeComponentAccessor) (Object) overlayComponent)
+                    .getTime() / 30);
+        }
+        manualCycleIndex += vertical > 0 ? -1 : 1;
+        if (manualCycleIndex < 0) manualCycleIndex = 0;
+        return true;
+    }
 }

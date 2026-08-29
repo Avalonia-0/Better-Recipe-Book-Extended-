@@ -88,7 +88,10 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
                 gui.pose().translate(-8.0, -8.0, 0.0);
                 ItemStack[] ingredients = pos.brbe$getIngredients();
                 if (ingredients.length > 0) {
-                    gui.renderItem(ingredients[Mth.floor(((OverlayRecipeComponentAccessor) field_3113).getTime() / 30.0f) % ingredients.length], 0, 0);
+                    int autoIndex = Mth.floor(((OverlayRecipeComponentAccessor) field_3113).getTime() / 30.0f);
+                    // Alt 按住时冻结/Alt+滚轮步进轮循（1.21.11 semantic）
+                    int selIdx = com.alonie.brbe.util.RecipeViewerOverlay.currentSlotSelectIndex(autoIndex);
+                    gui.renderItem(ingredients[Math.floorMod(selIdx, ingredients.length)], 0, 0);
                 }
                 gui.pose().popPose();
             }
