@@ -299,7 +299,7 @@ public abstract class RecipeBookPageAnimationMixin {
         boolean isPartial = current != null && PartialCraftingUtil.isPartiallyCraftable(c, current);
         if (effW < 25) {
             // 伪压缩：内容在 [effX, edgeRight] 内裁剪（中间随滑动变短），左右边界 2px
-            // 独立渲染（边框完整不缩放）。图标在边界线之后渲染，完整跟随配方滑出视窗。
+            // 独立渲染（边框完整不缩放）。
             // 内容 scissor 右边界收窄 1px：原版 sprite 最右列（col24）顶部 1px 是
             // 透明的，若内容画到该列，滚动时下层配方会从缺口漏出。收窄后缺口处
             // 不绘制任何下层内容，仅显示背景（保持透明效果）。
@@ -308,11 +308,11 @@ public abstract class RecipeBookPageAnimationMixin {
             if (isPartial) {
                 brbe$renderPartialMark(gui, effX, y, effW);
             }
-            gui.disableScissor();
-            // 图标（边界线前渲染，边界线将盖住经过的图标）——与 1.21.11 的
-            // renderVisualSquashed 逐行一致：图标在内容 scissor 之外完整渲染，
-            // 随后绘制的边框条覆盖其经过的边缘。
+            // 图标在内容 scissor **内**渲染（用户验收标准：滑动中图标被单元格
+            // 边界裁住，不得盖在边界之上——2026-08-29 用户再次确认此要求）；
+            // 边框条随后渲染，覆盖图标经过的边缘。
             brbe$renderItemIcon(snap, gui, x, y);
+            gui.disableScissor();
             // 移动方向的前方边缘盖住后方边缘：配方左移时左边界最后渲染（在上层）
             boolean movingLeft = x < effX;
             if (movingLeft) {
