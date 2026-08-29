@@ -105,7 +105,8 @@ public final class RecipeViewerIndex {
         if (mc.player == null || mc.level == null) return List.of();
         RecipeManager manager = mc.level.getRecipeManager();
         Set<ResourceLocation> known =
-                ((RecipeBookAccessor) mc.player.getRecipeBook()).brbe$getKnown();
+                ((RecipeBookAccessor) (net.minecraft.stats.RecipeBook) mc.player.getRecipeBook())
+                        .brbe$getKnown();
         if (known == null || known.isEmpty()) return List.of();
         List<RecipeHolder<?>> out = new ArrayList<>(known.size());
         for (ResourceLocation id : known) {
