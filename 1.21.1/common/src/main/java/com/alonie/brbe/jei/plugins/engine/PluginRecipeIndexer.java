@@ -55,10 +55,14 @@ public final class PluginRecipeIndexer {
 
     private PluginRecipeIndexer() {}
 
-    /** No-recipe-book vanilla JEI workstation types indexed from the JEI
-     *  runtime (anvil/brewing/grindstone). */
+    /** Vanilla JEI types indexed from the JEI runtime.  anvil/brewing/grindstone
+     *  are runtime-built (no datapack holders) — full entries.  stonecutting/
+     *  smithing have datapack holders indexed by the consumer (BRBE 引擎的
+     *  RecipeManager known 集通道）；这里只提供原生 layout（弹窗委托完整 JEI UI
+     *  所需），消费者按 holder id 附着而不是重复注册。 */
     private static final List<String> VANILLA_PLUGIN_TYPES =
-            List.of("minecraft:anvil", "minecraft:brewing", "minecraft:grindstone");
+            List.of("minecraft:anvil", "minecraft:brewing", "minecraft:grindstone",
+                    "minecraft:stonecutting", "minecraft:smithing");
 
     private static final Map<ResourceLocation, IRecipeCategory<?>> CATEGORIES = new HashMap<>();
     /** uid → JEI 类型（渲染委托用：createRecipeLayoutDrawable 需要 manager 的
