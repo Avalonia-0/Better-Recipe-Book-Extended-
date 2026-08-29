@@ -1,0 +1,16 @@
+{
+  "jars": [
+    {
+      "identifier": {
+        "group": "com.alonie.headlessjei",
+        "artifact": "headless-jei-neoforge-1.21.1"
+      },
+      "version": {
+        "range": "[1.0.0,)",
+        "artifactVersion": "1.0.0"
+      },
+      "path": "META-INF/jarjar/headless-jei-neoforge-1.21.1-1.0.0.jar",
+      "isObfuscated": false
+    }
+  ]
+}
