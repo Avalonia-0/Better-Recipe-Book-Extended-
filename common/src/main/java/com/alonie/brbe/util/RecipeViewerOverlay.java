@@ -406,6 +406,11 @@ public final class RecipeViewerOverlay {
     // ── 键输入（1.21.11 语义：captureTarget 捕获 + R/U/A/ESC/O） ─────────────
     public static boolean keyPressed(int keyCode, int scanCode, int modifiers,
                                      AbstractContainerScreen<?> screen) {
+        // JVM 盾：查询功能整体屏蔽（brbe.disableRecipeViewer=true，默认）——
+        // R/U 打不开、不渲染。A 键 pin 走 PinOverlayManager（独立于 viewer），
+        // 仍可用；配方书 pin 走 mixins/pins，更不受影响。
+        if (com.alonie.brbe.config.RecipeViewerFeatureFlag.isDisabled()) return false;
+
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen != screen) return false;
 
@@ -667,6 +672,7 @@ public final class RecipeViewerOverlay {
 
     // ── 渲染 ────────────────────────────────────────────────────────────────
     public static void render(GuiGraphics gui, int mouseX, int mouseY, float delta) {
+        if (com.alonie.brbe.config.RecipeViewerFeatureFlag.isDisabled()) return;
         if (!active) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen != hostScreen) {
@@ -1139,6 +1145,7 @@ public final class RecipeViewerOverlay {
     // ── tooltip ─────────────────────────────────────────────────────────────
     /** Deferred tooltip pass（after-render 通道最上层绘制）。 */
     public static void renderTooltip(GuiGraphics gui, int mouseX, int mouseY) {
+        if (com.alonie.brbe.config.RecipeViewerFeatureFlag.isDisabled()) return;
         if (!active) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen != hostScreen) {

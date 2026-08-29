@@ -37,6 +37,10 @@ public final class KeybindingGuiRegistrar {
                     "text.autoconfig.brbe.option.usageViewKey.@Tooltip",
                     BetterRecipeBook.USAGE_VIEW_MAPPING));
 
+    /** JVM 盾：查询功能整体屏蔽时隐藏其两个键位配置项（R/U）。pin key 独立保留。 */
+    private static final java.util.Set<String> QUERY_KEY_FIELDS =
+            java.util.Set.of("recipeViewKey", "usageViewKey");
+
     private KeybindingGuiRegistrar() {
     }
 
@@ -44,6 +48,11 @@ public final class KeybindingGuiRegistrar {
         try {
             GuiRegistry registry = AutoConfig.getGuiRegistry(BrbeConfig.class);
             registry.registerPredicateProvider((i18n, field, config, defaults, registryAccess) -> {
+                // 查询功能屏蔽（brbe.disableRecipeViewer=true，默认）→ 隐藏 R/U 键位项。
+                if (com.alonie.brbe.config.RecipeViewerFeatureFlag.isDisabled()
+                        && QUERY_KEY_FIELDS.contains(field.getName())) {
+                    return List.of();
+                }
                 KeybindingField kb = FIELDS.stream()
                         .filter(f -> f.fieldName().equals(field.getName()))
                         .findFirst().orElse(null);

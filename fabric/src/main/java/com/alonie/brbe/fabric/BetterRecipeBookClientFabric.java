@@ -12,6 +12,7 @@ import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import com.alonie.brbe.config.KeybindingGuiRegistrar;
 import com.alonie.brbe.config.PinyinSearchGuiRegistrar;
+import com.alonie.brbe.config.RecipeViewerGuiRegistrar;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.fabric.FabricPlatform;
 import net.fabricmc.api.ClientModInitializer;
@@ -95,6 +96,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         EmiCompat.register();
         KeybindingGuiRegistrar.register();
         PinyinSearchGuiRegistrar.register();
+        RecipeViewerGuiRegistrar.register();
 
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             this.registeredScreens.remove(screen);

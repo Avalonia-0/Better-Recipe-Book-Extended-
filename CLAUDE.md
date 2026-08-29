@@ -1323,3 +1323,33 @@ resources 内 META-INF/jars|jarjar 的 JIJ jar）→ BRBE 双端 build → 原�
 完整 JEI 界面（切石 82x34、锻造 108x28，含槽位背景/箭头）；无布局时回退正常。
 **下一步**：阶段二 B 剩余项（审计 §5 的引擎级 DisplayEntry 统一抽象——本轮回合
 以"holder 附着 + attachedJeiEntry"保行为等价，未做全量提升；如需逐行等价再补）。
+
+## 2026-08-30（十一轮）：JVM 启动参数屏蔽查询功能（仅 1.21.1）
+
+用户决策：加一个 JVM 启动参数暂时屏蔽 R/U 查询 viewer（"查询功能"）。值为
+`true` 时隐藏上述功能及其配置项，默认 `true`（即默认屏蔽）。**仅 1.21.1 分支**，
+其他分支不动。
+
+**落地（4 文件 + 2 新文件）**：
+- `config/RecipeViewerFeatureFlag`（新）：`brbe.disableRecipeViewer`，默认 `true`
+  即屏蔽；设 `-Dbrbe.disableRecipeViewer=false` 恢复。类加载时一次性判定，
+  与 `BrbeLogger`（brbe.debug）同一 JVM 属性约定。
+- 运行时屏蔽：`RecipeViewerOverlay.keyPressed` 开头 `isDisabled() → return false`
+  （R/U 打不开、重开 no-op）；`render`/`renderTooltip` 开头同样 return（不渲染）。
+  因 `active` 恒 false，mouseClicked 等也自然 no-op。
+- 配置 GUI 屏蔽：
+  - `KeybindingGuiRegistrar`：屏蔽时对 `recipeViewKey`/`usageViewKey` 两个
+    键位字段的 predicate provider 返回 `List.of()`（隐藏 R/U 键位项）。
+  - `RecipeViewerGuiRegistrar`（新）：仅屏蔽时注册 predicate provider，对
+    `recipeViewerEnabled`/`hideNoRecipeBookStationObjects` 返回 `List.of()`
+    （隐藏布尔开关项）。未屏蔽时不注册——保留这两字段的 AutoConfig 默认渲染
+    （含 `@PrefixText` 等）。
+- 双端入口：fabric/neoforge `BetterRecipeBookClient*` 各加
+  `RecipeViewerGuiRegistrar.register()`（KeybindingGuiRegistrar 旁）。
+
+**不影响**：配方书 pin（`mixins/pins/AbstractContainerScreenMixin` 直连
+PinnedRecipeManager，独立于 viewer）；A 键 pin（PinOverlayManager，无 viewer
+时按类别查询创建）。`BrbeJeiBridge.refresh()` 仍每 tick 指纹去重（cheap），
+不额外加闸——viewer 屏蔽后其消费方停用，数据无害。
+
+**待用户实测**：启动后按 R/U 无反应、配置界面无查询相关项；`-D...=false` 恢复。
