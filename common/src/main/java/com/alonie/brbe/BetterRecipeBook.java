@@ -111,6 +111,7 @@ public class BetterRecipeBook {
         PotionLoader.init();
         ReiCompat.register();
         EmiCompat.register();
+        com.alonie.brbe.pinoverlay.PinOverlayManager.init();
 
         queuedScroll = 0;
 

@@ -118,15 +118,66 @@ public final class RecipeViewerEngine {
         return VANILLA_TYPES.contains(uid);
     }
 
+    // -- Recipe-book-station tracking (hideNoRecipeBookStationObjects) --------
+
+    /** Workstation block items that have a recipe-book UI (vanilla
+     *  recipeBook=true stations; mod stations of recipe-book-driven types are
+     *  appended by the collector).  Rebuilt with every collection pass. */
+    private static final Set<Item> RECIPE_BOOK_STATION_ITEMS = new LinkedHashSet<>();
+
+    /** Recipe-book-driven mod type ids (recipeBook=true external stations). */
+    private static final Set<String> RECIPE_BOOK_TYPES = new LinkedHashSet<>();
+
+    /** Replace the recipe-book-station item set (called on every engine
+     *  rebuild / JEI collection pass). */
+    public static void setRecipeBookStationItems(java.util.Collection<ItemStack> stations) {
+        RECIPE_BOOK_STATION_ITEMS.clear();
+        if (stations != null) {
+            for (ItemStack station : stations) {
+                if (station != null && !station.isEmpty()) {
+                    RECIPE_BOOK_STATION_ITEMS.add(station.getItem());
+                }
+            }
+        }
+    }
+
+    /** Mark a type id as recipe-book-driven (external station registered for a
+     *  type with a recipe-book UI). */
+    public static void registerRecipeBookType(String uid) {
+        if (uid != null) RECIPE_BOOK_TYPES.add(uid);
+    }
+
+    /** Whether {@code station} is a recipe-book-backed workstation block (the
+     *  authority signal for hideNoRecipeBookStationObjects). */
+    public static boolean isRecipeBookStation(ItemStack station) {
+        return station != null && !station.isEmpty()
+                && RECIPE_BOOK_STATION_ITEMS.contains(station.getItem());
+    }
+
+    /** Whether {@code uid} is a recipe-book-driven type. */
+    public static boolean isRecipeBookType(String uid) {
+        return RECIPE_BOOK_TYPES.contains(uid);
+    }
+
     // -- JEI (headless embedded runtime) entries ------------------------------
 
+    /** One slot of a JEI recipe's native layout (from headless-jei's
+     *  {@code JeiRecipeRegistry.Entry.Slot}: x/y are layout-local px,
+     *  role is the {@code RecipeIngredientRole} ordinal). */
+    public record JeiSlot(int x, int y, int role, List<ItemStack> stacks) {}
+
     /** A recipe collected from a JEI plugin (embedded headless core or real
-     *  JEI): its JEI type uid, the raw recipe object (e.g. {@code
-     *  IJeiAnvilRecipe} / a mod's recipe object) and its already-extracted
-     *  item inputs/outputs.  Rendered by the popup through {@code
-     *  IRecipeManager#createRecipeLayoutDrawable}. */
+     *  JEI): its JEI type uid, the raw recipe object and its already-extracted
+     *  item inputs/outputs.  {@code slots}/{@code layoutWidth}/{@code layoutHeight}
+     *  carry the recipe's native JEI layout when available (headless-jei bridge
+     *  passes them through) — the popup geometry uses them for 1:1 rendering. */
     public record JeiEntry(ResourceLocation typeUid, Object recipe,
-                           List<ItemStack> inputs, List<ItemStack> outputs) {
+                           List<ItemStack> inputs, List<ItemStack> outputs,
+                           List<JeiSlot> slots, int layoutWidth, int layoutHeight) {
+        public JeiEntry(ResourceLocation typeUid, Object recipe,
+                        List<ItemStack> inputs, List<ItemStack> outputs) {
+            this(typeUid, recipe, inputs, outputs, null, 0, 0);
+        }
     }
 
     private static final Map<String, JeiTypeData> JEI_TYPES = new LinkedHashMap<>();
@@ -181,6 +232,12 @@ public final class RecipeViewerEngine {
     /** Callback fired whenever the engine content is rebuilt. */
     public static void addRebuildListener(Runnable listener) {
         REBUILD_LISTENERS.add(listener);
+    }
+
+    /** Publishes a rebuild notification (index layer calls after a full
+     *  reconstruction; keeps the listener list here). */
+    public static void notifyRebuiltPublic() {
+        notifyRebuilt();
     }
 
     private static void notifyRebuilt() {

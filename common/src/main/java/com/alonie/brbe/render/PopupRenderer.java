@@ -4,128 +4,31 @@ import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
 import net.minecraft.client.gui.GuiGraphics;
-import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
- * 1.21.1 版配方弹窗渲染（Shift 预览）。
+ * 1.21.1 版配方弹窗渲染（1.21.11 PopupRenderer 移植；RecipeHolder/JEI 条目双路径）。
  *
- * <p>对照 1.21.11 的 PopupRenderer：本版按旧 Recipe 模型（RecipeHolder +
- * getIngredients/getResultItem）渲染固定布局——crafting 网格（3x2 输入+结果）、
- * furnace 双槽（输入+火焰+结果）、stonecutting/smithing 双槽、generic 条目行。
- * JEI 条目（无头核心采集的 anvil/grindstone/mod 配方）经 {@link #renderJeiPopup}
- * 委托 IRecipeManager#createRecipeLayoutDrawable 渲染完整 JEI 界面。</p>
+ * <p>JEI 条目（带原生槽位布局）：经 PopupGeometry.adaptedSynthetic 计算 1:1
+ * 原始尺寸几何，再委托 headless-jei 的 {@code JeiPopupRenderer.render}
+ * （反射桥）完整渲染 JEI 界面（类别背景/槽位/文字），返回面板矩形。
+ * 无布局/no-JEI → 回退 {@link #renderVanillaPopup}（1.21.1 轻量布局）。</p>
+ *
+ * <p>vanilla 配方（RecipeHolder）：PopupGeometry.vanilla 固定 2x 弹窗。
+ * 与 1.21.11 的语义差异：无 RecipeDisplay/SlotDisplay——槽位从
+ * getIngredients()/getResultItem() 提取。</p>
  */
 public final class PopupRenderer {
 
-    /** 弹窗面板尺寸（加大版预览）。 */
+    /** 弹窗面板尺寸（vanilla 回退布局）。 */
     public static final int POPUP_W = 60;
     public static final int POPUP_H = 60;
 
-    /** 清空 JEI 布局缓存（索引重建时调用；独立项目渲染器在
-     *  {@link #renderJeiPopup} 时自动 Re-JEINIT——此钩子保留为 no-op）。 */
-    public static void invalidateJeiCache() {
-    }
-
     private PopupRenderer() {}
-
-    /**
-     * Render the recipe as a fixed 48x48 popup centered at {@code x+24, y+24}
-     * (button anchor); returns the popup's top-left origin.
-     */
-    public static int[] renderRecipePopup(GuiGraphics gui,
-                                          RecipeHolder<?> holder,
-                                          int mode, boolean craftable, boolean partial,
-                                          int x, int y, int w, int h,
-                                          boolean hover, float scale) {
-        int ox = (int) (x + w / 2f - 24 * scale);
-        int oy = (int) (y + h / 2f - 24 * scale);
-        gui.pose().pushPose();
-        gui.pose().translate(ox, oy, 0);
-        gui.pose().scale(scale, scale, 1.0F);
-        renderContent(gui, holder, mode, hover);
-        gui.pose().popPose();
-        return new int[] {ox, oy, (int) (48 * scale), (int) (48 * scale)};
-    }
-
-    private static void renderContent(GuiGraphics gui, RecipeHolder<?> holder,
-                                      int mode, boolean hover) {
-        List<ItemStack> inputs = inputsOf(holder);
-        ItemStack result = resultOf(holder);
-        switch (mode) {
-            case MODE_FURNACE -> renderFurnace(gui, inputs, result, hover);
-            case MODE_STONECUTTING, MODE_SMITHING -> renderFixedPair(gui, inputs, result, hover);
-            default -> renderCrafting(gui, inputs, result);
-        }
-    }
-
-    /** Crafting: 3x2 ingredient grid + result, at 2x scale (like 1.21.11
-     *  renderGenericCrafting 的 vanilla 弹窗）。 */
-    private static void renderCrafting(GuiGraphics gui, List<ItemStack> inputs, ItemStack result) {
-        // Panel backdrop (56x56 dark panel)
-        gui.fill(-4, -4, 52, 52, 0xE0000000);
-        for (int i = 0; i < Math.min(inputs.size(), 6); i++) {
-            int cx = i % 3;
-            int cy = i / 3;
-            scaledItem(gui, inputs.get(i), 2 + cx * 9, 2 + cy * 9);
-        }
-        if (!result.isEmpty()) {
-            scaledItem(gui, result, 40, 2);
-        }
-    }
-
-    /** Furnace: ingredient left, result right; 2x。 */
-    private static void renderFurnace(GuiGraphics gui, List<ItemStack> inputs, ItemStack result, boolean hover) {
-        gui.fill(-4, -4, 52, 52, 0xE0000000);
-        scaledItem(gui, inputs.isEmpty() ? ItemStack.EMPTY : inputs.get(0), 2, 2);
-        ClientCompat.blitSprite(gui, BRBTextures.FURNACE_FIRE_SPRITE, 6, 15, 6, 6);
-        if (!result.isEmpty()) {
-            scaledItem(gui, result, 38, 2);
-        }
-    }
-
-    /** Stonecutter/smithing: input left, result right。 */
-    private static void renderFixedPair(GuiGraphics gui, List<ItemStack> inputs, ItemStack result, boolean hover) {
-        gui.fill(-4, -4, 52, 52, 0xE0000000);
-        scaledItem(gui, inputs.isEmpty() ? ItemStack.EMPTY : inputs.get(0), 2, 2);
-        if (!result.isEmpty()) {
-            scaledItem(gui, result, 38, 2);
-        }
-    }
-
-    /** 0.6-scaled 16px icon (translate is the top-left). */
-    private static void scaledItem(GuiGraphics gui, ItemStack stack, int tx, int ty) {
-        if (stack.isEmpty()) return;
-        gui.pose().pushPose();
-        gui.pose().translate(tx, ty, 0);
-        gui.pose().scale(0.6f, 0.6f, 1.0F);
-        gui.renderItem(stack, 0, 0);
-        gui.pose().popPose();
-    }
-
-    private static List<ItemStack> inputsOf(RecipeHolder<?> holder) {
-        java.util.List<ItemStack> out = new java.util.ArrayList<>();
-        for (Ingredient ingredient : holder.value().getIngredients()) {
-            ItemStack[] stacks = ingredient.getItems();
-            if (stacks.length > 0) out.add(stacks[0]);
-        }
-        return out;
-    }
-
-    private static ItemStack resultOf(RecipeHolder<?> holder) {
-        try {
-            var mc = net.minecraft.client.Minecraft.getInstance();
-            if (mc.level == null) return ItemStack.EMPTY;
-            return holder.value().getResultItem(mc.level.registryAccess());
-        } catch (Exception e) {
-            return ItemStack.EMPTY;
-        }
-    }
 
     // -- Mode constants (read from category id) ---------------------------------
 
@@ -133,24 +36,64 @@ public final class PopupRenderer {
     public static final int MODE_FURNACE = 1;
     public static final int MODE_STONECUTTING = 2;
     public static final int MODE_SMITHING = 3;
+    public static final int MODE_ANVIL = 4;
+    public static final int MODE_BREWING = 5;
+    public static final int MODE_GRINDSTONE = 6;
 
     /** Map a category to a popup render mode (fallback crafting). */
     public static int modeFor(String categoryId) {
         if (categoryId == null) return MODE_CRAFTING;
         return switch (categoryId) {
-            case "furnace" -> MODE_FURNACE;
+            case "furnace", "fuel" -> MODE_FURNACE;
             case "stonecutting" -> MODE_STONECUTTING;
             case "smithing" -> MODE_SMITHING;
+            case "anvil" -> MODE_ANVIL;
+            case "brewing" -> MODE_BREWING;
+            case "grindstone" -> MODE_GRINDSTONE;
             default -> MODE_CRAFTING;
         };
     }
 
-    // -- JEI delegated popup -----------------------------------------------------
+    /** Render a JEI entry's full UI at 1:1 (adapted-synthetic geometry),
+     *  delegating to headless-jei's JeiPopupRenderer (reflection).  Returns the
+     *  panel rect, or null when the mod is absent / layout is unavailable. */
+    public static int[] renderJeiPopup1to1(GuiGraphics gui, RecipeViewerEngine.JeiEntry entry,
+                                           int x, int y, int w, int h) {
+        if (entry == null || entry.slots() == null || entry.layoutWidth() <= 0
+                || entry.layoutHeight() <= 0) {
+            return null;
+        }
+        PopupGeometry geometry = PopupGeometry.adaptedSynthetic(entry, x, y, w, h);
+        int[] rect = renderJeiPopup(gui, entry,
+                Math.round(geometry.ox), Math.round(geometry.oy),
+                GeometryScale.ORIGINAL, entry.layoutWidth(), entry.layoutHeight());
+        if (rect != null) {
+            // 面板矩形（几何与渲染对齐：头less 渲染器以内容原点为中心）
+            int[] panel = new int[] { geometry.x, geometry.y, geometry.w, geometry.h };
+            geometrySlotCache = new GeometryRef(geometry, panel);
+            return panel;
+        }
+        return null;
+    }
+
+    private static GeometryRef geometrySlotCache;
+
+    /** (geometry, panel) 对——供 slotStackInPopup 命中判定复用。 */
+    public record GeometryRef(PopupGeometry geometry, int[] panel) {}
+
+    public static GeometryRef lastGeometry() {
+        return geometrySlotCache;
+    }
+
+    /** 1:1 时 renderer fit = min((60*s)/rw,(60*s)/rh) 以 s = max(rw,rh)/60 取得 ≈1.0。 */
+    private static final class GeometryScale {
+        static final float ORIGINAL = 1f;
+        private GeometryScale() {}
+    }
 
     /** Render a JEI-backed entry's full JEI UI (delegated reflectively to the
      *  standalone headless-jei mod's {@code JeiPopupRenderer}).  Returns null
-     *  when the mod is absent or the entry has no renderable layout (caller
-     *  falls back to button highlight). */
+     *  when the mod is absent or the entry has no renderable layout. */
     public static int[] renderJeiPopup(GuiGraphics gui, RecipeViewerEngine.JeiEntry entry,
                                        int x, int y, int w, int h, float scale) {
         try {
@@ -170,6 +113,111 @@ public final class PopupRenderer {
             return (int[]) result;
         } catch (Exception | LinkageError e) {
             return null;
+        }
+    }
+
+    /** 1:1 委托：按原始终尺寸渲染（scale 经 fit 公式反推）。 */
+    private static int[] renderJeiPopup(GuiGraphics gui, RecipeViewerEngine.JeiEntry entry,
+                                        int ox, int oy, float ignored,
+                                        int layoutW, int layoutH) {
+        // renderer 的 fit = min((60*s)/rw, (60*s)/rh) 且封顶 2*s。
+        // 取 s = max(lw,lh)/60 → fit == 1.0（1:1）。
+        float s = Math.max(layoutW, layoutH) / 60.0f;
+        try {
+            Class<?> registryClass = Class.forName("com.alonie.brbe.jei.api.JeiRecipeRegistry");
+            Class<?> entryClass = Class.forName("com.alonie.brbe.jei.api.JeiRecipeRegistry$Entry");
+            Class<?> rendererClass = Class.forName("com.alonie.brbe.jei.api.JeiPopupRenderer");
+            Object bridgeEntry = entryClass.getConstructor(
+                            net.minecraft.resources.ResourceLocation.class,
+                            Object.class, List.class, List.class, List.class, int.class, int.class)
+                    .newInstance(entry.typeUid(), entry.recipe(),
+                            entry.inputs() == null ? List.of() : entry.inputs(),
+                            entry.outputs() == null ? List.of() : entry.outputs(),
+                            entry.slots() == null ? List.of() : entry.slots(), 0, 0);
+            // 传内容原点为中心坐标：renderer 内部 ox = x + w/2 - rw*fit/2
+            // → 传 (ox + rw/2, oy + rh/2) 作为 x,y（w=h=0 时中心即原点）。
+            Object result = rendererClass.getMethod("render", entryClass, GuiGraphics.class,
+                            int.class, int.class, int.class, int.class, float.class)
+                    .invoke(null, bridgeEntry, gui, ox + layoutW / 2, oy + layoutH / 2,
+                            0, 0, s);
+            return (int[]) result;
+        } catch (Exception | LinkageError e) {
+            return null;
+        }
+    }
+
+    /** Vanilla popup (fixed 2x geometric layouts).  Returns the popup's
+     *  top-left origin + size. */
+    public static int[] renderRecipePopup(GuiGraphics gui,
+                                          RecipeHolder<?> holder,
+                                          int mode, boolean craftable, boolean partial,
+                                          int x, int y, int w, int h,
+                                          boolean hover, float scale) {
+        PopupGeometry geometry = PopupGeometry.vanilla(holder, mode, null, x, y, w, h);
+        gui.pose().pushPose();
+        gui.pose().translate(x + w / 2f, y + h / 2f, 0);
+        gui.pose().scale(scale, scale, 1.0F);
+        gui.pose().translate(-(x + w / 2f), -(y + h / 2f), 0);
+        renderVanillaContent(gui, holder, mode, hover);
+        if (partial && mode != MODE_CRAFTING) {
+            gui.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x60FF3333);
+        }
+        gui.pose().popPose();
+        return new int[] {geometry.x, geometry.y, geometry.w, geometry.h};
+    }
+
+    /** Vanilla popup content: 48x48 dark panel (按钮中心缩放保持旧调用兼容）。 */
+    private static void renderVanillaContent(GuiGraphics gui, RecipeHolder<?> holder,
+                                             int mode, boolean hover) {
+        gui.fill(-4, -4, 52, 52, 0xE0000000);
+        List<ItemStack> inputs = inputsOf(holder);
+        ItemStack result = resultOf(holder);
+        switch (mode) {
+            case MODE_FURNACE -> {
+                scaledItem(gui, inputs.isEmpty() ? ItemStack.EMPTY : inputs.get(0), 2, 2);
+                ClientCompat.blitSprite(gui, BRBTextures.FURNACE_FIRE_SPRITE, 6, 15, 6, 6);
+                if (!result.isEmpty()) scaledItem(gui, result, 38, 2);
+            }
+            case MODE_STONECUTTING, MODE_SMITHING, MODE_ANVIL, MODE_BREWING,
+                 MODE_GRINDSTONE -> {
+                scaledItem(gui, inputs.isEmpty() ? ItemStack.EMPTY : inputs.get(0), 2, 2);
+                if (!result.isEmpty()) scaledItem(gui, result, 38, 2);
+            }
+            default -> {
+                for (int i = 0; i < Math.min(inputs.size(), 6); i++) {
+                    scaledItem(gui, inputs.get(i), 2 + (i % 3) * 9, 2 + (i / 3) * 9);
+                }
+                if (!result.isEmpty()) scaledItem(gui, result, 40, 2);
+            }
+        }
+    }
+
+    /** 0.6-scaled 16px icon (translate is the top-left). */
+    private static void scaledItem(GuiGraphics gui, ItemStack stack, int tx, int ty) {
+        if (stack.isEmpty()) return;
+        gui.pose().pushPose();
+        gui.pose().translate(tx, ty, 0);
+        gui.pose().scale(0.6f, 0.6f, 1.0F);
+        gui.renderItem(stack, 0, 0);
+        gui.pose().popPose();
+    }
+
+    public static List<ItemStack> inputsOf(RecipeHolder<?> holder) {
+        List<ItemStack> out = new java.util.ArrayList<>();
+        for (Ingredient ingredient : holder.value().getIngredients()) {
+            ItemStack[] stacks = ingredient.getItems();
+            if (stacks.length > 0) out.add(stacks[0]);
+        }
+        return out;
+    }
+
+    public static ItemStack resultOf(RecipeHolder<?> holder) {
+        try {
+            var mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.level == null) return ItemStack.EMPTY;
+            return holder.value().getResultItem(mc.level.registryAccess());
+        } catch (Exception e) {
+            return ItemStack.EMPTY;
         }
     }
 }

@@ -22,7 +22,9 @@
     "accessors.OverlayRecipeButtonAccessor",
     "accessors.OverlayRecipeButtonPosAccessor",
     "accessors.OverlayRecipeComponentAccessor",
+    "accessors.GuiGraphicsAccessor",
     "accessors.RecipeBookComponentAccessor",
+    "accessors.RecipeBookAccessor",
     "accessors.RecipeCollectionAccessor",
     "accessors.RecipeButtonAccessor",
     "accessors.RecipeBookPageAccessor",
@@ -67,7 +69,14 @@
     "unlockrecipes.MultiPlayerGameModeMixin",
     "unlockrecipes.RecipeButtonMixin",
     "unlockrecipes.RecipeManagerMixin",
-    "SmithingScreenMixin"
+    "SmithingScreenMixin",
+    "recipeviewer.AbstractContainerScreenMixin",
+    "recipeviewer.KeyboardHandlerMixin",
+    "recipeviewer.CreativeModeInventoryScreenMixin",
+    "recipeviewer.OverlayRecipeComponentMixin",
+    "recipeviewer.OverlayRecipeComponentPositionMixin",
+    "recipeviewer.RecipeBookPageTooltipMixin",
+    "recipeviewer.ServerPlaceRecipeMixin"
   ],
   "injectors": {
     "defaultRequire": 1

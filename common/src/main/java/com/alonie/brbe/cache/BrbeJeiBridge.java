@@ -62,11 +62,36 @@ public final class BrbeJeiBridge {
                 List<com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.JeiEntry> entries =
                         new ArrayList<>();
                 for (Object entry : (List<Object>) entriesForMethod.invoke(null, typeId)) {
+                    // 槽位布局（headless-jei Entry 可选字段；缺席时 null → 弹窗回退
+                    // 固定布局）。entry.slots 是 List<Entry.Slot(x,y,role,stacks)>，
+                    // 各槽字段反射读取；layoutWidth/layoutHeight 同源。
+                    List<RecipeViewerEngine.JeiSlot> slots = null;
+                    int lw = 0;
+                    int lh = 0;
+                    try {
+                        Object rawSlots = get(entry, "slots");
+                        if (rawSlots instanceof List<?> slotList && !slotList.isEmpty()) {
+                            slots = new java.util.ArrayList<>(slotList.size());
+                            for (Object slot : slotList) {
+                                List<ItemStack> stacks = (List<ItemStack>) get(slot, "stacks");
+                                slots.add(new RecipeViewerEngine.JeiSlot(
+                                        ((Number) get(slot, "x")).intValue(),
+                                        ((Number) get(slot, "y")).intValue(),
+                                        ((Number) get(slot, "role")).intValue(),
+                                        stacks == null ? List.of() : stacks));
+                            }
+                            lw = ((Number) get(entry, "layoutWidth")).intValue();
+                            lh = ((Number) get(entry, "layoutHeight")).intValue();
+                        }
+                    } catch (Exception ignored) {
+                        // 无布局字段（老头/简化桥）——保持 null 回退
+                    }
                     entries.add(new RecipeViewerEngine.JeiEntry(
                             (ResourceLocation) typeId,
                             get(entry, "recipe"),
                             (List<ItemStack>) get(entry, "inputs"),
-                            (List<ItemStack>) get(entry, "outputs")));
+                            (List<ItemStack>) get(entry, "outputs"),
+                            slots, lw, lh));
                 }
                 if (entries.isEmpty()) continue;
                 List<ItemStack> stations = (List<ItemStack>) stationsForMethod.invoke(null, typeId);

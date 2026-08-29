@@ -127,6 +127,8 @@ public class BetterRecipeBookClientNeoForge {
         NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, event -> {
             Minecraft client = Minecraft.getInstance();
             Screen screen = client.screen;
+            // 查询引擎：dirty 合并 flush（配方书重建/解锁变化在 tick 末落盘一次）
+            com.alonie.brbe.cache.RecipeViewerIndex.flushEngineRebuildIfDirty();
             if (BetterRecipeBook.config.hideReiJeiOverlay && screen != null) {
                 OverlayHider.ensureJeiOverlayHidden();
             }

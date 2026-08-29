@@ -6,10 +6,14 @@ import com.alonie.brbe.mixins.accessors.AbstractContainerScreenAccessor;
 import com.alonie.brbe.mixins.accessors.InventoryAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeComponentAccessor;
+import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
+import com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor;
+import com.alonie.brbe.mixins.accessors.GhostRecipeAccessor;
 import com.alonie.brbe.recipeviewer.CompostRecipeCategory;
 import com.alonie.brbe.recipeviewer.RecipeViewerCategories;
 import com.alonie.brbe.recipeviewer.RecipeViewerCategory;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
+import com.alonie.brbe.recipeviewer.PluginRecipeViewerCategory;
 import com.alonie.brbe.render.PopupRenderer;
 import com.mojang.blaze3d.platform.InputConstants;
 import net.minecraft.ChatFormatting;
@@ -17,13 +21,17 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
+import net.minecraft.client.gui.screens.recipebook.GhostRecipe;
+import net.minecraft.client.gui.screens.recipebook.RecipeUpdateListener;
 import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
+import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.core.NonNullList;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.inventory.CraftingContainer;
+import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -91,6 +99,12 @@ public final class RecipeViewerOverlay {
     private static List<DisplayEntry> entries = new ArrayList<>();
     private static int page;
     private static int pageCount = 1;
+
+    // ── 捕获态（1.21.11 captureTarget 链） ────────────────────────────────────
+    /** 捕获到 viewer overlay 按钮（R/U 从替代 overlay 按钮发起）。 */
+    private static AbstractWidget anchorOverlayWidget;
+    /** 捕获到配方书页码按钮。 */
+    private static RecipeButton anchorBookButton;
 
     // ── 几何（1.21.11 同款模型） ────────────────────────────────────────────
     private static int boxX;
@@ -260,7 +274,12 @@ public final class RecipeViewerOverlay {
         if (cat == null) {
             BetterRecipeBook.LOGGER.info("[BRBE-VIEWER] open refused: no category item={} usage={}",
                     target.getHoverName().getString(), usage);
-            return false;
+            // 1.21.11 语义：BRBE 引擎无命中 → 回退外部 viewer（JEI/REI）；
+            // hide 开启时抑制回退（BRBE 无法判定的对象不泄漏给外部 viewer）。
+            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+                return false;
+            }
+            return fallbackToViewer(target, usage);
         }
         // 实际内容判定（不信任 hasContent 的"声称"）：grid 类别看 grid 列表，
         // 配方类别看合并命中——类别声称有内容而实际为空时（旧日志"cat=fuel
@@ -276,7 +295,10 @@ public final class RecipeViewerOverlay {
             if (alt == null) {
                 BetterRecipeBook.LOGGER.info("[BRBE-VIEWER] open refused: empty content cat={} item={} usage={}",
                         cat.id(), target.getHoverName().getString(), usage);
-                return false;
+                if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+                    return false;
+                }
+                return fallbackToViewer(target, usage);
             }
             cat = alt;
             currentCategory = cat;
@@ -296,6 +318,9 @@ public final class RecipeViewerOverlay {
         repaginateToSelected();
         rebuildStationColumn();
         active = true;
+        viewerZ = com.alonie.brbe.pinoverlay.PinOverlayManager.nextZ();
+        com.alonie.brbe.cache.RecipeViewerIndex.setViewerActive(true);
+        com.alonie.brbe.cache.RecipeViewerIndex.setViewerOpenedFromBook(anchorBookButton != null);
         BetterRecipeBook.LOGGER.info("[BRBE-VIEWER] opened cat={} entries={} pages={} item={} usage={}",
                 cat.id(), entries.size(), pageCount, target.getHoverName().getString(), usage);
         return true;
@@ -331,6 +356,10 @@ public final class RecipeViewerOverlay {
     /** Dismiss the viewer: clear state before hiding so no guard cancels this
      *  sanctioned close. */
     public static void close() {
+        // 先清 viewerActive 再 setVisible(false)（OverlayRecipeComponentMixin
+        // 守卫取消非授权关闭——合规路径必须先清标志，1.21.11 闭环）
+        com.alonie.brbe.cache.RecipeViewerIndex.setViewerActive(false);
+        com.alonie.brbe.cache.RecipeViewerIndex.clearViewerPartials(currentCollection);
         active = false;
         hostScreen = null;
         queryTarget = ItemStack.EMPTY;
@@ -366,67 +395,151 @@ public final class RecipeViewerOverlay {
         overlayComponent.setVisible(false);
     }
 
-    // ── 键输入 ──────────────────────────────────────────────────────────────
+    // ── 键输入（1.21.11 语义：captureTarget 捕获 + R/U/A/ESC/O） ─────────────
     public static boolean keyPressed(int keyCode, int scanCode, int modifiers,
-                                     AbstractContainerScreen<?> screen,
-                                     Slot hoveredSlot) {
+                                     AbstractContainerScreen<?> screen) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen != screen) return false;
+
+        // ESC：只关最顶层（pin 打开 → 只关 pin？1.21.11 语义：ESC 只关 viewer，
+        // pin 永不因 ESC 关闭）——pin 由 PinOverlayManager.handleEscape 处理。
+        if (keyCode == 256) {
+            return com.alonie.brbe.pinoverlay.PinOverlayManager.handleEscape();
+        }
 
         if (active) {
             // Ctrl+O：浏览全部（仅光标在查询界面内时生效，1.21.11 语义）
             if (keyCode == InputConstants.KEY_O) {
                 int mx = mouseXFor();
                 int my = mouseYFor();
-                if (contains(mx, my) || (popupOpen && inRect(mx, my, popupRect))) {
+                if (contains(mx, my) || previewOwnsCursor(mx, my)) {
                     toggleBrowseAll();
                     return true;
                 }
             }
-            if (BetterRecipeBook.RECIPE_VIEW_MAPPING.matches(keyCode, scanCode)) {
+            if (ClientCompat.matches(BetterRecipeBook.RECIPE_VIEW_MAPPING, keyCode, scanCode, modifiers)) {
                 reopen(screen, false);
                 return true;
             }
-            if (BetterRecipeBook.USAGE_VIEW_MAPPING.matches(keyCode, scanCode)) {
+            if (ClientCompat.matches(BetterRecipeBook.USAGE_VIEW_MAPPING, keyCode, scanCode, modifiers)) {
                 reopen(screen, true);
                 return true;
-            }
-            // A 键：固定/取消固定悬停配方（单配方 pin，与配方书 pin 语义一致）
-            if (BetterRecipeBook.PIN_MAPPING.matches(keyCode, scanCode)) {
-                int mx = mouseXFor();
-                int my = mouseYFor();
-                DisplayEntry hovered = cellEntryAt(mx, my);
-                if (hovered != null) {
-                    boolean wasPinned = hovered.isPinned();
-                    hovered.togglePin();
-                    boolean nowPinned = !wasPinned;
-                    if (nowPinned) {
-                        pinPopupEntry = hovered;
-                        int[] cell = cellOfEntryAt(mx, my);
-                        pinPopupX = cell[0] + 28;
-                        pinPopupY = cell[1] - 8;
-                        pinPopupActive = true;
-                    } else {
-                        pinPopupActive = false;
-                        pinPopupEntry = null;
-                    }
-                    refreshAfterPin();
-                    return true;
-                }
             }
             return false;
         }
 
-        if (screen != null && hoveredSlot != null && hoveredSlot.hasItem()) {
-            ItemStack hovered = hoveredSlot.getItem();
-            if (BetterRecipeBook.RECIPE_VIEW_MAPPING.matches(keyCode, scanCode)) {
-                return open(hovered, false, screen);
+        if (!BetterRecipeBook.config.recipeViewerEnabled) return false;
+        boolean viewRecipe = ClientCompat.matches(BetterRecipeBook.RECIPE_VIEW_MAPPING,
+                keyCode, scanCode, modifiers);
+        boolean viewUsage = ClientCompat.matches(BetterRecipeBook.USAGE_VIEW_MAPPING,
+                keyCode, scanCode, modifiers);
+        // A 键：pin 创建/移除（未激活 viewer 时——激活时由 pin 层管理）
+        if (ClientCompat.matchesPinKey(keyCode, scanCode, modifiers)) {
+            return com.alonie.brbe.pinoverlay.PinOverlayManager.handleKeyPressed(
+                    keyCode, scanCode, modifiers, screen);
+        }
+        if (!viewRecipe && !viewUsage) return false;
+
+        ItemStack target = captureTarget(screen);
+        if (target.isEmpty()) return false;
+        return openFor(screen, target, viewUsage);
+    }
+
+    /** 捕获查询目标（1.21.11 captureTarget 链，7 级优先级适配 1.21.1）：
+     *  ① 弹窗内槽位物品 ② 弹窗配方结果 ③ viewer overlay 悬停按钮 ④ 槽位
+     *  ⑤ ghost 预览槽 ⑥ 配方书页码按钮 ⑦ grid 悬停 / 站列。全部落空 → EMPTY。 */
+    public static ItemStack captureTarget(AbstractContainerScreen<?> screen) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return ItemStack.EMPTY;
+        anchorOverlayWidget = null;
+        anchorBookButton = null;
+        // ③ viewer overlay 悬停按钮（优先于槽位——viewer 打开时不悬停槽位）
+        if (active && !isGridMode()) {
+            int mx = mouseXFor();
+            int my = mouseYFor();
+            // ① 弹窗槽位
+            if (popupOpen && popupRect != null && inRect(mx, my, popupRect)
+                    && popupAnchorIndex >= 0 && popupAnchorIndex < entries.size()) {
+                DisplayEntry e = entries.get(popupAnchorIndex);
+                if (e.result() != null && !e.result().isEmpty()) {
+                    return e.result();
+                }
             }
-            if (BetterRecipeBook.USAGE_VIEW_MAPPING.matches(keyCode, scanCode)) {
-                return open(hovered, true, screen);
+            // ③ 悬停按钮结果
+            DisplayEntry hovered = cellEntryAt(mx, my);
+            if (hovered != null) {
+                ItemStack result = hovered.result();
+                if (result != null && !result.isEmpty()) return result;
             }
         }
-        return false;
+        // ④ 槽位
+        AbstractContainerScreenAccessor acc = (AbstractContainerScreenAccessor) screen;
+        Slot hoveredSlot = acc.brbe$getHoveredSlot();
+        if (hoveredSlot != null && hoveredSlot.hasItem()) {
+            return hoveredSlot.getItem();
+        }
+        // ⑤ ghost 预览槽（RecipeUpdateListener 屏的配方书 ghost）
+        ItemStack ghost = captureGhostItem(screen, hoveredSlot, mc);
+        if (!ghost.isEmpty()) return ghost;
+        // ⑥ 配方书页码按钮
+        if (screen instanceof RecipeUpdateListener rul) {
+            RecipeBookPageAccessor pageAcc =
+                    (RecipeBookPageAccessor) ((RecipeBookComponentAccessor) rul.getRecipeBookComponent())
+                            .getRecipeBookPage();
+            if (pageAcc != null) {
+                int mx = mouseXFor();
+                int my = mouseYFor();
+                for (RecipeButton button : pageAcc.getButtons()) {
+                    if (button != null && button.isMouseOver(mx, my)) {
+                        anchorBookButton = button;
+                        ItemStack result = recipeResultOf(button);
+                        if (!result.isEmpty()) return result;
+                    }
+                }
+            }
+        }
+        // ⑦ grid 悬停 / 站列
+        if (isGridMode() && gridHoverStack != null && !gridHoverStack.isEmpty()) {
+            return gridHoverStack;
+        }
+        ItemStack station = stationCellAt(mouseXFor(), mouseYFor());
+        if (!station.isEmpty()) {
+            return station;
+        }
+        return ItemStack.EMPTY;
+    }
+
+    private static ItemStack recipeResultOf(RecipeButton button) {
+        try {
+            RecipeHolder<?> holder = button.getRecipe();
+            if (holder == null) return ItemStack.EMPTY;
+            return holder.value().getResultItem(Minecraft.getInstance().level.registryAccess());
+        } catch (Exception e) {
+            return ItemStack.EMPTY;
+        }
+    }
+
+    /** ⑤ ghost 预览槽位物品（1.21.1 GhostRecipe 公开 API 读取；无法解析 → EMPTY）。 */
+    private static ItemStack captureGhostItem(AbstractContainerScreen<?> screen,
+                                              Slot hoveredSlot, Minecraft mc) {
+        try {
+            if (screen instanceof RecipeUpdateListener rul && hoveredSlot != null) {
+                GhostRecipe ghost = ((RecipeBookComponentAccessor) rul.getRecipeBookComponent())
+                        .getGhostRecipe();
+                if (ghost != null && ghost.getRecipe() != null) {
+                    List<GhostRecipe.GhostIngredient> ingredients =
+                            ((GhostRecipeAccessor) ghost).getIngredients();
+                    if (ingredients != null && !ingredients.isEmpty()) {
+                        // 任一 ghost 材料物品即可作为查询目标（无配方书屏则不适用）
+                        ItemStack item = ingredients.get(0).getItem();
+                        if (item != null && !item.isEmpty()) return item;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            // broken ghost — fall through
+        }
+        return ItemStack.EMPTY;
     }
 
     /** R/U 重新查询：整体重开（锚点重新取光标，1.21.11 openFor 语义）。 */
@@ -457,10 +570,19 @@ public final class RecipeViewerOverlay {
         if (handleStationColumnClick(mouseX, mouseY, button)) {
             return true;
         }
-        // 框内点击：吞掉（配方按钮格子点击给按钮音反馈）
+        // 框内点击：配方按钮 = 放置（guarded by station match——crafting 配方
+        // 在熔炉屏内点击不填格，只吞并回音）；框背景仅吞。
         if (inBox(mouseX, mouseY)) {
-            if (button == 0 && cellEntryAt(mouseX, mouseY) != null) {
-                playButtonClick(mc);
+            if (button == 0) {
+                DisplayEntry clicked = cellEntryAt(mouseX, mouseY);
+                if (clicked != null) {
+                    if (clicked.holder() != null) {
+                        placeRecipe(mouseX, mouseY, button, screen, clicked.holder());
+                    } else {
+                        // JEI 条目无 RecipeHolder——只给按钮音反馈（无放置）
+                        playButtonClick(mc);
+                    }
+                }
             }
             return true;
         }
@@ -479,6 +601,10 @@ public final class RecipeViewerOverlay {
 
     /** Scroll while the viewer is up.  Returns true when consumed. */
     public static boolean mouseScrolled(double mouseX, double mouseY, double vertical) {
+        // pin 在光标下：吞掉滚轮（防翻 viewer 页）
+        if (com.alonie.brbe.pinoverlay.PinOverlayManager.handleMouseScrolled(mouseX, mouseY, vertical)) {
+            return true;
+        }
         if (!active) return false;
         // Shift 预览弹窗吞掉滚轮（翻页会重建按钮销毁弹窗）
         if (popupOpen) return true;
@@ -565,6 +691,7 @@ public final class RecipeViewerOverlay {
                 if (w.isMouseOver(mouseX, mouseY)) {
                     hoveredButton = w;
                     hoveredIndex = page * PAGE_SIZE + li;
+                    hoveredEntryInternal(mouseX, mouseY);
                 }
             } else {
                 // JEI 条目（无 RecipeHolder）：plain_overlay 格子 + 结果图标
@@ -572,7 +699,10 @@ public final class RecipeViewerOverlay {
                 gui.blitSprite(hovered ? PLAIN_OVERLAY_HIGHLIGHTED : PLAIN_OVERLAY,
                         cell[0], cell[1], 24, 24);
                 gui.renderItem(entry.result(), cell[0] + 4, cell[1] + 4);
-                if (hovered) hoveredIndex = page * PAGE_SIZE + li;
+                if (hovered) {
+                    hoveredIndex = page * PAGE_SIZE + li;
+                    hoveredEntryInternal(mouseX, mouseY);
+                }
             }
         }
         // 悬停按钮 2x 放大重绘（vanilla 替代配方网格观感；Shift 预览接管时跳过）
@@ -704,8 +834,20 @@ public final class RecipeViewerOverlay {
     /** 有内容的类别（标签隐藏空类别；浏览全部时 = 完整池非空）。 */
     private static List<RecipeViewerCategory> visibleCategories() {
         if (queryTarget == null || queryTarget.isEmpty()) return List.of();
+        Set<String> hidden = hiddenCategoryIds();
         List<RecipeViewerCategory> out = new ArrayList<>();
         for (RecipeViewerCategory cat : RecipeViewerCategories.all()) {
+            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+                    && hidden.contains(cat.id())) {
+                continue;
+            }
+            // 站类别连接被切（非法站 + hide 开）不显示 tab（grid 类别豁免）
+            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+                    && !cat.isGridCategory()
+                    && cat.appliesToStation(queryTarget)
+                    && !RecipeViewerEngine.isRecipeBookStation(queryTarget)) {
+                continue;
+            }
             boolean has;
             if (browseAllMode) {
                 has = cat.isGridCategory()
@@ -966,7 +1108,7 @@ public final class RecipeViewerOverlay {
         }
         // 悬停条目（按钮/JEI 格）
         if (hoveredIndex >= 0 && hoveredIndex < entries.size()) {
-            renderEntryTooltip(gui, entries.get(hoveredIndex), mouseX, mouseY);
+            renderEntryTooltipRich(gui, entries.get(hoveredIndex), mouseX, mouseY);
             return;
         }
         // 标签 tooltip（渲染期暂存，保证在最上层）
@@ -1092,6 +1234,10 @@ public final class RecipeViewerOverlay {
         } else {
             for (RecipeHolder<?> h : cat.query(queryTarget, queryUsage)) hits.add(DisplayEntry.of(h));
             for (RecipeViewerEngine.JeiEntry j : cat.queryJei(queryTarget, queryUsage)) hits.add(DisplayEntry.of(j));
+        }
+        // hideNoRecipeBookStationObjects 对象级过滤（1.21.11 链）
+        if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+            hits = filterByRecipeBookStations(hits, cat);
         }
         // pin 置顶（命中 >1 时才重排）
         if (hits.size() > 1) {
@@ -1284,6 +1430,10 @@ public final class RecipeViewerOverlay {
         for (DisplayEntry e : pageSlice) {
             if (e.holder() != null) holders.add(e.holder());
         }
+        // 仅当玩家菜单是 RecipeBookMenu 时才能用 vanilla OverlayRecipeComponent：
+        // 其 init 会把 containerMenu 强转成 RecipeBookMenu，创造模式 ItemPickerMenu
+        // 等非配方书菜单会抛 ClassCastException（2026-08-29 用户实测崩溃）。
+        boolean recipeBookMenu = mc.player.containerMenu instanceof RecipeBookMenu;
         if (holders.isEmpty()) {
             currentCollection = null;
             overlayComponent.setVisible(false);
@@ -1291,19 +1441,24 @@ public final class RecipeViewerOverlay {
             RecipeCollection subset = new RecipeCollection(mc.level.registryAccess(), holders);
             subset.updateKnownRecipes(mc.player.getRecipeBook());
             markViewerPartials(subset, mc);
-            overlayComponent.init(mc, subset, boxX + 4, boxY + 4,
-                    (int) mc.mouseHandler.xpos(), (int) mc.mouseHandler.ypos(), 25);
+            if (recipeBookMenu) {
+                overlayComponent.init(mc, subset, boxX + 4, boxY + 4,
+                        (int) mc.mouseHandler.xpos(), (int) mc.mouseHandler.ypos(), 25);
+            }
             overlayComponent.setVisible(true);
             currentCollection = subset;
         }
         int columns = fitBoxToPage(pageSlice.size());
         pageColumns = columns;
-        List<AbstractWidget> buttons = currentCollection == null
+        // 非配方书菜单不调用 init → 无 vanilla 按钮，全部走 render 的 plain 图标兜底
+        // （pageButtons 置 null，render 里 w==null 分支画 OVERLAY 格子+结果图标）。
+        List<AbstractWidget> buttons = (currentCollection == null || !recipeBookMenu)
                 ? List.of()
                 : ((OverlayRecipeComponentAccessor) (Object) overlayComponent).getRecipeButtons();
         // holder → 按钮映射，按页序重排（原版 init 按可合成优先排序会打乱 pin 映射）
         java.util.Map<RecipeHolder<?>, AbstractWidget> byHolder = new java.util.HashMap<>();
         for (AbstractWidget w : buttons) {
+            if (w == null) continue;
             RecipeHolder<?> r = ((OverlayRecipeButtonAccessor) w).getRecipe();
             if (r != null) byHolder.put(r, w);
         }
@@ -1337,6 +1492,13 @@ public final class RecipeViewerOverlay {
 
     private static void switchCategory(RecipeViewerCategory category) {
         if (category == null || category == currentCategory) return;
+        // hide 开关的站类别切连：非法站不浮出其配方（grid 类别豁免）
+        if (!browseAllMode && BetterRecipeBook.config.hideNoRecipeBookStationObjects
+                && queryUsage && queryTarget != null && !queryTarget.isEmpty()
+                && category.appliesToStation(queryTarget)
+                && !RecipeViewerEngine.isRecipeBookStation(queryTarget)) {
+            return;
+        }
         if (category.isGridCategory()) {
             List<ItemStack> items = gridSource(category);
             if (items.isEmpty()) return;
@@ -1426,7 +1588,10 @@ public final class RecipeViewerOverlay {
         int cx = cell[0] + 12;
         int cy = cell[1] + 12;
         if (e.jei() != null) {
-            popupRect = PopupRenderer.renderJeiPopup(gui, e.jei(), cx - 12, cy - 12, 24, 24, 2.0F);
+            // 1:1 完整 JEI 界面优先（headless-jei 有布局时）；失败回退固定布局
+            int[] rect = PopupRenderer.renderJeiPopup1to1(gui, e.jei(), cx - 12, cy - 12, 24, 24);
+            popupRect = rect != null ? rect
+                    : PopupRenderer.renderJeiPopup(gui, e.jei(), cx - 12, cy - 12, 24, 24, 2.0F);
         } else {
             int mode = PopupRenderer.modeFor(currentCategory == null ? null : currentCategory.id());
             boolean craftable = currentCollection != null && currentCollection.isCraftable(e.holder());
@@ -1492,7 +1657,7 @@ public final class RecipeViewerOverlay {
     }
 
     /** viewer 自身绘制区（框 + 标签垂出 + 工作站列裁切面板），Ctrl+O 门控用。 */
-    private static boolean contains(double mx, double my) {
+    public static boolean contains(double mx, double my) {
         if (!active) return false;
         if (mx >= panelLeft() && mx < panelLeft() + STATION_COL_WIDTH) {
             if (stationColumnItems.isEmpty()) return false;
@@ -1531,7 +1696,7 @@ public final class RecipeViewerOverlay {
     /** GUI 缩放后的鼠标 X（1.21.1 无 getScaledXPos——按 vanilla 同款换算
      *  xpos * guiScaledWidth / screenWidth；直接取原始窗口坐标会在 guiScale>1
      *  时锚点/命中判定全错位）。 */
-    private static int mouseXFor() {
+    public static int mouseXFor() {
         var mc = Minecraft.getInstance();
         if (mc.mouseHandler == null || mc.getWindow() == null) return 0;
         double x = mc.mouseHandler.xpos();
@@ -1541,7 +1706,7 @@ public final class RecipeViewerOverlay {
     }
 
     /** GUI 缩放后的鼠标 Y（同上换算）。 */
-    private static int mouseYFor() {
+    public static int mouseYFor() {
         var mc = Minecraft.getInstance();
         if (mc.mouseHandler == null || mc.getWindow() == null) return 0;
         double y = mc.mouseHandler.ypos();
@@ -1582,4 +1747,348 @@ public final class RecipeViewerOverlay {
         return burn % cookTime == 0 ? String.valueOf(burn / cookTime)
                 : String.format(Locale.ROOT, "%.1f", burn / (float) cookTime);
     }
+
+    // ══ 1.21.11 移植补充（2026-08-29） ═══════════════════════════════════════
+
+    // ── viewer 激活状态（索引层权威标志，mixin 守卫共用） ─────────────────────
+
+    private static int viewerZ = -1;
+
+    public static int viewerZ() {
+        return viewerZ;
+    }
+
+    /** Whether the overlay instance is the standalone viewer's own. */
+    public static boolean isOwnOverlay(OverlayRecipeComponent o) {
+        return o == overlayComponent;
+    }
+
+    public static boolean isPaged() {
+        return active && pageCount > 1;
+    }
+
+    // ── 查询兜底 ─────────────────────────────────────────────────────────────
+
+    /** BRBE's engine found nothing for this item: route to the active recipe
+     *  viewer (JEI/REI) so mod recipes still open. */
+    private static boolean fallbackToViewer(ItemStack target, boolean viewUsage) {
+        if (!com.alonie.brbe.compat.ItemViewCompat.isLoaded()) return false;
+        return viewUsage
+                ? com.alonie.brbe.compat.ItemViewCompat.openUsageView(target)
+                : com.alonie.brbe.compat.ItemViewCompat.openRecipeView(target);
+    }
+
+    // ── 光标所有权（创造屏标签悬停抑制） ─────────────────────────────────────
+
+    /** Whether the open popup owns the cursor. */
+    public static boolean previewOwnsCursor(int mx, int my) {
+        return popupOpen && popupRect != null && inRect(mx, my, popupRect);
+    }
+
+    /** Whether the query UI (viewer box / popup) or a pin owns the cursor —
+     *  the creative tab under it must not hover (no tooltip, no hand cursor). */
+    public static boolean modalMaskOwnsCursor(int mx, int my) {
+        if (com.alonie.brbe.pinoverlay.PinOverlayManager.covers(mx, my)) return true;
+        return active && (contains(mx, my) || previewOwnsCursor(mx, my));
+    }
+
+    // ── 屏幕关闭时清理 ───────────────────────────────────────────────────────
+
+    public static void onScreenClosed(AbstractContainerScreen<?> screen) {
+        if (hostScreen == screen) {
+            close();
+        }
+    }
+
+    // ── 弹窗模式（pin/popup 布局冻结用，1.21.11 viewerMode 语义） ─────────────
+
+    public static int viewerMode() {
+        return modeForCategory(currentCategory);
+    }
+
+    public static int modeForCategory(RecipeViewerCategory category) {
+        if (category == null) return PopupRenderer.MODE_CRAFTING;
+        return switch (category.id()) {
+            case "furnace", "fuel" -> PopupRenderer.MODE_FURNACE;
+            case "stonecutting" -> PopupRenderer.MODE_STONECUTTING;
+            case "smithing" -> PopupRenderer.MODE_SMITHING;
+            case "anvil" -> PopupRenderer.MODE_ANVIL;
+            case "brewing" -> PopupRenderer.MODE_BREWING;
+            case "grindstone" -> PopupRenderer.MODE_GRINDSTONE;
+            default -> PopupRenderer.MODE_CRAFTING;
+        };
+    }
+
+    /** 类别与打开菜单的匹配（点击放置前置，1.21.11 recipeFitsScreen 语义）。 */
+    private static boolean recipeFitsScreen(RecipeHolder<?> holder,
+                                            AbstractContainerScreen<?> screen) {
+        if (holder == null || screen == null) return false;
+        net.minecraft.world.item.crafting.RecipeType<?> type = holder.value().getType();
+        if (screen.getMenu() == null) return false;
+        net.minecraft.world.inventory.AbstractContainerMenu menu = screen.getMenu();
+        if (type == net.minecraft.world.item.crafting.RecipeType.CRAFTING) {
+            return menu instanceof net.minecraft.world.inventory.CraftingMenu
+                    || menu instanceof net.minecraft.world.inventory.InventoryMenu;
+        }
+        if (type == net.minecraft.world.item.crafting.RecipeType.SMELTING
+                || type == net.minecraft.world.item.crafting.RecipeType.BLASTING
+                || type == net.minecraft.world.item.crafting.RecipeType.SMOKING) {
+            return menu instanceof net.minecraft.world.inventory.AbstractFurnaceMenu;
+        }
+        if (type == net.minecraft.world.item.crafting.RecipeType.STONECUTTING) {
+            return menu instanceof net.minecraft.world.inventory.StonecutterMenu;
+        }
+        if (type == net.minecraft.world.item.crafting.RecipeType.SMITHING) {
+            return menu instanceof net.minecraft.world.inventory.SmithingMenu;
+        }
+        return false;
+    }
+
+    // ── 点击放置（1.21.11 placeRecipe 移植；1.21.1 无 tryPlaceRecipe →
+    //  MultiPlayerGameMode.handlePlaceRecipe 直发，服务端 ServerPlaceRecipeMixin
+    //  放行 contains，缺料回幽灵包 → RecipeUpdateListener.setupGhostRecipe） ──
+
+    public static boolean placeRecipe(double mouseX, double mouseY, int button,
+                                      AbstractContainerScreen<?> screen,
+                                      RecipeHolder<?> holder) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getSoundManager() != null) {
+            playButtonClick(mc);
+        }
+        if (holder == null || !recipeFitsScreen(holder, screen)) return false;
+        if (mc.player == null) return false;
+        try {
+            // 清残留 ghost（无配方书组件则跳过——非配方书屏放置本就不适用）
+            if (screen instanceof RecipeUpdateListener rul) {
+                ((RecipeBookComponentAccessor) rul.getRecipeBookComponent()).getGhostRecipe().clear();
+            }
+            boolean shift = ClientCompat.isShiftDown();
+            mc.gameMode.handlePlaceRecipe(mc.player.containerMenu.containerId, holder, shift);
+            return true;
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    // ── hideNoRecipeBookStationObjects 过滤链（1.21.11 移植） ───────────────
+
+    /** 对象级过滤：hide 开时仅保留有配方书工作站的条目。 */
+    private static List<DisplayEntry> filterByRecipeBookStations(List<DisplayEntry> hits,
+                                                                 RecipeViewerCategory category) {
+        if (!BetterRecipeBook.config.hideNoRecipeBookStationObjects) return hits;
+        if (hits.isEmpty()) return hits;
+        List<DisplayEntry> out = new ArrayList<>();
+        for (DisplayEntry entry : hits) {
+            if (hasRecipeBookStation(entry, category)) out.add(entry);
+        }
+        return out;
+    }
+
+    /** 条目是否可归属到有配方书的工作站。 */
+    private static boolean hasRecipeBookStation(DisplayEntry entry, RecipeViewerCategory category) {
+        if (entry == null) return false;
+        if (!browseAllMode && queryUsage && queryTarget != null && !queryTarget.isEmpty()
+                && !RecipeViewerEngine.isRecipeBookStation(queryTarget)
+                && category != null && category.appliesToStation(queryTarget)) {
+            return false; // 站连接被切
+        }
+        if (isBuiltinCategory(category)) return true;
+        List<ItemStack> icons = category == null ? List.of() : category.stationIconsFor(null);
+        return entryHasRecipeBookStation(icons);
+    }
+
+    private static boolean entryHasRecipeBookStation(List<ItemStack> icons) {
+        if (icons == null) return false;
+        for (ItemStack icon : icons) {
+            if (RecipeViewerEngine.isRecipeBookStation(icon)) return true;
+        }
+        return false;
+    }
+
+    /** 内置类别豁免（id ∈ {furnace, crafting, smithing, fuel}；stonecutting 不在
+     *  豁免——切石机无配方书 UI，hide 开时按无配方书工作站过滤）。 */
+    private static boolean isBuiltinCategory(RecipeViewerCategory category) {
+        if (category == null) return false;
+        String id = category.id();
+        return id.equals("furnace") || id.equals("crafting")
+                || id.equals("smithing") || id.equals("fuel");
+    }
+
+    /** 类别级隐藏集（插件类别全对象非法站 → 隐藏 tab）。 */
+    private static Set<String> hiddenCategoryIds() {
+        Set<String> out = new HashSet<>();
+        for (RecipeViewerCategory category : RecipeViewerCategories.all()) {
+            if (!(category instanceof PluginRecipeViewerCategory)) continue;
+            if (category.isGridCategory()) continue;
+            List<ItemStack> icons = category.stationIconsFor(null);
+            boolean any = false;
+            for (RecipeHolder<?> holder : RecipeViewerEngine.allRecipes(category.id())) {
+                if (entryHasRecipeBookStation(icons)) { any = true; break; }
+            }
+            if (!any) out.add(category.id());
+        }
+        return out;
+    }
+
+    // ── pin 协作接口（PinOverlayManager 调用） ───────────────────────────────
+
+    /** ESC 关闭：先清状态再 setVisible(false)（守卫不取消合规关闭）。 */
+    public static boolean closeSilently() {
+        if (!active) return false;
+        close();
+        return true;
+    }
+
+    /** 捕获条目（viewer 悬停按钮的配方）：pin 创建用。 */
+    public record CapturedEntry(RecipeHolder<?> holder, RecipeViewerEngine.JeiEntry jei) {}
+
+    private static CapturedEntry capturedEntryCache;
+
+    public static CapturedEntry capturedEntry() {
+        return capturedEntryCache;
+    }
+
+    /** 悬停命中（含 JEI 条目）→ 更新 capturedEntryCache 并返回。 */
+    private static DisplayEntry hoveredEntryInternal(double mx, double my) {
+        if (isGridMode()) return null;
+        for (int li = 0; li < pageEntries.size(); li++) {
+            int[] cell = gridCellFor(li);
+            if (inside(mx, my, cell[0], cell[1], 25, 25)) {
+                DisplayEntry e = pageEntries.get(li);
+                capturedEntryCache = new CapturedEntry(e.holder(), e.jei());
+                return e;
+            }
+        }
+        return null;
+    }
+
+    /** pin 详细 tooltip（pin 渲染调用；1.21.1 文本行版）。 */
+    public static void renderDetailedRecipeTooltip(GuiGraphics gui, RecipeHolder<?> holder,
+                                                   int mode) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.level == null) return;
+        ItemStack result;
+        try {
+            result = holder.value().getResultItem(mc.level.registryAccess());
+        } catch (Exception e) {
+            return;
+        }
+        if (result.isEmpty()) return;
+        List<Component> lines = new ArrayList<>();
+        lines.add(result.getHoverName());
+        List<ItemStack> inputs = inputsOf(holder);
+        if (!inputs.isEmpty()) {
+            String suffix = inputs.size() > 1 ? " …" : "";
+            lines.add(Component.translatable("brbe.viewer.materials")
+                    .append(": ")
+                    .append(inputs.get(0).getHoverName().copy()
+                            .append(Component.literal(suffix))));
+        }
+        appendModName(lines, result);
+        gui.renderComponentTooltip(mc.font, lines,
+                (int) Minecraft.getInstance().mouseHandler.xpos(),
+                (int) Minecraft.getInstance().mouseHandler.ypos());
+    }
+
+    /** Public mod-name append（pin 工具提示共用）。 */
+    public static void appendModNamePublic(List<Component> lines, ItemStack stack) {
+        appendModName(lines, stack);
+    }
+
+
+    /** 富条目 tooltip（1.21.11 语义 1.21.1 版）：标题+图标 → 工作站行 →
+     *  模组名；ClientTooltipComponent 列表经 renderTooltipInternal 绘制。 */
+    private static void renderEntryTooltipRich(GuiGraphics gui, DisplayEntry e,
+                                               int mouseX, int mouseY) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.font == null) return;
+        ItemStack result = e.result();
+        if (result.isEmpty()) return;
+        List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
+                new ArrayList<>();
+        StringBuilder tooltip = new StringBuilder();
+        tooltip.append(result.getHoverName().getString());
+        components.add(new com.alonie.brbe.render.AbstractBrbeTooltipComponent.TitleWithIcon(
+                result.getHoverName().getVisualOrderText(), result));
+        // 熔炼信息行（XP/耗时）
+        if (e.holder() != null && e.holder().value() instanceof AbstractCookingRecipe cooking) {
+            float xp = cooking.getExperience();
+            String xpText = xp % 1.0f == 0f ? String.valueOf((int) xp)
+                    : String.format(Locale.ROOT, "%.2f", xp);
+            Style style = ChatFormatting.GREEN == ChatFormatting.GREEN
+                    ? Style.EMPTY.withColor(ChatFormatting.GREEN) : Style.EMPTY;
+            components.add(componentLine(Component.literal(xpText + " XP").withStyle(style)));
+            RecipeType<?> type = cooking.getType();
+            String labelKey = type == RecipeType.BLASTING ? "brbe.cooktime.blast"
+                    : type == RecipeType.SMOKING ? "brbe.cooktime.smoker"
+                    : type == RecipeType.CAMPFIRE_COOKING ? "brbe.cooktime.campfire"
+                    : "brbe.cooktime.furnace";
+            Style valueStyle = type == RecipeType.BLASTING ? Style.EMPTY.withColor(ChatFormatting.GRAY)
+                    : type == RecipeType.SMOKING ? Style.EMPTY.withColor(0xF5DEB3)
+                    : type == RecipeType.CAMPFIRE_COOKING ? Style.EMPTY.withColor(0xB5651D)
+                    : Style.EMPTY.withColor(ChatFormatting.RED);
+            components.add(componentLine(
+                    Component.translatable(labelKey).withStyle(valueStyle)
+                            .append(Component.literal("：").withStyle(valueStyle))
+                            .append(Component.literal(cookSeconds(cooking.getCookingTime())).withStyle(valueStyle))));
+        }
+        // 工作站图标行（仅非 grid 类别；熔炉/燃料走文本行）
+        if (!isGridMode() && currentCategory != null && !currentCategory.isFuelCategory()) {
+            List<ItemStack> icons = categoryStationIcons(currentCategory);
+            if (!icons.isEmpty()) {
+                List<com.alonie.brbe.render.AbstractBrbeTooltipComponent.StationLine.Segment> segs =
+                        new ArrayList<>();
+                segs.add(new com.alonie.brbe.render.AbstractBrbeTooltipComponent.StationLine.Segment(
+                        Component.empty().getVisualOrderText(), icons, false));
+                components.add(new com.alonie.brbe.render.AbstractBrbeTooltipComponent.StationLine(segs));
+            }
+        }
+        // 材料行
+        List<ItemStack> inputs = e.holder() != null ? inputsOf(e.holder())
+                : (e.jei() != null && e.jei().inputs() != null ? e.jei().inputs() : List.of());
+        if (!inputs.isEmpty()) {
+            String suffix = inputs.size() > 1 ? " …" : "";
+            components.add(componentLine(Component.translatable("brbe.viewer.materials")
+                    .append(": ")
+                    .append(inputs.get(0).getHoverName().copy()
+                            .append(Component.literal(suffix)))));
+        }
+        // 模组名
+        if (BetterRecipeBook.config.showModName) {
+            Component mod = ModNameUtil.getFormattedModName(result);
+            if (mod != null && !mod.getString().isEmpty()) {
+                components.add(componentLine(Component.empty()));
+                components.add(componentLine(mod));
+            }
+        }
+        com.alonie.brbe.mixins.accessors.GuiGraphicsAccessor acc =
+                (com.alonie.brbe.mixins.accessors.GuiGraphicsAccessor) gui;
+        acc.brbe$renderTooltipInternal(mc.font, components, mouseX, mouseY,
+                net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner.INSTANCE);
+    }
+
+    private static net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+            componentLine(Component text) {
+        return net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent.create(
+                text.getVisualOrderText());
+    }
+
+    /** 类别的工作站图标（站列数据源同款；hide 开时过滤）。 */
+    private static List<ItemStack> categoryStationIcons(RecipeViewerCategory category) {
+        List<ItemStack> icons = new ArrayList<>();
+        if (category instanceof PluginRecipeViewerCategory plugin) {
+            icons.addAll(plugin.stations());
+        } else {
+            icons.addAll(RecipeViewerIndex.stationColumnItemsFor(category.id()));
+        }
+        if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+            List<ItemStack> filtered = new ArrayList<>();
+            for (ItemStack icon : icons) {
+                if (RecipeViewerEngine.isRecipeBookStation(icon)) filtered.add(icon);
+            }
+            return filtered;
+        }
+        return icons;
+    }
+
 }

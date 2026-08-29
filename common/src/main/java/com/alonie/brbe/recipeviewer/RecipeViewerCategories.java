@@ -20,13 +20,13 @@ public final class RecipeViewerCategories {
 
     private RecipeViewerCategories() {}
 
-    /** Built-in categories (vanilla recipe types). */
+    /** Built-in categories (vanilla recipe types; 1.21.11 同序）。 */
     private static final List<RecipeViewerCategory> BUILTIN =
-            List.of(new CraftingRecipeCategory(), new FurnaceRecipeCategory(),
+            List.of(new FurnaceRecipeCategory(), new CraftingRecipeCategory(),
                     new FuelRecipeCategory(), new StonecuttingRecipeCategory(),
-                    new SmithingRecipeCategory(), new CompostRecipeCategory(),
-                    new BrewingRecipeCategory(), new AnvilRecipeCategory(),
-                    new GrindstoneRecipeCategory());
+                    new SmithingRecipeCategory(), new AnvilRecipeCategory(),
+                    new BrewingRecipeCategory(), new GrindstoneRecipeCategory(),
+                    new CompostRecipeCategory(), new InfoRecipeCategory());
 
     /** Categories appended by the companion mod (mod recipe types). */
     private static final List<RecipeViewerCategory> EXTERNAL = new CopyOnWriteArrayList<>();
@@ -76,6 +76,13 @@ public final class RecipeViewerCategories {
             RecipeViewerCategory firstMatch = null;
             for (RecipeViewerCategory category : all()) {
                 if (!category.appliesToStation(target)) continue;
+                // hide 开关切断非法站的站类别连接（grid 类别豁免——
+                // 燃料站仍显示其可烧燃料，1.21.11 语义）
+                if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+                        && !category.isGridCategory()
+                        && !com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.isRecipeBookStation(target)) {
+                    continue;
+                }
                 if (category.hasContent(target, true)) {
                     return category;
                 }

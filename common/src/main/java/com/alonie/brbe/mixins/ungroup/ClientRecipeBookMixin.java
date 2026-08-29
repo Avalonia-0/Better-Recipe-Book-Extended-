@@ -34,8 +34,10 @@ public class ClientRecipeBookMixin extends RecipeBook {
                                            CallbackInfo ci) {
         ClientRecipeBook self = (ClientRecipeBook) (Object) this;
         RecipeCraftingIndex.rebuild(self.getCollections());
-        // 查询引擎数据源重建（配方书集合重建 = 服务器配方已同步/解锁变化）
-        com.alonie.brbe.cache.RecipeViewerIndex.rebuildEngine();
+        // 查询引擎数据源重建（配方书集合重建 = 服务器配方已同步/解锁变化）。
+        // 标记 dirty，由 tick 末 flush 合并同 tick 内多次 setupCollections
+        // （1.21.11 同款节流）。
+        com.alonie.brbe.cache.RecipeViewerIndex.markDirty();
     }
 
     @Inject(method = "getCollection", locals = LocalCapture.CAPTURE_FAILHARD, at = @At("RETURN"), cancellable = true)

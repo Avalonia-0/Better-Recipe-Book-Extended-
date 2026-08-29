@@ -22,6 +22,9 @@ public interface AbstractContainerScreenAccessor {
     @Accessor("imageWidth")
     int getImageWidth();
 
+    @Accessor("hoveredSlot")
+    net.minecraft.world.inventory.Slot brbe$getHoveredSlot();
+
     @Invoker("renderFloatingItem")
     void brbe$renderFloatingItem(GuiGraphics guiGraphics, ItemStack itemStack, int x, int y, String string);
 }

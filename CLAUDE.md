@@ -902,3 +902,100 @@ tooltip 替代）、幽灵放置（配方格点击仅吞+音）、tooltip 样式
   用户明确验收标准，勿再按源码回退。
 - 查询界面"前端表现非常糟糕"待用户提供截图定位（日志证实功能正常：opened
   cat=crafting entries=2）。
+
+**2026-08-29（二·续七）动画图标压单元格边界：钳位修复落地（已重建部署双端）**：
+- 用户确认问题集中在"**图标直接压单元格边界**"（单个 slot 的 2px 边框线，非整网格边缘）。
+- **系统性根因（用户问"为何 1.21.11/26.2 容易、1.21.1 麻烦"的答案）**：
+  - **1.21.11 / 26.x 用新版 GuiGraphics item 渲染**：`renderItem` 提交
+    `ItemStackRenderState` 到 `GuiItemRenderState`，并在提交时用
+    `this.scissorStack.peek()` **捕获当帧生效的 scissor** 作为软件裁剪叠加到 item ——
+    移动中的图标无论何时绘制都被裁到提交时的 scissor，干净被格子边界裁住。
+  - **1.21.1 用旧版同步 item 渲染**：`renderItem` 直接
+    `getItemRenderer().render(..., this.bufferSource(), ...)` 后立刻 `this.flush()`
+    （`disableDepthTest → bufferSource.endBatch() → enableDepthTest`），几何即时画在**当前
+    GL scissor** 下——**没有 scissorStack 捕获**，对移动中的快照按钮图标不可靠，图标逃逸
+    裁剪、压在格子边界线上。
+- **修复（挤压分支 `brbe$renderVisualSquashed`）**：手动把图标钳制在内容区
+  `[effX, edgeRight-1]` 内——`if (effW >= 17) brbe$renderItemIcon(snap, gui,
+  Mth.clamp(x, effX-4, edgeRight-21), y)`。图标只在格子内部显示、被随后绘制的边界条
+  盖住边缘（被边界盖住），不再压边界线；内容区缩到装不下图标（effW < 17）时不再绘制。
+- **历史结论（勿再反复）**：inside/outside 渲染顺序在 1.21.1 上像素等价，不是根因，
+  不要再照着 1.21.11 的字面顺序来回改。此钳位是 1.21.1 特有的、绕开旧 item 渲染不裁
+  scissor 的办法。已构建部署双端（备份 20260829-*，md5 一致），待用户实测确认。
+
+**2026-08-29（二·续八）查询浮层在创造屏幕崩溃修复（已重建部署双端）**：
+- 用户实测崩溃：按 R/U 打开查询浮层时 `ClassCastException: ItemPickerMenu cannot be cast
+  to RecipeBookMenu` at `OverlayRecipeComponent.init`（stack：RecipeViewerOverlay.showPage →
+  overlayComponent.init）。
+- 根因：vanilla `OverlayRecipeComponent.init` 会把 `mc.player.containerMenu` 强转成
+  `RecipeBookMenu`，而**创造模式**（CreativeModeInventoryScreen）的菜单是
+  `ItemPickerMenu`（非 RecipeBookMenu）→ 强转失败崩溃。CraftingMenu / InventoryMenu /
+  AbstractFurnaceMenu 均 extends RecipeBookMenu，唯独创造屏幕不是——所以只有创造屏会崩。
+- 修复：`RecipeViewerOverlay.showPage` 先判 `mc.player.containerMenu instanceof
+  RecipeBookMenu`——是配方书菜单才调用 `overlayComponent.init`（vanilla 配方按钮+可合成
+  状态）；非配方书菜单（创造）不调用 init，按钮列表置空（pageButtons 全 null），render
+  走 `w==null` 分支持 plain_overlay 格子+结果图标兜底（无崩溃、仍可浏览配方）。
+- 位置：`util/RecipeViewerOverlay.java` showPage（+ import RecipeBookMenu）。已构建部署双端
+  （备份 20260829-*，md5 一致），待用户实测。
+
+**2026-08-29（二·续九）动画定为最简"完全平滑离场"（用户拍板，已重建部署双端）**：
+- 用户反馈：图标"钳位+跳过"导致边缘物品整体消失；预想是"滑动离场、被格子边界遮住"。
+  但 1.21.1 旧版 item 渲染逃逸 scissor，挤压/单元格边界/边框条这套复杂视觉反复做不好，
+  用户决定：**动画改为最简单的"完全平滑离场"**——整页平移，按钮按滑动位置直接渲染
+  （sprite+图标+残缺标记），由网格 scissor 裁住。
+- 落地：`RecipeBookPageAnimationMixin.brbe$renderVisualSquashed` 整体简化——去掉边缘
+  挤压/内容 scissor/左右边界条（PageAnimationEdges 不再使用，import 已删），只保留
+  按 (x,y) 渲染 sprite + `brbe$renderItemIcon` + 残缺标记 + tooltip 命中 + pin 收集；
+  网格 scissor 由 `brbe$renderButton` 统一开启，裁住滑动中的按钮。动画检测/追逐/旅行
+  目标逻辑不变，只简化渲染。
+- **历史教训（勿再反复）**：inside/outside 渲染顺序在 1.21.1 上像素等价、不是根因；
+  item 逃逸 scissor 使"挤压+边界条"难做好。本分支动画=简单平移，与 1.21.11/26.2 的
+  完整挤压视效不同，属已知降级（1.21.1 API 鸿沟）。已构建部署双端（备份 20260829-*，
+  md5 一致），待用户实测确认"完全平滑离场"符合预期。
+
+
+## 2026-08-29（三轮）：查询系统全量修复（对照 1.21.11 逐模块移植，已部署双端）
+
+**背景**：用户指出 1.21.1 查询系统前端与 1.21.11/26.2 差异巨大，"不是一个两个错误"。
+调查结论（docs/1.21.1-查询系统差异调查报告.md）：1.21.1 是轻量重写而非移植——缺 10 个
+recipeviewer mixin、整个 pinoverlay 子系统、4 个支持类（RecipePopupLayer/
+SyntheticRecipeRenderers/RecipePreviewTooltipComponent/PopupGeometry）、74 个浮层方法；
+后端索引 195 vs 876 行（无 Workstation 注册表/known 集驱动/指纹节流）。
+
+**已落地**（对应报告第六章）：
+- **后端**：RecipeViewerIndex 重写（Workstation 注册表 + brbe_workstations.json +
+  known 集驱动 + dirty/指纹节流 + viewer 集合/partial 快照）；Engine 扩展
+  （isRecipeBookStation/setRecipeBookStationItems/registerRecipeBookType）；
+  InfoRecipeCategory（反射 headless-jei JeiRuntimeBridge）；JeiEntry 加槽位布局
+- **输入层**（1.21.1 签名逐项反编译核对）：10 个 recipeviewer mixin 全量移植 +
+  2 个 accessor（RecipeBookAccessor 读 RecipeBook.known；GuiGraphicsAccessor——
+  1.21.1 的 renderTooltipInternal 是 **private**）；hideoverlay 旧 mixin 收窄
+- **Viewer**：placeRecipe（1.21.1 无 tryPlaceRecipe → 
+  MultiPlayerGameMode.handlePlaceRecipe 直发 + ServerPlaceRecipeMixin 放行 contains
+  ——注入点在 ServerPlaceRecipe.recipeClicked，不在 1.21.11 的 handlePlaceRecipe）、
+  captureTarget 7 级、hide 过滤链（对象级/类别级/站连接切连/defaultFor）、
+  fallbackToViewer、modalMaskOwnsCursor、viewerMode、PopupGeometry 1:1 +
+  PopupRenderer 重写、富 tooltip（AbstractBrbeTooltipComponent + renderTooltipInternal）
+- **pinoverlay**：PinOverlay/PinOverlayManager/PinButtonRenderOverride（z 序交错、
+  拖动、点击放置、brbe.pinoverlays.json 持久化、ESC 只关 viewer）
+
+**关键 API 差异备忘（本轮反编译核实）**：
+- `ServerPlaceRecipe.recipeClicked` 里 `ServerRecipeBook.contains(RecipeHolder)`
+  （1.21.11 是 handlePlaceRecipe 里 `contains(ResourceKey)`）——ServerPlaceRecipeMixin
+- 1.21.1 的 `ClientTooltipComponent` 是 renderText(Font,int,int,Matrix4f,BufferSource)/
+  renderImage(Font,int,int,GuiGraphics)（1.21.11 是 renderText(GuiGraphics,...)/
+  renderImage(...,width,height,...)）——tooltip 组件按 1.21.1 签名实现
+- 1.21.1 `GuiGraphics.renderTooltipInternal` private（1.21.11 public）——@Invoker 桥
+- 1.21.1 `AbstractContainerScreen` **无 mouseScrolled**（在 Screen 上）——滚轮走
+  既有 MouseScrollHandler（MouseHandler.onScroll）
+- 1.21.1 `RecipeBeanBook.known` 是 Set<ResourceLocation>（1.21.11 是 Map<RecipeDisplayId,...>）
+- 1.21.1 用 `StackedContents`（非 1.21.11 的 StackedItemContents）
+- 1.21.1 的 InputConstants.isKeyDown 收 long（window.getWindow()）
+
+**剩余缺口**（数据源/API 鸿沟，下一轮次）：Alt+滚轮变体轮循、tooltip 内嵌完整预览
+（RecipePreviewTooltipComponent）、pin 克隆 OverlayRecipeButton（无 SlotSelectTime）、
+JEI overlay 排除区。
+
+**验证**：runClient mixin 全量应用（仅两个既有 JEI overlay 缺席警告——运行时无 JEI 正常）；
+runClient 入口 crash 为既有 headless-jei JIJ 不入 dev classpath 问题（与本次无关）。
+已部署双端（备份 20260829-164730 / 164947，md5 一致）。
