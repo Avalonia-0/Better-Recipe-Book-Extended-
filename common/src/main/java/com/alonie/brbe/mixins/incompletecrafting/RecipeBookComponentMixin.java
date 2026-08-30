@@ -89,6 +89,9 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
     private int brbe$cacheGeneration = -1;
 
     @Unique
+    private int brbe$cacheMarkingVersion = -1;
+
+    @Unique
     private int brbe$cachePinVersion = -1;
 
     @Unique
@@ -337,13 +340,19 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         // Only visibility + sorting here — state was already updated
         // by brbe$forEachRedirect earlier in the same updateCollections call.
         //
-        // Pipeline output cache: when the inventory is unchanged, canCraft
-        // results (and thus the visibility/sort outcome) are identical to
-        // the last pass — reuse the cached display list and skip the
-        // O(collections) prepareDisplay work.
+        // Pipeline output cache: when the inventory is unchanged AND the
+        // partial-marking generation is unchanged, canCraft results (and
+        // thus the visibility/sort outcome) are identical to the last pass.
+        // We key on the partial marking version (not just inventoryUnchanged)
+        // because the sort bucket for a collection depends on its partial tag:
+        // a carried item can re-mark partials without changing the menu-slot
+        // diff that RecipeCraftingIndex tracks — without this the sort would
+        // stay stale until the book reopens (2026-08-30 user report).
         List<RecipeCollection> result;
+        int markingVersion = PartialCraftingUtil.markingVersion();
         boolean cacheHit = brbe$cacheHasDisplay
                 && RecipeCraftingIndex.inventoryUnchanged()
+                && brbe$cacheMarkingVersion == markingVersion
                 && brbe$cacheGeneration == RecipeCraftingIndex.generation()
                 && brbe$cachePinVersion == BetterRecipeBook.pinnedRecipeManager.version()
                 && brbe$cacheFiltering == isFiltering
@@ -354,6 +363,7 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         } else {
             result = RecipePipeline.prepareDisplay(list, ctx);
             brbe$cachedDisplayList = result;
+            brbe$cacheMarkingVersion = markingVersion;
             brbe$cacheGeneration = RecipeCraftingIndex.generation();
             brbe$cachePinVersion = BetterRecipeBook.pinnedRecipeManager.version();
             brbe$cacheFiltering = isFiltering;

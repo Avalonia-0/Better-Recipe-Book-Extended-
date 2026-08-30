@@ -71,7 +71,21 @@ public final class PartialCraftingUtil {
      */
     public static void beginFilteringUpdate(boolean active) {
         tagger.beginFiltering(active);
+        if (active) {
+            // 每次真正的 partial 重标记（推进代数）都使标记版本+1。
+            // 显示/排序缓存据此失效：partial 标签变了 → 分类/排序结果可能变。
+            markingVersion++;
+        }
     }
+
+    /** 单调递增的 partial 标记版本——每次 beginFilteringUpdate(true) 推进一次。
+     *  显示缓存用它在"物品栏 slot 内容未变但 carried 变化导致 partial 重标"时
+     *  也能正确失效（RecipeCraftingIndex.inventoryUnchanged 只 diff slot，不含 carried）。 */
+    public static int markingVersion() {
+        return markingVersion;
+    }
+
+    private static int markingVersion;
 
     // ── Force-full-refresh (legacy — to be replaced in Phase 2) ─────
 

@@ -246,12 +246,12 @@ public abstract class RecipeBookPageAnimationMixin {
         brbe$renderVisualSquashed(snapIn, k, basePage + 1,
                 button.getX() + Math.round((1.0F - frac) * PAGE_SLIDE_DISTANCE), button.getY(),
                 gui, mouseX, mouseY, delta);
-        gui.disableScissor();
-        // 已固定配方的 pin 图标绘制在网格 scissor 之外（与静态路径相同的裁剪状态）：
-        // 超出配方区的悬出部分不被裁剪。
+        // 已固定配方的 pin 图标也在网格 scissor 内绘制：跟随滑动、被网格边界
+        // 裁剪（否则按滑动后坐标绘制会飞出屏幕——2026-08-30 用户实测）。
         for (int[] p : this.brbe$animPinIcons) {
             gui.blitSprite(BRBTextures.RECIPE_BOOK_PIN_SPRITE, p[0] - 4, p[1] - 4, 32, 32);
         }
+        gui.disableScissor();
     }
 
     /**
@@ -273,7 +273,14 @@ public abstract class RecipeBookPageAnimationMixin {
         snap.visible = true;
         RecipeCollection c = snap.getCollection();
         boolean many = c.getRecipes(false).size() > 1;
-        ResourceLocation sprite = c.hasCraftable()
+        // 与静态路径一致（incompletecrafting/RecipeButtonMixin 的 @Redirect
+        // hasCraftable() → hasCraftable() || hasPartial）：残缺配方按 CRAFTABLE 样式
+        // 显示（亮 sprite），其下再叠单层 partial 红标。若这里用裸 hasCraftable()，
+        // 残缺配方（不进 craftable 集合）会选中 UNCRAFTABLE 暗红 sprite，再叠红标
+        // → 双重红罩（2026-08-30 用户实测）。
+        boolean showAsCraftable = c.hasCraftable()
+                || PartialCraftingUtil.hasPartialMaterials(c);
+        ResourceLocation sprite = showAsCraftable
                 ? (many ? SLOT_MANY_CRAFTABLE : SLOT_CRAFTABLE)
                 : (many ? SLOT_MANY_UNCRAFTABLE : SLOT_UNCRAFTABLE);
         gui.blitSprite(sprite, x, y, 25, 25);
