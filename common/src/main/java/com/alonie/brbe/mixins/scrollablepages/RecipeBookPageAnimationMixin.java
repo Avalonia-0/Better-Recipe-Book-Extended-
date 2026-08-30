@@ -69,6 +69,9 @@ public abstract class RecipeBookPageAnimationMixin {
     private static final int GRID_TOP_PAD = 31;
     private static final int GRID_WIDTH = 125;
     private static final int GRID_HEIGHT = 125;
+    /** pin 图标（32×32，锚 (x-4,y-4)）相对 25×25 格的悬出量——按此量外扩 pin
+     *  专属 scissor，保留该悬出（与静态路径一致）。 */
+    private static final int PIN_OVERHANG = 4;
 
     // 1.21.1 RecipeButton 的槽位 sprite 是 private static 字段——按 javap 核对的
     // 原版 id 直接构造（recipe_book/slot_*）。
@@ -246,8 +249,16 @@ public abstract class RecipeBookPageAnimationMixin {
         brbe$renderVisualSquashed(snapIn, k, basePage + 1,
                 button.getX() + Math.round((1.0F - frac) * PAGE_SLIDE_DISTANCE), button.getY(),
                 gui, mouseX, mouseY, delta);
-        // 已固定配方的 pin 图标也在网格 scissor 内绘制：跟随滑动、被网格边界
-        // 裁剪（否则按滑动后坐标绘制会飞出屏幕——2026-08-30 用户实测）。
+        gui.disableScissor();
+        // 已固定配方 pin 图标：单独用"网格边界外扩 pin 悬出量"的 scissor 绘制。
+        // 原因：pin 是 32×32、按 (x-4,y-4) 锚在 25×25 格上，故意超出格子 ~4px
+        // （上轮把 pin 画进严格网格 scissor，裁掉了这部分悬出 → 回归；静态路径
+        // pins/RecipeButtonMixin 画 pin 无任何 scissor，悬出始终可见）。
+        // 用扩边 scissor 既保留悬出（与静态一致），又仍在格子/网格滑出时被裁住
+        // （不会飞出屏幕——否则单独绘制会按滑动后坐标飞出，issue #3）。
+        int pinL = boundLeft - PIN_OVERHANG, pinT = boundTop - PIN_OVERHANG;
+        int pinR = boundRight + PIN_OVERHANG, pinB = boundBottom + PIN_OVERHANG;
+        gui.enableScissor(pinL, pinT, pinR, pinB);
         for (int[] p : this.brbe$animPinIcons) {
             gui.blitSprite(BRBTextures.RECIPE_BOOK_PIN_SPRITE, p[0] - 4, p[1] - 4, 32, 32);
         }
