@@ -1447,3 +1447,32 @@ craftable=Y partial=Y 则判"互斥破坏/不合格"。旧诊断 PARTIAL 只断�
 原子替换）；javap 核验双端 markAndInject 无 getCraftable（0 处）、diagnostic run
 方法在。**待用户实测**：残缺配方不再闪可合成；点击不再变不可合成；partial 仍可
 点击/预览（走 ghost 路径，因 isCraftable 现正确为 false）；set -D...=false 无关。
+
+## 2026-08-30（五）：动画+排序三缺陷修复（已部署双端）
+
+用户实测 3 问题，均在翻页动画混入+显示缓存；第 2 项与上一轮语义分离（markAndInject
+不再注入 craftable）连锁：
+- ①残缺配方状态改变后排序不即时更新（须重开配方书）
+- ②动画播放时所有残缺配方额外叠一层红罩（播完消失）
+- ③动画播放时 pin 贴图飞出屏幕
+
+**①根因**：显示缓存命中条件漏掉 partial 标记版本。缓存基于
+`RecipeCraftingIndex.inventoryUnchanged()`（只 diff 菜单 slot，不含 carried），而
+forEachRedirect 的 inventoryChanged 用 `slotHash(menu.slots, carried)`（含 carried）。
+partial 重标常由 carried 驱动（拿起物品）→ 标记更新但缓存判"未变"→ 旧排序。
+修复：`PartialCraftingUtil` 加单调 `markingVersion`（`beginFilteringUpdate(true)`
+即真重标时 +1，暴露 getter），缓存命中条件加 `brbe$cacheMarkingVersion==markingVersion`。
+
+**②根因**：`RecipeBookPageAnimationMixin.brbe$renderVisualSquashed` 选 sprite 用裸
+`c.hasCraftable()`，未套静态路径 `@Redirect hasCraftable()||hasPartial`。语义分离后
+残缺配方不进 craftable → 动画里选中 UNCRAFTABLE 暗红 sprite，再叠 renderPartialMark
+红标 → 双重红。修复：`showAsCraftable = c.hasCraftable() || hasPartialMaterials(c)`，
+残缺配方按 CRAFTABLE 亮 sprite + 单层红标，与静态一致。
+
+**③根因**：pin 图标在 `disableScissor()` 之后按滑动后坐标（含 -125px 位移）绘制、
+无网格裁剪 → 飞出屏幕。修复：pin blitSprite 移入 scissor 块内（enableScissor 与
+disableScissor 之间），跟随滑动但被网格边界裁住。
+
+**验证**：compileJava 通过、双端 build 成功、部署（备份 20260830-14xxxx，原子替换）；
+javap 核验 markingVersion()/showAsCraftable 存在、pin blit 位于 enableScissor 与
+disableScissor 之间。提交 77c0cf61。**待用户实测**。
