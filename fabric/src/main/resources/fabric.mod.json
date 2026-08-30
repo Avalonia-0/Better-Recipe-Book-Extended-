@@ -29,8 +29,7 @@
       "com.alonie.brbe.fabric.BetterRecipeBookFabric"
     ],
     "client": [
-      "com.alonie.brbe.fabric.BetterRecipeBookClientFabric",
-      "com.alonie.brbe.fabric.jei.BrbeJeiPluginsClientFabric"
+      "com.alonie.brbe.fabric.BetterRecipeBookClientFabric"
     ],
     "jei_mod_plugin": [
       "com.alonie.brbe.fabric.compat.jei.BetterRecipeBookJEIPlugin"
@@ -50,10 +49,5 @@
   "depends": {
     "fabric-api": "*",
     "minecraft": ">=1.21.1"
-  },
-  "jars": [
-    {
-      "file": "META-INF/jars/headless-jei-fabric-1.21.1-1.0.0.jar"
-    }
-  ]
+  }
 }
