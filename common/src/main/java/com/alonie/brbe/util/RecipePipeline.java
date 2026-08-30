@@ -121,11 +121,10 @@ public final class RecipePipeline {
             PartialCraftingUtil.beginFilteringUpdate(true);
 
             // Step 3a: clear previously-injected partial recipes from craftable set
-            // Only needed on the inventory (2×2) screen where the pre-check
-            // injects 3×3 recipes.  On the crafting table (3×3), vanilla
-            // canCraft correctly populates the craftable set, and clearing
-            // based on stale partial data from a previous inventory-screen
-            // visit would incorrectly remove genuinely craftable recipes.
+            // (NO-OP since Phase: partial recipes are no longer injected into the
+            // craftable set — updateRecipeState only marks the partial tag.  Kept
+            // as a defensive remove for recipes that may still be present after a
+            // version upgrade mid-session or a partial-marking toggle.)
             if (ctx.onInventoryScreen && ctx.showAllRecipesInSurvival) {
                 for (RecipeCollection coll : collections) {
                     if (!PartialCraftingUtil.hasPartialMaterialsEvenIfStale(coll)) continue;

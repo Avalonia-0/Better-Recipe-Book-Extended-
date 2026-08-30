@@ -1,8 +1,6 @@
 package com.alonie.brbe.util;
 
 import com.alonie.brbe.BetterRecipeBook;
-import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
-import com.alonie.brbe.util.BrbeLogger;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.core.NonNullList;
 import net.minecraft.resources.ResourceLocation;
@@ -99,36 +97,43 @@ public final class PartialCraftingUtil {
     // ── Atomic marking + injection ───────────────────────────────────
 
     /**
-     * Atomically mark partial recipes AND inject them into the craftable
-     * set.  Both the tagger data and {@code brbe$getCraftable()}
-     * must be updated together, otherwise RecipeButtons show wrong
-     * textures (partials look craftable or vice versa).
+     * Mark partially-craftable recipes for a collection (no injection).
+     *
+     * <p>See {@link #markAndInject(RecipeCollection, Set, Set)} — the
+     * semantic {@code craftable} set is left untouched; only the partial
+     * tag is written.</p>
      */
     public static void markAndInject(RecipeCollection collection, Set<Item> inventoryItems) {
         markAndInject(collection, inventoryItems, inventoryItems);
     }
 
     /**
-     * {@code matchItems} 单独控制"哪些配方会被检索为残缺"（与 inventoryItems
-     * 解耦）。partialOnlyWhenCarrying 场景：matchItems 仅含 carried 类型
-     * （或空集 → 完全不标 partial），3×3 材料齐全判定仍用完整库存。
+     * Mark partially-craftable recipes for a collection.
+     *
+     * <p><b>Deliberately does NOT inject partials into the vanilla
+     * {@code brbe$getCraftable()} set.</b>  The {@code isCraftable()}
+     * (craftable) set is a <em>semantic</em> predicate — it must reflect
+     * only recipes the player can actually complete, as decided by vanilla
+     * {@code canCraft}.  Injecting a partial recipe there made
+     * {@code isCraftable()} return true for recipes the player can't finish,
+     * which (a) flickered the button "craftable", and (b) made the click
+     * path ({@code MultiPlayerGameMode.handlePlaceRecipe} /
+     * {@code unlockrecipes} {@code if (!lastRecipe.isCraftable(recipe))})
+     * treat a partial as placeable, then drop it the moment a fresh
+     * inventory re-evaluated it — the "click → becomes uncraftable" bug.</p>
+     *
+     * <p>Partials are rendered as craftable-looking by the <em>display</em>
+     * layer instead: {@code incompletecrafting/RecipeButtonMixin} redirects
+     * {@code hasCraftable() → hasCraftable() || hasPartial}, and
+     * {@code getOrderedRecipes} re-includes partial recipes from the tag.
+     * So the visual/clickability the injection was added to provide is
+     * already covered by the tag-driven display path.  Marking the tag is
+     * the only thing this method must do.</p>
+     *
+     * @param marked whether any partial recipes were detected
      */
-    public static void markAndInject(RecipeCollection collection, Set<Item> inventoryItems, Set<Item> matchItems) {
-        boolean marked = markPartialMaterials(collection, inventoryItems, matchItems);
-        if (!hasPartialMaterials(collection)) return;
-        int injected = 0;
-        var ca = (RecipeCollectionAccessor) collection;
-        for (var holder : collection.getRecipes()) {
-            if (isPartiallyCraftable(collection, holder.id())) {
-                ca.brbe$getCraftable().add(holder);
-                injected++;
-            }
-        }
-        if (BrbeLogger.isEnabled() && injected > 0) {
-            BrbeLogger.log(BrbeLogger.Category.STATE,
-                    "markAndInject: marked=%s injected=%d/%d recipes",
-                    marked, injected, collection.getRecipes().size());
-        }
+    public static boolean markAndInject(RecipeCollection collection, Set<Item> inventoryItems, Set<Item> matchItems) {
+        return markPartialMaterials(collection, inventoryItems, matchItems);
     }
 
     // ── Slot / inventory hashing ─────────────────────────────────────

@@ -411,9 +411,10 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
     //
     // updateRecipeState already ran via @Redirect List.forEach inside
     // the updateCollections() call that initVisuals makes.  Calling it
-    // again here causes a second markPartialMaterials pass which sees
-    // isCraftable=true (from the first pass's injection) and calls
-    // clearTags() — wiping out the correct partial data.
+    // again here is safe: markAndInject no longer writes partial recipes
+    // into the vanilla craftable set, so a second markPartialMaterials
+    // pass does NOT observe isCraftable=true for partials and therefore
+    // never clears their tags (the old cache-corruption cascade).
 
     @Inject(method = "initVisuals", at = @At("TAIL"))
     private void brbe$resetPageAfterInitVisuals(CallbackInfo ci) {

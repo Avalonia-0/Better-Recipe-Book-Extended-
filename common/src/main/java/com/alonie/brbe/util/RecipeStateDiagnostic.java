@@ -41,6 +41,11 @@ import java.util.*;
  *
  * <p>3×3 配方（{@code needsLargerGrid}）永不标 partial——材料齐全与否都不判
  * "缺少部分材料"，由 {@code IncompatibleCraftingUtil} 的网格警告处理。</p>
+ *
+ * <p><b>核心不变量（互斥）</b>：同一配方在同一标记周期内，
+ * {@code isCraftable()} 与 {@code isPartiallyCraftable()} 绝不都为真。
+ * 残缺配方带 partial 标签、不进语义 craftable 集合；真正可合成配方仅
+ * 由原版 {@code canCraft} 决定。本诊断的"互斥破坏"分支硬性检查该不变量。</p>
  */
 public final class RecipeStateDiagnostic {
 
@@ -106,6 +111,19 @@ public final class RecipeStateDiagnostic {
                 boolean inCraftable = craftableSet.contains(holder);
                 boolean isPartial = PartialCraftingUtil.isPartiallyCraftableEvenIfStale(collection, id);
                 boolean needsGrid = PartialCraftingUtil.needsLargerGrid(holder);
+
+                // ── 不变量 0：craftable 与 partial 互斥 ──
+                // 残缺配方（partial）绝不写进语义 craftable 集合（见
+                // PartialCraftingUtil.markAndInject 契约）。若两者同时为真，
+                // 配方按钮会闪"可合成"、点击后变回"不可合成"（2026-08-30 根因）。
+                // 此项作为回归哨兵：任何标记路径重新引入注入都会在此暴露。
+                if (inCraftable && isPartial) {
+                    invalid++;
+                    String name = getDisplayName(holder);
+                    invalidByCollection.computeIfAbsent(name + " [" + id + "]", k -> new ArrayList<>())
+                            .add(String.format("  ⚠️互斥破坏 | craftable=Y partial=Y | 同一配方同时标记可合成与残缺"));
+                    continue;
+                }
 
                 // ── 合格性判定 ──
                 String label;

@@ -1409,3 +1409,41 @@ class 常量池中的 PrefixText 为他字段所有）；`RecipeViewerGuiRegistr
 **验证**：`:common:compileJava` 通过、双端 build 成功；部署（备份 20260830-123701，
 原子替换）；javap 核验双端 `PinOverlayManager` 三处 `isDisabled()` 各落于
 `init`/`render`/`handleKeyPressed` 方法体。
+
+## 2026-08-30（四）：残缺配方振荡根因——markAndInject 污染 craftable 集合（已部署双端）
+
+用户实测：配方状态混乱（有时变可合成、点击后变不可合成）。根因锁定为侵入式耦合：
+`PartialCraftingUtil.markAndInject` 把**残缺**配方 `brbe$getCraftable().add(holder)`
+写入原版语义集合，使 `isCraftable()` 对"玩家做不出"的配方返回 true。
+
+**振荡链**：
+1. markAndInject 注入 partial→craftable（显示"可合成/亮"）
+2. 下一次刷新 markPartialMaterials line 233 `if (isCraftable(recipe)) continue`
+   → 该配方被跳过不再标 partial；若集合无其它 partial 还 clearTags 清整集合标签
+   → 矛盾态 craftable={X}, partial={}
+3. 点击走 MultiPlayerGameMode.handlePlaceRecipe / unlockrecipes
+   `if (!lastRecipe.isCraftable(recipe))` → 因污染判"可合成"→ 真放 → 材料不够失败
+4. 刷新后 vanilla canCraft 重算 → 移除 craftable → 变"不可合成"
+
+**关键证据**：incompletecrafting/RecipeBookComponentMixin line 414-416 原有注释自述
+"a second markPartialMaterials pass which sees isCraftable=true (from the first
+pass's injection) and calls clearTags() — wiping out the correct partial data"——
+正是该级联的开发者记录。
+
+**修复**：markAndInject 不再注入 craftable，只写 partial 标签（删 2 处 getCraftable
+调用 + 相关 javadoc）。显示层本就标签驱动：RecipeButtonMixin @Redirect
+`hasCraftable()→hasCraftable()||hasPartial`、getOrderedRecipes Step 1 重新并入
+partial、applyVisibility/applyPartialSort/applyFilterToggle/categorize 全走 tag。
+3×3 preCheck 提升（RecipePipeline:217）是**真可合成**注入，保留。
+
+**语义分离**：`isCraftable`（语义，仅原版 canCraft 决定）vs partial 标签（显示）。
+viewer 已独立读两者（RecipeViewerOverlay:1384-1385）。
+
+**维护性加固**：RecipeStateDiagnostic 新增**互斥不变量**分支——若同一配方同时
+craftable=Y partial=Y 则判"互斥破坏/不合格"。旧诊断 PARTIAL 只断言 isPartial，
+未覆盖该破坏态（正是本轮 bug 场景）；现在该不变量被硬性检查。
+
+**验证**：compileJava 通过、双端 build 成功、部署（备份 20260830-144546/144631，
+原子替换）；javap 核验双端 markAndInject 无 getCraftable（0 处）、diagnostic run
+方法在。**待用户实测**：残缺配方不再闪可合成；点击不再变不可合成；partial 仍可
+点击/预览（走 ghost 路径，因 isCraftable 现正确为 false）；set -D...=false 无关。
