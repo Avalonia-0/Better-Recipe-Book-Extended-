@@ -114,6 +114,12 @@ public final class BrbeJeiBridge {
         if (!available()) {
             return;
         }
+        // JVM 盾：查询功能整体屏蔽（brbe.disableRecipeViewer=true，默认）时
+        // 无头 JEI 一并禁用——不启动核心、不标记收集（viewer 屏蔽后其消费方
+        // 停用，无头 JEI 仅在查询生态里有用；省去启动/收集成本）。
+        if (com.alonie.brbe.config.RecipeViewerFeatureFlag.isDisabled()) {
+            return;
+        }
         if (startAttempted) {
             return;
         }
@@ -210,6 +216,10 @@ public final class BrbeJeiBridge {
     @SuppressWarnings("unchecked")
     public static void refresh() {
         if (!available()) {
+            return;
+        }
+        // JVM 盾：查询功能整体屏蔽 → 无头 JEI 一并禁用（不启动、不收集、不导入）。
+        if (com.alonie.brbe.config.RecipeViewerFeatureFlag.isDisabled()) {
             return;
         }
         // 先确保核心已启动（幂等），再按 collectPending 决定是否重收集——收集是

@@ -36,7 +36,6 @@ public class BrbeConfig implements ConfigData {
     public String pinKey = KeybindingCodec.PIN_DEFAULT_RAW;
 
     @ConfigEntry.Gui.Tooltip
-    @ConfigEntry.Gui.PrefixText
     public boolean recipeViewerEnabled = true;
 
     /** 隐藏无配方书工作站所属的查询对象：开启后，查询结果中所有工作站都没有配方书体系的

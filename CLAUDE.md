@@ -1353,3 +1353,32 @@ PinnedRecipeManager，独立于 viewer）；A 键 pin（PinOverlayManager，无 
 不额外加闸——viewer 屏蔽后其消费方停用，数据无害。
 
 **待用户实测**：启动后按 R/U 无反应、配置界面无查询相关项；`-D...=false` 恢复。
+
+## 2026-08-30（十一轮·补）：屏蔽跟进——配置标题行跟随隐藏 + 无头 JEI 一并禁用
+
+用户实测（截图）反馈两点跟进：①"查询合成/用途"纯文字行（`recipeViewerEnabled`
+的 `@ConfigEntry.Gui.PrefixText` 标题）也要跟随屏蔽隐藏；②无头 JEI 也要跟随禁用。
+
+**①标题行跟随隐藏（根因 + 修复）**：
+- 根因：`@PrefixText` 由 AutoConfig 的注解 transformer 在字段 provider 之后
+  运行，给该字段的渲染列表**前置**一个 `TextListEntry` 标题行——上一轮只对
+  字段本身返回空列表（隐藏开关），但标题行是注解 transformer 加的，仍留下。
+- 修复：**移除 `recipeViewerEnabled` 的 `@ConfigEntry.Gui.PrefixText` 注解**，
+  改由 `RecipeViewerGuiRegistrar`（predicate provider）**接管**该字段渲染——
+  未屏蔽时渲染 `startTextDescription`（"查询合成/用途"标题，读
+  `...recipeViewerEnabled.@PrefixText` 翻译键）+ `startBooleanToggle` 布尔开关
+  （视觉与原注解一致）；屏蔽时返回空列表（标题 + 开关一起隐藏）。`hideNoRecipe
+  BookStationObjects` 同理接管（无标题、仅开关）。不再依赖 AutoConfig 注解
+  transformer 的次序。
+
+**②无头 JEI 一并禁用**：`BrbeJeiBridge.ensureHeadlessStarted()` 与 `refresh()`
+  开头加 `isDisabled() → return`（仅 1.21.1；headless-jei 是独立项目，其 jar 不动）——
+  屏蔽时不启动核心、不收集、不导入。入口点（fabric JOIN/neoforge LevelEvent/
+  RecipesUpdated/每 tick）全部走 `refresh()` → 短路；`retryStart()` 只重置标志，
+  无实际启动副作用；atlas 重载监听注册仅是注册，核心不启动即无害，一并保留。
+
+**部署**：备份 20260830-02xx（原子替换）；fabric 541bd35e、neoforge 5e9f1cdc。
+字节码核验：`recipeViewerEnabled` 字段仅剩 `@Tooltip`（`@PrefixText` 已移除，
+class 常量池中的 PrefixText 为他字段所有）；`RecipeViewerGuiRegistrar` 含
+`isDisabled→List.of`（屏蔽返回空）+ `startTextDescription` + `startBooleanToggle`；
+`BrbeJeiBridge` 含 shield 引用（1 处各端）。
