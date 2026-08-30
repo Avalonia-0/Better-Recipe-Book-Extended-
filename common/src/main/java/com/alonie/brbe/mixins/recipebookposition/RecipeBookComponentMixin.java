@@ -53,6 +53,12 @@ public abstract class RecipeBookComponentMixin {
     @Unique
     private String brbe$lastSearchAtHead;
 
+    /** 待恢复的 RBIP 创造标签稳定键。RBIP 创造按钮延迟到首个 render 帧构建、
+     *  且 initVisuals 会清空 activeCreativeTab——不能在 initVisuals 同步恢复，
+     *  改记 pending，由 render HEAD 的重断言消费（见 brbe$reassertAfterRender）。 */
+    @Unique
+    private String brbe$pendingCreativeKey;
+
     /** Remember the current tab + page + search whenever the book is visible. */
     @Inject(method = "render", at = @At("TAIL"))
     private void brbe$rememberPosition(GuiGraphics gui, int mouseX, int mouseY,
@@ -87,16 +93,14 @@ public abstract class RecipeBookComponentMixin {
         RecipeBookComponentAccessor acc = (RecipeBookComponentAccessor) self;
 
         if (key.startsWith("creative:")) {
-            // RBIP 创造标签：其按钮 RBIP 默认延迟到首个 render 帧构建。这里先
-            // 强制提前构建（rbip$forceBuildCreativeTabs），再同步定位并恢复——
-            // 否则首帧会先渲染搜索页、下帧才切创造标签（"每次打开配方书闪一遍
-            // 搜索页"，2026-08-30 用户实测）。
-            if (self instanceof RbipTabBridge bridge) {
-                bridge.rbip$forceBuildCreativeTabs();
-            }
-            RecipeBookTabButton target = brbe$findCreativeTab(self, key);
-            if (target == null) return;
-            brbe$applyRestore(self, acc, target, pos, key);
+            // RBIP 创造标签：按钮延迟到首个 render 帧构建，且 RBIP 在 initVisuals
+            // TAIL（同一注入点、跨配置文件、顺序无保证）会清空 activeCreativeTab。
+            // 因此不能在 initVisuals 同步恢复（会被 RBIP 擦掉 → 创造标签一闪而过、
+            // 配方区空白、无标签选中）。改记 pending，由 render HEAD 的重断言消费：
+            // 它必在 initVisuals 之后运行、且自幂等（每帧重断言直到命中），
+            // 顺带 forceBuild 确保按钮本帧已存在。
+            this.brbe$pendingCreativeKey = key;
+            return;
         } else {
             // vanilla 标签：按类别名精确定位（在 RBIP 重排后的列表中）。
             java.util.List<RecipeBookTabButton> tabs = acc.getTabButtons();
@@ -109,6 +113,33 @@ public abstract class RecipeBookComponentMixin {
             if (target == null) return;
             brbe$applyRestore(self, acc, target, pos, key);
         }
+    }
+
+    /** render HEAD：重断言 RBIP 创造标签恢复。RBIP 在 initVisuals（先于我执行）里
+     *  清空 activeCreativeTab、且在首个 render 帧 buildCreativeTabs；本消费点在
+     *  render HEAD（必在 initVisuals 后），先 forceBuild 确保按钮本帧已存在，再
+     *  命中并 applyRestore——把创造标签选中 + activeCreativeTab 同步成立，之后清
+     *  pending。自幂等：未命中则不消费、下帧重试。因 forceBuild 置 tabsNeedBuild
+     *  =false，RBIP 的 hotReload 不会再重建/擦除，消除了"闪现后空白、无选中"。
+     */
+    @Inject(method = "render", at = @At("HEAD"))
+    private void brbe$reassertAfterRender(GuiGraphics gui, int mouseX, int mouseY,
+                                          float delta, CallbackInfo ci) {
+        if (this.brbe$pendingCreativeKey == null) return;
+        RecipeBookComponent self = (RecipeBookComponent) (Object) this;
+        if (BetterRecipeBook.config == null
+                || !BetterRecipeBook.config.saveRecipeBookPosition
+                || !self.isVisible()) return;
+        String key = this.brbe$pendingCreativeKey;
+        if (self instanceof RbipTabBridge bridge) {
+            bridge.rbip$forceBuildCreativeTabs();
+        }
+        RecipeBookTabButton target = brbe$findCreativeTab(self, key);
+        if (target == null) return; // 尚未构建 → 下帧重试
+        RecipeBookPositionMemory.Pos pos = RecipeBookPositionMemory.load(bookKey(), key);
+        if (pos == null) { this.brbe$pendingCreativeKey = null; return; }
+        this.brbe$pendingCreativeKey = null;
+        brbe$applyRestore(self, (RecipeBookComponentAccessor) self, target, pos, key);
     }
 
     /** 共享的恢复逻辑：复位选中标签 + 重建页面集合 + 钳制页码。 */
