@@ -1476,3 +1476,11 @@ disableScissor 之间），跟随滑动但被网格边界裁住。
 **验证**：compileJava 通过、双端 build 成功、部署（备份 20260830-14xxxx，原子替换）；
 javap 核验 markingVersion()/showAsCraftable 存在、pin blit 位于 enableScissor 与
 disableScissor 之间。提交 77c0cf61。**待用户实测**。
+
+## 2026-08-30（六）：动画 pin 悬出回归——扩边 scissor 修（已部署双端）
+
+回归：上一轮把 pin 移进严格网格 scissor，裁掉 pin 超出格子的悬出。pin 32×32
+锚 (x-4,y-4) 于 25×25 格，悬出左/上 4px、右/下 3px；静态路径 pins/RecipeButtonMixin
+画 pin 无 scissor，悬出可见。修复：pin 用「网格外扩 PIN_OVERHANG(=4)」专属
+scissor 绘制——保留悬出（与静态一致）且滑出时仍被裁（issue #3 不回归）。顺序：
+内容 scissor(严格)→disable→pin scissor(扩边)→blitSprite→disable。提交 05493c33。
