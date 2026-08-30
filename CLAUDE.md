@@ -1382,3 +1382,30 @@ PinnedRecipeManager，独立于 viewer）；A 键 pin（PinOverlayManager，无 
 class 常量池中的 PrefixText 为他字段所有）；`RecipeViewerGuiRegistrar` 含
 `isDisabled→List.of`（屏蔽返回空）+ `startTextDescription` + `startBooleanToggle`；
 `BrbeJeiBridge` 含 shield 引用（1 处各端）。
+
+## 2026-08-30（三）：屏蔽跟进 3——A 键 pin 浮层预览一并禁用（已部署双端）
+
+用户实测：`-Dbrbe.disableRecipeViewer=true`（默认）下，对着物品按 A 仍能 pin
+出**查询浮层的预览界面**（`PinOverlay` 浮层弹窗）。此前屏蔽只门控了
+`RecipeViewerOverlay`（R/U/render/renderTooltip/BrbeJeiBridge），`PinOverlayManager`
+未门控。
+
+**根因**：A 键 pin 创建有两条调用链——
+- `RecipeViewerOverlay.keyPressed`（A 键分支）→ **已门控**（`isDisabled()` 头部门）
+- `KeyboardHandlerMixin.brbe$viewerKeysEarly`（priority 2000 键盘层早入口）直接
+  `RecipeViewerOverlay.keyPressed(...) || PinOverlayManager.handleKeyPressed(...)`，
+  而 `RecipeViewerOverlay.keyPressed` 被门控后返回 false，`||` **短路落入
+  `PinOverlayManager.handleKeyPressed`**——创建 preview `PinOverlay`。泄漏点。
+
+**修复**：门控 `PinOverlayManager` 三入口（均用现有 `RecipeViewerFeatureFlag.isDisabled()`）
+- `init()`：屏蔽时不加载持久化 pin（`brbe.pinoverlays.json`）——PINS 保持空，
+  渲染/命中/交互自然惰性
+- `render()`：屏蔽时不画 pin 浮层（含持久化恢复项）
+- `handleKeyPressed()`：A 键不再创建/移除 pin 浮层
+
+**配方书 pin 不受影响**：`mixins/pins/AbstractContainerScreenMixin` →
+`PinnedRecipeManager.toggleFavourite`（A 键 pin 配方书）不调 PinOverlayManager，照常可用。
+
+**验证**：`:common:compileJava` 通过、双端 build 成功；部署（备份 20260830-123701，
+原子替换）；javap 核验双端 `PinOverlayManager` 三处 `isDisabled()` 各落于
+`init`/`render`/`handleKeyPressed` 方法体。

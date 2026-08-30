@@ -1,5 +1,6 @@
 package com.alonie.brbe.pinoverlay;
 
+import com.alonie.brbe.config.RecipeViewerFeatureFlag;
 import com.alonie.brbe.recipeviewer.RecipeViewerCategories;
 import com.alonie.brbe.recipeviewer.RecipeViewerCategory;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
@@ -57,6 +58,9 @@ public final class PinOverlayManager {
     public static void init() {
         if (initialized) return;
         initialized = true;
+        // 查询屏蔽：不加载持久化 pin 浮层——PINS 保持空，渲染/命中/交互全部
+        // 自然惰性（无条目可画、无条目可点），与查询 viewer 一并禁用。
+        if (RecipeViewerFeatureFlag.isDisabled()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.gameDirectory == null) return;
         pinFile = mc.gameDirectory.toPath().resolve("brbe.pinoverlays.json");
@@ -115,6 +119,9 @@ public final class PinOverlayManager {
     // ── 渲染（z 序交错 + 远处光标 + tooltip 仲裁） ────────────────────────────
 
     public static void render(GuiGraphics gui, int mouseX, int mouseY, float delta) {
+        // 查询屏蔽：不渲染 pin 浮层（含持久化恢复的条目），viewer 也由
+        // RecipeViewerOverlay.render 自身的屏蔽守卫跳过。
+        if (RecipeViewerFeatureFlag.isDisabled()) return;
         init();
         resolvePending();
         refreshRecipeStates();
@@ -275,6 +282,9 @@ public final class PinOverlayManager {
     /** A 键：消费 pin 键。 */
     public static boolean handleKeyPressed(int keyCode, int scanCode, int modifiers,
                                            AbstractContainerScreen<?> screen) {
+        // 查询屏蔽：A 键不再创建/移除 pin 浮层（查询预览界面禁用）。
+        // 配方书 pin（mixins/pins → PinnedRecipeManager.toggleFavourite）不受影响。
+        if (RecipeViewerFeatureFlag.isDisabled()) return false;
         init();
         if (!ClientCompat.matchesPinKey(keyCode, scanCode, modifiers)) return false;
         if (screen == null) return false;
