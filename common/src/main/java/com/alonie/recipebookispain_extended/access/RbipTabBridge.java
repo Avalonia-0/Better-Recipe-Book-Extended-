@@ -13,4 +13,9 @@ public interface RbipTabBridge {
 
     /** 标签 → 创造模式标签映射（注入在目标 RecipeBookWidget 上）。 */
     CreativeModeTab rbip$tabToGroup(RecipeBookTabButton tab);
+
+    /** 立即构建创造标签按钮（RBIP 默认延迟到首个 render 帧；此处强制提前构建，
+     *  供配方书位置记忆在 initVisuals 阶段同步恢复创造标签，避免"先渲染搜索页
+     *  再切创造标签"的闪帧）。已构建或 RBIP 未启用时为空操作。 */
+    default void rbip$forceBuildCreativeTabs() {}
 }

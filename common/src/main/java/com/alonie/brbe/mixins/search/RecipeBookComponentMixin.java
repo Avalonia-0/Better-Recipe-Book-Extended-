@@ -46,6 +46,12 @@ public class RecipeBookComponentMixin {
      * 清空后取消聚焦（与 1.21.11 语义一致）：聚焦状态保留会让后续 R/U/A 等
      * 按键被 RecipeBookComponent.keyPressed 的「聚焦搜索框吞键」分支拦截
      * （vanilla 行为），查询系统打不开；且点击别处也无法取消聚焦。
+     *
+     * <p>resetPageNumber 传 <b>false</b>（而非 true）：传 true 会让
+     * RecipeBookPage.updateCollections 强制把 currentPage 归 0 —— 清空搜索
+     * 后页码跳回首页（2026-08-30 用户实测）。1.21.11 同样传 false；页码的
+     * "清空→恢复搜索前页码/首次搜索→首页"策略由
+     * recipebookposition 的 checkSearchStringUpdate HEAD/TAIL 处理。</p>
      */
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void betterRecipeBook$rightClickClearSearch(double mouseX, double mouseY, int button,
@@ -54,7 +60,7 @@ public class RecipeBookComponentMixin {
         if (!searchBox.isMouseOver(mouseX, mouseY)) return;
         searchBox.setValue("");
         searchBox.setFocused(false);
-        ((RecipeBookComponentAccessor) this).updateCollectionsInvoker(true);
+        ((RecipeBookComponentAccessor) this).updateCollectionsInvoker(false);
         cir.setReturnValue(true);
     }
 

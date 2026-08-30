@@ -196,6 +196,20 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess, R
         return rbip$buttonToTab.get(tab);
     }
 
+    /** 强制提前构建创造标签按钮（RBIP 默认延迟到首个 render 帧）。供配方书
+     *  位置记忆在 initVisuals 阶段同步恢复创造标签，避免"先渲染搜索页再切
+     *  创造标签"的闪帧（2026-08-30 用户实测"每次打开配方书闪一遍搜索页"）。 */
+    @Override
+    @Unique
+    public void rbip$forceBuildCreativeTabs() {
+        if (rbip$tabsNeedBuild) {
+            rbip$tabsNeedBuild = false;
+            if (RecipeBookIsPainExtendedConfig.enabled()) {
+                rbip$buildCreativeTabs();
+            }
+        }
+    }
+
     // ── render TAIL: scroll + page controls + tooltip ──────────
 
     @Inject(at = @At("TAIL"), method = "render")

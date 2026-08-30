@@ -32,9 +32,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * 按下标/类别都会恢复错标签。</p>
  *
  * <p>对照 1.21.11 的 recipebookposition/RecipeBookComponentMixin：本版不含
- * RBIP 创造标签栏页码（RecipeBookScrollAccess 1.21.1 无）与搜索变更页码策略
- * （checkSearchStringUpdate 的 HEAD/TAIL 注入——1.21.1 的 search mixin 已有
- * search 处理，避免冲突）。</p>
+ * RBIP 创造标签栏页码（RecipeBookScrollAccess 1.21.1 无）；搜索变更页码策略
+ * （{@code checkSearchStringUpdate} HEAD/TAIL）已补入（见
+ * {@link #brbe$handleSearchChange}），与 1.21.11 一致：首次输入搜索词回首页、
+ * 清空搜索恢复搜索前页码。</p>
  */
 @Mixin(RecipeBookComponent.class)
 public abstract class RecipeBookComponentMixin {
@@ -43,10 +44,14 @@ public abstract class RecipeBookComponentMixin {
     @Shadow
     protected RecipeBookMenu menu;
 
-    /** 创造标签在 initVisuals 时可能尚未构建（RBIP 延迟到首个 render 帧），
-     *  此处缓存待恢复的创造标签 id，待其构建后在首个 render 帧消费。 */
+    /** 上一次处理的搜索词（vanilla RecipeBookComponent.lastSearch）。 */
+    @Shadow
+    private String lastSearch;
+
+    /** checkSearchStringUpdate HEAD 捕获的上一次搜索词——TAIL 用以判定"刚被清空"
+     *  （退格逐字删除时最后一次按键搜索框已是空值，只有 lastSearch 还保留删除前的词）。 */
     @Unique
-    private String brbe$pendingCreativeRestore;
+    private String brbe$lastSearchAtHead;
 
     /** Remember the current tab + page + search whenever the book is visible. */
     @Inject(method = "render", at = @At("TAIL"))
@@ -82,13 +87,15 @@ public abstract class RecipeBookComponentMixin {
         RecipeBookComponentAccessor acc = (RecipeBookComponentAccessor) self;
 
         if (key.startsWith("creative:")) {
-            // RBIP 创造标签：其按钮在 initVisuals 时可能尚未构建（延迟到首个
-            // render 帧）。先尝试命中；不中则记住 id，待首帧构建后消费。
-            RecipeBookTabButton target = brbe$findCreativeTab(self, key);
-            if (target == null) {
-                this.brbe$pendingCreativeRestore = key;
-                return;
+            // RBIP 创造标签：其按钮 RBIP 默认延迟到首个 render 帧构建。这里先
+            // 强制提前构建（rbip$forceBuildCreativeTabs），再同步定位并恢复——
+            // 否则首帧会先渲染搜索页、下帧才切创造标签（"每次打开配方书闪一遍
+            // 搜索页"，2026-08-30 用户实测）。
+            if (self instanceof RbipTabBridge bridge) {
+                bridge.rbip$forceBuildCreativeTabs();
             }
+            RecipeBookTabButton target = brbe$findCreativeTab(self, key);
+            if (target == null) return;
             brbe$applyRestore(self, acc, target, pos, key);
         } else {
             // vanilla 标签：按类别名精确定位（在 RBIP 重排后的列表中）。
@@ -102,26 +109,6 @@ public abstract class RecipeBookComponentMixin {
             if (target == null) return;
             brbe$applyRestore(self, acc, target, pos, key);
         }
-    }
-
-    /** 首个 render 帧：若待恢复的是 RBIP 创造标签（其按钮已随 buildCreativeTabs
-     *  构建完毕），此时消费 pending 恢复。在 render HEAD 运行；避免与
-     *  brbe$rememberPosition（render TAIL）同帧竞争。 */
-    @Inject(method = "render", at = @At("HEAD"))
-    private void brbe$consumePendingCreativeRestore(GuiGraphics gui, int mouseX, int mouseY,
-                                                    float delta, CallbackInfo ci) {
-        if (this.brbe$pendingCreativeRestore == null) return;
-        RecipeBookComponent self = (RecipeBookComponent) (Object) this;
-        if (BetterRecipeBook.config == null
-                || !BetterRecipeBook.config.saveRecipeBookPosition
-                || !self.isVisible()) return;
-        String key = this.brbe$pendingCreativeRestore;
-        RecipeBookTabButton target = brbe$findCreativeTab(self, key);
-        if (target == null) return; // 还没构建 → 下一帧再试
-        this.brbe$pendingCreativeRestore = null;
-        RecipeBookPositionMemory.Pos pos = RecipeBookPositionMemory.load(bookKey(), key);
-        if (pos == null) return;
-        brbe$applyRestore(self, (RecipeBookComponentAccessor) self, target, pos, key);
     }
 
     /** 共享的恢复逻辑：复位选中标签 + 重建页面集合 + 钳制页码。 */
@@ -175,6 +162,55 @@ public abstract class RecipeBookComponentMixin {
         int max = Math.max(0, pageAcc.getTotalPages() - 1);
         pageAcc.setCurrentPage(Math.min(pos.page(), max));
         pageAcc.updateButtonsForPageInvoker();
+    }
+
+    /**
+     * 搜索栏变化时的页码策略（"保存浏览记录"功能，1.21.11 同款）：
+     * <ul>
+     *   <li><b>首次输入搜索词</b>（空 → 非空）：回到第 1 页，从结果开头看；</li>
+     *   <li><b>清空搜索</b>（非空 → 空）：恢复搜索前浏览的页码（basePage），
+     *       而不是 vanilla 清空后跳回第 1 页；</li>
+     *   <li>搜索词继续修改（非空 → 非空）：保持原版行为，不干预。</li>
+     * </ul>
+     *
+     * <p>HEAD 捕获 {@link #lastSearch}（上一次处理的搜索词）而非搜索框当前值：
+     * 退格键逐字删除时，最后一次按键进入方法时搜索框已是空值，只有
+     * {@code lastSearch} 还保留着删除前的词，能可靠判定"刚被清空"。</p>
+     */
+    @Inject(method = "checkSearchStringUpdate", at = @At("HEAD"))
+    private void brbe$captureSearchText(CallbackInfo ci) {
+        this.brbe$lastSearchAtHead = this.lastSearch;
+    }
+
+    @Inject(method = "checkSearchStringUpdate", at = @At("TAIL"))
+    private void brbe$handleSearchChange(CallbackInfo ci) {
+        RecipeBookComponent self = (RecipeBookComponent) (Object) this;
+        if (BetterRecipeBook.config == null
+                || !BetterRecipeBook.config.saveRecipeBookPosition) return;
+        RecipeBookComponentAccessor acc = (RecipeBookComponentAccessor) self;
+        String now = acc.getSearchBox() != null ? acc.getSearchBox().getValue() : "";
+        String old = this.brbe$lastSearchAtHead;
+        if (now.isEmpty()) {
+            // 清空搜索：恢复搜索前浏览的页码（仅当搜索词确实从非空变为空）
+            if (old == null || old.isEmpty()) return;
+            RecipeBookTabButton tab = acc.getSelectedTab();
+            if (tab == null) return;
+            String key = brbe$tabKey(self, tab);
+            if (key == null) return;
+            RecipeBookPositionMemory.Pos pos = RecipeBookPositionMemory.load(bookKey(), key);
+            if (pos == null) return;
+            RecipeBookPage page = acc.getRecipeBookPage();
+            RecipeBookPageAccessor pageAcc = (RecipeBookPageAccessor) page;
+            int max = Math.max(0, pageAcc.getTotalPages() - 1);
+            pageAcc.setCurrentPage(Math.min(pos.basePage(), max));
+            pageAcc.updateButtonsForPageInvoker();
+        } else if (old == null || old.isEmpty()) {
+            // 首次输入搜索词：回到第 1 页，从结果开头看
+            RecipeBookPage page = acc.getRecipeBookPage();
+            RecipeBookPageAccessor pageAcc = (RecipeBookPageAccessor) page;
+            pageAcc.setCurrentPage(0);
+            pageAcc.updateButtonsForPageInvoker();
+        }
     }
 
     /** 构造选中标签的稳定键：RBIP 创造标签 → {@code creative:<id>}；否则类别名。 */
