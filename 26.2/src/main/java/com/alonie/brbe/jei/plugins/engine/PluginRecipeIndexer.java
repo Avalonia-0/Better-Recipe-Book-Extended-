@@ -18,6 +18,7 @@ import mezz.jei.api.recipe.vanilla.IJeiFuelingRecipe;
 import mezz.jei.api.recipe.vanilla.IJeiGrindstoneRecipe;
 import mezz.jei.api.recipe.vanilla.IJeiIngredientInfoRecipe;
 import net.minecraft.client.Minecraft;
+import net.minecraft.core.component.TypedDataComponent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
@@ -414,8 +415,23 @@ public final class PluginRecipeIndexer {
                         || slot.role() == RecipeIngredientRole.CRAFTING_STATION)) {
                 inputs.addAll(slot.stacks());
             }
-            if (slot.role() == RecipeIngredientRole.OUTPUT
-                    || slot.role() == RecipeIngredientRole.RENDER_ONLY) {
+            if (slot.role() == RecipeIngredientRole.RENDER_ONLY) {
+                // RENDER_ONLY 槽位语义 = "仅渲染"（JEI 数据模型里的上下文物品，
+                // 如熔炉类类别左下角的燃料槽——aerial hell 冷却器/振荡器的
+                // 岩浆凝胶/氟石即此角色）：不是产物的声明——产物只信 OUTPUT 角色
+                // （原版研磨的 RENDER_ONLY 输出走 IJeiGrindstoneRecipe 接口路径，
+                // 产物由接口显式提供，不受这里影响）。但 RENDER_ONLY 物品仍是
+                // 查询对象（JEI 对该槽位同样支持 R/U 聚焦），计入 inputs 让
+                // usage（U）查询命中本配方；绝不进产物列表（否则燃料会在对象
+                // 按钮上轮循/被误当作该站的产物）。
+                if (!slot.visible()) continue;
+                for (ItemStack stack : slot.stacks()) {
+                    if (stack != null && !stack.isEmpty()) {
+                        inputs.add(stack);
+                    }
+                }
+            }
+            if (slot.role() == RecipeIngredientRole.OUTPUT) {
                 // visible output slots only (invisible slots are data-only)
                 if (!slot.visible()) continue;
                 for (ItemStack stack : slot.stacks()) {
@@ -435,20 +451,37 @@ public final class PluginRecipeIndexer {
                 Math.max(width, 0), Math.max(height, 0));
     }
 
-    /** Renderer-visible output enumeration: anvil/grindstone products are the
-     *  recipe's declared outputs (grindstone declares RENDER_ONLY slots). */
+    /** The dedup key of a recipe entry: every input and product stack keyed by
+     *  REGISTRY ID + FULL COMPONENTS (enchantments, potion contents, damage…).
+     *  The former item-only key collapsed stacks differing only in components —
+     *  anvil book-enchant recipes of the same base item (Sharpness vs
+     *  Unbreaking books) and brewing recipes of the same potion item all shared
+     *  one fingerprint, so only the FIRST variant survived the {@code seen}
+     *  set and every other enchantment was silently dropped. */
     private static String fingerprint(JeiRecipeRegistry.Entry entry) {
         StringBuilder sb = new StringBuilder();
         if (entry.inputs() != null) {
             for (ItemStack stack : entry.inputs()) {
-                if (stack != null && !stack.isEmpty()) sb.append(stack.getItem()).append(',');
+                sb.append(stackKey(stack)).append(',');
             }
         }
         sb.append('=');
         if (entry.outputs() != null) {
             for (ItemStack stack : entry.outputs()) {
-                if (stack != null && !stack.isEmpty()) sb.append(stack.getItem()).append(',');
+                sb.append(stackKey(stack)).append(',');
             }
+        }
+        return sb.toString();
+    }
+
+    /** {@code stack} 的稳定键：注册 id + 逐组件序列化（组件 {@code toString}
+     *  只要求同一轮收集内一致——dedup 只在单次收集内生效）。 */
+    private static String stackKey(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return "";
+        StringBuilder sb = new StringBuilder(
+                String.valueOf(BuiltInRegistries.ITEM.getKey(stack.getItem())));
+        for (TypedDataComponent<?> tc : stack.getComponents()) {
+            sb.append('/').append(tc.type()).append('=').append(tc.value());
         }
         return sb.toString();
     }
