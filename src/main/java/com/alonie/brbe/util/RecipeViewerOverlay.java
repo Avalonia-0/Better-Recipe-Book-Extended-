@@ -4188,6 +4188,7 @@ public final class RecipeViewerOverlay {
         boxW = PAGE_COLS * 25 + 8;
         boxH = PAGE_ROWS * 25 + 8;
         ensureTabWidth();
+        ensureTitleWidth();
     }
 
     /** Shrink the box to {@code pageCount} objects and re-clamp it: columns
@@ -4208,6 +4209,7 @@ public final class RecipeViewerOverlay {
         boxW = columns * 25 + 8;
         boxH = rows * 25 + 8;
         ensureTabWidth();
+        ensureTitleWidth();
         boxX = anchorScreenX - 16;
         boxY = anchorScreenY - boxH + 16;
         boxY = clampBandTop(boxY);
@@ -4242,6 +4244,36 @@ public final class RecipeViewerOverlay {
         if (tabW > boxW) {
             boxW = tabW;
         }
+    }
+
+    /** Widen the box with EMPTY object columns so the title bar can draw the
+     *  full tab title instead of degrading to "…" — the same mechanism as
+     *  {@link #ensureTabWidth}: every extra column is one whole 25px object
+     *  pitch (the new cells are filled by {@link #drawEmptyRowFillers} like any
+     *  other empty box cell, and the tab strip simply ends before them).
+     *
+     *  <p>Called right after {@link #ensureTabWidth} in BOTH boxW assignment
+     *  sites ({@link #computeBoxSize} / {@link #fitBoxToPage}), so the
+     *  truncation branch of {@link #titleText} no longer triggers for any
+     *  category name.  The width required is the title's text plus the two pads
+     *  {@link #titleTextX} / {@link #titleTextRightBound} impose: 6px at the
+     *  band's left edge; on the right either the same 6px (unpaged) or the
+     *  right-aligned turn-page buttons' footprint (paged).  Both pads are
+     *  boxW-independent, so this needs no knowledge of the window's position.
+     *
+     *  <p>Horizontal placement stays free (the window may hang off a screen
+     *  edge — {@link #clampBandTop} is the only limit), so a long category
+     *  title simply makes the window wider by whole columns. */
+    private void ensureTitleWidth() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.font == null) return;
+        String title = titleBarTitle();
+        if (title.isEmpty()) return;
+        int needed = mc.font.width(title)
+                + (titleTextX() - boxLeft())                     // 左内边距（6px）
+                + (boxLeft() + boxW - titleTextRightBound());    // 右内边距（分页时含翻页按钮占位）
+        if (needed <= boxW) return;
+        boxW += ((needed - boxW) + 24) / 25 * 25;
     }
 
     /** Lay out a grid category's item grid from {@code items}: a usage query of
