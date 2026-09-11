@@ -149,6 +149,10 @@ public class BrbeConfig implements ConfigData {
         public boolean enableRecipeBookIsPain = true;
 
         public boolean enableTabPage = true;
+
+        /** 隐藏翻页按钮：打开时 RBIP 标签栏的翻页按钮（书左侧的两个箭头）不再显示，
+         *  其位置也不再吞掉点击；标签区域的滚轮翻页不受影响。默认关。 */
+        public boolean hideTabPageButtons = false;
     }
 
     @Override

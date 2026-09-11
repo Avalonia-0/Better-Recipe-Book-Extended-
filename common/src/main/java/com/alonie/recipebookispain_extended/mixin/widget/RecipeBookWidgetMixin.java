@@ -224,8 +224,8 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess, R
             this.rbip$scrollPages(mouseX, mouseY, scroll);
         }
 
-        // Render page controls
-        if (rbip$pageCount > 1) this.rbip$drawPageControls(gui, mouseX, mouseY);
+        // Render page controls（「隐藏翻页按钮」开启时整块不画）
+        if (rbip$pageCount > 1 && !rbip$pageButtonsHidden()) this.rbip$drawPageControls(gui, mouseX, mouseY);
 
         // Tooltips
         if (minecraft.screen == null) return;
@@ -242,10 +242,11 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess, R
             break;
         }
 
-        // Page-number tooltip
-        if (rbip$pageCount > 1
+        // Page-number tooltip（按钮隐藏时其悬停提示一并关闭）
+        if (!rbip$pageButtonsHidden()
+                && (rbip$pageCount > 1
                 && rbip$isInside(mouseX, mouseY, rbip$pageControlX, rbip$pageControlY, PAGE_BTN_W, PAGE_BTN_H)
-                || rbip$isInside(mouseX, mouseY, rbip$pageControlX + 15, rbip$pageControlY, PAGE_BTN_W, PAGE_BTN_H)) {
+                || rbip$isInside(mouseX, mouseY, rbip$pageControlX + 15, rbip$pageControlY, PAGE_BTN_W, PAGE_BTN_H))) {
             gui.renderTooltip(minecraft.font,
                     net.minecraft.network.chat.Component.literal((rbip$page + 1) + "/" + rbip$pageCount),
                     mouseX, mouseY);
@@ -337,8 +338,8 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess, R
         // Don't process page-control or creative-tab clicks when book is collapsed
         if (!this.visible) return;
 
-        // Page controls
-        if (rbip$pageCount > 1) {
+        // Page controls（按钮已隐藏：该区域不再吞掉点击，交回配方书原本的点击逻辑）
+        if (rbip$pageCount > 1 && !rbip$pageButtonsHidden()) {
             int pcx = rbip$pageControlX, pcy = rbip$pageControlY;
             if (rbip$isInside(mx, my, pcx, pcy, PAGE_BTN_W, PAGE_BTN_H) && rbip$page > 0) {
                 rbip$page--;
@@ -668,6 +669,14 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess, R
     @Unique private int rbip$getBottomTabY() { return rbip$getBookY() + VANILLA_BOOK_H - 5; }
 
     // ── Page control rendering ─────────────────────────────────
+
+    /** 「隐藏翻页按钮」（默认关）：开启时 RBIP 标签栏的翻页按钮整块不画、也不吞点击。
+     *  只影响这两个箭头本身——标签区域的滚轮翻页（{@link #rbip$isMouseOverAnyVisibleTab}）不变。 */
+    @Unique
+    private static boolean rbip$pageButtonsHidden() {
+        return com.alonie.brbe.BetterRecipeBook.config != null
+                && com.alonie.brbe.BetterRecipeBook.config.rbip.hideTabPageButtons;
+    }
 
     @Unique
     private void rbip$drawPageControls(GuiGraphics gui, int mouseX, int mouseY) {

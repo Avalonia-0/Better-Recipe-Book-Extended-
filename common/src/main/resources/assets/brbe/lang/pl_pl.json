@@ -134,6 +134,7 @@
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@PrefixText": "§eZakładki trybu kreatywnego",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@Tooltip": "Dopasowuje zakładki księgi receptur do ekwipunku w trybie kreatywnym. Wymaga ponownego otwarcia ekwipunku.",
   "text.autoconfig.brbe.option.rbip.enableTabPage": "Włącz górne i dolne zakładki",
+"text.autoconfig.brbe.option.rbip.hideTabPageButtons": "Ukryj przyciski przewijania stron",
   "text.autoconfig.brbe.option.recipeViewKey": "Wyszukaj przepisy",
   "text.autoconfig.brbe.option.recipeViewKey.@Tooltip": "Pokazuje przepisy, których produktem jest ten przedmiot.",
   "text.autoconfig.brbe.option.recipeViewKey@Tooltip": "Pokazuje przepisy, których produktem jest ten przedmiot.",
