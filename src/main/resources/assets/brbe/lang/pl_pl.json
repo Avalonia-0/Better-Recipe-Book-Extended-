@@ -23,6 +23,7 @@
   "brbe.gui.tip.8": "Przytrzymaj Ctrl i kliknij przycisk przewijania stron w obszarze receptur, aby szybko przejść na pierwszą lub ostatnią stronę.",
   "brbe.gui.tip.9": "Sposób na przejście do wybranej strony w obszarze receptur: wpisz „……” w pasku wyszukiwania, następnie numer strony i na końcu ponownie „……”. („……” można zastąpić znakiem „^”)",
   "brbe.gui.tip.prefix": "Wskazówka: ",
+"brbe.gui.section.recipeBookIsPain": "Recipe Book Is Pain",
 "brbe.gui.section.soundAnimation": "Dźwięk i animacja",
   "brbe.gui.togglePotions.brewable": "Pokaż warzalne",
   "category.brbe": "Better Recipe Book",
