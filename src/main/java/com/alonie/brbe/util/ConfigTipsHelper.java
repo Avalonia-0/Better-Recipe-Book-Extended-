@@ -58,7 +58,7 @@ public final class ConfigTipsHelper {
             java.util.function.Function<ConfigBuilder, Screen> buildFn = builder -> {
                 addCarousels(builder);
                 addSectionLabels(builder);
-                relocateRbipEntries(builder);
+                relocateEntries(builder);
                 return builder.build();
             };
             provider.setBuildFunction(buildFn);
@@ -104,44 +104,43 @@ public final class ConfigTipsHelper {
     /** RBIP 主开关：移到「§eJust Emulated Items」文字行（{@code recipeViewerEnabled} 项）之前。 */
     private static final String RBIP_MASTER_OPTION_KEY = "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain";
     private static final String VIEWER_ANCHOR_OPTION_KEY = "text.autoconfig.brbe.option.recipeViewerEnabled";
+    /** 一键制作子配置的两个条目：「启用一键制作」跟到主开关下面，「显示一键制作按钮」去「界面」页顶部。 */
+    private static final String INSTANT_CRAFT_ENABLED_OPTION_KEY = "text.autoconfig.brbe.option.instantCraft.enabled";
+    private static final String INSTANT_CRAFT_BUTTON_OPTION_KEY = "text.autoconfig.brbe.option.instantCraft.showButton";
 
     /**
-     * 重排 RBIP 相关的 GUI 条目（只重排条目对象，字段与 TOML 路径都保持原样）：
+     * 按期望的最终布局重排 GUI 条目（只重排条目对象，字段与 TOML 路径都保持原样）：
      * <ol>
-     *   <li>主开关「启用RBIP」从 {@code rbip} 字段所在位置（「预览模式」之后）移到
-     *       「§eJust Emulated Items」文字行之前 —— 即 {@code recipeViewerEnabled} 项之前；</li>
-     *   <li>「启用上侧和下侧的标签」「隐藏翻页按钮」从「实用功能」页搬到「界面」页的
-     *       「隐藏物品管理器界面」之后，并在它们前面插一行黄色纯文字「Recipe Book Is Pain」。</li>
+     *   <li>「启用Recipe Book Is Pain」→「§eJust Emulated Items」文字行之前；</li>
+     *   <li>「启用一键制作」→ 紧随「启用Recipe Book Is Pain」之后；</li>
+     *   <li>「显示一键制作按钮」→「界面」页顶部（第 0 条）；</li>
+     *   <li>「启用上侧和下侧的标签」「隐藏翻页按钮」→「界面」页「隐藏物品管理器界面」之后
+     *       （并在它们前面插一行黄色纯文字「Recipe Book Is Pain」）。</li>
      * </ol>
      *
      * <p><b>为什么搬条目而不是搬字段</b>：Cloth 的子对象（{@code @TransitiveObject}）条目
      * 只能落在父字段所属的类别里（类别只在顶层字段上解析），把字段升到顶层会让 TOML 路径从
-     * {@code [rbip] enableTabPage} 变成顶层键、老配置值失效。所以这里保持字段原地不动，
-     * 只把已经建好的条目对象重排 —— 条目仍绑定原字段，保存逻辑不变。
+     * {@code [rbip] enableTabPage} / {@code [instantCraft] enabled} 变成顶层键、老配置值失效。
+     * 所以这里保持字段原地不动，只把已经建好的条目对象重排 —— 条目仍绑定原字段，保存逻辑不变。
      * 「Recipe Book Is Pain」那行原本是主开关的 {@code @PrefixText}（会跟着开关一起跑），
      * 现改为「界面」页里的独立文字行。</p>
      */
-    private static void relocateRbipEntries(ConfigBuilder builder) {
-        ConfigCategory from = builder.getOrCreateCategory(Component.translatable(DEFAULT_CATEGORY_KEY));
-        List<Object> defaultEntries = from.getEntries();
+    private static void relocateEntries(ConfigBuilder builder) {
+        List<Object> defaultEntries =
+                builder.getOrCreateCategory(Component.translatable(DEFAULT_CATEGORY_KEY)).getEntries();
+        List<Object> uiEntries =
+                builder.getOrCreateCategory(Component.translatable(UI_CATEGORY_KEY)).getEntries();
 
-        // 1) 主开关：移到 recipeViewerEnabled 那条「§eJust Emulated Items」文字行【之前】。
-        //    ⚠️ AutoConfig 的 @PrefixText 并不是选项条目自身的一部分，而是【同组另起的一条
-        //    TextListEntry、插在该组第 0 位】（DefaultGuiTransformers 里 ret.add(0, element)，
-        //    15.0.140 / 21.11.153 / 26.2.155 三个版本一致）——所以"移到文字行上面"必须再往前
-        //    一格，否则会落进文字行与该开关之间（第一版就是这么错的：看起来在文字行下面）。
-        //    文字行的 fieldName 是随机 UUID（ConfigEntryBuilderImpl 里 Component.literal(UUID)），
-        //    无法按名字识别，只能按类型 + 相邻位置判定。
-        Object master = removeByFieldName(defaultEntries, Component.translatable(RBIP_MASTER_OPTION_KEY));
-        if (master != null) {
-            int viewer = indexOfFieldName(defaultEntries, Component.translatable(VIEWER_ANCHOR_OPTION_KEY));
-            boolean prefixed = viewer > 0 && defaultEntries.get(viewer - 1) instanceof TextListEntry;
-            int at = viewer < 0 ? defaultEntries.size() : (prefixed ? viewer - 1 : viewer);
-            defaultEntries.add(at, master);
-        }
-
-        // 2) 两个子开关：搬到「界面」页「隐藏物品管理器界面」之后（前面加黄字分节行）
-        ConfigCategory to = builder.getOrCreateCategory(Component.translatable(UI_CATEGORY_KEY));
+        // 1) 主开关「启用Recipe Book Is Pain」：插到 recipeViewerEnabled 的 @PrefixText 文字行【之前】。
+        //    ⚠️ AutoConfig 的 @PrefixText 不是选项条目自身的一部分，而是同组另起的一条
+        //    TextListEntry、插在该组第 0 位（DefaultGuiTransformers: ret.add(0, element)）——
+        //    所以"移到文字行上面"必须再往前一格，否则会落进文字行与该开关之间。
+        moveBefore(defaultEntries, RBIP_MASTER_OPTION_KEY, VIEWER_ANCHOR_OPTION_KEY, true);
+        // 2) 「启用一键制作」：紧随主开关之后
+        moveAfter(defaultEntries, INSTANT_CRAFT_ENABLED_OPTION_KEY, RBIP_MASTER_OPTION_KEY);
+        // 3) 「显示一键制作按钮」：「界面」页顶部
+        moveToTop(uiEntries, INSTANT_CRAFT_BUTTON_OPTION_KEY);
+        // 4) RBIP 两个子开关：搬到「界面」页「隐藏物品管理器界面」之后（前置黄字分节行）
         List<Object> moved = new ArrayList<>();
         for (String key : RBIP_MOVED_OPTION_KEYS) {
             Object entry = removeByFieldName(defaultEntries, Component.translatable(key));
@@ -151,9 +150,36 @@ public final class ConfigTipsHelper {
         List<Object> toInsert = new ArrayList<>();
         toInsert.add(textRow(builder, RBIP_SECTION_LABEL_KEY));
         toInsert.addAll(moved);
-        List<Object> target = to.getEntries();
-        int anchor = indexOfFieldName(target, Component.translatable(UI_ANCHOR_OPTION_KEY));
-        target.addAll(anchor < 0 ? target.size() : anchor + 1, toInsert);
+        int anchor = indexOfFieldName(uiEntries, Component.translatable(UI_ANCHOR_OPTION_KEY));
+        uiEntries.addAll(anchor < 0 ? uiEntries.size() : anchor + 1, toInsert);
+    }
+
+    /** 把 {@code optionKey} 的条目挪到 {@code anchorKey} 条目之前；{@code skipTextRowAbove} 为真时
+     *  连锚点条目上面那条 {@code @PrefixText} 文字行一起跳过（即"文字行上面"）。 */
+    private static void moveBefore(List<Object> entries, String optionKey, String anchorKey, boolean skipTextRowAbove) {
+        Object entry = removeByFieldName(entries, Component.translatable(optionKey));
+        if (entry == null) return;
+        int at = indexOfFieldName(entries, Component.translatable(anchorKey));
+        if (at < 0) {
+            entries.add(entry);
+            return;
+        }
+        if (skipTextRowAbove && at > 0 && entries.get(at - 1) instanceof TextListEntry) at--;
+        entries.add(at, entry);
+    }
+
+    /** 把 {@code optionKey} 的条目挪到 {@code anchorKey} 条目之后。 */
+    private static void moveAfter(List<Object> entries, String optionKey, String anchorKey) {
+        Object entry = removeByFieldName(entries, Component.translatable(optionKey));
+        if (entry == null) return;
+        int at = indexOfFieldName(entries, Component.translatable(anchorKey));
+        entries.add(at < 0 ? entries.size() : at + 1, entry);
+    }
+
+    /** 把 {@code optionKey} 的条目挪到该类别最前面。 */
+    private static void moveToTop(List<Object> entries, String optionKey) {
+        Object entry = removeByFieldName(entries, Component.translatable(optionKey));
+        if (entry != null) entries.add(0, entry);
     }
 
     /** 黄色纯文字行（分节标题）。 */
