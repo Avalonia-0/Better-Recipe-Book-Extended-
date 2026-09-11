@@ -31,10 +31,6 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.TransitiveObject
     public Scrolling scrolling = new Scrolling();
 
-    /** 「固定」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 A。 */
-    @ConfigEntry.Gui.Tooltip
-    public String pinKey = KeybindingCodec.PIN_DEFAULT_RAW;
-
     @ConfigEntry.Gui.Tooltip
     public boolean recipeViewerEnabled = true;
 
@@ -42,14 +38,6 @@ public class BrbeConfig implements ConfigData {
      *  对象被隐藏；若对象还包含有配方书体系的工作站则保留对象本身，仅 tooltip 隐藏非法
      *  工作站图标。默认关闭。 */
     public boolean hideNoRecipeBookStationObjects = false;
-
-    /** 「查询合成」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 R。 */
-    @ConfigEntry.Gui.Tooltip
-    public String recipeViewKey = KeybindingCodec.recipeViewDefaultRaw();
-
-    /** 「查询用途」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 U。 */
-    @ConfigEntry.Gui.Tooltip
-    public String usageViewKey = KeybindingCodec.usageViewDefaultRaw();
 
     @ConfigEntry.Gui.TransitiveObject
     public RecipeBookIsPain rbip = new RecipeBookIsPain();
@@ -80,14 +68,6 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Category("ui")
     @ConfigEntry.Gui.TransitiveObject
     public PageAnimation pageAnimation = new PageAnimation();
-
-    /** 翻页音效音量（0.0–1.0，默认 1.0 = 原生音量），可在「音乐与声音」界面调节。 */
-    @ConfigEntry.Category("ui")
-    public float pageFlipVolume = 1.0f;
-
-    /** 配方书翻页动画时长（秒）。 */
-    @ConfigEntry.Category("ui")
-    public float pageAnimationDuration = 0.5f;
 
     @ConfigEntry.Category("ui")
     @ConfigEntry.Gui.PrefixText
@@ -129,6 +109,33 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.PrefixText
     @ConfigEntry.Gui.TransitiveObject
     public AlternativeRecipes alternativeRecipes = new AlternativeRecipes();
+
+    // -- 快捷键&数值（keybindings 标签；位于「配方」右侧）------------------------
+
+    /** 「固定」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 A。 */
+    @ConfigEntry.Category("keybindings")
+    @ConfigEntry.Gui.Tooltip
+    public String pinKey = KeybindingCodec.PIN_DEFAULT_RAW;
+
+    /** 「查询合成」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 R。 */
+    @ConfigEntry.Category("keybindings")
+    @ConfigEntry.Gui.Tooltip
+    public String recipeViewKey = KeybindingCodec.recipeViewDefaultRaw();
+
+    /** 「查询用途」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 U。 */
+    @ConfigEntry.Category("keybindings")
+    @ConfigEntry.Gui.Tooltip
+    public String usageViewKey = KeybindingCodec.usageViewDefaultRaw();
+
+    // -- 「快捷键&数值」页底部的数值项（分节标题「音效与动画」由 ConfigTipsHelper 注入）----
+
+    /** 翻页音效音量（0.0–1.0，默认 1.0 = 原生音量），可在「音乐与声音」界面调节。 */
+    @ConfigEntry.Category("keybindings")
+    public float pageFlipVolume = 1.0f;
+
+    /** 配方书翻页动画时长（秒）。 */
+    @ConfigEntry.Category("keybindings")
+    public float pageAnimationDuration = 0.5f;
 
     // -- 杂项（miscellaneous 标签）--------------------------------------------
 
