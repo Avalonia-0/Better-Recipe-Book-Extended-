@@ -85,14 +85,6 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.TransitiveObject
     public PageAnimation pageAnimation = new PageAnimation();
 
-    /** 翻页音效音量（0.0–1.0，默认 1.0 = 原生音量），可在「音乐与声音」界面调节。 */
-    @ConfigEntry.Category("ui")
-    public float pageFlipVolume = 1.0f;
-
-    /** 配方书翻页动画时长（秒）。 */
-    @ConfigEntry.Category("ui")
-    public float pageAnimationDuration = 0.5f;
-
     @ConfigEntry.Category("ui")
     @ConfigEntry.Gui.PrefixText
     @ConfigEntry.Gui.Tooltip
@@ -150,6 +142,16 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Category("keybindings")
     @ConfigEntry.Gui.Tooltip
     public String usageViewKey = KeybindingCodec.usageViewDefaultRaw();
+
+    // -- 「快捷键&数值」页底部的数值项（分节标题「音效与动画」由 ConfigTipsHelper 注入）----
+
+    /** 翻页音效音量（0.0–1.0，默认 1.0 = 原生音量），可在「音乐与声音」界面调节。 */
+    @ConfigEntry.Category("keybindings")
+    public float pageFlipVolume = 1.0f;
+
+    /** 配方书翻页动画时长（秒）。 */
+    @ConfigEntry.Category("keybindings")
+    public float pageAnimationDuration = 0.5f;
 
     // -- 杂项（miscellaneous 标签）--------------------------------------------
 
