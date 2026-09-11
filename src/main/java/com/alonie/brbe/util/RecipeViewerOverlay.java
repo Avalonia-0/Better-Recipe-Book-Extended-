@@ -658,6 +658,23 @@ public final class RecipeViewerOverlay {
         return false;
     }
 
+    /** Whether {@code o} belongs to a viewer window that paints its own content
+     *  this frame.  A BRBE window always draws the WHOLE box itself — background
+     *  (extended {@code TITLE_BAR_H} upward), buttons, pin markers, page
+     *  controls — <b>independently of paging</b>; vanilla's draw pass instead
+     *  lays the background out for "at most 5 columns", i.e. a NARROWER box
+     *  that — once the button count passes 25 — is also TALLER than ours, so its
+     *  bottom border and its left border column (= exactly the workstation
+     *  column / box junction x) peek out below the viewer.  That pass must
+     *  therefore be skipped for every active own overlay, not only paged ones.
+     *  @see com.alonie.brbe.mixins.recipeviewer.OverlayRecipeComponentMixin */
+    public static boolean isOwnActiveOverlay(OverlayRecipeComponent o) {
+        for (ViewerInstance w : WINDOWS) {
+            if (w.overlay == o && w.isActive()) return true;
+        }
+        return false;
+    }
+
     public static boolean isPaged() {
         ViewerInstance w = topmost();
         return w != null && w.isPaged();
