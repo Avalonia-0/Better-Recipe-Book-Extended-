@@ -65,4 +65,21 @@ public interface SyntheticRecipeRenderer {
      */
     default void stepVariants(int delta) {
     }
+
+    /**
+     * Redraw the live slot's candidates badge (JEI's tag/list marker painted
+     * at the bottom-right of cycling ingredient slots) on top of a
+     * caller-drawn overlay.  The delegated drawable paints the badge together
+     * with the slot, so any overlay BRBE draws afterwards (the ghost red
+     * mask) covers it — callers redraw the masked slot's item via
+     * {@link #itemUnderMouse}, and this method redraws its badge the same
+     * way.  {@code contentX/contentY} is a point inside the slot in content
+     * coordinates (same mapping as {@link #itemUnderMouse}); the badge is
+     * positioned from the live slot's own rect, so it lands exactly where
+     * JEI painted it.  No-op by default: JEI builds without the badge
+     * feature draw nothing to restore.
+     */
+    default void drawSlotBadge(RecipeDisplayId id, GuiGraphicsExtractor gui,
+                               double contentX, double contentY, float ox, float oy, float fit) {
+    }
 }

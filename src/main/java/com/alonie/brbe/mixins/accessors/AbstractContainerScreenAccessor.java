@@ -21,4 +21,11 @@ public interface AbstractContainerScreenAccessor {
 
     @Accessor("imageWidth")
     int brbe$getImageWidth();
+
+    @Accessor("titleLabelX")
+    int brbe$getTitleLabelX();
+
+    @Accessor("titleLabelY")
+    int brbe$getTitleLabelY();
+
 }

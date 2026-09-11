@@ -29,7 +29,10 @@ public abstract class AbstractRecipeBookScreenMixin {
         AbstractRecipeBookScreen<?> screen = (AbstractRecipeBookScreen<?>) (Object) this;
         if (RecipeViewerOverlay.keyPressed(event, screen)) {
             cir.setReturnValue(true);
+            return;
         }
+        // Not a query-window key: the desktop below stays interactive (window
+        // semantics, not a full-screen focus layer).
     }
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
@@ -49,5 +52,20 @@ public abstract class AbstractRecipeBookScreenMixin {
     private void brbe$viewerRender(GuiGraphicsExtractor gui, int mouseX, int mouseY,
                                    float delta, CallbackInfo ci) {
         PinOverlayManager.render(gui, mouseX, mouseY, delta);
+    }
+
+    /** Recipe-book screens override mouseDragged (routing into the book
+     *  component BEFORE the container chain) — a title-bar drag of the query
+     *  window must win there too, and pin dragging still works. */
+    @Inject(method = "mouseDragged", at = @At("HEAD"), cancellable = true)
+    private void brbe$viewerDrag(MouseButtonEvent event, double dx, double dy,
+                                 CallbackInfoReturnable<Boolean> cir) {
+        if (RecipeViewerOverlay.mouseDragged(event)) {
+            cir.setReturnValue(true);
+            return;
+        }
+        if (PinOverlayManager.handleMouseDragged(event, dx, dy)) {
+            cir.setReturnValue(true);
+        }
     }
 }

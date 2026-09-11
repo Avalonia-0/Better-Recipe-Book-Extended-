@@ -67,6 +67,10 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         KeyMappingHelper.registerKeyMapping(BetterRecipeBook.RECIPE_VIEW_MAPPING);
         KeyMappingHelper.registerKeyMapping(BetterRecipeBook.USAGE_VIEW_MAPPING);
 
+        // 锻造 fallback：尽早注册同步配方监听（须先于登录的
+        // ClientRecipeSynchronizedEvent，否则错过回调、兜底永远无数据）。
+        com.alonie.brbe.cache.BrbeJeiBridge.initClient();
+
         // 拼音搜索：中文语言（zh_*）默认开启（用户仍可手动关闭）；
         // 非中文语言强制关闭（配置界面同时隐藏该选项，见 PinyinSearchGuiRegistrar）。
         // 注：entrypoint 阶段 Minecraft.options 尚为 null，须延迟到 CLIENT_STARTED
@@ -98,6 +102,9 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             PotionLoader.clear();
+            // 会话级进度状态清空：同一会话跨存档不得继承上一个存档的解锁
+            // （解锁权威 = 原版 advancement，按世界存储）。
+            com.alonie.brbe.brewingstand.RecipeUnlockTracker.resetSession();
         });
 
         // Register optional compat handlers
@@ -125,11 +132,17 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
                 // （先 vanilla 后 mod，同步事件触发），registry 变化时才会
                 // 重新导入查询引擎（registerType 幂等）。
                 com.alonie.brbe.cache.BrbeJeiBridge.refresh();
+                // 酿造/锻造进度：物品栏观察（酿造材料解锁）+ 原版进度观察
+                // （锻造模板解锁 → 本地配方书注入）。
+                com.alonie.brbe.brewingstand.RecipeUnlockTracker.tick(client);
             }
             // Coalesce recipe-book rebuilds: a pickup that unlocks several
             // recipes fires rebuildCollections per recipe; flush the engine
             // rebuild once per tick with the final known set.
             RecipeViewerIndex.flushEngineRebuildIfDirty();
+            // 锻造 trim 的 fallback layout 轮询（同步配方/引擎条目时序未对齐时
+            // 首轮 attach 失败；数据就绪后补挂一次，完成即 O(1) 返回）。
+            com.alonie.brbe.cache.BrbeJeiBridge.pollSmithingLayoutFallback();
             Screen screen = client.gui.screen();
             // Only the user's config toggle hides the JEI/REI overlay — BRBE
             // overlays (query viewer / pins) must co-exist with the real JEI

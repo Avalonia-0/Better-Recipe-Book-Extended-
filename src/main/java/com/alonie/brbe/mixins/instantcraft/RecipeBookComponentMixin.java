@@ -3,6 +3,7 @@ package com.alonie.brbe.mixins.instantcraft;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.layout.BookLayout;
 import com.alonie.brbe.util.BRBTextures;
+import net.minecraft.util.Mth;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.Minecraft;
@@ -81,11 +82,9 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     public void mouseClicked(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
-        // While the BRBE R/U viewer overlay is up it acts as an opaque top
-        // layer: a click over the overlay must not trigger the instant-craft
-        // button underneath (the viewer's swallow-click returns true without
-        // firing anything).
-        if (com.alonie.brbe.cache.RecipeViewerIndex.isViewerActive()) {
+        // 桌面窗口语义：只有光标落在查询界面/pin/预览区域时，其下方的即时
+        // 合成按钮才不响应；窗口之外的点击照常触发即时合成。
+        if (com.alonie.brbe.util.RecipeViewerOverlay.modalMaskOwnsCursor((int) Mth.floor(event.x()), (int) Mth.floor(event.y()))) {
             return;
         }
 

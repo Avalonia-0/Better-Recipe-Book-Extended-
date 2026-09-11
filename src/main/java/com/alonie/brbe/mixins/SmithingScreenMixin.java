@@ -97,6 +97,13 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        // The query window consumes its own clicks FIRST (chrome / box / tabs
+        // hit tests run against the real cursor), before the pin layer and the
+        // smithing top-layer overlay — an open query window keeps its clicks.
+        if (RecipeViewerOverlay.mouseClicked(event, doubleClick, this)) {
+            return true;
+        }
+
         if (PinOverlayManager.handleMouseClicked(event, doubleClick, this)) {
             return true;
         }

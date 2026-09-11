@@ -26,6 +26,11 @@ public final class SmithingRecipeCategory implements RecipeViewerCategory {
     }
 
     @Override
+    public java.util.List<String> jeiTypeUids() {
+        return List.of("minecraft:smithing");
+    }
+
+    @Override
     public ItemStack icon() {
         return new ItemStack(Items.SMITHING_TABLE);
     }

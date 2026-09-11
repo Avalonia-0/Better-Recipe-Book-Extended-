@@ -76,9 +76,26 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         boolean pin = PinButtonRenderOverride.active();
         boolean viewer = RecipeViewerIndex.isViewerCollection(collection);
         boolean hover = isHoveredOrFocused() || pin;
-        int mode = mode();
-        int selIdx = RecipeViewerOverlay.currentSlotSelectIndex(
-                ((OverlayRecipeComponentAccessor) outer).getSlotSelectTime().currentIndex());
+        // Window-scoped mode / variant index: a bottom window's buttons must
+        // render with ITS OWN window's category mode and Alt-pause state (the
+        // old topmost-based lookups made a bottom window degrade to the
+        // FOCUSED window's mode / furnace state — losing its partial red
+        // overlays).  A PIN branch bypasses the window lookups entirely: the
+        // pin renders with its FROZEN creation mode and its own Alt state
+        // (the window-based fallback degrades to MODE_CRAFTING / raw
+        // auto-index once the query viewer is closed).
+        int mode;
+        int selIdx;
+        if (pin) {
+            // The pin's raw frozen mode (anvil / brewing / grindstone included
+            // — the mode() helper below only maps the three classic modes).
+            mode = PinButtonRenderOverride.mode();
+            selIdx = PinButtonRenderOverride.selIdx();
+        } else {
+            mode = viewer ? RecipeViewerOverlay.windowMode(outer) : mode();
+            selIdx = RecipeViewerOverlay.currentSlotSelectIndex(outer,
+                    ((OverlayRecipeComponentAccessor) outer).getSlotSelectTime().currentIndex());
+        }
         int x = getX();
         int y = getY();
         int w = width;
@@ -92,7 +109,11 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         if (pin) {
             PopupRenderer.renderRecipePopup(gui, this.recipe, recipeEntry(), mode,
                     collection.isCraftable(this.recipe), partial, this.slots, selIdx, x, y, w, h,
-                    true, PinButtonRenderOverride.current());
+                    true, PinButtonRenderOverride.current(),
+                    // 可合成（非残缺）对象不画幽灵遮罩；残缺对象的 isCraftable 为 true
+                    // （prepareForViewer 注入），必须用 true 可合成判定。
+                    (collection.isCraftable(this.recipe) && !partial)
+                            ? null : PartialCraftingUtil.searchSpaceItemCounts(), false);
             ci.cancel();
             return;
         }
@@ -109,10 +130,13 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         // Shift) swaps the backdrop to the _highlighted sprite (per craftable
         // state); the enlarged preview (Shift) is the only zoom feedback.  The
         // popup is drawn by the independent popup layer, which is triggered and
-        // kept alive by RecipeViewerOverlay.
+        // kept alive by RecipeViewerOverlay.  lockReveal=true: the query viewer
+        // LOCKS the "只在悬停时显示替代配方" hover-reveal design (product icon
+        // until hovered, full layout on hover) — the toggle's current value
+        // governs the recipe book's buttons only.
         if (viewer) {
             PopupRenderer.renderBaseButton(gui, this.recipe, recipeEntry(), mode,
-                    this.isCraftable, partial, this.slots, selIdx, x, y, w, h, hover);
+                    this.isCraftable, partial, this.slots, selIdx, x, y, w, h, hover, true);
             ci.cancel();
             return;
         }
@@ -124,24 +148,49 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
                     true, ClientCompat.isShiftDown() ? 4f : 2f);
         } else {
             PopupRenderer.renderBaseButton(gui, this.recipe, recipeEntry(), mode,
-                    this.isCraftable, partial, this.slots, selIdx, x, y, w, h, false);
+                    this.isCraftable, partial, this.slots, selIdx, x, y, w, h, false, false);
         }
         ci.cancel();
     }
 
     private boolean computePartial(OverlayRecipeComponent outer, RecipeCollection collection,
                                    boolean furnaceBook) {
-        if (isFurnaceMode() || furnaceBook) {
-            // Furnace books (furnace / blast furnace / smoker) and the viewer's
-            // furnace category have no partial-crafting state.
-            return false;
-        }
         if (RecipeViewerIndex.isViewerCollection(collection)) {
-            return RecipeViewerIndex.isViewerPartial(collection, this.recipe)
-                    || PartialCraftingUtil.isPartiallyCraftableEvenIfStale(collection, this.recipe);
+            // Window-scoped furnace check: only the OWNING window's furnace
+            // category suppresses partials (the old topmost-based check broke
+            // a bottom window whenever the focused window was furnace — the
+            // partial red overlays disappeared until the bottom window was
+            // focused again).  NOTE: partial is NOT gated on !isCraftable —
+            // the viewer's prepareForViewer adds partial recipes to the
+            // collection's craftable set, so partial buttons report
+            // isCraftable=true.
+            if (RecipeViewerOverlay.windowMode(outer) == PinOverlay.MODE_FURNACE) {
+                return false;
+            }
+            boolean snap = RecipeViewerIndex.isViewerPartial(collection, this.recipe);
+            boolean stale = PartialCraftingUtil.isPartiallyCraftableEvenIfStale(collection, this.recipe);
+            // [BRBE-DIAG] 一次性：真实按钮状态分解（每个 id 一次）
+            if (VBTN_DIAG.add(this.recipe)) {
+                RecipeDisplayEntry entry = recipeEntry();
+                com.alonie.brbe.BetterRecipeBook.LOGGER.warn("[BRBE-DIAG-PARTIAL] vbtn id=" + this.recipe
+                        + " disp=" + (entry == null ? "null" : entry.display().getClass().getSimpleName())
+                        + " layout=" + (entry != null && com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.getLayout(this.recipe) != null)
+                        + " isCraftable=" + this.isCraftable
+                        + " colC=" + collection.isCraftable(this.recipe)
+                        + " partial=" + (snap || stale)
+                        + " snap=" + snap + " stale=" + stale
+                        + " tag=" + PartialCraftingUtil.isPartiallyCraftable(collection, this.recipe)
+                        + " canCraftNow=" + PartialCraftingUtil.canCraftByRequirements(entry)
+                        + " coll=" + System.identityHashCode(collection));
+            }
+            return snap || stale;
         }
+        if (furnaceBook) return false;
         return PartialCraftingUtil.isPartiallyCraftable(collection, this.recipe);
     }
+
+    /** [BRBE-DIAG] 真实按钮一次性日志（每个 id 一次）。 */
+    private static final java.util.Set<RecipeDisplayId> VBTN_DIAG = new java.util.HashSet<>();
 
     private int mode() {
         if (isFurnaceMode()) return PinOverlay.MODE_FURNACE;

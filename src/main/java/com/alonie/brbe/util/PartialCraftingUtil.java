@@ -17,6 +17,7 @@ import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.core.Holder;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
@@ -30,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -143,6 +145,38 @@ public final class PartialCraftingUtil {
         return slots;
     }
 
+    /** 检索空间内的物品类型集（真实物品栏+容器合成网格+副手+拿起物品）——
+     *  与配方书残缺标记同一数据源（"某物品存在于检索空间"判定）。 */
+    public static java.util.Set<Item> searchSpaceItemSet() {
+        NonNullList<Slot> slots = searchSpaceSlots();
+        Minecraft mc = Minecraft.getInstance();
+        ItemStack carried = mc.player != null && mc.player.containerMenu != null
+                ? mc.player.containerMenu.getCarried() : ItemStack.EMPTY;
+        java.util.Set<Item> out = hashInventory(slots, -1, carried);
+        ItemStack offhand = offhandStack();
+        if (!offhand.isEmpty()) out.add(offhand.getItem());
+        return out;
+    }
+
+    /** 检索空间内各物品的总数量（真实物品栏+容器合成网格+副手+拿起物品）——
+     *  与 {@link #searchSpaceItemSet()} 同一数据源。预览/pin 的幽灵摆放判定
+     *  （工作站幽灵逐槽扣除）需要数量，不能只用类型集。 */
+    public static Map<Item, Integer> searchSpaceItemCounts() {
+        NonNullList<Slot> slots = searchSpaceSlots();
+        Minecraft mc = Minecraft.getInstance();
+        ItemStack carried = mc.player != null && mc.player.containerMenu != null
+                ? mc.player.containerMenu.getCarried() : ItemStack.EMPTY;
+        Map<Item, Integer> counts = new HashMap<>();
+        for (Slot slot : slots) {
+            ItemStack stack = slot.getItem();
+            if (!stack.isEmpty()) counts.merge(stack.getItem(), stack.getCount(), Integer::sum);
+        }
+        if (!carried.isEmpty()) counts.merge(carried.getItem(), carried.getCount(), Integer::sum);
+        ItemStack offhand = offhandStack();
+        if (!offhand.isEmpty()) counts.merge(offhand.getItem(), offhand.getCount(), Integer::sum);
+        return counts;
+    }
+
     /** Fill the search space's stacked contents (for craftability): the player's
      *  inventory plus the offhand slot plus the open crafting menu's craft grid —
      *  mirroring the recipe book's own search space. */
@@ -181,13 +215,7 @@ public final class PartialCraftingUtil {
      * "uncraftable" (grey slot, no red overlay).
      */
     public static void prepareForViewer(RecipeCollection collection, NonNullList<Slot> slots, ItemStack carried) {
-        if (!enabled()) return;
         Set<Item> inventoryItems = hashInventory(slots, -1, carried);
-        // The BRBE R/U viewer is unaffected by partialOnlyWhenCarrying: it always
-        // marks every partial recipe against the full inventory, so the query
-        // overlay shows partial (missing-material) recipes even when the player
-        // is not carrying anything (and the book itself hides them).
-        Set<Item> markItems = inventoryItems;
         Map<Item, Integer> counts = new HashMap<>();
         for (Slot slot : slots) {
             ItemStack stack = slot.getItem();
@@ -200,12 +228,81 @@ public final class PartialCraftingUtil {
         if (!offhand.isEmpty()) {
             counts.merge(offhand.getItem(), offhand.getCount(), Integer::sum);
         }
+        // 合成（JEI 索引器）条目的 display 输入槽重估（可合成显示不依赖残缺
+        // 特性开关——材料齐全的 1:1 配方必须先提升进 craftable，否则会被
+        // 下面的残缺标记误判为"残缺"）。
+        elevateDisplayCraftable(collection, inventoryItems, counts);
+        if (!enabled()) return;
+        // The BRBE R/U viewer is unaffected by partialOnlyWhenCarrying: it always
+        // marks every partial recipe against the full inventory, so the query
+        // overlay shows partial (missing-material) recipes even when the player
+        // is not carrying anything (and the book itself hides them).
+        Set<Item> markItems = inventoryItems;
         markPartialMaterials(collection, inventoryItems, counts, markItems);
         if (hasPartialMaterials(collection)) {
             RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
             for (RecipeDisplayEntry entry : collection.getRecipes()) {
                 if (isPartiallyCraftable(collection, entry.id())) {
                     accessor.brbe$getCraftable().add(entry.id());
+                }
+            }
+        }
+    }
+
+    /** Re-evaluate synthetic (JEI-indexer) entries' craftability against the
+     *  inventory: their {@code craftingRequirements} is empty (the indexer's
+     *  slot data is display-only), so the vanilla {@code canCraft()} is always
+     *  false — a 1:1 recipe (stonecutter, anvil book, grindstone) with all
+     *  materials present would fall through to the partial marking and show as
+     *  残缺 instead of 可合成.  An entry whose EVERY display input slot has a
+     *  variant the player owns is elevated into the craftable set; any stale
+     *  partial tag is dropped so the red overlay does not linger. */
+    public static void elevateDisplayCraftable(RecipeCollection collection,
+                                               Set<Item> inventoryItems,
+                                               Map<Item, Integer> inventoryCounts) {
+        if (collection == null) return;
+        RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+        boolean any = false;
+        for (RecipeDisplayEntry recipe : collection.getRecipes()) {
+            RecipeDisplayId id = recipe.id();
+            if (collection.isCraftable(id)) continue;
+            RecipeDisplay display = recipe.display();
+            if (display instanceof ShapedCraftingRecipeDisplay
+                    || display instanceof ShapelessCraftingRecipeDisplay) {
+                // 原版 display 家族：requirements 存在时原版 canCraft 已分类正确。
+                if (recipe.craftingRequirements().isPresent()) continue;
+                if (!hasAllDisplayIngredients(recipe, inventoryItems, inventoryCounts)) continue;
+            } else {
+                // mod/自定义 display（厨锅等）：原版 canCraft 不可信（其
+                // requirements 存在时仍可能恒 false，导致材料齐全也被判残缺）
+                // ——以布局输入槽判定完整性（与预览/pin 红罩同一数据源）。
+                // 布局缺挂（recipe-book 驱动的 mod 条目在 headless 无对应
+                // JEI 配方时 layout=null，见 BrbeJeiBridge）→ 回退原版
+                // requirements 判定（canCraft + 检索空间 StackedContents，
+                // 与配方书 selectRecipes 完全同语义、按计数消费）。
+                if (!hasAllLayoutIngredients(recipe, inventoryCounts)
+                        && !canCraftByRequirements(recipe)) {
+                    // [BRBE-DIAG] 一次性：自定义 display 提升失败诊断
+                    cacheDiagOnce("elevate-fail " + display.getClass().getSimpleName()
+                            + " id=" + id + " craftable=" + collection.isCraftable(id)
+                            + " complete=" + layoutComplete(recipe, inventoryCounts)
+                            + " layout=" + (com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.getLayout(id) != null)
+                            + " req=" + recipe.craftingRequirements().map(r -> r.size()).orElse(-1)
+                            + " reqAvail=" + requirementsAvail(recipe, inventoryCounts)
+                            + " canCraftSearch=" + canCraftByRequirements(recipe)
+                            + " stale=" + isPartiallyCraftableEvenIfStale(collection, id));
+                    continue;
+                }
+                cacheDiagOnce("elevate-ok " + display.getClass().getSimpleName()
+                        + " id=" + id + " stale=" + isPartiallyCraftableEvenIfStale(collection, id));
+            }
+            accessor.brbe$getCraftable().add(id);
+            any = true;
+        }
+        if (any) {
+            for (RecipeDisplayEntry recipe : collection.getRecipes()) {
+                if (collection.isCraftable(recipe.id())) {
+                    unmarkPartial(collection, recipe.id());
                 }
             }
         }
@@ -366,7 +463,7 @@ public final class PartialCraftingUtil {
             }
 
             if (recipe.craftingRequirements().map(requirements -> hasMatchingIngredientFast(requirements, matchItems)).orElse(false)
-                    || hasMatchingDisplayIngredientFast(recipe.display(), matchItems)) {
+                    || hasMatchingDisplayIngredientFast(recipe, matchItems)) {
                 partialRecipes.add(recipe.id());
                 markedAny = true;
             }
@@ -611,6 +708,176 @@ public final class PartialCraftingUtil {
         }
     }
 
+    /** Every display input slot has a variant the player owns (count-aware
+     *  when {@code inventoryCounts} is given).  A synthetic entry's display is
+     *  a per-stack shapeless slot list — for a 1:1 recipe (stonecutter) this
+     *  matches the recipe's real requirement exactly. */
+    /** [BRBE-DIAG] 诊断：<b>是否完整</b> + 每槽变体数/缺料向量（与
+     * {@code hasAllLayoutIngredients} 同源）。 */
+    private static String layoutComplete(RecipeDisplayEntry recipe,
+                                         java.util.Map<Item, Integer> inventoryCounts) {
+        try {
+            if (inventoryCounts == null) return "counts=null";
+            com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.RecipeLayout layout =
+                    com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.getLayout(recipe.id());
+            if (layout == null) return "layout=null";
+            java.util.List<PartialGhostOverlayUtil.GhostSlotSample> samples = new java.util.ArrayList<>();
+            StringBuilder sb = new StringBuilder("slots=");
+            for (com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.RecipeSlotLayout slot : layout.slots()) {
+                if (slot.role() == 0 && !slot.stacks().isEmpty()) {
+                    samples.add(new PartialGhostOverlayUtil.GhostSlotSample(
+                            slot.x(), slot.y(), slot.stacks()));
+                    sb.append(slot.stacks().size()).append('@')
+                      .append(slot.stacks().stream().map(v -> v == null || v.isEmpty() ? "?" : v.getItem().getDescriptionId().substring(10)).reduce((a,b)->a+"/"+b).orElse("")).append(' ');
+                }
+            }
+            if (samples.isEmpty()) return "samples=0 " + sb;
+            boolean[] missing = PartialGhostOverlayUtil.computeMissing(samples, inventoryCounts);
+            sb.setLength(Math.max(0, sb.length() - 1));
+            sb.append(" missing=");
+            for (boolean m : missing) sb.append(m ? "X" : "O");
+            return sb.toString();
+        } catch (Exception e) {
+            return "diag-ex " + e;
+        }
+    }
+
+    /** 完整性兜底：原版 requirements 判定——与配方书 selectRecipes 同语义
+     *  （检索空间 StackedContents 逐原料计数消费）。布局缺挂时唯一可信源。 */
+    public static boolean canCraftByRequirements(RecipeDisplayEntry recipe) {
+        try {
+            if (recipe.craftingRequirements().isEmpty()) return false;
+            net.minecraft.world.entity.player.StackedItemContents stacked =
+                    new net.minecraft.world.entity.player.StackedItemContents();
+            fillSearchSpaceStackedContents(stacked);
+            return recipe.canCraft(stacked);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    /** [BRBE-DIAG] 逐 requirement 的可满足性：每条原料的解析物品数、玩家
+     *  持有数、是否任一命中（any=Y/N）——定位"哪条料被判失败"。 */
+    private static String requirementsAvail(RecipeDisplayEntry recipe,
+                                            java.util.Map<Item, Integer> inventoryCounts) {
+        try {
+            java.util.Optional<java.util.List<net.minecraft.world.item.crafting.Ingredient>> reqs =
+                    recipe.craftingRequirements();
+            if (reqs.isEmpty()) return "empty";
+            StringBuilder sb = new StringBuilder("[");
+            int n = 0;
+            for (net.minecraft.world.item.crafting.Ingredient ing : reqs.get()) {
+                long totalItems = ing.items().count();
+                boolean any = false;
+                int avail = 0;
+                StringBuilder items = new StringBuilder();
+                int k = 0;
+                for (Iterator<Holder<Item>> iter = ing.items().iterator(); iter.hasNext() && k < 6; k++) {
+                    Item it = iter.next().value();
+                    int c = inventoryCounts == null ? 0 : inventoryCounts.getOrDefault(it, 0);
+                    avail += c;
+                    if (c > 0) any = true;
+                    items.append(it.getDescriptionId().substring(10)).append('=').append(c).append(',');
+                }
+                sb.append("ing(").append(ing.isEmpty() ? "EMPTY" : "ok")
+                  .append(",items=").append(totalItems)
+                  .append(",any=").append(any ? "Y" : "N")
+                  .append(",avail=").append(avail)
+                  .append(")[").append(items).append("] ");
+                if (++n >= 6) break;
+            }
+            return sb.append(']').toString();
+        } catch (Exception e) {
+            return "diag-ex " + e;
+        }
+    }
+
+    private static final java.util.Set<String> DIAG_ONCE = new java.util.HashSet<>();
+
+    /** [BRBE-DIAG] 每个 id 打印一次。 */
+    private static void cacheDiagOnce(String msg) {
+        try {
+            String head = msg.substring(0, Math.min(80, msg.length()));
+            if (!DIAG_ONCE.add(head)) return;
+            com.alonie.brbe.BetterRecipeBook.LOGGER.warn("[BRBE-DIAG-PARTIAL] " + msg);
+        } catch (Exception ignored) {
+        }
+    }
+
+    /** 完整性判定（mod/自定义 display 专用）：以<b>布局输入槽</b>为准——与
+     *  预览/pin 的工作站幽灵红罩（{@link PartialGhostOverlayUtil#computeMissing}）
+     *  同一数据源（检索空间计数逐槽扣减），材料齐全 ⇔ 无缺料槽。 */
+    private static boolean hasAllLayoutIngredients(RecipeDisplayEntry recipe,
+                                                   java.util.Map<Item, Integer> inventoryCounts) {
+        if (inventoryCounts == null) return false;
+        com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.RecipeLayout layout =
+                com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.getLayout(recipe.id());
+        if (layout == null) return false;
+        java.util.List<PartialGhostOverlayUtil.GhostSlotSample> samples = new java.util.ArrayList<>();
+        for (com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.RecipeSlotLayout slot : layout.slots()) {
+            if (slot.role() == 0 && !slot.stacks().isEmpty()) {
+                samples.add(new PartialGhostOverlayUtil.GhostSlotSample(
+                        slot.x(), slot.y(), slot.stacks()));
+            }
+        }
+        if (samples.isEmpty()) return false;
+        boolean[] missing = PartialGhostOverlayUtil.computeMissing(samples, inventoryCounts);
+        for (boolean m : missing) {
+            if (m) return false;
+        }
+        return true;
+    }
+
+    private static boolean hasAllDisplayIngredients(RecipeDisplayEntry recipe,
+                                                    java.util.Set<Item> inventoryItems,
+                                                    java.util.Map<Item, Integer> inventoryCounts) {
+        RecipeDisplay display = recipe.display();
+        List<SlotDisplay> slotDisplays;
+        if (display instanceof ShapedCraftingRecipeDisplay shaped) {
+            slotDisplays = shaped.ingredients();
+        } else if (display instanceof ShapelessCraftingRecipeDisplay shapeless) {
+            slotDisplays = shapeless.ingredients();
+        } else {
+            return false;
+        }
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return false;
+        ContextMap context = SlotDisplayContext.fromLevel(mc.level);
+        Map<Item, Integer> neededCounts = new HashMap<>();
+        int totalSlots = 0;
+        for (SlotDisplay slot : slotDisplays) {
+            List<ItemStack> variants;
+            try {
+                variants = resolveDisplayStacks(mc.level, slot, context);
+            } catch (Exception e) {
+                continue;
+            }
+            boolean emptySlot = true;
+            Item chosen = null;
+            for (ItemStack candidate : variants) {
+                if (candidate == null || candidate.isEmpty()) continue;
+                emptySlot = false;
+                if (chosen == null && inventoryItems.contains(candidate.getItem())) {
+                    chosen = candidate.getItem();
+                }
+            }
+            if (emptySlot) continue;
+            totalSlots++;
+            if (chosen != null) {
+                neededCounts.merge(chosen, 1, Integer::sum);
+            }
+        }
+        if (totalSlots == 0) return false;
+        if (inventoryCounts != null) {
+            for (Map.Entry<Item, Integer> e : neededCounts.entrySet()) {
+                if (inventoryCounts.getOrDefault(e.getKey(), 0) < e.getValue()) {
+                    return false;
+                }
+            }
+        }
+        return neededCounts.values().stream().mapToInt(Integer::intValue).sum() == totalSlots;
+    }
+
     private static boolean hasAllIngredients(RecipeDisplayEntry recipe, java.util.Set<Item> inventoryItems) {
         return recipe.craftingRequirements().map(requirements -> {
             for (Ingredient ingredient : requirements) {
@@ -697,19 +964,29 @@ public final class PartialCraftingUtil {
         return false;
     }
 
-    private static boolean hasMatchingDisplayIngredient(RecipeDisplay display, NonNullList<Slot> slots) {
-        return hasMatchingDisplayIngredientFast(display, hashInventory(slots));
-    }
-
-    private static boolean hasMatchingDisplayIngredientFast(RecipeDisplay display, java.util.Set<Item> inventoryItems) {
+    /** 自定义 display（厨锅等 mod 配方）的"相关于物品"判定：布局输入槽回退——
+     *  与预览/pin 红罩同一数据源（任一输入槽的变体被拥有即视为相关），否则
+     *  残缺标注与红罩不一致（红罩显示缺料而标注不标、或反之）。 */
+    private static boolean hasMatchingDisplayIngredientFast(RecipeDisplayEntry recipe,
+                                                            java.util.Set<Item> inventoryItems) {
+        RecipeDisplay display = recipe.display();
         if (display instanceof ShapedCraftingRecipeDisplay shaped) {
             return hasMatchingSlotDisplayFast(shaped.ingredients(), inventoryItems);
         }
-
         if (display instanceof ShapelessCraftingRecipeDisplay shapeless) {
             return hasMatchingSlotDisplayFast(shapeless.ingredients(), inventoryItems);
         }
-
+        com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.RecipeLayout layout =
+                com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.getLayout(recipe.id());
+        if (layout == null) return false;
+        for (com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.RecipeSlotLayout slot : layout.slots()) {
+            if (slot.role() != 0 || slot.stacks().isEmpty()) continue;
+            for (ItemStack v : slot.stacks()) {
+                if (v != null && !v.isEmpty() && inventoryItems.contains(v.getItem())) {
+                    return true;
+                }
+            }
+        }
         return false;
     }
 

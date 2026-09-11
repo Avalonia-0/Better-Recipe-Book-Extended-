@@ -1,6 +1,6 @@
 package com.alonie.brbe.mixins.recipeviewer;
 
-import com.alonie.brbe.cache.RecipeViewerIndex;
+import com.alonie.brbe.util.RecipeViewerOverlay;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import org.spongepowered.asm.mixin.Mixin;
@@ -13,7 +13,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * alternative-recipe overlay is open ({@code RecipeBookPage.extractTooltip}
  * skips when {@code recipeBookPage.overlay.isVisible()}).  The standalone BRBE
  * viewer overlay is a separate {@code OverlayRecipeComponent} instance, so that
- * check no longer fires — restore the suppression while the viewer is active.
+ * check no longer fires — restore the suppression while the query UI owns the
+ * cursor (desktop-window semantics: outside the query UI the book tooltips show
+ * normally).
  */
 @Mixin(RecipeBookPage.class)
 public abstract class RecipeBookPageTooltipMixin {
@@ -21,7 +23,7 @@ public abstract class RecipeBookPageTooltipMixin {
     @Inject(method = "extractTooltip", at = @At("HEAD"), cancellable = true)
     private void brbe$suppressBookTooltipWhileViewer(GuiGraphicsExtractor gui, int mouseX, int mouseY,
                                                      CallbackInfo ci) {
-        if (RecipeViewerIndex.isViewerActive()) {
+        if (RecipeViewerOverlay.modalMaskOwnsCursor(mouseX, mouseY)) {
             ci.cancel();
         }
     }

@@ -136,10 +136,10 @@ public class BetterRecipeBook {
             // them cannot detect a change.  Track the last-seen unlockAll value
             // explicitly and diff against that.
             appContext.events().subscribe(ConfigEventBus.ConfigChanged.class, event -> {
-                boolean unlockChanged = lastUnlockAllValue != event.config().newRecipes.unlockAll;
+                boolean unlockChanged = lastUnlockAllValue != event.config().unlockAll;
                 BetterRecipeBook.LOGGER.info("[BRBE] ConfigChanged: unlockChanged={} old={} new={}",
-                        unlockChanged, lastUnlockAllValue, event.config().newRecipes.unlockAll);
-                lastUnlockAllValue = event.config().newRecipes.unlockAll;
+                        unlockChanged, lastUnlockAllValue, event.config().unlockAll);
+                lastUnlockAllValue = event.config().unlockAll;
                 config = event.config();
                 appContext.events().requestConfigRefresh();
                 if (unlockChanged) {

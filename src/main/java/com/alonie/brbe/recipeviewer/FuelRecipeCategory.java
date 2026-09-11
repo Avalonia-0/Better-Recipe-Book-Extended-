@@ -32,6 +32,11 @@ public final class FuelRecipeCategory implements RecipeViewerCategory {
     }
 
     @Override
+    public java.util.List<String> jeiTypeUids() {
+        return List.of("minecraft:blasting_fuel", "minecraft:smelting_fuel", "minecraft:smoking_fuel");
+    }
+
+    @Override
     public ItemStack icon() {
         return new ItemStack(Items.FURNACE);
     }

@@ -6,13 +6,16 @@ import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.render.PopupGeometry;
 import com.alonie.brbe.util.RecipeViewerOverlay;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
+import mezz.jei.api.gui.drawable.IDrawable;
 import mezz.jei.api.gui.ingredient.IRecipeSlotDrawable;
 import mezz.jei.api.gui.ingredient.IRecipeSlotView;
+import mezz.jei.api.gui.inputs.RecipeSlotUnderMouse;
 import mezz.jei.api.ingredients.ITypedIngredient;
 import net.minecraft.world.item.ItemStack;
 import mezz.jei.api.recipe.category.IRecipeCategory;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.data.AtlasIds;
 import net.minecraft.resources.Identifier;
@@ -245,6 +248,54 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
             }
         }
         return 0;
+    }
+
+    @Override
+    public void drawSlotBadge(RecipeDisplayId id, GuiGraphicsExtractor gui,
+                              double contentX, double contentY, float ox, float oy, float fit) {
+        // JEI's candidates badge (tag/list marker) is painted by the live
+        // drawable's slot draw — i.e. BEFORE the caller's red ghost mask, so
+        // the mask would cover it.  Redraw it from the live slot: the same
+        // tag-key decision and icon JEI used, the same bottom-right corner
+        // offset.  The tag/list badge API only exists in newer JEI runtimes
+        // (30.24+); older builds draw no badge and this returns silently.
+        IRecipeLayoutDrawable<?> drawable = LAYOUT_CACHE.get(id);
+        if (drawable == null || fit <= 0) {
+            return;
+        }
+        try {
+            double localX = (contentX - ox) / fit;
+            double localY = (contentY - oy) / fit;
+            Optional<RecipeSlotUnderMouse> under = drawable.getSlotUnderMouse(localX, localY);
+            if (under.isEmpty()) return;
+            IRecipeSlotDrawable slot = under.get().slot();
+            // hasCandidates: only cycling slots carry a badge.  The API's
+            // expanded candidate list mirrors JEI's display-group count (a
+            // tag or multi-item preset slot expands to more than one).
+            if (slot.getAllIngredients().limit(2).count() <= 1) return;
+            boolean isTag;
+            try {
+                isTag = ((Optional<?>) slot.getClass().getMethod("getTagKey").invoke(slot)).isPresent();
+            } catch (NoSuchMethodException e) {
+                return; // JEI build without the badge feature
+            }
+            Object textures = mezz.jei.common.Internal.getTextures();
+            IDrawable icon = (IDrawable) textures.getClass()
+                    .getMethod(isTag ? "getTagBadgeIcon" : "getListBadgeIcon")
+                    .invoke(textures);
+            Rect2i area = slot.getAreaIncludingBackground();
+            int bx = Math.round(ox + (area.getX() + area.getWidth() - icon.getWidth() + 1) * fit);
+            int by = Math.round(oy + (area.getY() + area.getHeight() - icon.getHeight() + 1) * fit);
+            gui.pose().pushMatrix();
+            gui.pose().translate(bx, by);
+            gui.pose().scale(fit, fit);
+            icon.draw(gui, 0, 0);
+            gui.pose().popMatrix();
+        } catch (ReflectiveOperationException | LinkageError e) {
+            // JEI build without the badge: it painted no badge either.
+        } catch (RuntimeException ignored) {
+            // a broken badge draw must never break the popup
+        }
     }
 
     /** Clear every slot's display overrides (Alt released — JEI resumes its

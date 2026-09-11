@@ -7,7 +7,7 @@ import me.shedaniel.autoconfig.annotation.ConfigEntry;
 /**
  * Root configuration for Better Recipe Book Extended.
  *
- * <p>Sub-configs ({@code NewRecipes}, {@code InstantCraft},
+ * <p>Sub-configs ({@code InstantCraft},
  * {@code AlternativeRecipes}, {@code Scrolling}) are standalone classes in the
  * same package — same structure as the 1.21.1 branch.  Only
  * {@code RecipeBookIsPain} is nested here (matches 1.21.1's {@code Config}).</p>
@@ -31,26 +31,20 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.TransitiveObject
     public Scrolling scrolling = new Scrolling();
 
-    /** 「固定」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 A。 */
-    @ConfigEntry.Gui.Tooltip
-    public String pinKey = KeybindingCodec.PIN_DEFAULT_RAW;
-
     @ConfigEntry.Gui.Tooltip
     @ConfigEntry.Gui.PrefixText
     public boolean recipeViewerEnabled = true;
 
-    /** 隐藏无配方书工作站所属的查询对象：开启后，查询结果中所有工作站都没有配方书体系的
-     *  对象被隐藏；若对象还包含有配方书体系的工作站则保留对象本身，仅 tooltip 隐藏非法
-     *  工作站图标。默认关闭。 */
+    /** 配方书模式：只显示配方书内的对象——配方书体系的工作站（合成/烧炼/锻造/
+     *  酿造——BRBE 自带酿造配方书）与配方书驱动的模组类别保留；无配方书体系的
+     *  工作站（切石/铁砧/研磨）与信息行类别（燃料/堆肥/信息）整体隐藏，对象的
+     *  tooltip 也过滤非法工作站图标。默认关闭。 */
+    @ConfigEntry.Gui.Tooltip
     public boolean hideNoRecipeBookStationObjects = false;
 
-    /** 「查询合成」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 R。 */
+    /** 「预览模式」：重新开启界面时查询窗口不再恢复，与其他元素交互时也会关闭查询窗口。默认关。 */
     @ConfigEntry.Gui.Tooltip
-    public String recipeViewKey = KeybindingCodec.recipeViewDefaultRaw();
-
-    /** 「查询用途」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 U。 */
-    @ConfigEntry.Gui.Tooltip
-    public String usageViewKey = KeybindingCodec.usageViewDefaultRaw();
+    public boolean previewMode = false;
 
     @ConfigEntry.Gui.TransitiveObject
     public RecipeBookIsPain rbip = new RecipeBookIsPain();
@@ -59,6 +53,15 @@ public class BrbeConfig implements ConfigData {
     public InstantCraft instantCraft = new InstantCraft();
 
     // -- 界面设置（ui 标签）----------------------------------------------------
+
+    /** 隐藏生存模式配方书中的3x3配方标记。 */
+    @ConfigEntry.Category("ui")
+    public boolean hideIncompatibleMark = false;
+
+    /** 解锁新物品时启用小弹跳动画。 */
+    @ConfigEntry.Category("ui")
+    @ConfigEntry.Gui.Tooltip
+    public boolean enableBounce = false;
 
     @ConfigEntry.Category("ui")
     @ConfigEntry.Gui.Tooltip
@@ -101,12 +104,14 @@ public class BrbeConfig implements ConfigData {
 
     // -- 配方设置（recipeSettings 标签）----------------------------------------
 
+    /** 启用后自动解锁所有配方，无需先发现即可在配方书中查看。重新进入游戏生效。 */
     @ConfigEntry.Category("recipeSettings")
     @ConfigEntry.Gui.PrefixText
-    public boolean showAllRecipesInSurvival = true;
+    @ConfigEntry.Gui.Tooltip
+    public boolean unlockAll = true;
 
     @ConfigEntry.Category("recipeSettings")
-    public boolean hideIncompatibleMark = false;
+    public boolean showAllRecipesInSurvival = true;
 
     @ConfigEntry.Category("recipeSettings")
     @ConfigEntry.Gui.Tooltip
@@ -124,12 +129,27 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Category("recipeSettings")
     @ConfigEntry.Gui.PrefixText
     @ConfigEntry.Gui.TransitiveObject
-    public NewRecipes newRecipes = new NewRecipes();
-
-    @ConfigEntry.Category("recipeSettings")
-    @ConfigEntry.Gui.PrefixText
-    @ConfigEntry.Gui.TransitiveObject
     public AlternativeRecipes alternativeRecipes = new AlternativeRecipes();
+
+    // -- 快捷键（keybindings 标签；位于「配方」右侧）----------------------------
+
+    /** 「固定」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 A。 */
+    @ConfigEntry.Category("keybindings")
+    @ConfigEntry.Gui.Tooltip
+    public String pinKey = KeybindingCodec.PIN_DEFAULT_RAW;
+
+    /** 「查询合成」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 R。
+     *  @PrefixText 复制自 recipeViewerEnabled 的信息行（原信息行保留在
+     *  「实用功能」类别，这里为同一行文案的副本）。 */
+    @ConfigEntry.Category("keybindings")
+    @ConfigEntry.Gui.PrefixText
+    @ConfigEntry.Gui.Tooltip
+    public String recipeViewKey = KeybindingCodec.recipeViewDefaultRaw();
+
+    /** 「查询用途」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 U。 */
+    @ConfigEntry.Category("keybindings")
+    @ConfigEntry.Gui.Tooltip
+    public String usageViewKey = KeybindingCodec.usageViewDefaultRaw();
 
     // -- 杂项（miscellaneous 标签）--------------------------------------------
 
@@ -137,6 +157,10 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Category("miscellaneous")
     @ConfigEntry.Gui.Tooltip
     public boolean hideConfigTips = false;
+
+    /** 隐藏暂停菜单的配置界面入口：打开时暂停菜单图标行的 BRBE 配置按钮不再显示。默认关。 */
+    @ConfigEntry.Category("miscellaneous")
+    public boolean hidePauseMenuConfigEntry = false;
 
     // -- Inner config class ---------------------------------------------------
 

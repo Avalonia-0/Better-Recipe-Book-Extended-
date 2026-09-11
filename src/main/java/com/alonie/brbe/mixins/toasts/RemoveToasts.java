@@ -22,7 +22,7 @@ public class RemoveToasts {
     @Inject(at = @At("HEAD"), method = "addOrUpdate", cancellable = true)
     private static void deferWhileUnlockAll(ToastManager toastManager,
                                             RecipeDisplay display, CallbackInfo ci) {
-        if (BetterRecipeBook.config.newRecipes.unlockAll) {
+        if (BetterRecipeBook.config.unlockAll) {
             // Defer: record the display so turning unlock-all off can show it.
             RecipeUnlockUtil.deferUnlockToast(display);
             ci.cancel();

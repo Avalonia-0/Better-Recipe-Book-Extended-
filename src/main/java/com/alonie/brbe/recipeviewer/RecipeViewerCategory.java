@@ -59,6 +59,14 @@ public interface RecipeViewerCategory {
         return appliesTo(target) ? 0 : -1;
     }
 
+    /** The JEI recipe type uids this category covers (e.g. the furnace category
+     *  covers smelting/blasting/smoking/campfire_cooking).  The viewer's tab
+     *  order replicates JEI's category ordering from these keys; empty means
+     *  "no JEI counterpart" and sorts last. */
+    default List<String> jeiTypeUids() {
+        return List.of();
+    }
+
     /** Whether this is the fuel category (rendered standalone, no recipe
      *  buttons). */
     default boolean isFuelCategory() {

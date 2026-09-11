@@ -648,6 +648,19 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             return;
         }
 
+        // 标签页（tab）悬停标题：标签页图标无提示文字，悬停显示类别标题
+        // （如锻造书"升级模板"/"纹饰模板"，搜索页"搜索"）。
+        for (BRBGroupButtonWidget tabButton : this.tabButtons) {
+            if (tabButton.visible && tabButton.isMouseOver(mouseX, mouseY)) {
+                net.minecraft.network.chat.Component title = tabButton.getCategory().getTitle();
+                if (title != null) {
+                    com.alonie.brbe.util.ClientCompat.setComponentTooltipForNextFrame(
+                            gui, java.util.List.of(title), mouseX, mouseY);
+                }
+                return;
+            }
+        }
+
         if (!this.recipesPage.overlayIsVisible()) {
             this.recipesPage.drawTooltip(gui, mouseX, mouseY);
 

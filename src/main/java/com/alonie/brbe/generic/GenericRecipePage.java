@@ -298,6 +298,9 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         if (targetPage == this.currentPage) {
             return;
         }
+        // 用户在酿造/锻造台配方书翻页（点箭头/滚轮/^N^ 跳页）时播放翻页音效；
+        // 与合成台配方书保持一致（scrollPageSound 开关 + pageFlipVolume 音量）。
+        ClientCompat.playPageFlipSound(this.minecraft);
         boolean animEnabled = BetterRecipeBook.config != null && BetterRecipeBook.config.pageAnimation.pageAnimationEnabled;
         if (!animEnabled) {
             // 配置禁用：直接切换，不做滑动动画

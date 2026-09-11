@@ -25,6 +25,11 @@ public final class StonecuttingRecipeCategory implements RecipeViewerCategory {
     }
 
     @Override
+    public java.util.List<String> jeiTypeUids() {
+        return List.of("minecraft:stonecutting");
+    }
+
+    @Override
     public ItemStack icon() {
         return new ItemStack(Items.STONECUTTER);
     }

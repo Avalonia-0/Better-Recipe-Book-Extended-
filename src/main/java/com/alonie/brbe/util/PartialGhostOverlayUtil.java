@@ -96,8 +96,42 @@ public final class PartialGhostOverlayUtil {
         return true;
     }
 
+    // ── 预览/pin 的幽灵摆放复刻（工作站遮罩的前端移植）─────────────────────
+
     private static long key(int x, int y) {
         return ((long) x << 32) | (y & 0xFFFFFFFFL);
+    }
+
+    /** 一个待判定槽位（预览/pin 复刻工作站幽灵物品用）：位置 + 全变体列表。 */
+    public record GhostSlotSample(int x, int y, List<ItemStack> variants) {}
+
+    /**
+     * 按工作站幽灵物品的摆放判定复刻：槽位按 (y, x) 顺序（与工作站幽灵一致），
+     * 逐个用 {@code counts} 扣除——某个变体的物品拥有数量 &gt; 0 → 该槽"已有
+     * 材料"（不画红罩/白罩），扣减一个；一个变体都没有 → 该槽"缺失"（红罩+白罩）。
+     *
+     * <p>{@code counts} 为 null 时（可合成对象不进入遮罩路径）全部返回 false。
+     * 返回与入参同序的缺料标记数组。</p>
+     */
+    public static boolean[] computeMissing(List<GhostSlotSample> slots, Map<Item, Integer> counts) {
+        boolean[] missing = new boolean[slots.size()];
+        if (counts == null || slots.isEmpty()) return missing;
+        Map<Item, Integer> remaining = new HashMap<>(counts);
+        List<Integer> order = new ArrayList<>();
+        for (int i = 0; i < slots.size(); i++) order.add(i);
+        order.sort(Comparator.comparingInt((Integer i) -> slots.get(i).y())
+                .thenComparingInt(i -> slots.get(i).x()));
+        for (int idx : order) {
+            GhostSlotSample slot = slots.get(idx);
+            if (slot.variants() == null || slot.variants().isEmpty()) continue;
+            Item owned = findOwnedItem(slot.variants(), remaining);
+            if (owned == null) {
+                missing[idx] = true;
+                continue;
+            }
+            remaining.merge(owned, -1, (a, b) -> a + b);
+        }
+        return missing;
     }
 
     /**
@@ -110,6 +144,12 @@ public final class PartialGhostOverlayUtil {
     @Nullable
     private static Item findOwnedItem(Object ghost, Map<Item, Integer> counts) {
         List<ItemStack> items = ghostItems(ghost);
+        return findOwnedItem(items, counts);
+    }
+
+    /** {@link #findOwnedItem(Object, Map)} 的列表版本（预览/pin 判定用）。 */
+    @Nullable
+    private static Item findOwnedItem(List<ItemStack> items, Map<Item, Integer> counts) {
         if (items == null) return null;
         for (ItemStack stack : items) {
             if (stack == null || stack.isEmpty()) continue;

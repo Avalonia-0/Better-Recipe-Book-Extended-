@@ -19,17 +19,23 @@ public final class PinButtonRenderOverride {
 
     private static float current = -1f;
     private static int mode = -1;
+    private static int selIdx = 0;
 
     private PinButtonRenderOverride() {}
 
-    public static void push(float scale, int pinMode) {
+    /** Enter pin rendering: the cloned button renders with the pin's frozen
+     *  zoom, layout mode AND slot-select index — the index is pinned here so
+     *  the button's Alt state comes from the pin (window-independent). */
+    public static void push(float scale, int pinMode, int pinSelIdx) {
         current = scale;
         mode = pinMode;
+        selIdx = pinSelIdx;
     }
 
     public static void pop() {
         current = -1f;
         mode = -1;
+        selIdx = 0;
     }
 
     public static boolean active() {
@@ -38,6 +44,18 @@ public final class PinButtonRenderOverride {
 
     public static float current() {
         return current;
+    }
+
+    /** The pinned slot-select index (the pin's own Alt state). */
+    public static int selIdx() {
+        return selIdx;
+    }
+
+    /** The pin's frozen layout mode (raw MODE_* value — the mixin's mode()
+     *  helper only maps the three classic modes, so anvil / brewing /
+     *  grindstone pins must read the override directly). */
+    public static int mode() {
+        return mode;
     }
 
     public static boolean isFurnace() {

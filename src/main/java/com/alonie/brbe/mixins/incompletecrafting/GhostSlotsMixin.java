@@ -19,6 +19,9 @@ import org.spongepowered.asm.mixin.injection.Redirect;
 @Mixin(GhostSlots.class)
 public abstract class GhostSlotsMixin {
 
+    /** Last fill tick logged (rate-limited诊断，定位"元素飞出界面"）。 */
+    private static long brbe$lastGhostLog = 0;
+
     @Redirect(
             // GhostSlots.extractRenderState 通过 forEach 的 lambda 绘制每个槽位，
             // fill 调用实际位于编译器生成的 lambda$extractRenderState$0 内。
@@ -26,6 +29,14 @@ public abstract class GhostSlotsMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/client/gui/GuiGraphicsExtractor;fill(IIIII)V")
     )
     private void brbe$skipRedMaskForAvailableMaterials(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int col) {
+        long now = net.minecraft.util.Util.getMillis();
+        if (now - brbe$lastGhostLog > 1000) {
+            brbe$lastGhostLog = now;
+            com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
+                    "[VIEWER-DBG] ghostFill rect=({},{})-({},{}) col={:#010x} skip={}",
+                    x0, y0, x1, y1, col,
+                    !PartialGhostOverlayUtil.shouldShowRedMask(x0, y0));
+        }
         if (!PartialGhostOverlayUtil.shouldShowRedMask(x0, y0)) {
             // 材料已满足的槽位：跳过红色背景（0x30FF0000）与白色半透明罩（0x30FFFFFF），
             // 物品图标以完整不透明度显示。

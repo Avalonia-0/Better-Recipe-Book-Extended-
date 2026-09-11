@@ -2,8 +2,8 @@ package com.alonie.brbe.render;
 
 import com.alonie.brbe.compat.SyntheticRecipeRenderer;
 import com.alonie.brbe.compat.SyntheticRecipeRenderers;
-import com.alonie.brbe.pinoverlay.PinOverlay;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
+import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent;
@@ -90,6 +90,10 @@ public final class RecipePreviewTooltipComponent implements ClientTooltipCompone
         // not this row's — the row starts exactly at (x, y).
         int px = x;
         int py = y;
+        // 不可合成/残缺对象：检索空间物品数量表（可合成对象不画幽灵遮罩）——
+        // 与 Shift 预览/pin 同一数据源；无高亮纹理面。
+        java.util.Map<net.minecraft.world.item.Item, Integer> counts = (craftable && !partial)
+                ? null : PartialCraftingUtil.searchSpaceItemCounts();
         if (delegated) {
             RecipeViewerEngine.RecipeLayout layout = RecipeViewerEngine.getLayout(id);
             if (layout == null) return;
@@ -99,17 +103,19 @@ public final class RecipePreviewTooltipComponent implements ClientTooltipCompone
                     px + PopupGeometry.CONTAINER_PADDING, py + PopupGeometry.CONTAINER_PADDING,
                     Math.max(1, Math.round(layout.width() * TOOLTIP_SCALE)),
                     Math.max(1, Math.round(layout.height() * TOOLTIP_SCALE)));
-            // Keep the partial-crafting red cover the popup draws (non-crafting
-            // modes only, exactly like the popup's delegate branch).
-            if (partial && mode != PinOverlay.MODE_CRAFTING) {
-                gui.fill(px, py, px + this.width, py + this.height, 0x60FF3333);
+            if (counts != null) {
+                PopupRenderer.drawDelegatedGhostMasksAt(gui, id,
+                        px + PopupGeometry.CONTAINER_PADDING, py + PopupGeometry.CONTAINER_PADDING,
+                        TOOLTIP_SCALE, counts);
             }
+            // The delegated JEI UI keeps its own look: no partial-crafting red
+            // cover on the complete JEI-rendered recipe interface.
             return;
         }
         // Vanilla-style preview (crafting grid / furnace fixed pair / …): the
         // same rendering the Shift popup uses for non-delegated entries.
         PopupRenderer.renderRecipePopup(gui, id, entry, mode, craftable, partial,
                 slots, selIdx, px + 24 / 2, py + 24 / 2, 24, 24,
-                true, PopupGeometry.VANILLA_SCALE);
+                true, PopupGeometry.VANILLA_SCALE, counts, false);
     }
 }

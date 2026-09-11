@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins.recipeviewer;
 
 import com.alonie.brbe.util.AlternativeOverlayLayout;
+import com.alonie.brbe.util.RecipeViewerOverlay;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
@@ -39,6 +40,14 @@ public abstract class OverlayRecipeComponentPositionMixin {
     private void brbe$keepOverlayOnScreen(RecipeCollection collection, ContextMap contextMap,
                                           boolean isFiltering, int initX, int initY,
                                           int initW, int initH, float delta, CallbackInfo ci) {
+        // The BRBE R/U viewer's own overlay is positioned (and re-pinned) by
+        // the window fields (boxX/boxY/boxW/boxH) in showPage — this mixin's
+        // 30px-edge clamp with its own recomputed box size must NOT move it,
+        // or the panel and the window's buttons/tabs diverge (the "flying
+        // elements" bug: panel at one place, buttons shifted away).
+        if (RecipeViewerOverlay.isOwnOverlay((OverlayRecipeComponent) (Object) this)) {
+            return;
+        }
         int count = this.recipeButtons.size();
         if (count == 0) return;
         Minecraft mc = Minecraft.getInstance();

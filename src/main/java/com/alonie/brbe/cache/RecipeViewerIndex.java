@@ -82,6 +82,42 @@ public final class RecipeViewerIndex {
         return ItemStack.EMPTY;
     }
 
+    /** 模组配方书驱动类型的"已知产物物品集"：known（已解锁）条目按其 display
+     *  声明的 craftingStation 归属到引擎类型（同一工作站物品反查表，与
+     *  rebuildProgressStationItems 同构）→ 该类型已解锁的产物物品 id 集。
+     *  数据源 = 配方书（known）的展示级门控用（与酿造门控同哲学：引擎全量、
+     *  展示按已解锁过滤）。 */
+    public static java.util.Set<net.minecraft.world.item.Item> knownResultItemsForType(String uid) {
+        java.util.Set<net.minecraft.world.item.Item> out = new java.util.HashSet<>();
+        try {
+            Map<net.minecraft.world.item.Item, List<String>> stationToUids = new java.util.HashMap<>();
+            for (String typeUid : RecipeViewerEngine.typeUids()) {
+                if (typeUid.startsWith("minecraft:")) continue;
+                for (ItemStack stack : RecipeViewerEngine.stationItemsOf(typeUid)) {
+                    if (!stack.isEmpty()) {
+                        stationToUids.computeIfAbsent(stack.getItem(), k -> new ArrayList<>())
+                                .add(typeUid);
+                    }
+                }
+            }
+            for (RecipeDisplayEntry entry : knownEntries()) {
+                ItemStack station = resolveCraftingStation(entry);
+                if (station == null || station.isEmpty()) continue;
+                List<String> uids = stationToUids.get(station.getItem());
+                if (uids == null || !uids.contains(uid)) continue;
+                try {
+                    for (ItemStack result : entry.resultItems(null)) {
+                        if (result != null && !result.isEmpty()) out.add(result.getItem());
+                    }
+                } catch (Exception ignored) {
+                }
+            }
+        } catch (Exception | LinkageError e) {
+            // 门控数据不可用：返回空集（配合调用方"空 = 不显示"语义）
+        }
+        return out;
+    }
+
     /** Rebuild the query engine's indices from the vanilla known set — one type
      *  per JEI recipe type ({@code minecraft:smelting}, {@code minecraft:blasting},
      *  … each its own type so the furnace category can aggregate them with dedup).
@@ -173,18 +209,124 @@ public final class RecipeViewerIndex {
         BetterRecipeBook.LOGGER.info("[BRBE] rebuildEngine known-by-category: {} unmatched={}",
                 categoryCounts, unmatched);
         for (Map.Entry<String, List<RecipeViewerEngine.IndexedRecipe>> e : grouped.entrySet()) {
-            // 切石/锻造：条目与 layout 由 headless-jei（JEI 运行时）提供
+            // 切石：条目与 layout 由 headless-jei（JEI 运行时）提供
             // （其条目带原生 layout，弹窗可委托完整 JEI UI）——这里跳过，
             // 避免与 headless 重复注册（同 uid 后注册者覆盖前者）。
-            if (e.getKey().equals("minecraft:stonecutting")
-                    || e.getKey().equals("minecraft:smithing")) {
+            if (e.getKey().equals("minecraft:stonecutting")) {
+                continue;
+            }
+            // 锻造：由 BRBE 侧（配方书已知集）权威采集——headless-JEI 的
+            // smithing 采集不完整（纹饰配方因 minecraft:trimmable_armor tag
+            // 未绑定而 setRecipe 失败，引擎只有下界合金升级），而已知集里
+            // smithing=73 条含真 SmithingRecipeDisplay（transform + trim）。
+            // 这里注册完整数据；headless 只负责经 attachVanillaLayouts 挂
+            // native layout（供弹窗委托），不再 registerType 覆盖。
+            if (e.getKey().equals("minecraft:smithing")) {
+                RecipeViewerEngine.registerType(e.getKey(), e.getValue(), stationItems.get(e.getKey()));
                 continue;
             }
             RecipeViewerEngine.registerType(e.getKey(), e.getValue(), stationItems.get(e.getKey()));
         }
         BetterRecipeBook.LOGGER.info("[BRBE] rebuildEngine: {} types, {} entries",
                 grouped.size(), grouped.values().stream().mapToInt(List::size).sum());
+        // 通用"数据源自动定向至配方书"：配方书供给的类型源（酿造等）统一重注册。
+        rebuildBookTypeSources();
+        // 进度模式（hideNoRecipeBookStationObjects）的合法工作站集重建：
+        // 类型注册完毕后才能判定哪些类是配方书体系（含 known 归属的 mod 类）。
+        rebuildProgressStationItems();
         RecipeViewerEngine.notifyRebuilt();
+    }
+
+    /** 通用"数据源自动定向至配方书"：类型数据源由配方书侧供给（如酿造 =
+     *  PotionLoader 的 BrewableResult 列表；锻造/原版类型由 known 集重建引擎
+     *  时天然幂等）。注册的源在每次引擎重建时统一重注册（与 vanilla 类型
+     *  重建同一时机），查询/配方书共用同一份数据。 */
+    public record BookTypeSource(String uid,
+            java.util.function.Supplier<List<RecipeViewerEngine.IndexedRecipe>> source,
+            List<ItemStack> stations) {}
+
+    private static final java.util.Map<String, BookTypeSource> BOOK_TYPE_SOURCES =
+            new java.util.LinkedHashMap<>();
+
+    /** 注册（或替换）一个配方书供给的类型源并立即执行。幂等。 */
+    public static void registerBookTypeSource(String uid,
+            java.util.function.Supplier<List<RecipeViewerEngine.IndexedRecipe>> source,
+            List<ItemStack> stations) {
+        if (uid == null || source == null) return;
+        BOOK_TYPE_SOURCES.put(uid, new BookTypeSource(uid, source, stations));
+        rebuildBookTypeSources();
+    }
+
+    /** 重新执行全部已注册的配方书类型源（引擎重建尾部/源变化时调用）。 */
+    public static void rebuildBookTypeSources() {
+        try {
+            for (BookTypeSource bts : BOOK_TYPE_SOURCES.values()) {
+                List<RecipeViewerEngine.IndexedRecipe> recipes = bts.source().get();
+                if (recipes == null || recipes.isEmpty()) continue;
+                RecipeViewerEngine.registerType(bts.uid(), recipes, bts.stations());
+                RecipeViewerEngine.registerRecipeBookType(bts.uid());
+            }
+        } catch (Exception | LinkageError e) {
+            BetterRecipeBook.LOGGER.warn("[BRBE] rebuildBookTypeSources failed: {}", e.toString());
+        }
+    }
+
+    /** 重建"进度模式"合法工作站集（hideNoRecipeBookStationObjects 开时的对象
+     *  /类别可见性判定，喂 {@code RecipeViewerEngine.setRecipeBookStationItems}）：
+     *  ① 工作站表的 recipeBook=true 项（合成/烧炼/锻造/酿造/切石 + 外置合法站）
+     *  + ② 配方书体系的全部类型站。类型归属（通用规则，不写死任何 mod）：
+     *  配方书驱动 mod 类型 = known 集条目的 display 声明的 craftingStation
+     *  （模组配方书条目自带工作站，如 FD cooking 条目 → 厨锅）反查到引擎类型
+     *  的工作站——不依赖 display 值相等（引擎 mod 条目是 headless 合成条目，
+     *  与 known 集的真实 display 不等值；工作站物品是稳定锚点）。引擎重建/桥
+     *  刷新后调用（幂等）。 */
+    public static void rebuildProgressStationItems() {
+        try {
+            // 工作站表（进度模式过滤后的视图）的站并入引擎类型：headless 对
+            // stonecutting/smithing 的引擎站注册为空（vanillaStationsFor 默认
+            // 空表），usage 查询的工作站短路命中需要它（U 查询切石机 →
+            // 切石类别有内容）。
+            for (Workstation ws : workstations()) {
+                RecipeViewerEngine.addStations(ws.typeId(),
+                        java.util.Arrays.asList(ws.fallbackIcons()));
+            }
+            java.util.LinkedHashSet<ItemStack> legal = new java.util.LinkedHashSet<>();
+            legal.addAll(vanillaWorkstationItems());
+            java.util.LinkedHashSet<String> progressTypes = new java.util.LinkedHashSet<>();
+            for (String uid : RecipeViewerEngine.typeUids()) {
+                if (RecipeViewerEngine.isProgressType(uid)) progressTypes.add(uid);
+            }
+            // 工作站物品 → 引擎类型 反查表（仅未归属的 mod 类型——vanilla 类型由
+            // PROGRESS_VANILLA_TYPES 决定；排除 minecraft: 命名空间防切石/铁砧等
+            // 经 known 条目声明的 craftStation 误归属——known 集跟踪切石条目 ≠
+            // 切石机有配方书体系）。
+            Map<net.minecraft.world.item.Item, List<String>> stationToUids = new java.util.HashMap<>();
+            for (String uid : RecipeViewerEngine.typeUids()) {
+                if (progressTypes.contains(uid)) continue;
+                if (uid.startsWith("minecraft:")) continue;
+                for (ItemStack stack : RecipeViewerEngine.stationItemsOf(uid)) {
+                    if (!stack.isEmpty()) {
+                        stationToUids.computeIfAbsent(stack.getItem(), k -> new ArrayList<>()).add(uid);
+                    }
+                }
+            }
+            if (!stationToUids.isEmpty()) {
+                for (RecipeDisplayEntry entry : knownEntries()) {
+                    ItemStack station = resolveCraftingStation(entry);
+                    if (station == null || station.isEmpty()) continue;
+                    List<String> uids = stationToUids.get(station.getItem());
+                    if (uids != null) progressTypes.addAll(uids);
+                }
+            }
+            for (String uid : progressTypes) {
+                RecipeViewerEngine.registerRecipeBookType(uid);
+                legal.addAll(RecipeViewerEngine.stationItemsOf(uid));
+            }
+            RecipeViewerEngine.setRecipeBookStationItems(legal);
+            com.alonie.brbe.recipeviewer.RecipeViewerCategories.markVisibilityDirty();
+        } catch (Exception | LinkageError e) {
+            BetterRecipeBook.LOGGER.warn("[BRBE] rebuildProgressStationItems failed: {}", e.toString());
+        }
     }
 
     /** Wrap a known display entry as an engine index entry (inputs/outputs
@@ -296,7 +438,9 @@ public final class RecipeViewerIndex {
      *  based), and BRBE provides none — so with "hide objects of workstations
      *  without a recipe book" on, the stonecutter is excluded from the whole
      *  query system (like a no-book mod station), rather than being treated as
-     *  a recipe-book-backed builtin.</p> */
+     *  a recipe-book-backed builtin.  (客户端配方书 known 集跟踪切石条目 ≠
+     *  配方书体系——切石机屏幕没有配方书；进度模式按用户语义隐藏。切石查询
+     *  在进度模式关闭时的可见性由引擎站列表保证，见 addStations 合并。) </p> */
     private static final List<Workstation> BUILTIN_WORKSTATIONS = List.of(
             new Workstation(Family.CRAFTING, "minecraft:crafting", List.of("crafting_"),
                     List.of(Identifier.withDefaultNamespace("crafting_table"),
@@ -315,15 +459,17 @@ public final class RecipeViewerIndex {
             new Workstation(Family.SMITHING, "minecraft:smithing", List.of("smithing"),
                     List.of(Identifier.withDefaultNamespace("smithing_table")), true),
             // No-recipe-book vanilla workstations (JEI runtime recipe types):
-            // their viewer categories (anvil / brewing / grindstone / compost)
-            // are BRBE-built, and with the hide toggle on they are excluded
-            // from the whole query system, exactly like the stonecutter.
+            // their viewer categories (anvil / grindstone / compost) are
+            // BRBE-built, and with the hide toggle on they are excluded from
+            // the whole query system, exactly like the stonecutter.  Brewing
+            // is recipe-book-backed (BRBE ships a brewing recipe book) and
+            // stays.
             new Workstation(Family.ANVIL, "minecraft:anvil", List.of("anvil"),
                     List.of(Identifier.withDefaultNamespace("anvil"),
                             Identifier.withDefaultNamespace("chipped_anvil"),
                             Identifier.withDefaultNamespace("damaged_anvil")), false),
             new Workstation(Family.BREWING, "minecraft:brewing", List.of("brewing"),
-                    List.of(Identifier.withDefaultNamespace("brewing_stand")), false),
+                    List.of(Identifier.withDefaultNamespace("brewing_stand")), true),
             new Workstation(Family.GRINDSTONE, "minecraft:grindstone", List.of("grindstone"),
                     List.of(Identifier.withDefaultNamespace("grindstone")), false),
             new Workstation(Family.COMPOSTING, "minecraft:compostable", List.of("compost"),
@@ -712,9 +858,18 @@ public final class RecipeViewerIndex {
      *  order as that subcategory's tooltip icon row (left-to-right).  A station
      *  matching several subcategories keeps its first (lowest) position. */
     public static List<ItemStack> furnaceStationColumnItems() {
+        return furnaceStationColumnItems(true);
+    }
+
+    /** As {@link #furnaceStationColumnItems()}, but the fuel category
+     *  (烧炼燃料 — about which fuel each station burns) excludes campfire cooking
+     *  workstations: campfire cannot take fuel.  The furnace category (烧炼,
+     *  the recipes themselves) keeps them. */
+    public static List<ItemStack> furnaceStationColumnItems(boolean includeCampfire) {
         List<ItemStack> out = new ArrayList<>();
         java.util.Set<net.minecraft.world.item.Item> seen = new java.util.HashSet<>();
         for (String prefix : FURNACE_SUBCATEGORY_PREFIXES) {
+            if (!includeCampfire && prefix.equals("campfire")) continue;
             for (ItemStack icon : workstationsIconsForPrefix(prefix)) {
                 if (seen.add(icon.getItem())) out.add(icon);
             }
@@ -803,19 +958,134 @@ public final class RecipeViewerIndex {
      * Wrap the query hits into a {@link RecipeCollection} for the vanilla
      * alternative-recipe overlay.  Every entry is selected; craftability is
      * computed against the player's {@code stackedContents} so the overlay
-     * shows craftable vs not.
+     * shows craftable vs not.  Synthetic (headless-JEI-imported) hits whose
+     * result item also exists in the recipe-book known set are replaced by
+     * the book-driven entry first — the synthetic display carries no
+     * {@code craftingRequirements} (canCraft is always false and only the
+     * layout-based elevation can save it, and it fails for mod displays
+     * whose slots the headless side cannot resolve), so a recipe the player
+     * has complete materials for would stay 残缺 forever.
      */
     public static RecipeCollection toCollection(List<RecipeDisplayEntry> entries,
                                                 StackedItemContents stackedContents) {
-        RecipeCollection collection = new RecipeCollection(entries);
+        RecipeCollection collection = new RecipeCollection(bookDrivenPreferred(entries));
         collection.selectRecipes(stackedContents, display -> true);
         viewerCollections.add(collection);
         return collection;
     }
 
+    /** The engine type id a recipe-book entry belongs to (same matching as
+     *  {@link #rebuildEngineInternal}), or null. */
+    public static String uidOf(RecipeDisplayEntry entry) {
+        if (entry == null) return null;
+        String path = categoryPath(entry);
+        if (path.isEmpty()) return null;
+        for (Workstation station : workstations()) {
+            if (station.matchesPath(path)) return station.typeId();
+        }
+        return null;
+    }
+
+    /** Synthetic hits → recipe-book-known equivalents (matched by result
+     *  item, constrained to the SAME engine type).  Book-driven entries carry
+     *  real {@code craftingRequirements} (canCraft truthful, same state as the
+     *  recipe book); synthetic entries keep their place only when the book has
+     *  no counterpart (no-recipe-book stations: stonecutter / anvil /
+     *  grindstone / brewing…).  The synthetic's JEI layout is re-registered
+     *  under the book-driven id so the popup / preview / transfer slot plans
+     *  keep working after the swap. */
+    private static List<RecipeDisplayEntry> bookDrivenPreferred(List<RecipeDisplayEntry> entries) {
+        if (entries == null || entries.isEmpty()) return entries;
+        List<RecipeDisplayEntry> known = knownEntries();
+        if (known.isEmpty()) return entries;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.level == null) return entries;
+        net.minecraft.util.context.ContextMap ctx =
+                net.minecraft.world.item.crafting.display.SlotDisplayContext.fromLevel(mc.level);
+        Map<String, Map<Item, RecipeDisplayEntry>> byResultPerUid = new java.util.HashMap<>();
+        try {
+            for (RecipeDisplayEntry k : known) {
+                if (RecipeViewerEngine.isSynthetic(k.id())) continue;
+                String uid = uidOf(k);
+                if (uid == null) {
+                    // 不被 index 工作站表识别的类型（如 FD 厨锅——unmatched）：
+                    // 以 display 声明的 craftingStation 反查引擎类型的注册工作站
+                    // （bridge 注册的类型均带 stations 列表）——配方书工作台归属
+                    // 同一语义，不依赖工作站表。
+                    ItemStack station = resolveCraftingStation(k);
+                    if (!station.isEmpty()) {
+                        for (String typeUid : RecipeViewerEngine.allTypeUids()) {
+                            if (RecipeViewerEngine.isStation(typeUid, station)) {
+                                uid = typeUid;
+                                break;
+                            }
+                        }
+                    }
+                }
+                if (uid == null) continue;
+                for (ItemStack r : k.resultItems(ctx)) {
+                    if (r != null && !r.isEmpty()) {
+                        byResultPerUid.computeIfAbsent(uid, x -> new java.util.HashMap<>())
+                                .putIfAbsent(r.getItem(), k);
+                        break;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            return entries;
+        }
+        if (byResultPerUid.isEmpty()) return entries;
+        List<RecipeDisplayEntry> out = new java.util.ArrayList<>(entries.size());
+        int replaced = 0;
+        for (RecipeDisplayEntry e : entries) {
+            if (!RecipeViewerEngine.isSynthetic(e.id())) {
+                out.add(e);
+                continue;
+            }
+            Identifier uid = BrbeJeiBridge.uidFor(e.id());
+            RecipeDisplayEntry match = null;
+            Map<Item, RecipeDisplayEntry> perUid = uid == null ? null : byResultPerUid.get(uid.toString());
+            if (perUid != null) {
+                try {
+                    for (ItemStack r : e.resultItems(ctx)) {
+                        if (r != null && !r.isEmpty()) {
+                            match = perUid.get(r.getItem());
+                            if (match != null) break;
+                        }
+                    }
+                } catch (Exception ignored) {
+                    // unresolvable → keep synthetic
+                }
+            }
+            if (match != null) {
+                // 布局随迁：synthetic 的 JEI 布局挂到书驱动 id（弹窗/预览/转移共用）
+                if (RecipeViewerEngine.getLayout(match.id()) == null) {
+                    RecipeViewerEngine.RecipeLayout sl = RecipeViewerEngine.getLayout(e.id());
+                    if (sl != null) {
+                        RecipeViewerEngine.registerLayout(match.id(), sl);
+                    }
+                }
+                // 渲染数据随迁：JEI 配方对象 + 类型 uid（canRender 委托依赖）
+                BrbeJeiBridge.migrateRecipeData(e.id(), match.id());
+                out.add(match);
+                replaced++;
+            } else {
+                out.add(e);
+            }
+        }
+        if (replaced > 0) {
+            BetterRecipeBook.LOGGER.info("[BRBE] viewer resolved {} synthetic entries to recipe-book entries",
+                    replaced);
+        }
+        return out;
+    }
+
     /** Viewer collections created by {@link #toCollection}. */
     private static final java.util.Set<RecipeCollection> viewerCollections =
             java.util.Collections.newSetFromMap(new java.util.WeakHashMap<>());
+
+    /** [BRBE-DIAG] 快照一次性日志集合（collection+ids 每个组合一次）。 */
+    private static final java.util.Set<String> SNAP_DIAG_ONCE = new java.util.HashSet<>();
 
     /** Whether {@code collection} is one created for the BRBE R/U viewer. */
     public static boolean isViewerCollection(RecipeCollection collection) {
@@ -842,6 +1112,11 @@ public final class RecipeViewerIndex {
             }
         }
         viewerPartials.put(collection, ids);
+        // [BRBE-DIAG] 一次性：每次快照记录内容（collection 隔代打印一次）
+        String skey = "snapshot coll=" + System.identityHashCode(collection) + " ids=" + ids;
+        if (SNAP_DIAG_ONCE.add(skey)) {
+            com.alonie.brbe.BetterRecipeBook.LOGGER.warn("[BRBE-DIAG-PARTIAL] " + skey);
+        }
     }
 
     /** Whether {@code id} is a snapshot partial of a viewer collection. */

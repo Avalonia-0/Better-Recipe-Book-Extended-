@@ -1,8 +1,8 @@
 package com.alonie.brbe.brewingstand;
 
-import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.level.Level;
 
 import java.util.List;
 
@@ -28,7 +28,7 @@ public class PlatformPotionUtil {
         return provider.getFrom(recipe);
     }
 
-    public static List<?> getPotionMixes(ClientLevel level) {
+    public static List<?> getPotionMixes(Level level) {
         if (provider == null) throw new IllegalStateException("PlatformPotionUtil provider not set");
         return provider.getPotionMixes(level);
     }
@@ -37,6 +37,6 @@ public class PlatformPotionUtil {
         Ingredient getIngredient(Object recipe);
         Potion getTo(Object recipe);
         Potion getFrom(Object recipe);
-        List<?> getPotionMixes(ClientLevel level);
+        List<?> getPotionMixes(Level level);
     }
 }

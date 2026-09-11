@@ -2,7 +2,7 @@ package com.alonie.brbe.brewingstand.fabric;
 
 import com.alonie.brbe.brewingstand.PlatformPotionUtil;
 import com.alonie.brbe.fabric.Mixins.Accessors.FabricPotionBrewingAccessor;
-import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.level.Level;
 import net.minecraft.world.item.alchemy.Potion;
 import net.minecraft.world.item.alchemy.PotionBrewing;
 import net.minecraft.world.item.crafting.Ingredient;
@@ -69,7 +69,7 @@ public class PlatformPotionUtilImpl implements PlatformPotionUtil.PotionUtilProv
     }
 
     @Override
-    public List<?> getPotionMixes(ClientLevel level) {
+    public List<?> getPotionMixes(Level level) {
         PotionBrewing brewing = level.potionBrewing();
         return ((FabricPotionBrewingAccessor) brewing).getPotionMixes();
     }

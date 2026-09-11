@@ -36,6 +36,11 @@ public final class AnvilRecipeCategory implements RecipeViewerCategory {
     }
 
     @Override
+    public java.util.List<String> jeiTypeUids() {
+        return List.of("minecraft:anvil");
+    }
+
+    @Override
     public ItemStack icon() {
         return new ItemStack(Items.ANVIL);
     }
