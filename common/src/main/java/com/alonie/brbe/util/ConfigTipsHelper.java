@@ -108,25 +108,43 @@ public final class ConfigTipsHelper {
     private static final List<String> RBIP_MOVED_OPTION_KEYS = List.of(
             "text.autoconfig.brbe.option.rbip.enableTabPage",
             "text.autoconfig.brbe.option.rbip.hideTabPageButtons");
+    /** RBIP 主开关：移到「§eJust Emulated Items」文字行（{@code recipeViewerEnabled} 项）之前。 */
+    private static final String RBIP_MASTER_OPTION_KEY = "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain";
+    private static final String VIEWER_ANCHOR_OPTION_KEY = "text.autoconfig.brbe.option.recipeViewerEnabled";
 
     /**
-     * 把「启用上侧和下侧的标签」「隐藏翻页按钮」从「实用功能」页搬到「界面」页的
-     * 「隐藏物品管理器界面」之后，并在它们前面插一行黄色纯文字「Recipe Book Is Pain」。
+     * 重排 RBIP 相关的 GUI 条目（只重排条目对象，字段与 TOML 路径都保持原样）：
+     * <ol>
+     *   <li>主开关「启用RBIP」从 {@code rbip} 字段所在位置（「预览模式」之后）移到
+     *       「§eJust Emulated Items」文字行之前 —— 即 {@code recipeViewerEnabled} 项之前；</li>
+     *   <li>「启用上侧和下侧的标签」「隐藏翻页按钮」从「实用功能」页搬到「界面」页的
+     *       「隐藏物品管理器界面」之后，并在它们前面插一行黄色纯文字「Recipe Book Is Pain」。</li>
+     * </ol>
      *
      * <p><b>为什么搬条目而不是搬字段</b>：Cloth 的子对象（{@code @TransitiveObject}）条目
      * 只能落在父字段所属的类别里（类别只在顶层字段上解析），把字段升到顶层会让 TOML 路径从
      * {@code [rbip] enableTabPage} 变成顶层键、老配置值失效。所以这里保持字段原地不动，
-     * 只把已经建好的条目对象在类别之间重排 —— 条目仍绑定原字段，保存逻辑不变。
+     * 只把已经建好的条目对象重排 —— 条目仍绑定原字段，保存逻辑不变。
      * 「Recipe Book Is Pain」那行原本是主开关的 {@code @PrefixText}（会跟着开关一起跑），
-     * 现改为这里的独立文字行，主开关留在「实用功能」页。</p>
+     * 现改为「界面」页里的独立文字行。</p>
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static void relocateRbipEntries(ConfigBuilder builder) {
         ConfigCategory from = builder.getOrCreateCategory(Component.translatable(DEFAULT_CATEGORY_KEY));
+        List<Object> defaultEntries = from.getEntries();
+
+        // 1) 主开关：移到 recipeViewerEnabled（§eJust Emulated Items 文字行）之前
+        Object master = removeByFieldName(defaultEntries, Component.translatable(RBIP_MASTER_OPTION_KEY));
+        if (master != null) {
+            int viewer = indexOfFieldName(defaultEntries, Component.translatable(VIEWER_ANCHOR_OPTION_KEY));
+            defaultEntries.add(viewer < 0 ? defaultEntries.size() : viewer, master);
+        }
+
+        // 2) 两个子开关：搬到「界面」页「隐藏物品管理器界面」之后（前面加黄字分节行）
         ConfigCategory to = builder.getOrCreateCategory(Component.translatable(UI_CATEGORY_KEY));
         List<Object> moved = new ArrayList<>();
         for (String key : RBIP_MOVED_OPTION_KEYS) {
-            Object entry = removeByFieldName(from.getEntries(), Component.translatable(key));
+            Object entry = removeByFieldName(defaultEntries, Component.translatable(key));
             if (entry != null) moved.add(entry);
         }
         if (moved.isEmpty()) return;
