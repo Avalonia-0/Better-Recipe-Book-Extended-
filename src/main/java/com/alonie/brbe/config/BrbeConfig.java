@@ -171,7 +171,10 @@ public class BrbeConfig implements ConfigData {
     }
 
     public static class RecipeBookIsPain implements ConfigData {
-        @ConfigEntry.Gui.PrefixText
+        /** 主开关（留在「实用功能」页）。原 `@PrefixText`「§eRecipe Book Is Pain」黄字行
+         *  已改为「界面」页里的独立纯文字行，与下面两个子开关一起搬过去 —— 见
+         *  {@code ConfigTipsHelper.relocateRbipEntries}。字段仍留在本子对象里，
+         *  故 TOML 路径保持 {@code [rbip]} 不变（玩家配置不失效）。 */
         @ConfigEntry.Gui.Tooltip
         public boolean enableRecipeBookIsPain = true;
 
