@@ -7,6 +7,7 @@ import me.shedaniel.autoconfig.gui.ConfigScreenProvider;
 import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
+import me.shedaniel.clothconfig2.gui.entries.TextListEntry;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
@@ -124,11 +125,19 @@ public final class ConfigTipsHelper {
         ConfigCategory from = builder.getOrCreateCategory(Component.translatable(DEFAULT_CATEGORY_KEY));
         List<Object> defaultEntries = from.getEntries();
 
-        // 1) 主开关：移到 recipeViewerEnabled（§eJust Emulated Items 文字行）之前
+        // 1) 主开关：移到 recipeViewerEnabled 那条「§eJust Emulated Items」文字行【之前】。
+        //    ⚠️ AutoConfig 的 @PrefixText 并不是选项条目自身的一部分，而是【同组另起的一条
+        //    TextListEntry、插在该组第 0 位】（DefaultGuiTransformers 里 ret.add(0, element)，
+        //    15.0.140 / 21.11.153 / 26.2.155 三个版本一致）——所以"移到文字行上面"必须再往前
+        //    一格，否则会落进文字行与该开关之间（第一版就是这么错的：看起来在文字行下面）。
+        //    文字行的 fieldName 是随机 UUID（ConfigEntryBuilderImpl 里 Component.literal(UUID)），
+        //    无法按名字识别，只能按类型 + 相邻位置判定。
         Object master = removeByFieldName(defaultEntries, Component.translatable(RBIP_MASTER_OPTION_KEY));
         if (master != null) {
             int viewer = indexOfFieldName(defaultEntries, Component.translatable(VIEWER_ANCHOR_OPTION_KEY));
-            defaultEntries.add(viewer < 0 ? defaultEntries.size() : viewer, master);
+            boolean prefixed = viewer > 0 && defaultEntries.get(viewer - 1) instanceof TextListEntry;
+            int at = viewer < 0 ? defaultEntries.size() : (prefixed ? viewer - 1 : viewer);
+            defaultEntries.add(at, master);
         }
 
         // 2) 两个子开关：搬到「界面」页「隐藏物品管理器界面」之后（前面加黄字分节行）
