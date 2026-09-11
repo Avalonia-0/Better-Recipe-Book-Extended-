@@ -4,6 +4,7 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.cache.RecipeViewerIndex;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.RecipeBookPageAnimBridge;
+import com.alonie.brbe.util.RecipeViewerOverlay;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.ImageButton;
@@ -13,6 +14,7 @@ import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
+import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -55,6 +57,13 @@ public abstract class RecipeBookPageMixin {
      * updateButtonsForPage）后关闭替代配方 overlay，否则它会留在原地。
      * 对 BRBE R/U viewer：仅当 viewer 是从配方书内的配方打开（R/U 作用于
      * 配方书按钮）时才在翻页时关闭它；从容器/幽灵物品打开的 viewer 不受影响。
+     *
+     * <p>2026-09-01 多窗口审查：`this.overlay` 是**宿主配方书页面自己的**替代配方
+     * overlay（与 BRBE viewer 的 OverlayRecipeComponent 实例无关），viewer 激活时
+     * 也不该把它排除在关闭之外——它必须随翻页关闭，否则留在原地常驻渲染
+     * （即"容器 UI 飞走"的挂死半截界面）。原 `isViewerActive` 分支直接 return
+     * 跳过对宿主 overlay 的 setVisible(false)，是单窗口时代的误判。现在宿主
+     * overlay 无条件关闭；book 打开 viewer 的窗口（如果有）仍按原语义关闭。
      */
     @Inject(method = "updateButtonsForPage", at = @At("RETURN"))
     private void brbe$closeOverlayOnPageChange(CallbackInfo ci) {
@@ -62,6 +71,7 @@ public abstract class RecipeBookPageMixin {
             if (com.alonie.brbe.cache.RecipeViewerIndex.isViewerOpenedFromBook()) {
                 com.alonie.brbe.util.RecipeViewerOverlay.close();
             }
+            this.overlay.setVisible(false);
             return;
         }
         this.overlay.setVisible(false);
@@ -79,7 +89,7 @@ public abstract class RecipeBookPageMixin {
                        target = "Lnet/minecraft/client/gui/components/ImageButton;mouseClicked(Lnet/minecraft/client/input/MouseButtonEvent;Z)Z"),
               require = 2)
     private boolean brbe$blockPageTurnWhileViewer(ImageButton button, MouseButtonEvent event, boolean doubleClick) {
-        if (RecipeViewerIndex.isViewerActive()) return false;
+        if (RecipeViewerOverlay.modalMaskOwnsCursor((int) Mth.floor(event.x()), (int) Mth.floor(event.y()))) return false;
         boolean clicked = button.mouseClicked(event, doubleClick);
         // 命中翻页箭头 = 用户主动翻页，标记以触发动画
         if (clicked && (button == forwardButton || button == backButton)) {
@@ -90,7 +100,7 @@ public abstract class RecipeBookPageMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     public void mouseClickedBtn(MouseButtonEvent event, int areaLeft, int areaTop, int areaWidth, int areaHeight, boolean widthTooNarrow, CallbackInfoReturnable<Boolean> cir) {
-        if (RecipeViewerIndex.isViewerActive()) {
+        if (RecipeViewerOverlay.modalMaskOwnsCursor((int) Mth.floor(event.x()), (int) Mth.floor(event.y()))) {
             return;
         }
 
@@ -126,7 +136,8 @@ public abstract class RecipeBookPageMixin {
      */
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     public void brbe$mouseClickedJumpToEdge(MouseButtonEvent event, int areaLeft, int areaTop, int areaWidth, int areaHeight, boolean widthTooNarrow, CallbackInfoReturnable<Boolean> cir) {
-        if (RecipeViewerIndex.isViewerActive() || event.button() != 0 || !ClientCompat.isControlDown()) {
+        if (RecipeViewerOverlay.modalMaskOwnsCursor((int) Mth.floor(event.x()), (int) Mth.floor(event.y()))
+                || event.button() != 0 || !ClientCompat.isControlDown()) {
             return;
         }
 
@@ -159,7 +170,7 @@ public abstract class RecipeBookPageMixin {
     public void render(GuiGraphics gui, int i, int j, int k, int l, float f, CallbackInfo ci) {
         // While the BRBE R/U viewer overlay is up, the recipe book stays locked
         // to its current page: consume any queued scroll instead of flipping.
-        if (RecipeViewerIndex.isViewerActive()) {
+        if (RecipeViewerOverlay.modalMaskOwnsCursor(k, l)) {
             BetterRecipeBook.queuedScroll = 0;
             return;
         }

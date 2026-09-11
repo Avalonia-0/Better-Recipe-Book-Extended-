@@ -3,6 +3,7 @@ package com.alonie.brbe.mixins.instantcraft;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.layout.BookLayout;
 import com.alonie.brbe.util.BRBTextures;
+import net.minecraft.util.Mth;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.Minecraft;
@@ -80,7 +81,8 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     public void mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
-        if (com.alonie.brbe.cache.RecipeViewerIndex.isViewerActive()) {
+        if (com.alonie.brbe.util.RecipeViewerOverlay.modalMaskOwnsCursor(
+                (int) Mth.floor(event.x()), (int) Mth.floor(event.y()))) {
             return;
         }
         if (!this.isVisible() || brbe$shouldSkip() || this.brbe$instantCraftButton == null) {

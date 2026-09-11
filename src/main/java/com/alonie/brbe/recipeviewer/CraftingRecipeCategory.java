@@ -26,6 +26,11 @@ public final class CraftingRecipeCategory implements RecipeViewerCategory {
     }
 
     @Override
+    public java.util.List<String> jeiTypeUids() {
+        return List.of("minecraft:crafting");
+    }
+
+    @Override
     public ItemStack icon() {
         return new ItemStack(Items.CRAFTING_TABLE);
     }

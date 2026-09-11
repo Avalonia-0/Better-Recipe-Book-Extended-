@@ -63,6 +63,12 @@ public final class PluginRecipeViewerCategory implements RecipeViewerCategory {
         return uids;
     }
 
+    /** JEI 类别排序 key：本类别包装的 JEI 类型 uid。 */
+    @Override
+    public List<String> jeiTypeUids() {
+        return uids;
+    }
+
     /** The workstations this plugin category was registered with (the viewer's
      *  left station-column list for dynamic mod categories). */
     public List<ItemStack> stations() {
@@ -89,7 +95,7 @@ public final class PluginRecipeViewerCategory implements RecipeViewerCategory {
                 if (seen.add(entry.id())) out.add(entry);
             }
         }
-        return out;
+        return gateByKnown(out);
     }
 
     @Override
@@ -99,6 +105,43 @@ public final class PluginRecipeViewerCategory implements RecipeViewerCategory {
             out.addAll(usage
                     ? RecipeViewerEngine.usagesFor(uid, target)
                     : RecipeViewerEngine.resultsFor(uid, target));
+        }
+        return gateByKnown(out);
+    }
+
+    /** 配方书驱动的 mod 类别：数据源接入配方书（known）——只有已解锁配方显示
+     *  （未开 unlockAll 时；与酿造门控同哲学：引擎数据全量、展示级按已解锁过滤，
+     *  因此不再"解锁≥1 即全量可见"）。非配方书驱动的 mod 类别（如 bclib 铁砧）
+     *  不受影响（KNOWN 从未出现其条目，也无法归属）。 */
+    private List<RecipeDisplayEntry> gateByKnown(List<RecipeDisplayEntry> hits) {
+        if (hits == null || hits.isEmpty()) return hits;
+        if (BetterRecipeBook.config.unlockAll) return hits;
+        boolean bookDriven = false;
+        for (String uid : uids) {
+            if (RecipeViewerEngine.isRecipeBookType(uid)) {
+                bookDriven = true;
+                break;
+            }
+        }
+        if (!bookDriven) return hits;
+        java.util.Set<net.minecraft.world.item.Item> knownResults = new java.util.HashSet<>();
+        for (String uid : uids) {
+            knownResults.addAll(
+                    com.alonie.brbe.cache.RecipeViewerIndex.knownResultItemsForType(uid));
+        }
+        if (knownResults.isEmpty()) return List.of();
+        List<RecipeDisplayEntry> out = new ArrayList<>();
+        for (RecipeDisplayEntry entry : hits) {
+            try {
+                for (ItemStack result : entry.resultItems(null)) {
+                    if (result != null && !result.isEmpty()
+                            && knownResults.contains(result.getItem())) {
+                        out.add(entry);
+                        break;
+                    }
+                }
+            } catch (Exception | LinkageError ignored) {
+            }
         }
         return out;
     }

@@ -96,7 +96,7 @@ public final class AppContext {
         // Wire config save listener through the event bus
         configHolder.registerSaveListener((holder, cfg) -> {
             com.alonie.brbe.BetterRecipeBook.LOGGER.info(
-                    "[BRBE] config save listener fired; unlockAll={}", cfg.newRecipes.unlockAll);
+                    "[BRBE] config save listener fired; unlockAll={}", cfg.unlockAll);
             this.config = cfg;
             events.publish(new ConfigEventBus.ConfigChanged(cfg));
             events.publish(new ConfigEventBus.PartialCraftingChanged(
@@ -142,11 +142,17 @@ public final class AppContext {
         if (categoriesInitialized) return;
         categoriesInitialized = true;
         this.brewingPotion = brewing.createCategory(new ItemStack(Items.POTION));
+        this.brewingPotion.setTitle(net.minecraft.network.chat.Component.translatable("brbe.gui.tab.brewing.potion"));
         this.brewingSplashPotion = brewing.createCategory(new ItemStack(Items.SPLASH_POTION));
+        this.brewingSplashPotion.setTitle(net.minecraft.network.chat.Component.translatable("brbe.gui.tab.brewing.splash"));
         this.brewingLingeringPotion = brewing.createCategory(new ItemStack(Items.LINGERING_POTION));
+        this.brewingLingeringPotion.setTitle(net.minecraft.network.chat.Component.translatable("brbe.gui.tab.brewing.lingering"));
         this.smithingSearch = smithing.createSearch();
+        this.smithingSearch.setTitle(net.minecraft.network.chat.Component.translatable("brbe.gui.tab.search"));
         this.smithingTransform = smithing.createCategory(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE));
+        this.smithingTransform.setTitle(net.minecraft.network.chat.Component.translatable("brbe.gui.tab.upgrade"));
         this.smithingTrim = smithing.createCategory(new ItemStack(Items.NETHERITE_CHESTPLATE));
+        this.smithingTrim.setTitle(net.minecraft.network.chat.Component.translatable("brbe.gui.tab.trim"));
     }
 
     // -- Getters --------------------------------------------------------------

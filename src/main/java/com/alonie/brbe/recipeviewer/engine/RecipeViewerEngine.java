@@ -62,10 +62,19 @@ public final class RecipeViewerEngine {
 
     /** The seven vanilla JEI recipe type ids.  {@link #clearVanilla()} only
      *  drops these, leaving mod-registered types (from the companion mod)
-     *  intact across recipe-book rebuilds. */
+     *  intact across recipe-book rebuilds.
+     *
+     *  <p>{@code minecraft:smithing} is included even though the headless side
+     *  skips its {@code registerType}: its authoritative data is the recipe
+     *  book known set (per world), so a world whose known set has no smithing
+     *  entries must not inherit the previous world's type via
+     *  {@code registerType}-replace (which never runs for an empty group) —
+     *  otherwise the usage query leaks the previous save's unlocks.
+     *  {@code minecraft:brewing} needs no place here: it is re-registered from
+     *  its {@code BookTypeSource} on every rebuild (source always non-empty). */
     private static final Set<String> VANILLA_TYPES = Set.of(
             "minecraft:crafting", "minecraft:smelting", "minecraft:blasting",
-            "minecraft:smoking", "minecraft:campfire_cooking");
+            "minecraft:smoking", "minecraft:campfire_cooking", "minecraft:smithing");
 
     private static final Map<String, RecipeTypeData> TYPES = new LinkedHashMap<>();
     private static final Map<RecipeDisplayId, RecipeDisplayEntry> BY_ID = new HashMap<>();
@@ -152,10 +161,16 @@ public final class RecipeViewerEngine {
     }
 
     /** Drop only the vanilla types (called before a recipe-book rebuild so the
-     *  mod-registered types from the companion mod survive). */
+     *  mod-registered types from the companion mod survive).  Also drops the
+     *  dropped types' display ids from {@code BY_ID}/{@code LAYOUTS} via
+     *  {@link #clearType}: display ids are server-assigned per world and may
+     *  collide across world joins, so stale ids must not linger (cross-save
+     *  query/popup leaks). */
     public static void clearVanilla() {
         for (String uid : VANILLA_TYPES) {
-            TYPES.remove(uid);
+            if (TYPES.containsKey(uid)) {
+                clearType(uid);
+            }
         }
     }
 
@@ -204,10 +219,23 @@ public final class RecipeViewerEngine {
         }
     }
 
-    /** Whether {@code uid} is a recipe-book-backed type: one of the seven
-     *  vanilla types, or a mod type ever driven by its recipe book. */
+    /** Whether {@code uid} is a recipe-book-backed type (vanilla recipe book
+     *  or a mod type driven by its recipe book). */
     public static boolean isRecipeBookType(String uid) {
         return isVanillaType(uid) || RECIPE_BOOK_TYPES.contains(uid);
+    }
+
+    /** 进度模式（"隐藏无配方书工作站所属的对象"）下配方书体系的 vanilla 类型
+     *  uid：合成/烧炼家族/锻造/酿造——酿造配方书由 BRBE 自带；切石/铁砧/研磨
+     *  无配方书（known 集跟踪切石条目 ≠ 配方书体系：切石机屏幕无配方书）。 */
+    public static final Set<String> PROGRESS_VANILLA_TYPES = Set.of(
+            "minecraft:crafting", "minecraft:smelting", "minecraft:blasting",
+            "minecraft:smoking", "minecraft:campfire_cooking", "minecraft:smithing",
+            "minecraft:brewing");
+
+    /** 进度模式类型：配方书体系的 vanilla 类型或已归属的配方书驱动 mod 类型。 */
+    public static boolean isProgressType(String uid) {
+        return PROGRESS_VANILLA_TYPES.contains(uid) || RECIPE_BOOK_TYPES.contains(uid);
     }
 
     /** Replace the recipe-book-backed workstation set.  Called by the JEI
@@ -229,6 +257,34 @@ public final class RecipeViewerEngine {
     public static boolean isRecipeBookStation(ItemStack station) {
         return station != null && !station.isEmpty()
                 && RECIPE_BOOK_STATION_ITEMS.contains(station.getItem());
+    }
+
+
+    /** 合并工作站物品（幂等）：工作站表（内置/外置/配置，进度模式过滤后视图）
+     *  的站并入引擎类型——headless 注册的 stonecutting/smithing 类站可能为空，
+     *  查询命中（usage 工作站短路）需要它。 */
+    public static void addStations(String uid, java.util.Collection<ItemStack> stations) {
+        RecipeTypeData data = TYPES.get(uid);
+        if (data == null || stations == null) return;
+        for (ItemStack stack : stations) {
+            if (stack != null && !stack.isEmpty()) data.stationItems.add(stack.getItem());
+        }
+    }
+
+    /** Every registered type uid (progress-mode legal-station rebuild). */
+    public static List<String> typeUids() {
+        return new ArrayList<>(TYPES.keySet());
+    }
+
+    /** Workstation items registered with {@code uid} (progress-mode legal set). */
+    public static List<ItemStack> stationItemsOf(String uid) {
+        RecipeTypeData data = TYPES.get(uid);
+        if (data == null) return List.of();
+        List<ItemStack> out = new ArrayList<>();
+        for (Item item : data.stationItems) {
+            out.add(new ItemStack(item));
+        }
+        return out;
     }
 
     /** Register a callback run after each vanilla recipe-book rebuild (i.e. after
@@ -255,7 +311,12 @@ public final class RecipeViewerEngine {
         final String uid;
         final List<RecipeDisplayEntry> recipes = new ArrayList<>();
         final Set<Item> stationItems = new LinkedHashSet<>();
-        final Map<Item, List<RecipeDisplayEntry>> outputIndex = new HashMap<>();
+        /** output item → distinct entries producing it.  A recipe whose result
+         *  resolves to several stacks of the SAME item (e.g. an enchanted sword
+         *  at Sharpness I–V differing only in enchant NBT) contributes its
+         *  entry ONCE — otherwise the viewer shows N identical objects each
+         *  cycling through the same levels. */
+        final Map<Item, Set<RecipeDisplayEntry>> outputIndex = new HashMap<>();
         /** input item → (recipe group → one representative entry).  Split
          *  entries of one recipe share a group, so a usage lookup shows the
          *  recipe once instead of once per product. */
@@ -279,7 +340,10 @@ public final class RecipeViewerEngine {
             if (outputs != null) {
                 for (ItemStack output : outputs) {
                     if (output != null && !output.isEmpty()) {
-                        outputIndex.computeIfAbsent(output.getItem(), k -> new ArrayList<>()).add(entry);
+                        // Set: the same entry is added once per output item even
+                        // if its result resolves to several stacks of that item
+                        // (enchantment levels / other NBT-only variants).
+                        outputIndex.computeIfAbsent(output.getItem(), k -> new java.util.LinkedHashSet<>()).add(entry);
                     }
                 }
             }
@@ -298,7 +362,7 @@ public final class RecipeViewerEngine {
         }
 
         List<RecipeDisplayEntry> resultsFor(ItemStack target) {
-            List<RecipeDisplayEntry> hits = outputIndex.get(target.getItem());
+            Set<RecipeDisplayEntry> hits = outputIndex.get(target.getItem());
             return hits == null ? new ArrayList<>() : new ArrayList<>(hits);
         }
 

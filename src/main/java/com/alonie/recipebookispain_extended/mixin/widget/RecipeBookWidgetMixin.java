@@ -206,6 +206,12 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
 
     @Override
     public boolean rbip$scrollPages(double mouseX, double mouseY, double verticalAmount) {
+        // 桌面窗口语义：光标落在查询界面/pin/预览（query UI 拥有的点）上时，
+        // RBIP 标签条不得透过它们滚动；查询界面之外照常滚动。
+        if (com.alonie.brbe.util.RecipeViewerOverlay.modalMaskOwnsCursor(
+                (int) Math.floor(mouseX), (int) Math.floor(mouseY))) {
+            return false;
+        }
         if (!RecipeBookIsPainExtendedConfig.get().extendedFeatures()
                 || this.rbip$pageCount <= 1
                 || verticalAmount == 0.0D

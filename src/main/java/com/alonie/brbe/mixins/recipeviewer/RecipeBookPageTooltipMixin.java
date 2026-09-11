@@ -21,7 +21,7 @@ public abstract class RecipeBookPageTooltipMixin {
     @Inject(method = "renderTooltip", at = @At("HEAD"), cancellable = true)
     private void brbe$suppressBookTooltipWhileViewer(GuiGraphics gui, int mouseX, int mouseY,
                                                      CallbackInfo ci) {
-        if (RecipeViewerIndex.isViewerActive()) {
+        if (com.alonie.brbe.util.RecipeViewerOverlay.modalMaskOwnsCursor(mouseX, mouseY)) {
             ci.cancel();
         }
     }

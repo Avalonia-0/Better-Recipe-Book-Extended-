@@ -38,6 +38,11 @@ public final class InfoRecipeCategory implements RecipeViewerCategory {
     }
 
     @Override
+    public java.util.List<String> jeiTypeUids() {
+        return List.of("jei:information");
+    }
+
+    @Override
     public ItemStack icon() {
         return new ItemStack(Items.WRITTEN_BOOK);
     }

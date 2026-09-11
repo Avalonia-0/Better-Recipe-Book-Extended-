@@ -232,10 +232,36 @@ public final class PinOverlay {
         return entry;
     }
 
+    /** The pin's slot-select cycle index (its clone's own clock), under its
+     *  OWN Alt state: while Alt is held the rotation freezes (locked at the
+     *  Alt-press index), Alt+wheel steps { #manualCycleIndex}, releasing
+     *  Alt resumes the automatic cycle.  Pins own this state independently of
+     *  the query windows — it must keep working with the viewer closed. */
+    private boolean cyclePaused;
+    private int manualCycleIndex;
+
     /** The pin's slot-select cycle index (its clone's own clock). */
     public int slotSelectIndex() {
-        return RecipeViewerOverlay.currentSlotSelectIndex(
-                ((OverlayRecipeComponentAccessor) component).getSlotSelectTime().currentIndex());
+        int autoIndex = ((OverlayRecipeComponentAccessor) component)
+                .getSlotSelectTime().currentIndex();
+        boolean alt = ClientCompat.isAltDown();
+        if (alt) {
+            if (!cyclePaused) {
+                cyclePaused = true;
+                manualCycleIndex = autoIndex;
+            }
+        } else if (cyclePaused) {
+            cyclePaused = false;
+            RecipeViewerOverlay.forkSetManualIndex(-1);
+        }
+        return cyclePaused ? manualCycleIndex : autoIndex;
+    }
+
+    /** Alt+wheel: step the pinned variant (freezes the rotation first). */
+    void stepVariants(double vertical) {
+        cyclePaused = true;
+        manualCycleIndex += vertical > 0 ? -1 : 1;
+        RecipeViewerOverlay.forkSetManualIndex(manualCycleIndex);
     }
 
     /** The pinned recipe id. */
@@ -263,8 +289,7 @@ public final class PinOverlay {
                 return painted;
             }
         }
-        int selIdx = RecipeViewerOverlay.currentSlotSelectIndex(
-                ((OverlayRecipeComponentAccessor) component).getSlotSelectTime().currentIndex());
+        int selIdx = slotSelectIndex();
         return geometry.itemAt(mx, my, selIdx);
     }
 
@@ -390,10 +415,14 @@ public final class PinOverlay {
     }
 
     void render(GuiGraphics gui, int mouseX, int mouseY, float delta) {
-        // The cloned button renders its full recipe layout at the frozen zoom.
+        // The cloned button renders its full recipe layout at the frozen zoom,
+        // its frozen creation mode AND the pin's own slot-select index (Alt
+        // state) — all pushed through the override so the button's renderer
+        // never falls back to window-based lookups (which degrade to the
+        // crafting layout / raw auto-index once the query viewer is closed).
         button.setX(btnX());
         button.setY(btnY());
-        PinButtonRenderOverride.push(PopupGeometry.VANILLA_SCALE, mode);
+        PinButtonRenderOverride.push(PopupGeometry.VANILLA_SCALE, mode, slotSelectIndex());
         try {
             button.render(gui, mouseX, mouseY, delta);
         } finally {
@@ -403,13 +432,20 @@ public final class PinOverlay {
         // Pin icon at the rendered UI's top-left corner: the adapted synthetic
         // content can extend far beyond the box, so anchor to the shared
         // geometry's bounds (the panel) rather than the box (which would land
-        // mid-UI).
+        // mid-UI).  Nudged up 3px (user: the pin marker rides slightly above
+        // the panel's corner).
         PopupGeometry g = geometry();
         ClientCompat.blitSprite(gui, BRBTextures.RECIPE_BOOK_OVERLAY_PIN_SPRITE,
-                g.x, g.y, MIN_EDGE, MIN_EDGE);
+                g.x, g.y - 3, MIN_EDGE, MIN_EDGE);
 
         if (PinOverlayManager.isDragging(this)) {
-            gui.requestCursor(com.mojang.blaze3d.platform.cursor.CursorTypes.RESIZE_ALL);
+            // The desktop's closed-fist drag cursor when loadable (system
+            // Xcursor theme), else the standard resize-all cursor.
+            com.mojang.blaze3d.platform.cursor.CursorType fist =
+                    com.alonie.brbe.util.ViewerCursor.fist();
+            gui.requestCursor(fist != null
+                    ? fist
+                    : com.mojang.blaze3d.platform.cursor.CursorTypes.RESIZE_ALL);
         }
     }
 }

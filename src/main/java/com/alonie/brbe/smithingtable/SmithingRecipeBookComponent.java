@@ -10,7 +10,6 @@ import com.alonie.brbe.recipe.smithing.BRBSmithingTrimRecipe;
 import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.util.ClientInventoryUtil;
 import net.minecraft.client.Minecraft;
-import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
@@ -20,7 +19,6 @@ import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.SmithingMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.RecipeBookCategories;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
@@ -29,6 +27,7 @@ import net.minecraft.world.item.crafting.display.SmithingRecipeDisplay;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.function.Consumer;
 
 public class SmithingRecipeBookComponent extends GenericRecipeBookComponent<SmithingMenu, SmithingRecipeCollection, BRBSmithingRecipe> {
@@ -117,33 +116,44 @@ public class SmithingRecipeBookComponent extends GenericRecipeBookComponent<Smit
         List<SmithingRecipeCollection> results = new ArrayList<>();
         BRBBookCategories.Category category = selectedTab.getCategory();
         ContextMap displayContext = SlotDisplayContext.fromLevel(this.minecraft.level);
-        List<RecipeCollection> collections = this.minecraft.player.getRecipeBook().getCollection(RecipeBookCategories.SMITHING);
-
-        for (RecipeCollection collection : collections) {
+        // 直接读配方书 known 集（RecipeViewerIndex.knownEntries = 客户端 known 地图
+        // 视图，与 BRBE 的解锁注入/引擎重建同源）——绕过 vanilla RecipeCollection
+        // 构建层（该层对 BRBE 注入的解锁条目不总是即时反映）。
+        // 集合粒度与原版 categorizeAndGroupRecipes 一致：同一
+        // entry.group()（recipe 的变体组）合并为一个集合（一个按钮），
+        // 无组的条目各自成集合——若把所有条目塞进一个集合，页面只会渲染
+        // 一个按钮（每集合一按钮，20 集合/页），解锁的配方"看起来没显示"。
+        Map<Object, List<RecipeDisplayEntry>> groups = new java.util.LinkedHashMap<>();
+        for (RecipeDisplayEntry entry : com.alonie.brbe.cache.RecipeViewerIndex.knownEntries()) {
+            if (!(entry.display() instanceof SmithingRecipeDisplay smithingDisplay)) {
+                continue;
+            }
+            boolean isTrimRecipe = smithingDisplay.result() instanceof SlotDisplay.SmithingTrimDemoSlotDisplay;
+            if (!shouldInclude(category, isTrimRecipe)) {
+                continue;
+            }
+            Object groupKey = entry.group().isEmpty()
+                    ? entry.id()
+                    : "grp:" + entry.group().getAsInt();
+            groups.computeIfAbsent(groupKey, k -> new ArrayList<>()).add(entry);
+        }
+        for (List<RecipeDisplayEntry> group : groups.values()) {
             List<BRBSmithingRecipe> smithingRecipes = new ArrayList<>();
-
-            for (RecipeDisplayEntry entry : collection.getRecipes()) {
-                if (!(entry.display() instanceof SmithingRecipeDisplay smithingDisplay)) {
-                    continue;
-                }
-
-                boolean isTrimRecipe = smithingDisplay.result() instanceof SlotDisplay.SmithingTrimDemoSlotDisplay;
-                if (!shouldInclude(category, isTrimRecipe)) {
-                    continue;
-                }
-
+            for (RecipeDisplayEntry entry : group) {
+                SmithingRecipeDisplay smithingDisplay =
+                        (SmithingRecipeDisplay) entry.display();
+                boolean isTrimRecipe =
+                        smithingDisplay.result() instanceof SlotDisplay.SmithingTrimDemoSlotDisplay;
                 if (isTrimRecipe) {
                     smithingRecipes.addAll(BRBSmithingTrimRecipe.from(smithingDisplay, displayContext));
                 } else {
                     smithingRecipes.add(BRBSmithingTransformRecipe.from(entry, smithingDisplay, displayContext));
                 }
             }
-
             if (!smithingRecipes.isEmpty()) {
                 results.add(new SmithingRecipeCollection(smithingRecipes, this.menu, registryAccess));
             }
         }
-
         return results;
     }
 

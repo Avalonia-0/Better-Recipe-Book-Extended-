@@ -18,13 +18,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * any {@code setVisible(false)} observed while the viewer is still active is an
  * unsanctioned close and is cancelled.  When the viewer is inactive this is a
  * passthrough, so the vanilla alternative-recipe-group behaviour is unchanged.
+ *
+ * <p>2026-09-01 multi-window review: the guard was GLOBAL (any
+ * {@code OverlayRecipeComponent}), so while the viewer was active the HOST
+ * recipe book's own alt-recipe overlay (a separate {@code OverlayRecipeComponent}
+ * instance) could never close either — it stayed visible and kept rendering
+ * every frame at its stale position (the host's RecipeBookPage renders its
+ * overlay unconditionally), i.e. the "flown-away container UI" symptom.  The
+ * guard is now scoped to the BRBE-owned overlay instance: the host book's
+ * overlay lifecycle is untouched.
  */
 @Mixin(OverlayRecipeComponent.class)
 public abstract class OverlayRecipeComponentMixin {
 
     @Inject(method = "setVisible", at = @At("HEAD"), cancellable = true)
     private void brbe$keepViewerOverlay(boolean visible, CallbackInfo ci) {
-        if (!visible && RecipeViewerIndex.isViewerActive()) {
+        if (!visible && RecipeViewerOverlay.isOwnOverlay((OverlayRecipeComponent) (Object) this)
+                && RecipeViewerIndex.isViewerActive()) {
             ci.cancel();
         }
     }

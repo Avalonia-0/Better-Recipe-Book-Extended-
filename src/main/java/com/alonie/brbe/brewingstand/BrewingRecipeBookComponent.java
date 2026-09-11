@@ -116,6 +116,10 @@ public class BrewingRecipeBookComponent extends GenericRecipeBookComponent<Brewi
         BRBBookCategories.Category category = selectedTab.getCategory();
 
         for (BrewableResult potion : PotionLoader.POTIONS) {
+            // 酿造自建进度：未解锁（酿造材料未获得过）的配方不显示。
+            if (!com.alonie.brbe.brewingstand.RecipeUnlockTracker.isUnlocked(potion)) {
+                continue;
+            }
             results.add(new BrewingRecipeCollection(List.of(potion), menu, registryAccess, category));
         }
 

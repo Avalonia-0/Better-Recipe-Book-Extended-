@@ -9,6 +9,7 @@ import com.alonie.brbe.pinoverlay.PinOverlay;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.render.PopupGeometry;
 import com.alonie.brbe.render.PopupRenderer;
+import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
@@ -90,7 +91,11 @@ public final class RecipePopupLayer {
                 ((OverlayRecipeComponentAccessor) outer).getSlotSelectTime().currentIndex());
         PopupRenderer.renderRecipePopup(gui, id, entry, mode, craftable, partial,
                 slots, selIdx, button.getX(), button.getY(), button.getWidth(), button.getHeight(),
-                true, PopupGeometry.VANILLA_SCALE);
+                true, PopupGeometry.VANILLA_SCALE,
+                // 可合成（非残缺）对象不画幽灵遮罩；残缺对象的 isCraftable 为 true
+                // （prepareForViewer 注入），必须用 true 可合成判定。
+                (craftable && !partial) ? null
+                        : PartialCraftingUtil.searchSpaceItemCounts(), false);
     }
 
     /** Whether the cursor is inside the popup (its modal area = hit volume). */

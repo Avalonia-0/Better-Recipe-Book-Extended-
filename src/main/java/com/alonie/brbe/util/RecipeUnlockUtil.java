@@ -161,7 +161,7 @@ public class RecipeUnlockUtil {
      * on) and after a revoke.
      */
     public static void unlockRecipesIfRequired() {
-        boolean unlockAll = BetterRecipeBook.config.newRecipes.unlockAll;
+        boolean unlockAll = BetterRecipeBook.config.unlockAll;
         if (unlockAll && unlockAllApplied) {
             // Already fully unlocked — a progression packet adds nothing.
             return;
@@ -178,7 +178,7 @@ public class RecipeUnlockUtil {
 
     /** Called when the config changes.  Applies the unlockAll toggle. */
     public static void syncToConfig() {
-        boolean unlockAll = BetterRecipeBook.config.newRecipes.unlockAll;
+        boolean unlockAll = BetterRecipeBook.config.unlockAll;
         LOG.info("[BRBE] unlock-all syncToConfig: unlockAll={} last={}",
                 unlockAll, lastUnlockAll);
         if (lastUnlockAll != null && lastUnlockAll == unlockAll) {

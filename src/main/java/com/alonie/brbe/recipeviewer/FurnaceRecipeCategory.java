@@ -33,6 +33,11 @@ public final class FurnaceRecipeCategory implements RecipeViewerCategory {
     }
 
     @Override
+    public java.util.List<String> jeiTypeUids() {
+        return FURNACE_TYPES;
+    }
+
+    @Override
     public ItemStack icon() {
         return new ItemStack(Items.FURNACE);
     }

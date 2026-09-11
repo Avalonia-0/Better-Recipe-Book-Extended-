@@ -40,6 +40,7 @@ public class BRBBookCategories {
     public static class Category {
         private final List<ItemStack> itemIcons;
         private final Type type;
+        private net.minecraft.network.chat.Component title;
 
         Category(Type type, ItemStack... entries) {
             this.itemIcons = ImmutableList.copyOf(entries);
@@ -52,6 +53,16 @@ public class BRBBookCategories {
 
         public Type getType() {
             return this.type;
+        }
+
+        /** 标签页悬停标题（tooltip）；null = 不显示。 */
+        public void setTitle(net.minecraft.network.chat.Component title) {
+            this.title = title;
+        }
+
+        @org.jetbrains.annotations.Nullable
+        public net.minecraft.network.chat.Component getTitle() {
+            return this.title;
         }
 
         public enum Type {

@@ -29,6 +29,13 @@ public class PotionLoader {
         }
 
         BetterRecipeBook.LOGGER.info("Loaded %d potions.".formatted(POTIONS.size()));
+        // 酿造/锻造进度（运行时推导）：重建"材料 → 产物"映射。
+        com.alonie.brbe.brewingstand.RecipeUnlockTracker.refreshIngredients();
+        // 注：酿造查询引擎数据 = headless-JEI 直接注册（条目自带 native layout，
+        // 弹窗/pin 委托完整 JEI UI 无匹配损耗——"数据源定向配方书"的集合构造
+        // 版本已撤回：其合成条目无 layout，内容匹配兜底对半失败（实机 92 条目仅
+        // 35 挂上 layout）。解锁一致性由 BrewingRecipeCategory.query 门控保证
+        // （按产物药水解锁过滤，与酿造书一致）。
     }
 
     public static void clear() {

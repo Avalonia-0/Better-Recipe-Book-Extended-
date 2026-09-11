@@ -11,4 +11,7 @@ import java.util.List;
 public interface ScreenAccessor {
     @Accessor("renderables")
     List<Renderable> brbe$getRenderables();
+
+    @Accessor("title")
+    net.minecraft.network.chat.Component brbe$getTitle();
 }

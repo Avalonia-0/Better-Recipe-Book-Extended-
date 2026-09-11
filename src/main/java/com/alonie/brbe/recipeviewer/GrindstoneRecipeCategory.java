@@ -34,6 +34,11 @@ public final class GrindstoneRecipeCategory implements RecipeViewerCategory {
     }
 
     @Override
+    public java.util.List<String> jeiTypeUids() {
+        return List.of("minecraft:grindstone");
+    }
+
+    @Override
     public ItemStack icon() {
         return new ItemStack(Items.GRINDSTONE);
     }

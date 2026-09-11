@@ -12,7 +12,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public class DisableBounce {
     @Inject(method = "willHighlight", at = @At(value = "HEAD"), cancellable = true)
     public void willHighlight(RecipeDisplayId recipeDisplayId, CallbackInfoReturnable<Boolean> cir) {
-        if (!BetterRecipeBook.config.newRecipes.enableBounce) {
+        if (!BetterRecipeBook.config.enableBounce) {
             cir.setReturnValue(false);
             cir.cancel();
         }

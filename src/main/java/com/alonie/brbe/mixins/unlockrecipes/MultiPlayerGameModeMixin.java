@@ -41,7 +41,7 @@ public abstract class MultiPlayerGameModeMixin {
 
     @Inject(method = "handlePlaceRecipe", at = @At(value = "HEAD"), cancellable = true)
     public void onPlaceRecipe(int z, RecipeDisplayId recipe, boolean shiftKeyDown, CallbackInfo ci) {
-        boolean isUnlockAll = BetterRecipeBook.config.newRecipes.unlockAll;
+        boolean isUnlockAll = BetterRecipeBook.config.unlockAll;
         boolean isCacheRecipe = VanillaRecipeCache.isLocalRecipe(recipe);
 
         if ((isUnlockAll || isCacheRecipe) && minecraft.player != null && minecraft.gameMode != null &&

@@ -145,6 +145,12 @@ public final class PinOverlayManager {
     public static void render(GuiGraphics gui, int mouseX, int mouseY, float delta) {
         init();
         resolvePending();
+        // Warm-closed query windows (host screen closed) must come back on the
+        // next container screen every frame — the viewer render below is
+        // SKIPPED when pins exist and no query window is open, so this runs
+        // here, before the pin/viewer interleave (a same-frame restore is then
+        // drawn immediately).
+        RecipeViewerOverlay.restorePendingViewers();
         // Like the recipe book, pins re-evaluate their craftable / partial
         // state when the player's inventory changes (Inventory.getTimesChanged).
         refreshRecipeStates();
@@ -356,6 +362,16 @@ public final class PinOverlayManager {
         return topInteractivePin(mx, my) != null;
     }
 
+    /** Alt+wheel over the top-most pin under the cursor: step its own frozen
+     *  variant index (its Alt state is per-pin, independent of any query
+     *  window).  Returns whether a pin consumed the scroll. */
+    public static boolean stepAltVariants(double mx, double my, double vertical) {
+        PinOverlay top = topInteractivePin(mx, my);
+        if (top == null) return false;
+        top.stepVariants(vertical);
+        return true;
+    }
+
     /** Capture the target for R/U and pinning: a pin under the cursor first
      *  (its item is a normal item object), else the query viewer's capture. */
     public static ItemStack captureTarget(AbstractContainerScreen<?> screen) {
@@ -520,7 +536,9 @@ public final class PinOverlayManager {
         Minecraft mc = Minecraft.getInstance();
         if (mc.font == null) return;
         // Every item in the container is a normal item object: a full tooltip
-        // (plus the source-mod line) for the item under the cursor.
+        // (plus the source-mod line) for the item under the cursor.  The title
+        // row carries the item's icon at the same enlarged scale/position as
+        // the query object's tooltip.
         ItemStack hovered = pin.itemAt(mx, my);
         if (hovered.isEmpty()) return;
         List<Component> lines = new ArrayList<>(Screen.getTooltipFromItem(mc, hovered));
@@ -531,9 +549,14 @@ public final class PinOverlayManager {
         }
         List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
                 new ArrayList<>(lines.size());
-        for (Component line : lines) {
-            components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
-                    .create(line.getVisualOrderText()));
+        for (int i = 0; i < lines.size(); i++) {
+            if (i == 0) {
+                components.add(new com.alonie.brbe.util.TitleWithIconTooltipComponent(
+                        lines.get(0).getVisualOrderText(), hovered));
+            } else {
+                components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                        .create(lines.get(i).getVisualOrderText()));
+            }
         }
         Identifier style = ClientCompat.VIEWER_TOOLTIP_STYLE;
         net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipPositioner positioner =
