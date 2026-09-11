@@ -20,7 +20,10 @@
 
 # local/experimental
 .claude/
+# 本地测试用的 resourcepacks/（任意位置）仍忽略；但 mod 自带的内置资源包
+# （common/src/main/resources/resourcepacks，Unique Dark - Lite 等）必须纳入版本管理
 resourcepacks/
+!**/src/main/resources/resourcepacks/
 
 # dev run dirs (runClient artifacts)
 /neoforge/run/
