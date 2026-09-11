@@ -14,6 +14,7 @@ import com.alonie.brbe.util.IncompatibleCraftingUtil;
 import com.alonie.brbe.mixins.accessors.AbstractContainerScreenAccessor;
 import com.alonie.brbe.mixins.accessors.AbstractRecipeBookScreenAccessor;
 import com.alonie.brbe.mixins.accessors.GhostSlotsAccessor;
+import com.alonie.brbe.mixins.accessors.GhostSlotsSetSlotAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeComponentAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
@@ -37,6 +38,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen;
 import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
+import net.minecraft.client.gui.screens.recipebook.GhostSlots;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
@@ -54,20 +56,24 @@ import net.minecraft.network.chat.MutableComponent;
 import net.minecraft.network.chat.Style;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
+import net.minecraft.util.context.ContextMap;
 import net.minecraft.world.entity.player.StackedItemContents;
 import net.minecraft.world.inventory.AbstractCraftingMenu;
 import net.minecraft.world.inventory.AbstractFurnaceMenu;
 import net.minecraft.world.inventory.BlastFurnaceMenu;
+import net.minecraft.world.inventory.ContainerInput;
 import net.minecraft.world.inventory.FurnaceMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.inventory.SmokerMenu;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.crafting.display.FurnaceRecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
+import net.minecraft.world.item.crafting.display.SlotDisplay;
 import net.minecraft.world.item.crafting.display.SmithingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.StonecutterRecipeDisplay;
 
@@ -76,6 +82,14 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+
+import com.google.gson.Gson;
+import com.google.gson.reflect.TypeToken;
+import java.lang.reflect.Type;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.util.concurrent.CompletableFuture;
 
 /**
  * The BRBE R/U recipe-viewer as a <b>standalone overlay</b>, decoupled from the
@@ -90,42 +104,47 @@ import java.util.Set;
  * only on ESC (dismisses the overlay alone) or a click outside the box.</p>
  */
 public final class RecipeViewerOverlay {
+    /** [BRBE-DIAG] 渲染时点 partial 按钮一次性日志（每个 id 一次）。 */
+    private static final java.util.Set<String> BTN_DIAG_ONCE = new java.util.HashSet<>();
+
+    /** [BRBE-DIAG] 命中集合构成一次性日志（每个 id 列表一次）。 */
+    private static final java.util.Set<Integer> HITS_DIAG = new java.util.HashSet<>();
+
 
     private RecipeViewerOverlay() {}
 
-    /** The standalone overlay box.  SlotSelectTime drives the ingredient
-     *  rotation animation: an index that advances every ~1.5s (same cadence as
-     *  the vanilla recipe book's time/30), so the recipe previews rotate through
-     *  interchangeable materials like the ghost ingredients do. */
-    private static final OverlayRecipeComponent overlay =
-            new OverlayRecipeComponent(
-                    () -> Mth.floor(net.minecraft.util.Util.getMillis() / 1500.0D), false);
 
-    /** Collection backing the open overlay (for partial snapshot cleanup). */
-    private static RecipeCollection currentCollection;
+    // ── Window chrome (desktop-window semantics) ───────────────────────────
+    /** Panel sprite's 9-slice border thickness (the {@code overlay_recipe}
+     *  nine-slice border is 4px; the extension geometry counts it). */
+    private static final int PANEL_BORDER = 4;
 
-    /** Viewer-overlay recipe button hovered when R/U was pressed (anchor). */
-    private static AbstractWidget anchorOverlayWidget;
+    /** Turn-page button's overall offset from the box: 3px right, 5px down
+     *  (user-fixed); the extension band follows it (the top border keeps its
+     *  4px + 2px relationship above the buttons). */
+    private static final int PAGE_BTN_SHIFT_X = 3;
 
-    /** Recipe-book button hovered when R/U was pressed (anchor + fromBook flag). */
-    private static RecipeButton anchorBookButton;
+    private static final int PAGE_BTN_SHIFT_Y = 5;
 
-    /** Screen the open overlay belongs to; the overlay closes when it is removed. */
-    private static AbstractContainerScreen<?> ownerScreen;
+    /** Title-bar band height = the ORIGINAL goal (the background extension):
+     *  the box's background is drawn one piece taller — the top border 4px
+     *  moves up with it, ending flush at the turn-page buttons' top edge
+     *  (the user moved the extension's top 2px down).  Band top = boxTop -
+     *  14.  The title + ✕ share the buttons' row; the extension is ONE
+     *  continuous panel — nothing else is drawn (no second blit, no divider,
+     *  no separate panel). */
+    private static final int TITLE_BAR_H = 14;
 
-    // ── Paging ─────────────────────────────────────────────────────────────
-    // Over 50 hits the overlay shows PAGE_SIZE (10 x 5) recipes per page with
-    // the RBIP turn-page buttons above the box.
-    /** The vanilla alternative-group background sprite (also used by the paged box). */
-    private static final Identifier OVERLAY_RECIPE_SPRITE =
-            Identifier.withDefaultNamespace("recipe_book/overlay_recipe");
-    private static final Identifier RBIP_PAGE_BUTTONS =
-            Identifier.fromNamespaceAndPath("brbe", "textures/rbip/recipe_book_buttons.png");
     private static final int PAGE_COLS = 10;
+
     private static final int PAGE_ROWS = 5;
+
     private static final int PAGE_SIZE = PAGE_COLS * PAGE_ROWS;
+
     private static final int PAGE_BTN_WIDTH = 14;
+
     private static final int PAGE_BTN_HEIGHT = 13;
+
     /** The viewer's left workstation column is an independent object column
      *  ("grid column -1"): the panel extends one object-grid pitch (25px) left
      *  of the object area, and the station cells sit on the SAME 25px grid as
@@ -134,33 +153,29 @@ public final class RecipeViewerOverlay {
      *  pitch left of object column 0's centreline (boxLeft+16), i.e. the
      *  station cells line up with the object grid like a real column. */
     private static final int STATION_CELL = 24;
+
     private static final int STATION_PITCH = 25;
+
     private static final int STATION_COL_WIDTH = 25;
 
-    /** Full ordered recipe list of the open viewer (across all pages). */
-    private static List<RecipeDisplayEntry> viewerRecipes = List.of();
-    /** Current page index and total page count. */
-    private static int viewerPage;
-    private static int viewerPageCount = 1;
-
-    // ── Category tabs (BRBE's bottom-tab textures, drawn rotated -90°:
-    //    the 35x27 texture displays as a 27x35 tab hanging below the box) ──
-    private static final Identifier UNSELECTED_BOTTOM_TAB =
-            Identifier.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab.png");
-    private static final Identifier SELECTED_BOTTOM_TAB =
-            Identifier.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab_selected.png");
     private static final int TAB_TEX_WIDTH = 35;
+
     private static final int TAB_TEX_HEIGHT = 27;
+
     /** The rotated tab is too tall, so the texture's middle 4px (along its
      *  width) is cut out and the right half spliced onto the left half. */
     private static final int TAB_CUT = 6;
+
     private static final int TAB_LEFT = 16;
+
     private static final int TAB_RIGHT_START = TAB_LEFT + TAB_CUT;
+
     /** On-screen pitch between tab starts — the object-column pitch (25px):
      *  every tab's icon centers on its column's center line and the tab
      *  strip spans exactly the column grid.  Used for positioning, hit
      *  tests and the box-width calculation. */
     private static final int TAB_WIDTH = 25;
+
     /** Cropped on-screen panel width: the texture's 27-row vertical extent
      *  (which maps to the on-screen width after the -90° rotation) minus the
      *  MIDDLE {@link #TAB_V_CUT} rows — the rounded ends (the texture's
@@ -169,63 +184,889 @@ public final class RecipeViewerOverlay {
      *  between tabs comes from the texture's transparent v=26 row, matching
      *  the original look at the old 27px pitch. */
     private static final int TAB_DRAW_WIDTH = TAB_WIDTH;
+
     /** Vertical (v) splice of the texture (v maps to the on-screen width):
      *  rows [0, TAB_V_TOP) and [TAB_V_TOP + TAB_V_CUT, TAB_TEX_HEIGHT) are
      *  kept, the TAB_V_CUT rows between them are dropped — a runtime crop of
      *  the tab's MIDDLE, keeping both edge lines; the texture files are not
      *  edited. */
     private static final int TAB_V_TOP = 13;
+
     private static final int TAB_V_CUT = TAB_TEX_HEIGHT - TAB_DRAW_WIDTH;
+
     private static final int TAB_V_BOTTOM = TAB_TEX_HEIGHT - TAB_V_TOP - TAB_V_CUT;
+
     private static final int TAB_HEIGHT = TAB_TEX_WIDTH - TAB_CUT;
+
     /** Tabs overhang the box bottom by TAB_HEIGHT - 4 (tab top is 4px above the box bottom). */
     private static final int TAB_OVERHANG = TAB_HEIGHT - 4;
+
     /** Tabs only fold into pages once there are more than this many. */
     private static final int MAX_TABS = 10;
 
+
+    /** Whether the cycle-pause key (Alt) is currently held — shared with the
+     *  JEI-delegated drawable renderer so EVERY delegated UI's variant cycling
+     *  (preview popup, pin, embedded tooltip preview) freezes too, without
+     *  relying on JEI's own pause key mapping. */
+    public static boolean isCycleAltDown() {
+        return ClientCompat.isAltDown();
+    }
+
+
+    /** Whether scroll-around is enabled (turn-page buttons never hit a dead end). */
+    private static boolean scrollWrap() {
+        return BetterRecipeBook.config.scrolling.scrollAround;
+    }
+
+
+    /** Cached ids of categories whose objects are ALL hidden by the filter
+     *  (their tab is hidden too).  Rebuilt when the toggle state changes or
+     *  after a plugin re-collection. */
+    private static Set<String> cachedHiddenCategoryIds;
+
+    private static boolean cachedHiddenConfigState;
+
+
+    /** Category ids hidden in progress mode (hideNoRecipeBookStationObjects):
+     *  信息行类别（燃料/堆肥/信息）与无配方书体系的工作站类别（切石/铁砧/
+     *  研磨）整体隐藏；配方书体系的内置类别（合成/烧炼/锻造/酿造）与配方书
+     *  驱动的 mod 类别保留。 */
+    private static Set<String> computeHiddenCategoryIds() {
+        Set<String> hidden = new HashSet<>();
+        for (RecipeViewerCategory cat : RecipeViewerCategories.all()) {
+            if (!RecipeViewerCategories.isProgressCategory(cat)) hidden.add(cat.id());
+        }
+        return hidden;
+    }
+
+    // ── Multi-window manager state ──
+    /** All open query windows, in z order (last = topmost). */
+    private static final java.util.List<ViewerInstance> WINDOWS =
+            new java.util.ArrayList<>();
+    /** The window currently being dragged, or null. */
+    private static ViewerInstance dragWindow;
+
+    /** 被"本界面内 ESC 关闭"抑制自动恢复的宿主界面。{@code ViewerInstance.close()}
+     *  是被动关闭（保留持久化 spec、只清 {@code materialized}），好让窗口在**下一个**
+     *  容器界面恢复；但 {@link #restorePendingViewers()} 每帧都会跑，同一界面里会把
+     *  刚被 ESC 关掉的窗口立刻重新物化 → ESC 被反复吞掉、用户再也退不出当前界面。
+     *  这里记下界面实例，界面一变（关闭/换屏）即自动解除。 */
+    private static AbstractContainerScreen<?> restoreSuppressedScreen;
+    /** Rate limit for the [VIEWER-DBG] render-state trace (ms). */
+    private static long brbe$lastRenderLog;
+
+    // ── Query-window persistence (brbe.queryviewers.json, like pins) ──────
+    /** A persisted query viewer window: the query identity (target item +
+     *  usage/recipe mode), selected category, page and window position.  It
+     *  restores onto the next container screen, exactly like pin overlays
+     *  ({@code brbe.pinoverlays.json}); right-click close removes it.  The
+     *  two session-only flags are never written to disk. */
+    public static final class ViewSpec {
+        String item;          // query target item's registry id
+        boolean usage;        // true = 用途 query, false = 配方 query
+        String category;      // selected category id (may be null)
+        int page;
+        int x, y;             // window box position at the last save
+        transient boolean materialized;   // a window is bound to this spec now
+        transient boolean snoozed;        // capped this session (no re-create)
+    }
+
+    private static final Gson PV_GSON = new Gson();
+    private static final Type PV_SPECS_TYPE =
+            new TypeToken<ArrayList<ViewSpec>>() {}.getType();
+    private static Path viewerSpecFile;
+    private static final List<ViewSpec> viewerSpecs = new ArrayList<>();
+    private static boolean viewerPersistenceReady;
+
+    /** Load the persisted query windows (lazy — the game directory is only
+     *  available once Minecraft exists). */
+    private static void initViewerPersistence() {
+        if (viewerPersistenceReady) return;
+        viewerPersistenceReady = true;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.gameDirectory == null) return;
+        viewerSpecFile = mc.gameDirectory.toPath().resolve("brbe.queryviewers.json");
+        loadViewerSpecs();
+    }
+
+    private static void loadViewerSpecs() {
+        if (viewerSpecFile == null || !Files.exists(viewerSpecFile)) return;
+        try {
+            List<ViewSpec> specs = PV_GSON.fromJson(
+                    Files.readString(viewerSpecFile, StandardCharsets.UTF_8),
+                    PV_SPECS_TYPE);
+            if (specs != null) {
+                viewerSpecs.clear();
+                for (ViewSpec spec : specs) {
+                    if (spec != null) viewerSpecs.add(spec);
+                }
+            }
+        } catch (Exception e) {
+            System.err.println("[BRBE] Failed to read query viewers: " + e.getMessage());
+        }
+    }
+
+    /** Write the spec list asynchronously (mirrors the pin overlay store). */
+    private static void saveViewerSpecs() {
+        if (viewerSpecFile == null) return;
+        List<ViewSpec> snapshot = new ArrayList<>(viewerSpecs);
+        CompletableFuture.runAsync(() -> {
+            try {
+                Files.createDirectories(viewerSpecFile.getParent());
+                Files.writeString(viewerSpecFile,
+                        PV_GSON.toJson(snapshot), StandardCharsets.UTF_8);
+            } catch (Exception e) {
+                System.err.println("[BRBE] Failed to write query viewers: " + e.getMessage());
+            }
+        });
+    }
+
+    /**
+     * ESC 关闭查询窗口后调用：**本界面内**不再自动恢复该窗口。
+     * <p>不加抑制的话，{@link #restorePendingViewers()}（每帧由
+     * {@code PinOverlayManager.render} 调用）会在下一帧把 spec 重新物化，
+     * 于是 ESC 每按一次都只换来"窗口闪一下又回来"，界面永远关不掉。
+     * 界面一变（关闭/换屏）自动解除，窗口照常在新界面恢复。</p>
+     */
+    private static void suppressRestoreOnCurrentScreen() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null) {
+            restoreSuppressedScreen = null;
+            return;
+        }
+        if (mc.gui.screen() instanceof AbstractContainerScreen<?> host) {
+            restoreSuppressedScreen = host;
+            return;
+        }
+        restoreSuppressedScreen = null;
+    }
+
+    /** Restore persisted windows that are not open yet (called every frame
+     *  from {@link PinOverlayManager#render} — NOT from {@link #render}: the
+     *  viewer render is skipped when pins exist and no query window is open,
+     *  so a warm-closed window would never come back until a new window made
+     *  the viewer active): a spec that cannot be resolved yet (engine not
+     *  ready, item unknown) stays pending, exactly like pin specs.  A window
+     *  that passed its last save is ALSO restored here after a passive close
+     *  (host screen closed) — the spec's {@code materialized} flag is cleared
+     *  by {@link #close()}. */
+    public static void restorePendingViewers() {
+        // 预览模式：查询窗口生命周期不持久化——关闭当前界面并重开后不再恢复。
+        if (BetterRecipeBook.config.previewMode) return;
+        initViewerPersistence();
+        if (viewerSpecs.isEmpty()) return;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.player == null || mc.level == null) return;
+        // 界面已变（关闭/换屏）→ 解除"本界面内不恢复"的抑制；同一界面则跳过恢复，
+        // 否则被 ESC 关掉的窗口会在这里复活（见 restoreSuppressedScreen）。
+        if (mc.gui.screen() != restoreSuppressedScreen) restoreSuppressedScreen = null;
+        if (!(mc.gui.screen() instanceof AbstractContainerScreen<?> screen)) return;
+        for (ViewSpec spec : new ArrayList<>(viewerSpecs)) {
+            if (spec.materialized || spec.snoozed) continue;
+            ViewerInstance w = new ViewerInstance();
+            if (w.restoreFrom(spec, screen)) {
+                WINDOWS.add(w);
+                trimWindows();
+            }
+        }
+    }
+
+    // ── MANAGER section written below ──
+    // ── Multi-window manager ──────────────────────────────────────────────
+    private static ViewerInstance topmost() {
+        return WINDOWS.isEmpty() ? null : WINDOWS.get(WINDOWS.size() - 1);
+    }
+
+    /** The topmost window whose own region contains the point (else null). */
+    private static ViewerInstance underCursor(double mx, double my) {
+        for (int i = WINDOWS.size() - 1; i >= 0; i--) {
+            ViewerInstance w = WINDOWS.get(i);
+            if (w.contains(mx, my)) return w;
+        }
+        return null;
+    }
+
+    private static void raise(ViewerInstance w) {
+        if (w != null && WINDOWS.remove(w)) WINDOWS.add(w);
+    }
+
+    private static void syncActiveFlag() {
+        RecipeViewerIndex.setViewerActive(!WINDOWS.isEmpty());
+    }
+
+    /** Cap the window count (newest kept; oldest closed).  close() itself
+     *  removes the window from the list (onWindowClosedSelf).  A capped
+     *  window's spec is SNOOZED for the session so it does not immediately
+     *  re-materialize on the same session (it returns next session). */
+    private static void trimWindows() {
+        while (WINDOWS.size() > 8) {
+            ViewerInstance w = WINDOWS.get(0);
+            if (w.spec != null) w.spec.snoozed = true;
+            w.close();
+        }
+        syncActiveFlag();
+    }
+
+    /** Called by a window that closed itself (right-click on the window). */
+    private static void onWindowClosedSelf(ViewerInstance w) {
+        if (WINDOWS.remove(w)) {
+            if (dragWindow == w) dragWindow = null;
+            syncActiveFlag();
+        }
+    }
+
+    public static boolean isActive() {
+        return !WINDOWS.isEmpty();
+    }
+
+    public static int viewerZ() {
+        ViewerInstance w = topmost();
+        return w != null ? w.viewerZ : -1;
+    }
+
+    /** Union of every open window's exclusion rect (over-inclusive for JEI). */
+    public static Rect2i exclusionArea() {
+        int x0 = Integer.MAX_VALUE, y0 = Integer.MAX_VALUE;
+        int x1 = Integer.MIN_VALUE, y1 = Integer.MIN_VALUE;
+        boolean any = false;
+        for (ViewerInstance w : WINDOWS) {
+            Rect2i r = w.exclusionArea();
+            if (r == null) continue;
+            any = true;
+            x0 = Math.min(x0, r.getX());
+            y0 = Math.min(y0, r.getY());
+            x1 = Math.max(x1, r.getX() + r.getWidth());
+            y1 = Math.max(y1, r.getY() + r.getHeight());
+        }
+        return any ? new Rect2i(x0, y0, x1 - x0, y1 - y0) : null;
+    }
+
+    public static boolean contains(double mx, double my) {
+        return underCursor(mx, my) != null;
+    }
+
+    /** The topmost window's open popup exclusion rect (only one popup exists). */
+    public static Rect2i popupExclusionArea() {
+        for (int i = WINDOWS.size() - 1; i >= 0; i--) {
+            Rect2i r = WINDOWS.get(i).popupExclusionArea();
+            if (r != null) return r;
+        }
+        return null;
+    }
+
+    public static void onScreenClosed(AbstractContainerScreen<?> screen) {
+        boolean removed = false;
+        for (int i = WINDOWS.size() - 1; i >= 0; i--) {
+            ViewerInstance w = WINDOWS.get(i);
+            if (w.ownerScreen == screen) {
+                w.close();
+                // close() already self-removes via onWindowClosedSelf — an
+                // extra WINDOWS.remove(i) here indexes the shifted list and
+                // drops the WRONG window (or throws at the tail).
+                removed = true;
+            }
+        }
+        if (removed) syncActiveFlag();
+    }
+
+    /** Open a NEW query window (the R/U keypress path — every query opens its
+     *  own window; already-open windows are never touched).  Returns whether
+     *  the query was consumed. */
+    private static boolean openNewViewer(AbstractContainerScreen<?> screen, boolean viewUsage) {
+        ViewerInstance w = new ViewerInstance();
+        if (w.open(screen, viewUsage)) {
+            WINDOWS.add(w);
+            trimWindows();
+            return true;
+        }
+        return false;
+    }
+
+    /** Open a NEW query window for an explicit {@code target} (the left
+     *  workstation column's click path): the station query behaves like the
+     *  regular query path — a FAILED query opens nothing and the originating
+     *  window keeps its content (the old in-place re-query fell through to
+     *  the openFor fallback and CLOSED the live window). */
+    private static boolean openNewViewer(AbstractContainerScreen<?> screen, ItemStack target,
+                                         boolean viewUsage) {
+        ViewerInstance w = new ViewerInstance();
+        if (w.openFor(screen, target, viewUsage)) {
+            WINDOWS.add(w);
+            trimWindows();
+            return true;
+        }
+        return false;
+    }
+
+    /** 工作站标题触发：以 {@code station} 为用途查询目标打开<b>新</b>查询窗口
+     *  （看到该工作站所属的全部配方对象）。供 {@link WorkstationTitleTrigger}
+     *  调用；失败（类别无内容）打开不了也不影响已有窗口。 */
+    public static boolean openForStation(AbstractContainerScreen<?> screen, ItemStack station) {
+        return openNewViewer(screen, station, true);
+    }
+
+    /** 是否有查询窗口拥有该点（窗口条带/框体/标签区）——工作站的标题触发
+     *  在窗口覆盖该区域时让位。 */
+    public static boolean ownsPoint(double mx, double my) {
+        for (ViewerInstance w : WINDOWS) {
+            if (w.contains(mx, my)) return true;
+        }
+        return false;
+    }
+
+    public static boolean keyPressed(KeyEvent event, AbstractContainerScreen<?> screen) {
+        initViewerPersistence();
+        boolean viewRecipe = ClientCompat.matches(BetterRecipeBook.RECIPE_VIEW_MAPPING,
+                event.key(), event.scancode(), event.modifiers());
+        boolean viewUsage = ClientCompat.matches(BetterRecipeBook.USAGE_VIEW_MAPPING,
+                event.key(), event.scancode(), event.modifiers());
+        if (viewRecipe || viewUsage) {
+            // Every R/U opens a NEW query window (multi-window).
+            return openNewViewer(screen, viewUsage);
+        }
+        if (event.isEscape()) {
+            // ESC 永远交回屏幕：用户期望"无论查询界面是否存在，ESC 都能退出界面"。
+            // 已打开的窗口随这次 ESC 一起关闭（持久化 spec 保留 → 在下一个容器界面
+            // 恢复，与 pin 的"窗口随宿主界面存活"语义一致），并抑制它在本界面内复活：
+            // 否则下一帧 restorePendingViewers() 会把它重新物化，ESC 被永久吞掉，
+            // 用户再也退不出当前界面（2026-09-11 用户反馈）。
+            // 返回 false = 不消费这次按键，vanilla 继续处理——配方书界面先收起配方书
+            // （原版行为，与本 mod 无关），其它容器界面直接关闭、窗口随宿主界面一起关。
+            if (WINDOWS.isEmpty()) return false;
+            close();
+            suppressRestoreOnCurrentScreen();
+            return false;
+        }
+        return false;
+    }
+
+    public static boolean mouseClicked(MouseButtonEvent event, boolean doubleClick,
+                                       AbstractContainerScreen<?> screen) {
+        if (WINDOWS.isEmpty()) return false;
+        ViewerInstance w = underCursor(event.x(), event.y());
+        if (w == null && RecipePopupLayer.isActive()
+                && RecipePopupLayer.contains(event.x(), event.y())) {
+            // The hard-modal preview popup extends past the window box; a
+            // click on its panel (while a window is open) must not fall
+            // through to the desktop below it.
+            w = topmost();
+        }
+        if (w == null) {
+            // 预览模式：与查询界面以外的元素交互（点击区外）即关闭全部查询
+            // 窗口——点击本身仍落到下方桌面（交互照常执行）。关闭模式（默认
+            // 关）保留旧行为：区外点击只放行，不影响打开的窗口。
+            if (BetterRecipeBook.config.previewMode && !WINDOWS.isEmpty()) {
+                close();
+            }
+            return false;
+        }
+        raise(w);
+        dragWindow = null;
+        boolean handled = w.mouseClicked(event, doubleClick, screen);
+        if (w.windowDragging) dragWindow = w;
+        return handled;
+    }
+
+    public static boolean placeRecipe(MouseButtonEvent event, AbstractContainerScreen<?> screen,
+                                      RecipeDisplayId recipe, RecipeCollection collection) {
+        ViewerInstance w = topmost();
+        return w != null && w.placeRecipe(event, screen, recipe, collection);
+    }
+
+    /** Scroll handling for the query windows and pin overlays.  With a window
+     *  under the cursor it owns the scroll (its own Alt-pause state); with NO
+     *  window (pins alone) a pin under the cursor steps its OWN variants
+     *  (Alt+wheel) or swallows the wheel so the desktop does not scroll. */
+    public static boolean mouseScrolled(double mouseX, double mouseY, double vertical) {
+        ViewerInstance w = underCursor(mouseX, mouseY);
+        if (w != null) return w.mouseScrolled(mouseX, mouseY, vertical);
+        if (vertical != 0 && ClientCompat.isAltDown()
+                && PinOverlayManager.stepAltVariants(mouseX, mouseY, vertical)) {
+            SyntheticRecipeRenderers.get().stepVariants(vertical > 0 ? -1 : 1);
+            return true;
+        }
+        return PinOverlayManager.handleMouseScrolled(mouseX, mouseY, vertical);
+    }
+
+    public static boolean mouseDragged(MouseButtonEvent event) {
+        return dragWindow != null && dragWindow.mouseDragged(event);
+    }
+
+    public static boolean mouseReleased(MouseButtonEvent event) {
+        if (dragWindow == null) return false;
+        dragWindow.mouseReleased(event);
+        dragWindow = null;
+        return true;
+    }
+
+    public static boolean isWindowDragging() {
+        return dragWindow != null && dragWindow.windowDragging;
+    }
+
+    /** Draw every open window, bottom to top. */
+    public static void render(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta) {
+        for (ViewerInstance w : WINDOWS) {
+            // Pin state / search space can change underneath the windows
+            // (A-pin in the recipe book, inventory pickup/drop): re-evaluate
+            // ordering and states before drawing so the pin ordering and the
+            // fuel owned→missing order stay live instead of on reopen.
+            w.refreshIfDirty();
+            w.render(gui, mouseX, mouseY, delta);
+        }
+        // The single popup layer follows the topmost window that has a hover
+        // field (the window under the cursor set it during its render).
+        ViewerInstance popup = null;
+        for (int i = WINDOWS.size() - 1; i >= 0; i--) {
+            ViewerInstance w = WINDOWS.get(i);
+            if (w.hoverPopupField != null) {
+                popup = w;
+                break;
+            }
+        }
+        if (popup != null) {
+            RecipePopupLayer.update(popup.hoverPopupField);
+        } else {
+            RecipePopupLayer.close();
+        }
+        // While a window title-bar drag is actually MOVING the window (only
+        // once the drag has produced displacement — a plain band press keeps
+        // the normal cursor), show the system's closed-fist cursor (the
+        // desktop's drag cursor; loaded from the active Xcursor theme at
+        // runtime) — requested LAST so nothing drawn before can override it.
+        // Falls back to the standard resize-all cursor when the fist cannot
+        // be loaded.
+        if (dragWindow != null && dragWindow.windowDragging
+                && dragWindow.windowDragMoved) {
+            com.mojang.blaze3d.platform.cursor.CursorType fist =
+                    ViewerCursor.fist();
+            gui.requestCursor(fist != null
+                    ? fist
+                    : com.mojang.blaze3d.platform.cursor.CursorTypes.RESIZE_ALL);
+        }
+    }
+
+    public static void renderTooltip(GuiGraphicsExtractor gui, int mouseX, int mouseY) {
+        ViewerInstance w = underCursor(mouseX, mouseY);
+        if (w != null) w.renderTooltip(gui, mouseX, mouseY);
+    }
+
+    public static boolean isOwnOverlay(OverlayRecipeComponent o) {
+        for (ViewerInstance w : WINDOWS) {
+            if (w.overlay == o) return true;
+        }
+        return false;
+    }
+
+    public static boolean isPaged() {
+        ViewerInstance w = topmost();
+        return w != null && w.isPaged();
+    }
+
+    public static ItemStack captureGhostItem(AbstractRecipeBookScreen<?> screen, Slot slot) {
+        try {
+            RecipeBookComponent<?> book = ((AbstractRecipeBookScreenAccessor) screen).brbe$getRecipeBookComponent();
+            if (book == null) return ItemStack.EMPTY;
+            GhostSlotsAccessor ghostAcc = (GhostSlotsAccessor) ((RecipeBookComponentAccessor) book).getGhostSlots();
+            if (ghostAcc == null) return ItemStack.EMPTY;
+
+            Object ghost = ghostAcc.getIngredients().get(slot);
+            if (ghost == null) return ItemStack.EMPTY;
+
+            // GhostSlot is a package-private Record(List<ItemStack>, boolean);
+            // its public getItem(int) cannot be reflectively invoked from a
+            // different package unless setAccessible(true).  Use the current
+            // slot-select animation index so an interchangeable material that
+            // rotates (~2s) resolves to the variant the user is seeing.
+            int idx = currentSlotSelectIndex(ghostAcc.getSlotSelectTime().currentIndex());
+            for (java.lang.reflect.Method m : ghost.getClass().getMethods()) {
+                if (m.getReturnType() == ItemStack.class && m.getParameterCount() == 1
+                        && m.getParameterTypes()[0] == int.class) {
+                    m.trySetAccessible();
+                    Object item = m.invoke(ghost, idx);
+                    if (item instanceof ItemStack stack && !stack.isEmpty()) {
+                        return stack;
+                    }
+                    break;
+                }
+            }
+
+            // Fallback: any public no-arg accessor returning a non-empty list.
+            for (java.lang.reflect.Method m : ghost.getClass().getMethods()) {
+                if (m.getReturnType() == List.class && m.getParameterCount() == 0) {
+                    m.trySetAccessible();
+                    List<?> items = (List<?>) m.invoke(ghost);
+                    if (items != null) {
+                        for (Object o : items) {
+                            if (o instanceof ItemStack stack && !stack.isEmpty()) {
+                                return stack;
+                            }
+                        }
+                    }
+                }
+            }
+            return ItemStack.EMPTY;
+        } catch (Exception e) {
+            return ItemStack.EMPTY;
+        }
+    }
+    /** Pure screen capture (no window needed): hovered container slot →
+     *  ghost-preview ingredient → vanilla recipe-book button.  Shared by
+     *  every window's anchor capture and the no-window case (first R/U). */
+    public static ItemStack captureScreenTarget(AbstractContainerScreen<?> screen) {
+        AbstractContainerScreenAccessor acc = (AbstractContainerScreenAccessor) screen;
+        Slot slot = acc.brbe$getHoveredSlot();
+        if (slot != null && slot.hasItem()) {
+            return slot.getItem();
+        }
+
+        // Hovering a ghost-preview ingredient slot (no real item): use the ghost
+        // item, so R/U works on ghost previews too.
+        if (slot != null && screen instanceof AbstractRecipeBookScreen<?> rbs) {
+            ItemStack ghost = captureGhostItem(rbs, slot);
+            if (!ghost.isEmpty()) return ghost;
+        }
+
+        // Hovering a vanilla recipe-book button.
+        if (screen instanceof AbstractRecipeBookScreen<?> rbs) {
+            RecipeBookComponent<?> book = ((AbstractRecipeBookScreenAccessor) rbs).brbe$getRecipeBookComponent();
+            if (book != null && book.isVisible()) {
+                RecipeBookPage page = ((RecipeBookComponentAccessor) book).getRecipeBookPage();
+                if (page != null) {
+                    for (RecipeButton button : ((RecipeBookPageAccessor) page).getButtons()) {
+                        if (button.isHoveredOrFocused()) {
+                            ItemStack stack = button.getDisplayStack();
+                            if (stack != null && !stack.isEmpty()) {
+                                return stack;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    public static ItemStack captureTarget(AbstractContainerScreen<?> screen) {
+        for (int i = WINDOWS.size() - 1; i >= 0; i--) {
+            ItemStack a = WINDOWS.get(i).captureViewerAnchors(screen);
+            if (!a.isEmpty()) return a;
+        }
+        return captureScreenTarget(screen);
+    }
+
+    public static RecipeDisplayId capturedOverlayRecipe() {
+        ViewerInstance w = topmost();
+        return w != null ? w.capturedOverlayRecipe() : null;
+    }
+
+    public static RecipeCollection capturedOverlayCollection() {
+        ViewerInstance w = topmost();
+        return w != null ? w.capturedOverlayCollection() : null;
+    }
+
+    public static int[] capturedOverlayButtonCentre() {
+        ViewerInstance w = topmost();
+        return w != null ? w.capturedOverlayButtonCentre() : null;
+    }
+
+    public static RecipeDisplayEntry entryFor(RecipeDisplayId id) {
+        for (int i = WINDOWS.size() - 1; i >= 0; i--) {
+            RecipeDisplayEntry e = WINDOWS.get(i).entryFor(id);
+            if (e != null) return e;
+        }
+        return null;
+    }
+
+    public static int viewerMode() {
+        ViewerInstance w = topmost();
+        return w != null ? w.viewerMode() : 0;
+    }
+
+    public static boolean isFurnaceMode() {
+        ViewerInstance w = topmost();
+        return w != null && w.isFurnaceMode();
+    }
+
+    public static boolean isStonecuttingMode() {
+        ViewerInstance w = topmost();
+        return w != null && w.isStonecuttingMode();
+    }
+
+    public static boolean isSmithingMode() {
+        ViewerInstance w = topmost();
+        return w != null && w.isSmithingMode();
+    }
+
+    public static boolean isAnvilMode() {
+        ViewerInstance w = topmost();
+        return w != null && w.isAnvilMode();
+    }
+
+    public static boolean isBrewingMode() {
+        ViewerInstance w = topmost();
+        return w != null && w.isBrewingMode();
+    }
+
+    public static boolean isGrindstoneMode() {
+        ViewerInstance w = topmost();
+        return w != null && w.isGrindstoneMode();
+    }
+
+    public static int currentSlotSelectIndex(int autoIndex) {
+        ViewerInstance w = topmost();
+        return w != null ? w.currentSlotSelectIndex(autoIndex) : autoIndex;
+    }
+
+    /** The window whose standalone overlay is {@code o}, or null (a host
+     *  recipe book's own overlay). */
+    private static ViewerInstance windowOf(OverlayRecipeComponent o) {
+        for (ViewerInstance w : WINDOWS) {
+            if (w.overlay == o) return w;
+        }
+        return null;
+    }
+
+    /** Layout mode of the window OWNING {@code o}: each window's buttons must
+     *  render with its OWN category's mode — the old topmost-based lookup let
+     *  a bottom window degrade to the FOCUSED window's mode / furnace state
+     *  (the multi-window focus bug: partial values were computed with the
+     *  topmost window's furnace state, so a bottom window lost its partial
+     *  red overlays).  Falls back to the topmost window (host-book buttons). */
+    public static int windowMode(OverlayRecipeComponent o) {
+        ViewerInstance w = windowOf(o);
+        return w != null ? w.viewerMode() : viewerMode();
+    }
+
+    /** Slot-select index of the window OWNING {@code o}: each window's
+     *  Alt-pause state is per-window, so a bottom window must not follow the
+     *  focused window's pause.  Topmost fallback (host-book buttons). */
+    public static int currentSlotSelectIndex(OverlayRecipeComponent o, int autoIndex) {
+        ViewerInstance w = windowOf(o);
+        return w != null ? w.currentSlotSelectIndex(autoIndex)
+                : currentSlotSelectIndex(autoIndex);
+    }
+
+    public static boolean modalMaskOwnsCursor(int mx, int my) {
+        for (int i = WINDOWS.size() - 1; i >= 0; i--) {
+            if (WINDOWS.get(i).modalMaskOwnsCursor(mx, my)) return true;
+        }
+        return false;
+    }
+
+    /** Mirror the manual index into the vendored JEI cyclers (reflection: with
+     *  the real JEI runtime the vendored classes are shadowed and the field
+     *  does not exist — those drawables only pause, they cannot be stepped).
+     *  Shared by the windows and the pin overlays (both own their own Alt
+     *  state). */
+    public static void forkSetManualIndex(int index) {
+        try {
+            Class.forName("mezz.jei.library.gui.ingredients.CycleTicker")
+                    .getField("manualIndexOverride").setInt(null, index);
+            Class.forName("mezz.jei.library.gui.ingredients.CycleTimer")
+                    .getField("manualIndexOverride").setInt(null, index);
+        } catch (Throwable ignored) {
+        }
+    }
+
+    /** The pin overlays' no-shift tooltip: the pinned recipe's detailed result
+     *  tooltip.  With a query window open the topmost window renders it (its
+     *  category / collection context applies); with NO window open (pins
+     *  alone) it must still render — the old dispatcher stopped here silently
+     *  ({@code topmost() == null}), so the pin never showed its tooltip in the
+     *  pins-only state. */
+    public static void renderDetailedRecipeTooltip(GuiGraphicsExtractor gui,
+                                                   RecipeDisplayEntry entry, RecipeDisplayId id,
+                                                   int mouseX, int mouseY, int selIdx) {
+        ViewerInstance w = topmost();
+        if (w != null) {
+            w.renderDetailedRecipeTooltip(gui, entry, id, mouseX, mouseY, selIdx);
+            return;
+        }
+        // Windowless pass (category / collection context absent): the station
+        // row falls back to categoryFor(entry), the recipe-book incompatibility
+        // warning is skipped, and no preview is embedded (the pin itself is
+        // the full UI).
+        ViewerInstance.renderDetailedTooltipImpl(gui, entry, id, null, false, false,
+                mouseX, mouseY, selIdx,
+                false, PinOverlay.MODE_CRAFTING, null, null);
+    }
+
+    public static void renderDetailedRecipeTooltip(GuiGraphicsExtractor gui,
+                                                   RecipeDisplayEntry entry, RecipeDisplayId id,
+                                                   List<?> slots, boolean craftable, boolean partial,
+                                                   int mouseX, int mouseY, int selIdx) {
+        ViewerInstance w = topmost();
+        if (w != null) {
+            w.renderDetailedRecipeTooltip(gui, entry, id, slots, craftable, partial,
+                    mouseX, mouseY, selIdx);
+        }
+    }
+
+    /** Close every open window (screen removal / full reset). */
+    public static void close() {
+        for (ViewerInstance w : new java.util.ArrayList<>(WINDOWS)) {
+            w.close();
+        }
+        WINDOWS.clear();
+        dragWindow = null;
+        syncActiveFlag();
+    }
+
+
+    /** One query window on screen (full instance state — a screen may hold several). */
+    static final class ViewerInstance {
+
+
+    /** The standalone overlay box.  SlotSelectTime drives the ingredient
+     *  rotation animation: an index that advances every ~1.5s (same cadence as
+     *  the vanilla recipe book's time/30), so the recipe previews rotate through
+     *  interchangeable materials like the ghost ingredients do. */
+    private final OverlayRecipeComponent overlay =
+            new OverlayRecipeComponent(
+                    () -> Mth.floor(net.minecraft.util.Util.getMillis() / 1500.0D), false);
+
+    /** Collection backing the open overlay (for partial snapshot cleanup). */
+    private RecipeCollection currentCollection;
+
+    /** Viewer-overlay recipe button hovered when R/U was pressed (anchor). */
+    private AbstractWidget anchorOverlayWidget;
+
+    /** Recipe-book button hovered when R/U was pressed (anchor + fromBook flag). */
+    private RecipeButton anchorBookButton;
+
+    /** Screen the open overlay belongs to; the overlay closes when it is removed. */
+    private AbstractContainerScreen<?> ownerScreen;
+    /** Whether a title-bar drag is in progress (window follows the cursor). */
+    private boolean windowDragging;
+    /** Cursor offset from the window's box top-left at drag start. */
+    private int windowDragOffX;
+    private int windowDragOffY;
+    /** A left-press started on the band TITLE (browse-all toggle armed —
+     *  fires on RELEASE only if the window was NOT dragged). */
+    private boolean titlePressActive;
+    /** The armed title press actually moved the window (drag → no toggle). */
+    private boolean titleDragMoved;
+    /** The current drag has produced displacement (the window actually
+     *  moved) — the dragging cursor (fist) is only shown once it has. */
+    private boolean windowDragMoved;
+    /** This window's persistent disk entry ({@code brbe.queryviewers.json}),
+     *  or null before the first {@link #syncSpec()}.  Right-click close
+     *  removes it; passive closes keep it for the next restore. */
+    private ViewSpec spec;
+
+    /** Last seen pin-set version: when the recipe book's pin state changes
+     *  while this window is open (A-pinning a recipe in the book behind it),
+     *  {@link #refreshIfDirty()} re-evaluates ordering/state so pinned
+     *  objects move to the top immediately instead of on the next reopen. */
+    private int lastPinVersion = BetterRecipeBook.pinnedRecipeManager.version();
+
+    /** Whether a BRBE fuel-cell ghost is active on the furnace-family fuel slot
+     *  (removed automatically once the slot gains a real item). */
+    private boolean fuelGhostActive;
+
+    /** Last observed search-space hash (real inventory + carried, same source
+     *  as the pins' refresh): the ordering / state refresh trigger — the fuel
+     *  grid's owned→missing order and every recipe's craftable/partial rank
+     *  must follow the inventory in real time, not only on reopen. */
+    private long lastSpaceHash = -1;
+
+    /** The turn-page buttons' position — RIGHT-ALIGNED in the chrome band:
+     *  the two buttons sit at the band's right end (4px edge margin — 2px
+     *  right of the standard 6px, per user adjustment), the title is
+     *  left-aligned at the band's left edge.  Vertical placement unchanged
+     *  (the old 3px-right seam shift belonged to the left-aligned layout and
+     *  no longer applies). */
+    private int pageBtnX() {
+        return boxLeft() + boxW - (15 + PAGE_BTN_WIDTH) - 4;
+    }
+
+    private int pageBtnY() {
+        return boxTop() - PAGE_BTN_HEIGHT - 2 + PAGE_BTN_SHIFT_Y;
+    }
+
+    /** The window chrome band rect: the extended background region above
+     *  the box (border + gap + turn-page-button row at its shifted position).
+     *  {x, y, w, h}. */
+    private int[] windowChromeRect() {
+        int top = boxTop() - TITLE_BAR_H;
+        return new int[] {boxLeft(), top, boxW, TITLE_BAR_H + PAGE_BTN_SHIFT_Y - 2};
+    }
+
+    /** Title-bar text: the title of the currently selected category tab —
+     *  the SAME display name the category tabs draw, so plugin (JEI)
+     *  categories show their proper title instead of the raw id. */
+    private String titleBarTitle() {
+        if (currentCategory == null) return "";
+        return currentCategory.name().getString();
+    }
+
+
+    // ── Paging ─────────────────────────────────────────────────────────────
+    // Over 50 hits the overlay shows PAGE_SIZE (10 x 5) recipes per page with
+    // the RBIP turn-page buttons above the box.
+    /** The vanilla alternative-group background sprite (also used by the paged box). */
+    private final Identifier OVERLAY_RECIPE_SPRITE =
+            Identifier.withDefaultNamespace("recipe_book/overlay_recipe");
+    private final Identifier RBIP_PAGE_BUTTONS =
+            Identifier.fromNamespaceAndPath("brbe", "textures/rbip/recipe_book_buttons.png");
+
+    /** Full ordered recipe list of the open viewer (across all pages). */
+    private List<RecipeDisplayEntry> viewerRecipes = List.of();
+    /** Current page index and total page count. */
+    private int viewerPage;
+    private int viewerPageCount = 1;
+
+    // ── Category tabs (BRBE's bottom-tab textures, drawn rotated -90°:
+    //    the 35x27 texture displays as a 27x35 tab hanging below the box) ──
+    private final Identifier UNSELECTED_BOTTOM_TAB =
+            Identifier.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab.png");
+    private final Identifier SELECTED_BOTTOM_TAB =
+            Identifier.fromNamespaceAndPath("brbe", "textures/rbip/bottom_tab_selected.png");
+
     // ── Category ────────────────────────────────────────────────────────────
     /** The item queried when R/U opened the viewer (re-queried on tab switch). */
-    private static ItemStack queryTarget;
+    private ItemStack queryTarget;
     /** Whether the open query was "usage" (U) rather than "result" (R). */
-    private static boolean queryUsage;
+    private boolean queryUsage;
     /** Category whose results are currently shown. */
-    private static RecipeViewerCategory currentCategory;
+    private RecipeViewerCategory currentCategory;
 
     /** Item under the cursor in a grid category (fuel / compost / info). */
-    private static ItemStack gridHoverStack;
+    private ItemStack gridHoverStack;
     /** The grid category owning {@link #gridHoverStack} (differs from
      *  {@code currentCategory} for browse-all's plain cells). */
-    private static RecipeViewerCategory gridHoverCategory;
+    private RecipeViewerCategory gridHoverCategory;
     /** Items shown by a grid category (cached on rebuild). */
-    private static List<ItemStack> gridItems = List.of();
+    private List<ItemStack> gridItems = List.of();
 
     /** Whether the currently shown category is the furnace category. */
-    public static boolean isFurnaceMode() {
+    public boolean isFurnaceMode() {
         return currentCategory != null && "furnace".equals(currentCategory.id());
     }
 
     /** Whether the currently shown category is the stonecutter category. */
-    public static boolean isStonecuttingMode() {
+    public boolean isStonecuttingMode() {
         return currentCategory != null && "stonecutting".equals(currentCategory.id());
     }
 
     /** Whether the currently shown category is the smithing category. */
-    public static boolean isSmithingMode() {
+    public boolean isSmithingMode() {
         return currentCategory != null && "smithing".equals(currentCategory.id());
     }
 
     /** Whether the currently shown category is the anvil category. */
-    public static boolean isAnvilMode() {
+    public boolean isAnvilMode() {
         return currentCategory != null && "anvil".equals(currentCategory.id());
     }
 
     /** Whether the currently shown category is the brewing category. */
-    public static boolean isBrewingMode() {
+    public boolean isBrewingMode() {
         return currentCategory != null && "brewing".equals(currentCategory.id());
     }
 
     /** Whether the currently shown category is the grindstone category. */
-    public static boolean isGrindstoneMode() {
+    public boolean isGrindstoneMode() {
         return currentCategory != null && "grindstone".equals(currentCategory.id());
     }
 
@@ -233,58 +1074,58 @@ public final class RecipeViewerOverlay {
      *  size = {@link #MAX_TABS}); {@code 0} when every tab fits.  The wheel over
      *  the tab strip switches the selected category and slides the window when
      *  the selection reaches an edge. */
-    private static int tabWindowStart;
+    private int tabWindowStart;
 
     /** Workstation objects of the open category, shown in the viewer's left
      *  column (bottom-up; a sliding window when there are more than the object
      *  area's rows). */
-    private static List<ItemStack> stationColumnItems = List.of();
+    private List<ItemStack> stationColumnItems = List.of();
     /** Left-column scroll: 0 = the bottom-most window, each step slides the
      *  window one cell up. */
-    private static int stationScroll;
+    private int stationScroll;
 
-    /** Ctrl+O browse-all mode: every category tab shows its COMPLETE object
+    /** Browse-all mode (title click): every category tab shows its COMPLETE object
      *  pool ({@code allEntries()} / {@code allGridItems()}) instead of the
      *  query-related subset — the "house" metaphor: the query herds the
      *  related objects into the viewer's categories, Ctrl+O gathers ALL
      *  queryable objects and distributes them into their correct categories
      *  (the tabs), a second Ctrl+O drives the newly added objects back out. */
-    private static boolean browseAllMode;
+    private boolean browseAllMode;
     /** Page of the selected category before browse-all was entered. */
-    private static int browseAllReturnPage;
+    private int browseAllReturnPage;
     /** The category selected before browse-all was entered (a tab that existed
      *  pre-toggle): a restore re-selects it when the current tab only exists
      *  in browse-all. */
-    private static RecipeViewerCategory browseAllReturnCategory;
+    private RecipeViewerCategory browseAllReturnCategory;
 
     /** Fixed box layout for the open viewer (reused when switching tabs). */
-    private static int boxX;
-    private static int boxY;
-    private static int boxW;
-    private static int boxH;
+    private int boxX;
+    private int boxY;
+    private int boxW;
+    private int boxH;
     /** Screen Y of the tab strip (the box bottom), fixed on open so switching
      *  tabs never makes the tabs jump vertically when the box height changes. */
-    private static int bottomAnchor;
+    private int bottomAnchor;
     /** Pinned CENTRE of the first row's first object.  Initialised from the
      *  pointer on open, then FOLLOWS the actual centre after every layout
-     *  (limit-level adjustments included): rebuilds start from the settled
+     *  (the band limit included): rebuilds start from the settled
      *  position, so the interface never snaps back to a pre-adjustment spot. */
-    private static int anchorScreenX;
-    private static int anchorScreenY;
+    private int anchorScreenX;
+    private int anchorScreenY;
 
     /** Alt-pause state for cycled variants (shared by every BRBE front-end):
      *  while Alt is held the rotation freezes (locked on Alt-press), Alt+wheel
      *  steps {@link #manualCycleIndex}, releasing Alt resumes the automatic
      *  cycle.  The vendored CycleTicker/CycleTimer pause on the same Alt keys
      *  and honour the same manual index via reflection. */
-    private static boolean cyclePaused;
-    private static int manualCycleIndex;
+    private boolean cyclePaused;
+    private int manualCycleIndex;
 
     /** The slot-select cycle index used by every BRBE front-end (popup,
      *  tooltip preview, pin, book-button variants, ghost slots): while Alt is
      *  held the rotation freezes on the Alt-press index and Alt+wheel steps
      *  it; on release the automatic cycle resumes. */
-    public static int currentSlotSelectIndex(int autoIndex) {
+    public int currentSlotSelectIndex(int autoIndex) {
         boolean alt = ClientCompat.isAltDown();
         if (alt) {
             if (!cyclePaused) {
@@ -300,7 +1141,7 @@ public final class RecipeViewerOverlay {
 
     /** Alt+wheel: step the paused variant index (both the BRBE front-end and,
      *  via reflection, the vendored JEI cyclers). */
-    private static boolean stepCycledVariants(double vertical) {
+    private boolean stepCycledVariants(double vertical) {
         cyclePaused = true;
         manualCycleIndex += vertical > 0 ? -1 : 1;
         setForkManualIndex(manualCycleIndex);
@@ -310,34 +1151,20 @@ public final class RecipeViewerOverlay {
     /** Mirror the manual index into the vendored JEI cyclers (reflection: with
      *  the real JEI runtime the vendored classes are shadowed and the field
      *  does not exist — those drawables only pause, they cannot be stepped). */
-    private static void setForkManualIndex(int index) {
-        try {
-            Class.forName("mezz.jei.library.gui.ingredients.CycleTicker")
-                    .getField("manualIndexOverride").setInt(null, index);
-            Class.forName("mezz.jei.library.gui.ingredients.CycleTimer")
-                    .getField("manualIndexOverride").setInt(null, index);
-        } catch (Throwable ignored) {
-        }
-    }
-
-    /** Whether the cycle-pause key (Alt) is currently held — shared with the
-     *  JEI-delegated drawable renderer so EVERY delegated UI's variant cycling
-     *  (preview popup, pin, embedded tooltip preview) freezes too, without
-     *  relying on JEI's own pause key mapping. */
-    public static boolean isCycleAltDown() {
-        return ClientCompat.isAltDown();
+    private void setForkManualIndex(int index) {
+        RecipeViewerOverlay.forkSetManualIndex(index);
     }
 
     /** Opening-order value of the open viewer, shared with pin overlays for
      *  z-order stacking (-1 while closed). */
-    private static int viewerZ = -1;
+    private int viewerZ = -1;
 
-    public static boolean isActive() {
+    public boolean isActive() {
         return RecipeViewerIndex.isViewerActive();
     }
 
     /** The viewer's z (opening order) while open, or -1 when closed. */
-    public static int viewerZ() {
+    public int viewerZ() {
         return isActive() ? viewerZ : -1;
     }
 
@@ -345,73 +1172,80 @@ public final class RecipeViewerOverlay {
      *  below it) in screen coordinates, or null when the viewer is closed.
      *  JEI's {@code IGlobalGuiHandler.getGuiExtraAreas} keeps its ingredient
      *  list / recipe area out of this region. */
-    public static Rect2i exclusionArea() {
+    public Rect2i exclusionArea() {
         if (!isActive()) return null;
-        return new Rect2i(panelLeft(), boxY, boxW + STATION_COL_WIDTH, boxH + TAB_OVERHANG);
+        // Over-inclusive single rect (box + workstation column), extended up
+        // through the title-bar band — for JEI to keep out of; the drawn band
+        // itself only spans the box width (see {@link #windowChromeRect}).
+        return new Rect2i(panelLeft(), boxTop() - TITLE_BAR_H,
+                boxW + STATION_COL_WIDTH,
+                boxH + TAB_OVERHANG + TITLE_BAR_H + PAGE_BTN_SHIFT_Y - 2);
     }
 
     /** Whether the point lies on the viewer's own region — everything the
      *  viewer actually draws: the box at full size, the category tabs below
-     *  it, and the left workstation panel TRIMMED to its content (see
+     *  it, the window chrome (title bar / page-button strip) above it, and
+     *  the left workstation panel TRIMMED to its content (see
      *  {@link #stationColumnPanelRect}).  The empty strip above a trimmed
      *  panel (fewer stations than the object area's rows) is background: it
      *  is not part of the viewer, so clicking there closes the viewer
      *  ({@link #inBox}) and hovering falls through to the underlying screen.
      *  {@link #exclusionArea()} stays over-inclusive (a single rect for JEI
      *  to keep out of — avoiding slightly more is harmless). */
-    public static boolean contains(double mx, double my) {
+    public boolean contains(double mx, double my) {
         if (!isActive()) return false;
-        // Left workstation panel, attached outside the box's left edge.
-        if (mx >= panelLeft() && mx < panelLeft() + STATION_COL_WIDTH) {
+        // The window chrome (title bar / close button) is always window-owned,
+        // independent of the left panel's content (an empty station column
+        // must not make the title bar fall through).
+        int[] chr = windowChromeRect();
+        if (inside(mx, my, chr[0], chr[1], chr[2], chr[3])) return true;
+        // Left workstation panel, attached outside the box's left edge.  The
+        // DRAWN panel is STATION_COL_WIDTH + 4 wide (see
+        // drawStationColumnSurfaces) — block the whole drawn slab.
+        if (mx >= panelLeft() && mx < panelLeft() + STATION_COL_WIDTH + 4) {
             if (stationColumnItems.isEmpty()) return false;
             int shown = Math.min(stationColumnItems.size(), stationViewRows());
             int[] rect = stationColumnPanelRect(shown);
             return my >= rect[0] && my < rect[0] + rect[1];
         }
+        // Box + the bottom tab strip: the tabs hang from the box bottom and
+        // span the full strip (tabTop() .. tabTop() + TAB_HEIGHT) — the whole
+        // strip is window-owned, not just the drawn tab tops.
         return mx >= boxX && mx < boxX + boxW
-                && my >= boxY && my < boxY + boxH + TAB_OVERHANG;
+                && my >= boxY && my < tabTop() + TAB_HEIGHT;
+    }
+
+    /** The authoritative "window owns this point" test for ALL region
+     *  decisions (same union as {@link #contains}; kept as the single source
+     *  so every block/consume path agrees on the window's footprint). */
+    public boolean inWindowRegion(double mx, double my) {
+        return contains(mx, my);
     }
 
     /** The open popup's on-screen region (its hit volume = texture bounds),
      *  or null when no popup is open.  JEI keeps its ingredient list / recipe
      *  area out of the exact same rect the popup's hit test uses. */
-    public static Rect2i popupExclusionArea() {
+    public Rect2i popupExclusionArea() {
         if (!isActive() || hoverPopupField == null) return null;
         PopupGeometry geometry = popupGeometry(hoverPopupField);
         return new Rect2i(geometry.x, geometry.y, geometry.w, geometry.h);
     }
 
     /** Close the viewer when its host screen is being removed. */
-    public static void onScreenClosed(AbstractContainerScreen<?> screen) {
+    public void onScreenClosed(AbstractContainerScreen<?> screen) {
         if (ownerScreen == screen) {
             close();
         }
     }
 
     /** R/U / ESC / O handling.  Returns true when the event was consumed. */
-    public static boolean keyPressed(KeyEvent event, AbstractContainerScreen<?> screen) {
+    public boolean keyPressed(KeyEvent event, AbstractContainerScreen<?> screen) {
         if (event.isEscape()) {
-            // Esc closes only the top-most layer: a pin if one opened after the
-            // viewer, else the viewer itself.
-            return PinOverlayManager.handleEscape();
-        }
-
-        // O while the viewer is up toggles browse-all: every visible
-        // category's objects at once, second press restores the selected
-        // category.  Only monitored while the cursor is INSIDE the query
-        // interface (its drawn region — box, workstation panel, tabs — or
-        // the open popup), so the key stays free outside it.  Checked before
-        // the R/U gate — it only ever acts on the open viewer.
-        if (isActive() && event.key() == InputConstants.KEY_O) {
-            Minecraft mc = Minecraft.getInstance();
-            if (mc != null && mc.mouseHandler != null && mc.getWindow() != null) {
-                int mx = Mth.floor(mc.mouseHandler.getScaledXPos(mc.getWindow()));
-                int my = Mth.floor(mc.mouseHandler.getScaledYPos(mc.getWindow()));
-                if (contains(mx, my) || previewOwnsCursor(mx, my)) {
-                    toggleBrowseAll();
-                    return true;
-                }
-            }
+            // ESC closes this query viewer (mirrors the static entry: the
+            // window closes ONLY via ESC / right-click) — pin overlays stay.
+            if (!isActive()) return false;
+            RecipeViewerOverlay.close();
+            return true;
         }
 
         if (!BetterRecipeBook.config.recipeViewerEnabled) return false;
@@ -420,15 +1254,38 @@ public final class RecipeViewerOverlay {
                 event.key(), event.scancode(), event.modifiers());
         boolean viewUsage = ClientCompat.matches(BetterRecipeBook.USAGE_VIEW_MAPPING,
                 event.key(), event.scancode(), event.modifiers());
-        if (!viewRecipe && !viewUsage) return false;
+        if (viewRecipe || viewUsage) {
+            return open(screen, viewUsage);
+        }
 
-        return open(screen, viewUsage);
+        // Modal window: the pin key stays delegated at the keyboard level
+        // (KeyboardHandlerMixin calls PinOverlayManager.handleKeyPressed right
+        // after this); every OTHER unhandled key is consumed only at the SCREEN
+        // level (the screen keyPressed mixin guards), so global keys (F2
+        // screenshot, F3, F11 …) which the KeyboardHandler processes before the
+        // screen dispatch keep working while the query window is open.
+        return false;
     }
 
     /** Click handling while the viewer is up.  Returns true when consumed. */
-    public static boolean mouseClicked(MouseButtonEvent event, boolean doubleClick,
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick,
                                        AbstractContainerScreen<?> screen) {
         if (!isActive()) return false;
+        // NEW RULE (2026-09-02): right-click ANYWHERE in the window region —
+        // title band, box, tab strip, workstation column — closes the window.
+        // The close gesture is no longer confined to the extension band; it
+        // runs first so nothing inside the window can swallow it.
+        if (event.button() == 1 && contains(event.x(), event.y())) {
+            close(true);
+            return true;
+        }
+        // Window chrome first: ✕ closes, any other band press starts a drag —
+        // the band owns itself, so it wins over the button/box hit tests
+        // below (the turn-page buttons inside the band fall through to their
+        // own handler further down).
+        if (handleWindowChromeClick(event)) {
+            return true;
+        }
         // The popup layer is a hard modal: while it is open, every click is
         // claimed by it — inside the popup it inherits the hovered button's
         // full click (placing the recipe, left button only), outside it is
@@ -445,6 +1302,14 @@ public final class RecipeViewerOverlay {
         }
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return false;
+
+        // Fuel category cells: the grid has no recipe buttons — a left-click on
+        // a fuel cell quick-fills the furnace-family fuel slot (real move or
+        // ghost preview).  Handled before the overlay hit-test so it wins over
+        // the box-background swallow.
+        if (isGridMode() && handleFuelCellClick(event, screen)) {
+            return true;
+        }
 
         // The fuel category has no recipe buttons and is not clickable: skip
         // the overlay button hit-test (which may still hold the previous
@@ -479,7 +1344,7 @@ public final class RecipeViewerOverlay {
             return true;
         }
 
-        // The viewer's own turn-page buttons (above the box) flip the page.
+        // The viewer's own turn-page buttons (inside the title-bar band).
         if (handlePageButtonClick(event)) {
             return true;
         }
@@ -491,9 +1356,19 @@ public final class RecipeViewerOverlay {
             return true;
         }
 
-        // Click outside the box: dismiss the viewer, keep the container open.
-        close();
-        return true;
+        // Region fallback: ANY click inside the window's own footprint — the
+        // category tab strip, the workstation panel (non-cell parts included),
+        // the chrome band edges, gaps between drawn widgets — is window-owned
+        // and swallowed; only clicks truly OUTSIDE the window fall through to
+        // the desktop below.
+        if (contains(event.x(), event.y())) {
+            return true;
+        }
+
+        // Clicks outside the window are NOT a close action any more (only
+        // right-click on the window closes): fall through so the
+        // desktop below handles the click.
+        return false;
     }
 
     /** Place {@code id} from {@code collection} into the open recipe-book
@@ -501,50 +1376,33 @@ public final class RecipeViewerOverlay {
      *  matching — a crafting recipe clicked inside a furnace must not fill
      *  items or ghost slots of the wrong station.  Public so pin overlays can
      *  inherit the same click behaviour. */
-    public static boolean placeRecipe(MouseButtonEvent event, AbstractContainerScreen<?> screen,
-                                      RecipeDisplayId id, RecipeCollection collection) {
-        // Click feedback plays for every consumed click — including one that
-        // cannot place anything (e.g. a smelting recipe clicked inside a
-        // crafting table, or any recipe clicked on a non-recipe-book screen):
-        // the invalid click must still sound.
+    /** Left-click on a recipe object (viewer button or its preview popup):
+     *  <b>transfer</b> a fully-craftable object's ingredients into the open
+     *  workstation (ViewerTransfer engine — server-verified virtual drags /
+     *  vanilla recipe-book placement).  Partial and uncraftable objects are
+     *  neither transferred nor ghosted; a workstation mismatch transfers
+     *  nothing (the click is consumed either way).  Public so pin overlays can
+     *  inherit the same click behaviour. */
+    public boolean placeRecipe(MouseButtonEvent event, AbstractContainerScreen<?> screen,
+                               RecipeDisplayId id, RecipeCollection collection) {
+        // Click feedback plays for every consumed click (even one that cannot
+        // transfer anything — the invalid click must still sound).
         Minecraft mc = Minecraft.getInstance();
         if (mc.getSoundManager() != null) {
             AbstractWidget.playButtonClickSound(mc.getSoundManager());
         }
-        if (!(screen instanceof AbstractRecipeBookScreen<?> rbs)) return false;
-        RecipeBookComponent<?> book = ((AbstractRecipeBookScreenAccessor) rbs)
-                .brbe$getRecipeBookComponent();
-        if (book == null || id == null || collection == null || !recipeFitsScreen(id, screen)) {
-            return false;
+        if (id == null || collection == null || currentCategory == null) return false;
+        if (!ViewerTransfer.isFullyCraftable(collection, id)) {
+            // 残缺/不可合成对象：不转移、不补幽灵——仅消费点击。
+            return true;
         }
-        try {
-            RecipeBookComponentAccessor accessor = (RecipeBookComponentAccessor) book;
-            boolean placed = accessor.tryPlaceRecipeInvoker(collection, id, event.hasShiftDown());
-            if (!placed) {
-                // Vanilla refuses the FIRST placement of a not-fully-craftable
-                // recipe (tryPlaceRecipe returns early when
-                // !collection.isCraftable(id) && id != lastPlacedRecipe), so
-                // the first click of a partial / uncraftable recipe does
-                // nothing — no ghost preview either.  Prime the repeat-click
-                // path so the first click places the available materials (the
-                // ghost flow) exactly like vanilla's second click.
-                accessor.setLastPlacedRecipe(id);
-                accessor.tryPlaceRecipeInvoker(collection, id, event.hasShiftDown());
-            }
-            // The vanilla ghost-overlay optimisation (PartialGhostOverlayUtil,
-            // fed from lastRecipe/lastRecipeCollection in extractGhostRecipe)
-            // must see the viewer's placed recipe too, otherwise every ghost
-            // slot keeps its red mask.
-            accessor.setLastRecipe(id);
-            accessor.setLastRecipeCollection(collection);
-        } catch (Exception e) {
-            // Non-fatal: the placement already fired or is invalid.
-        }
-        return true;
+        RecipeDisplayEntry entry = entryFor(id);
+        return ViewerTransfer.transfer(currentCategory.id(), entry, id, collection, screen,
+                event.hasShiftDown());
     }
 
     /** Whether the click lands on the open recipe book's turn-page buttons. */
-    private static boolean isPageTurnButton(MouseButtonEvent event, AbstractContainerScreen<?> screen) {
+    private boolean isPageTurnButton(MouseButtonEvent event, AbstractContainerScreen<?> screen) {
         if (!(screen instanceof AbstractRecipeBookScreen<?> rbs)) return false;
         if (event.button() != 0) return false;
         RecipeBookComponent<?> book = ((AbstractRecipeBookScreenAccessor) rbs).brbe$getRecipeBookComponent();
@@ -558,15 +1416,20 @@ public final class RecipeViewerOverlay {
     }
 
     /** Scroll over the overlay flips its page.  Returns true when consumed. */
-    public static boolean mouseScrolled(double mouseX, double mouseY, double vertical) {
+    public boolean mouseScrolled(double mouseX, double mouseY, double vertical) {
         // Alt+wheel: step the cycled variants (Alt freezes the rotation) —
         // highest priority.  The trigger is the interface under the pointer
         // (viewer / preview popup / pin): wheel over plain background keeps
-        // its normal behaviour instead of stepping variants.
+        // its normal behaviour instead of stepping variants.  A pin under the
+        // cursor steps ITS OWN pinned variants (not this window's state).
         if (vertical != 0 && ClientCompat.isAltDown()
                 && (isActive() || PinOverlayManager.hasPins())) {
+            if (PinOverlayManager.topInteractivePin(mouseX, mouseY) != null) {
+                PinOverlayManager.stepAltVariants(mouseX, mouseY, vertical);
+                SyntheticRecipeRenderers.get().stepVariants(vertical > 0 ? -1 : 1);
+                return true;
+            }
             if (RecipePopupLayer.contains(mouseX, mouseY)
-                    || PinOverlayManager.topInteractivePin(mouseX, mouseY) != null
                     || contains(mouseX, mouseY)) {
                 stepCycledVariants(vertical);
                 // The JEI-delegated drawables (preview popup / pin / embedded
@@ -595,7 +1458,10 @@ public final class RecipeViewerOverlay {
         if (handleStationColumnScroll(mouseX, mouseY, vertical)) {
             return true;
         }
-        if (!isPaged()) return false;
+        // Non-paged viewers have nothing to flip: the wheel over the window is
+        // still window-owned (no leakage to the desktop), elsewhere it falls
+        // through.
+        if (!isPaged()) return contains(mouseX, mouseY);
         if (vertical == 0) return false;
         // Scroll zone: the box plus the turn-page button strip above it.
         if (overScrollZone(mouseX, mouseY)) {
@@ -618,27 +1484,29 @@ public final class RecipeViewerOverlay {
                 }
                 showPage(ownerScreen, boxLeft(), boxTop(),
                         PAGE_COLS * 25 + 8, PAGE_ROWS * 25 + 8);
+                syncSpec();
             }
             return true;
         }
-        // The open viewer is a modal layer: while it is up, the scroll goes
-        // nowhere else (nothing underneath may page or scroll).
-        return isActive();
+        // Desktop-window semantics: the wheel over the WINDOW's own region is
+        // consumed by it; outside the window the desktop below scrolls
+        // normally (the query window is not a full-screen focus layer).
+        return contains(mouseX, mouseY);
     }
 
     /** Whether the cursor is over the box or the page-button strip above it. */
-    private static boolean overScrollZone(double mouseX, double mouseY) {
+    private boolean overScrollZone(double mouseX, double mouseY) {
         int bx = boxLeft();
         int by = boxTop();
         if (inside(mouseX, mouseY, bx, by, PAGE_COLS * 25 + 8, PAGE_ROWS * 25 + 8)) {
             return true;
         }
-        int btnY = by - PAGE_BTN_HEIGHT - 2;
+        int btnY = pageBtnY();
         int btnW = PAGE_BTN_WIDTH * 2 + 15;
-        return inside(mouseX, mouseY, bx, btnY, btnW, PAGE_BTN_HEIGHT);
+        return inside(mouseX, mouseY, pageBtnX(), btnY, btnW, PAGE_BTN_HEIGHT);
     }
 
-    private static int boxLeft() {
+    private int boxLeft() {
         // The fuel grid has no OverlayRecipeComponent (no recipe buttons), so
         // its box lives in the static boxX/boxY fields, not the overlay.
         return isGridMode() ? boxX : ((OverlayRecipeComponentAccessor) overlay).getX();
@@ -648,27 +1516,22 @@ public final class RecipeViewerOverlay {
      *  plus the left workstation column ("grid column -1") attached OUTSIDE it
      *  (the object area / tabs / page buttons keep their layout; the station
      *  column is a grid column appended on the box's left). */
-    private static int panelLeft() {
+    private int panelLeft() {
         return boxLeft() - STATION_COL_WIDTH;
     }
 
-    private static int boxTop() {
+    private int boxTop() {
         return isGridMode() ? boxY : ((OverlayRecipeComponentAccessor) overlay).getY();
-    }
-
-    /** Whether scroll-around is enabled (turn-page buttons never hit a dead end). */
-    private static boolean scrollWrap() {
-        return BetterRecipeBook.config.scrolling.scrollAround;
     }
 
     /** Clicking the viewer's own turn-page buttons flips the page (or wraps when
      *  scroll-around is enabled); Ctrl+click jumps straight to the first / last
      *  page (the same edge-jump the recipe book's own turn buttons do). */
-    private static boolean handlePageButtonClick(MouseButtonEvent event) {
+    private boolean handlePageButtonClick(MouseButtonEvent event) {
         if (!isPaged() || event.button() != 0) return false;
-        int bx = boxLeft();
+        int bx = pageBtnX();
         int by = boxTop();
-        int btnY = by - PAGE_BTN_HEIGHT - 2;
+        int btnY = by - PAGE_BTN_HEIGHT - 2 + PAGE_BTN_SHIFT_Y;
         int mx = Mth.floor(event.x());
         int my = Mth.floor(event.y());
         Minecraft mc = Minecraft.getInstance();
@@ -686,6 +1549,7 @@ public final class RecipeViewerOverlay {
                     fitGridBoxToPage();
                 }
                 showPage(ownerScreen, bx, by, PAGE_COLS * 25 + 8, PAGE_ROWS * 25 + 8);
+                syncSpec();
             }
             return true;
         }
@@ -702,6 +1566,7 @@ public final class RecipeViewerOverlay {
                     fitGridBoxToPage();
                 }
                 showPage(ownerScreen, bx, by, PAGE_COLS * 25 + 8, PAGE_ROWS * 25 + 8);
+                syncSpec();
             }
             return true;
         }
@@ -709,8 +1574,54 @@ public final class RecipeViewerOverlay {
     }
 
     /** Draw the overlay on the container's top render stratum. */
-    public static void render(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta) {
+    public void render(GuiGraphicsExtractor gui, int mouseX, int mouseY, float delta) {
         if (!isActive()) return;
+        // A BRBE fuel ghost lives only while its fuel slot is empty (the same
+        // gate vanilla's FurnaceRecipeBookComponent applies) — once a real item
+        // lands in the slot the ghost is removed this frame.
+        syncFuelGhost();
+        // SELF-HEALING GEOMETRY: the vanilla OverlayRecipeComponent's own
+        // init/auto-shift and the position mixin can leave the overlay's
+        // x/y and button positions out of sync with the window fields
+        // (boxX/boxY/boxW/boxH) — the panel/chrome draws from the fields'
+        // derived values while the vanilla-drawn content would follow the
+        // overlay — the "flying elements" symptom.  Re-pin the overlay and
+        // re-flow the buttons from the FIELDS every frame BEFORE drawing, so
+        // whatever moved them gets corrected; the drag handler moves both
+        // consistently, so the drag is unaffected.
+        if (!isGridMode()) {
+            OverlayRecipeComponentAccessor acc0 = (OverlayRecipeComponentAccessor) overlay;
+            acc0.setX(boxX);
+            acc0.setY(boxY);
+            int cols = Math.max(1, Math.min(PAGE_COLS, acc0.getRecipeButtons().size()));
+            List<AbstractWidget> btns0 = acc0.getRecipeButtons();
+            for (int i = 0; i < btns0.size(); i++) {
+                int row = i / cols;
+                btns0.get(i).setX(boxX + 4 + (i % cols) * 25);
+                btns0.get(i).setY(boxY + boxH - 28 - row * 25);
+            }
+        }
+        long now = net.minecraft.util.Util.getMillis();
+        if (now - brbe$lastRenderLog > 2000) {
+            brbe$lastRenderLog = now;
+            OverlayRecipeComponentAccessor racc = null;
+            try {
+                racc = (OverlayRecipeComponentAccessor) overlay;
+            } catch (Throwable ignored) {
+            }
+            BetterRecipeBook.LOGGER.warn(
+                    "[VIEWER-DBG] render win#{} box=({},{},{}x{}) overlay=({},{}) vis={} btns={} tabsY={} tabX0={} colX={} colY0={}",
+                    RecipeViewerOverlay.WINDOWS.indexOf(ViewerInstance.this),
+                    boxX, boxY, boxW, boxH, boxLeft(), boxTop(), overlay.isVisible(),
+                    racc == null ? -1 : racc.getRecipeButtons().size(),
+                    tabTop(), tabX(0), panelLeft() + 4,
+                    boxY + boxH - 4 - STATION_CELL);
+        }
+        // Desktop-window semantics: the window renders on top of a fully
+        // interactive desktop (no scrim, no dead cursor) — the box's
+        // background blits below stay untouched (its top border line remains
+        // the buttons' 190602 reference); the title/✕ float in the
+        // turn-page buttons' row (drawn by drawTitleBar).
         // The popup layer opens only while Shift is held (no hover-open, no
         // Shift magnify any more): the popup under the cursor behaves like a
         // modal — while the cursor is inside it, it stays open and blocks every
@@ -766,13 +1677,11 @@ public final class RecipeViewerOverlay {
                 }
             }
         }
-        // Drive the independent popup layer: the popup under the cursor opens /
-        // keeps it, and leaving it (or releasing Shift) closes it.
-        RecipePopupLayer.update(hoverPopupField);
+        // (The independent popup layer is driven by the manager once per
+        // frame, after every window rendered — see RecipeViewerOverlay.render.)
         // The grid categories (fuel / compost / info) render a standalone item
         // grid (they are info sheets, not recipes — no buttons).
         if (isGridMode()) {
-            RecipePopupLayer.close();
             drawCategoryTabs(gui, mouseX, mouseY, true);
             drawItemGrid(gui, mouseX, mouseY);
             drawPageControls(gui, mouseX, mouseY);
@@ -781,6 +1690,7 @@ public final class RecipeViewerOverlay {
             // attached OUTSIDE the box's left edge and draws above the panel
             // background.
             drawStationColumn(gui, mouseX, mouseY);
+            drawTitleBar(gui, mouseX, mouseY);
             renderTooltip(gui, mouseX, mouseY);
             return;
         }
@@ -796,13 +1706,20 @@ public final class RecipeViewerOverlay {
             OverlayRecipeComponentAccessor acc = (OverlayRecipeComponentAccessor) overlay;
             int bx = boxLeft();
             int by = acc.getY();
-            ClientCompat.blitSprite(gui, OVERLAY_RECIPE_SPRITE, bx, by,
-                    boxW, boxH);
+            // Panel background extended upward through the chrome band (title
+            // strip + button row), then the box sprite redrawn at its place
+            // (its top border line stays BELOW the buttons, as always).
+            // THE extension (the original goal): one continuous panel, the
+            // box's background drawn 21px taller — the sprite's top border
+            // moves up with it; NOTHING else is drawn (exports no seam).
+            ClientCompat.blitSprite(gui, OVERLAY_RECIPE_SPRITE, bx, by - TITLE_BAR_H,
+                    boxW, boxH + TITLE_BAR_H);
             List<AbstractWidget> buttons = acc.getRecipeButtons();
             for (AbstractWidget w : buttons) {
                 w.extractRenderState(gui, mouseX, mouseY, delta);
             }
             drawViewerPinMarkers(gui, buttons);
+            drawEmptyRowFillers(gui);
             drawPageControls(gui, mouseX, mouseY);
         } else {
             drawCategoryTabs(gui, mouseX, mouseY, true);
@@ -814,13 +1731,17 @@ public final class RecipeViewerOverlay {
             OverlayRecipeComponentAccessor acc = (OverlayRecipeComponentAccessor) overlay;
             int bx = boxLeft();
             int by = acc.getY();
-            ClientCompat.blitSprite(gui, OVERLAY_RECIPE_SPRITE, bx, by,
-                    boxW, boxH);
+            // THE extension (the original goal): one continuous panel, the
+            // box's background drawn 21px taller — the sprite's top border
+            // moves up with it; NOTHING else is drawn (exports no seam).
+            ClientCompat.blitSprite(gui, OVERLAY_RECIPE_SPRITE, bx, by - TITLE_BAR_H,
+                    boxW, boxH + TITLE_BAR_H);
             List<AbstractWidget> buttons = acc.getRecipeButtons();
             for (AbstractWidget w : buttons) {
                 w.extractRenderState(gui, mouseX, mouseY, delta);
             }
             drawViewerPinMarkers(gui, buttons);
+            drawEmptyRowFillers(gui);
             drawPageControls(gui, mouseX, mouseY);
         }
         drawCategoryTabs(gui, mouseX, mouseY, false);
@@ -828,6 +1749,10 @@ public final class RecipeViewerOverlay {
         // attached OUTSIDE the box's left edge and draws above the panel
         // background.
         drawStationColumn(gui, mouseX, mouseY);
+        // The title bar (extended background band): title text + ✕ close —
+        // drawn after the panel background and the column surface, before the
+        // transient popup/tooltip layers.
+        drawTitleBar(gui, mouseX, mouseY);
         // The independent popup layer paints on top of everything (tabs and the
         // hovered button), then the viewer's tooltip (top-most) — the tooltip
         // is rendered here, not by the extractRenderState RETURN hook which
@@ -839,7 +1764,7 @@ public final class RecipeViewerOverlay {
     /** 配方书 pin 的配方对象：在查询 viewer 的对象按钮左上角绘制 pin 贴图。
      *  按钮顺序与 {@link #showPage} 的排布一致（按钮 i ↔ 当前页第 i 条
      *  {@code viewerRecipes} 条目），pin 判定走与配方书相同的稳定 key。 */
-    private static void drawViewerPinMarkers(GuiGraphicsExtractor gui, List<AbstractWidget> buttons) {
+    private void drawViewerPinMarkers(GuiGraphicsExtractor gui, List<AbstractWidget> buttons) {
         if (buttons.isEmpty() || viewerRecipes.isEmpty()) return;
         int pageStart = viewerPage * PAGE_SIZE;
         int count = Math.min(buttons.size(), viewerRecipes.size() - pageStart);
@@ -854,19 +1779,114 @@ public final class RecipeViewerOverlay {
         }
     }
 
+    /** Fill the current page's EMPTY cells with EMPTY placeholder objects:
+     *  the box may be wider than the object columns (the tab strip widens it
+     *  to fit up to {@link #MAX_TABS} tabs) and a partially-filled row leaves
+     *  trailing cells — the mechanism fills every empty cell of the box's
+     *  content rows WITHOUT adding rows/columns (the box itself is never
+     *  grown).  The placeholder face is HARD-CODED per the row's RIGHTMOST
+     *  real object's state, mirroring {@code PopupRenderer.renderBaseButton} —
+     *  the three scenarios: craftable → enabled face, partial → enabled face
+     *  + the code-composited red overlay (0x60FF3333), uncraftable → disabled
+     *  face.  Grid categories (fuel / compost / info) have no state: the
+     *  plain cell face.  Pure decoration: not clickable, no hover, no tooltip. */
+    private void drawEmptyRowFillers(GuiGraphicsExtractor gui) {
+        int start = viewerPage * PAGE_SIZE;
+        int count;
+        if (isGridMode()) {
+            count = Math.min(PAGE_SIZE, gridItems.size() - start);
+        } else {
+            count = Math.min(PAGE_SIZE, viewerRecipes.size() - start);
+        }
+        if (count <= 0) return;
+        // Content columns (mirror of fitBoxToPage) vs the box-wide columns:
+        // the tab strip can widen the box WITHOUT adding object columns —
+        // those tab-created empty columns belong to the filled area too.
+        int columns = Math.max(1, Math.min(PAGE_COLS, count));
+        int rows = (count + columns - 1) / columns;
+        int colsFill = Math.max(columns, (boxW - 8) / 25);
+        List<AbstractWidget> buttons = isGridMode() ? List.of()
+                : ((OverlayRecipeComponentAccessor) overlay).getRecipeButtons();
+        for (int r = 0; r < rows; r++) {
+            int inRow = Math.min(columns, count - r * columns);
+            if (inRow <= 0) continue;
+            if (isGridMode()) {
+                for (int c = inRow; c < colsFill; c++) {
+                    int gx = boxX + 4 + c * 25;
+                    int gy = boxY + boxH - 28 - r * 25;
+                    ClientCompat.blitSprite(gui,
+                            BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(true, false),
+                            gx, gy, 24, 24);
+                }
+                continue;
+            }
+            // The row's RIGHTMOST real object (the buttons list mirrors the
+            // page order): its state picks the placeholder face.
+            int lastIdx = Math.min((r + 1) * columns, count) - 1;
+            boolean enabled = false;
+            boolean partial = false;
+            if (lastIdx >= 0 && lastIdx < buttons.size()
+                    && buttons.get(lastIdx) instanceof OverlayRecipeButtonAccessor oba) {
+                RecipeCollection col = oba.brbe$getOuterComponent().getRecipeCollection();
+                boolean craftable = oba.brbe$getCraftable();
+                // Mirror of the button mixin's computePartial viewer branch —
+                // NOTE the partial check must NOT gate on !craftable: the
+                // viewer's prepareForViewer adds partial recipes to the
+                // collection's craftable set, so a partial button reports
+                // isCraftable=true (the gating was the placeholder bug: the
+                // partial row fell back to the plain craftable face).
+                partial = viewerMode() != PinOverlay.MODE_FURNACE
+                        && (RecipeViewerIndex.isViewerPartial(col, oba.brbe$getRecipe())
+                                || PartialCraftingUtil.isPartiallyCraftableEvenIfStale(
+                                        col, oba.brbe$getRecipe()));
+                if (partial) {
+                    // [BRBE-DIAG] 一次性：渲染时点 partial 按钮的状态分解
+                    RecipeDisplayId pid = oba.brbe$getRecipe();
+                    String key = "btn-partial " + pid;
+                    if (BTN_DIAG_ONCE.add(key)) {
+                        BetterRecipeBook.LOGGER.warn("[BRBE-DIAG-PARTIAL] " + key
+                                + " craftable=" + craftable
+                                + " colCraftable=" + col.isCraftable(pid)
+                                + " snap=" + RecipeViewerIndex.isViewerPartial(col, pid)
+                                + " stale=" + PartialCraftingUtil.isPartiallyCraftableEvenIfStale(col, pid)
+                                + " tag=" + PartialCraftingUtil.isPartiallyCraftable(col, pid)
+                                + " canCraftNow=" + PartialCraftingUtil.canCraftByRequirements(
+                                        com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.entryFor(pid))
+                                + " coll=" + System.identityHashCode(col));
+                    }
+                }
+                enabled = craftable || partial;
+            }
+            Identifier face = (viewerMode() == PinOverlay.MODE_FURNACE
+                    ? BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE
+                    : BRBTextures.RECIPE_BOOK_CRAFTING_OVERLAY_SPRITE)
+                    .get(enabled, false);
+            for (int c = inRow; c < colsFill; c++) {
+                int gx = boxX + 4 + c * 25;
+                int gy = boxY + boxH - 28 - r * 25;
+                ClientCompat.blitSprite(gui, face, gx, gy, 24, 24);
+                if (partial) {
+                    gui.fill(gx + 1, gy + 1, gx + 23, gy + 23, 0x60FF3333);
+                }
+            }
+        }
+    }
+
     /** Whether the currently shown category is a standalone grid category
      *  (fuel / compost / info): no recipe buttons, a cell grid instead. */
-    private static boolean isGridMode() {
+    private boolean isGridMode() {
         return currentCategory != null && currentCategory.isGridCategory();
     }
 
-    /** Draw a grid category's standalone item grid: plain-overlay cells with
-     *  a 16px item icon each; the hovered cell switches to the highlighted
-     *  overlay (no zoom). */
-    private static void drawItemGrid(GuiGraphicsExtractor gui, int mouseX, int mouseY) {
+    /** The fuel category's craftable/uncraftable states: a fuel present in the
+     *  search space (real inventory) draws the craftable texture face, missing
+     *  fuels draw the uncraftable face — same states as the recipe buttons.
+     *  Hovered cells keep their own state's highlighted face (the fuel cells
+     *  are clickable: see {@link #handleFuelCellClick}). */
+    private void drawItemGrid(GuiGraphicsExtractor gui, int mouseX, int mouseY) {
         if (gridItems.isEmpty()) return;
-        ClientCompat.blitSprite(gui, OVERLAY_RECIPE_SPRITE, boxLeft(), boxY,
-                boxW, boxH);
+        ClientCompat.blitSprite(gui, OVERLAY_RECIPE_SPRITE, boxLeft(), boxY - TITLE_BAR_H,
+                boxW, boxH + TITLE_BAR_H);
         // Rows grow upward: row 0 sits at the box bottom (against the tab
         // strip); the box was sized to this page's rows/columns by
         // fitGridBoxToPage, so empty rows/columns are already dropped.
@@ -875,6 +1895,8 @@ public final class RecipeViewerOverlay {
         int columns = Math.max(1, Math.min(PAGE_COLS, end - start));
         gridHoverStack = null;
         gridHoverCategory = currentCategory;
+        var fuelCounts = currentCategory.isFuelCategory()
+                ? PartialCraftingUtil.searchSpaceItemCounts() : null;
         for (int i = start; i < end; i++) {
             int idx = i - start;
             int row = idx / columns;
@@ -883,7 +1905,8 @@ public final class RecipeViewerOverlay {
             boolean hovered = inside(mouseX, mouseY, gx, gy, 24, 24);
             // The hovered cell swaps to the highlighted overlay sprite
             // (the query viewer's objects highlight on non-Shift hover).
-            Identifier sprite = BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(true, hovered);
+            boolean owned = fuelCounts == null || fuelCounts.containsKey(gridItems.get(i).getItem());
+            Identifier sprite = BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(owned, hovered);
             ClientCompat.blitSprite(gui, sprite, gx, gy, 24, 24);
             gui.item(gridItems.get(i), gx + 4, gy + 4);
             if (hovered) {
@@ -891,19 +1914,143 @@ public final class RecipeViewerOverlay {
                 gui.requestCursor(com.mojang.blaze3d.platform.cursor.CursorTypes.POINTING_HAND);
             }
         }
+        // Row fillers: the page's trailing cells of a partially-filled row.
+        drawEmptyRowFillers(gui);
+    }
+
+    /** Fuel-cell hit test (same geometry as {@link #drawItemGrid}); only the
+     *  fuel category's cells are interactive. */
+    private ItemStack fuelCellAt(int mx, int my) {
+        if (gridItems.isEmpty() || currentCategory == null || !currentCategory.isFuelCategory()) {
+            return ItemStack.EMPTY;
+        }
+        int start = viewerPage * PAGE_SIZE;
+        int end = Math.min(start + PAGE_SIZE, gridItems.size());
+        int columns = Math.max(1, Math.min(PAGE_COLS, end - start));
+        for (int i = start; i < end; i++) {
+            int idx = i - start;
+            int row = idx / columns;
+            int gx = boxX + 4 + (idx % columns) * 25;
+            int gy = boxY + boxH - 28 - row * 25;
+            if (inside(mx, my, gx, gy, 24, 24)) {
+                return gridItems.get(i);
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    /** Left-click a fuel cell: quick-fill the furnace-family fuel slot — owned
+     *  fuel moves from the player inventory (server-verified shift-click),
+     *  missing fuel gets a ghost preview in the slot (same look as the recipe
+     *  book's ghost ingredients).  Cells on non-furnace screens only consume
+     *  the click. */
+    private boolean handleFuelCellClick(MouseButtonEvent event, AbstractContainerScreen<?> screen) {
+        if (event.button() != 0) return false;
+        ItemStack fuel = fuelCellAt(Mth.floor(event.x()), Mth.floor(event.y()));
+        if (fuel.isEmpty()) return false;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.getSoundManager() != null) {
+            AbstractWidget.playButtonClickSound(mc.getSoundManager());
+        }
+        if (screen.getMenu() instanceof AbstractFurnaceMenu furnace) {
+            placeFurnaceFuel(furnace, fuel, screen);
+        }
+        return true;
+    }
+
+    /** Fill the furnace-family fuel slot with {@code fuel}, through the vanilla
+     *  container-click API (the same {@code GameMode} calls the vanilla screens
+     *  use): owned fuel = a virtual drag — pick the fuel stack out of the
+     *  player inventory, place it into the fuel slot, stash whatever the slot
+     *  swapped out (the server validates {@code FuelSlot.mayPlace}, so a fuel
+     *  that is also smeltable still lands in the FUEL slot — shift-click would
+     *  route it to the input).  Missing fuel = the vanilla ghost-slot preview,
+     *  gated exactly like {@code FurnaceRecipeBookComponent.fillGhostRecipe}
+     *  (only while the fuel slot is empty) and auto-removed once an item lands
+     *  in the slot. */
+    private void placeFurnaceFuel(AbstractFurnaceMenu furnace, ItemStack fuel,
+                                  AbstractContainerScreen<?> screen) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return;
+        if (PartialCraftingUtil.searchSpaceItemCounts().containsKey(fuel.getItem())) {
+            if (!furnace.getCarried().isEmpty()) {
+                ClientInventoryUtil.storeItem(-1, idx -> !RecipeMenuUtil.isCraftingMenuSlot(furnace, idx));
+            }
+            for (int i = 3; i < furnace.slots.size(); i++) {
+                ItemStack slot = furnace.slots.get(i).getItem();
+                if (!slot.isEmpty() && slot.is(fuel.getItem())) {
+                    mc.gameMode.handleContainerInput(furnace.containerId, i, 0,
+                            ContainerInput.PICKUP, mc.player);
+                    mc.gameMode.handleContainerInput(furnace.containerId,
+                            AbstractFurnaceMenu.FUEL_SLOT, 0, ContainerInput.PICKUP, mc.player);
+                    ClientInventoryUtil.storeItem(-1, idx -> !RecipeMenuUtil.isCraftingMenuSlot(furnace, idx));
+                    clearFuelGhost(furnace.getSlot(AbstractFurnaceMenu.FUEL_SLOT));
+                    return;
+                }
+            }
+            return;
+        }
+        if (screen instanceof AbstractRecipeBookScreen<?> rbs) {
+            RecipeBookComponent<?> book = ((AbstractRecipeBookScreenAccessor) rbs)
+                    .brbe$getRecipeBookComponent();
+            if (book == null) return;
+            GhostSlots ghostSlots = ((RecipeBookComponentAccessor) book).getGhostSlots();
+            if (ghostSlots == null) return;
+            Slot fuelSlot = furnace.getSlot(AbstractFurnaceMenu.FUEL_SLOT);
+            if (!fuelSlot.getItem().isEmpty()) return;
+            try {
+                SlotDisplay display = new SlotDisplay.ItemStackSlotDisplay(
+                        ItemStackTemplate.fromStack(new ItemStack(fuel.getItem(), 1)));
+                ((GhostSlotsSetSlotAccessor) ghostSlots).brbe$setSlot(
+                        fuelSlot, SlotDisplayContext.fromLevel(mc.level), display, false);
+                fuelGhostActive = true;
+            } catch (Exception | LinkageError ignored) {
+                // a failed ghost fill must never break the click handling
+            }
+        }
+    }
+
+    /** Remove the BRBE fuel ghost once the fuel slot holds a real item (the
+     *  ghost is only a "please fill" hint, matching vanilla's empty-slot gate). */
+    private void syncFuelGhost() {
+        if (!fuelGhostActive) return;
+        if (ownerScreen == null
+                || !(ownerScreen.getMenu() instanceof AbstractFurnaceMenu furnace)) return;
+        Slot fuelSlot = furnace.getSlot(AbstractFurnaceMenu.FUEL_SLOT);
+        if (!fuelSlot.getItem().isEmpty()) {
+            clearFuelGhost(fuelSlot);
+        }
+    }
+
+    private void clearFuelGhost(Slot fuelSlot) {
+        fuelGhostActive = false;
+        try {
+            if (ownerScreen instanceof AbstractRecipeBookScreen<?> rbs) {
+                RecipeBookComponent<?> book = ((AbstractRecipeBookScreenAccessor) rbs)
+                        .brbe$getRecipeBookComponent();
+                if (book != null) {
+                    GhostSlots ghostSlots = ((RecipeBookComponentAccessor) book).getGhostSlots();
+                    if (ghostSlots != null) {
+                        ((GhostSlotsAccessor) ghostSlots).getIngredients().remove(fuelSlot);
+                    }
+                }
+            }
+        } catch (Exception | LinkageError ignored) {
+            // a failed ghost removal must never break the frame
+        }
     }
 
     /** X of the i-th category tab (i is the tab index within the current tab
      *  page).  The tab's icon center lands on the i-th column's center line
      *  (boxX + 16 + i*25): the icon sits (TAB_DRAW_WIDTH-16)/2 + 8 = 12px
      *  from the tab's left edge, so the tab starts at boxX + 4 + i*25. */
-    private static int tabX(int i) {
+    private int tabX(int i) {
         return boxX + 4 + i * TAB_WIDTH;
     }
 
     /** Top edge of the category-tab strip (4px above the box bottom, nudged
      *  1px down). */
-    private static int tabTop() {
+    private int tabTop() {
         return boxY + boxH - 4 + 1;
     }
 
@@ -911,7 +2058,7 @@ public final class RecipeViewerOverlay {
      *  ({@link #tabWindowStart}).  The box is widened (with empty columns) to
      *  hold up to {@link #MAX_TABS} tabs, so up to ten tabs are visible at once;
      *  with more, the window slides instead of folding into pages. */
-    private static int visibleTabCount() {
+    private int visibleTabCount() {
         return MAX_TABS;
     }
 
@@ -919,9 +2066,9 @@ public final class RecipeViewerOverlay {
      *  (tabs with nothing to show are hidden).  With the "hide objects of
      *  workstations without a recipe book" toggle on, categories whose
      *  <b>every</b> object is hidden by the filter hide their tab too. */
-    private static List<RecipeViewerCategory> visibleCategories() {
+    private List<RecipeViewerCategory> visibleCategories() {
         if (queryTarget == null || queryTarget.isEmpty()) return List.of();
-        // Browse-all (Ctrl+O): the tab strip shows EVERY category whose
+        // Browse-all: the tab strip shows EVERY category whose
         // complete pool has objects — the "rooms" of the house — not just the
         // categories matching the query.
         if (browseAllMode) {
@@ -954,16 +2101,17 @@ public final class RecipeViewerOverlay {
      *  excluding {@code exclude} — the defensive re-pick when the default
      *  category's hits were all filtered away.  Respects the workstation hide
      *  toggle (illegal stations are cut from their category connection). */
-    private static RecipeViewerCategory bestContentCategory(ItemStack target, boolean usage,
+    private RecipeViewerCategory bestContentCategory(ItemStack target, boolean usage,
                                                             RecipeViewerCategory exclude) {
         RecipeViewerCategory best = null;
         int bestPriority = -1;
         for (RecipeViewerCategory category : RecipeViewerCategories.all()) {
             if (category == exclude) continue;
             if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
-                    && !category.isGridCategory()
-                    && category.appliesToStation(target)
-                    && !RecipeViewerEngine.isRecipeBookStation(target)) {
+                    && (!RecipeViewerCategories.isProgressCategory(category)
+                        || (!category.isGridCategory()
+                            && category.appliesToStation(target)
+                            && !RecipeViewerEngine.isRecipeBookStation(target)))) {
                 continue;
             }
             int priority = category.defaultPriority(target);
@@ -975,19 +2123,13 @@ public final class RecipeViewerOverlay {
         }
         return best;
     }
-
-    /** Cached ids of categories whose objects are ALL hidden by the filter
-     *  (their tab is hidden too).  Rebuilt when the toggle state changes or
-     *  after a plugin re-collection. */
-    private static Set<String> cachedHiddenCategoryIds;
-    private static boolean cachedHiddenConfigState;
     /** Browse-mode category list cache (all categories with a non-empty
      *  complete pool, hidden set applied); invalidated with the hidden set
      *  and on every mode flip. */
-    private static List<RecipeViewerCategory> cachedBrowseCategories;
-    private static boolean cachedBrowseState;
+    private List<RecipeViewerCategory> cachedBrowseCategories;
+    private boolean cachedBrowseState;
 
-    private static Set<String> hiddenCategoryIds() {
+    private Set<String> hiddenCategoryIds() {
         boolean config = BetterRecipeBook.config.hideNoRecipeBookStationObjects;
         if (cachedHiddenCategoryIds == null
                 || cachedHiddenConfigState != config
@@ -1003,7 +2145,7 @@ public final class RecipeViewerOverlay {
      *  pool (allEntries / allGridItems) is non-empty, in tab order, the
      *  "hide objects of workstations without a recipe book" hidden set
      *  applied.  Cached — the pools are queried once per mode entry. */
-    private static List<RecipeViewerCategory> browseCategories() {
+    private List<RecipeViewerCategory> browseCategories() {
         if (cachedBrowseCategories == null || cachedBrowseState != browseAllMode) {
             cachedBrowseState = browseAllMode;
             cachedBrowseCategories = computeBrowseCategories();
@@ -1011,7 +2153,7 @@ public final class RecipeViewerOverlay {
         return cachedBrowseCategories;
     }
 
-    private static List<RecipeViewerCategory> computeBrowseCategories() {
+    private List<RecipeViewerCategory> computeBrowseCategories() {
         Set<String> hidden = hiddenCategoryIds();
         List<RecipeViewerCategory> out = new ArrayList<>();
         for (RecipeViewerCategory cat : RecipeViewerCategories.all()) {
@@ -1032,28 +2174,6 @@ public final class RecipeViewerOverlay {
         return out;
     }
 
-    /** Category ids whose every object has no recipe-book-backed workstation
-     *  (built-in categories and the fuel category are exempt). */
-    private static Set<String> computeHiddenCategoryIds() {
-        Set<String> hidden = new HashSet<>();
-        for (RecipeViewerCategory cat : RecipeViewerCategories.all()) {
-            if (cat.isFuelCategory()) continue;
-            if (!(cat instanceof PluginRecipeViewerCategory plugin)) continue;
-            boolean anyVisible = false;
-            for (String uid : plugin.uids()) {
-                for (RecipeDisplayEntry entry : RecipeViewerEngine.allRecipes(uid)) {
-                    if (entryHasRecipeBookStation(entry, cat.stationIconsFor(entry))) {
-                        anyVisible = true;
-                        break;
-                    }
-                }
-                if (anyVisible) break;
-            }
-            if (!anyVisible) hidden.add(cat.id());
-        }
-        return hidden;
-    }
-
     /** Category tabs along the box bottom (vanilla creative-inventory look).
      *  More categories than fits are shown through a REI-style sliding window
      *  of {@code visibleTabCount} tabs ({@link #tabWindowStart}); the wheel over
@@ -1061,7 +2181,7 @@ public final class RecipeViewerOverlay {
      *  {@code behind} selects the pass: {@code true} draws only the unselected
      *  tabs (painted before the box so its container UI covers their top edge);
      *  {@code false} draws only the selected tab, on top of the box. */
-    private static void drawCategoryTabs(GuiGraphicsExtractor gui, int mouseX, int mouseY,
+    private void drawCategoryTabs(GuiGraphicsExtractor gui, int mouseX, int mouseY,
                                          boolean behind) {
         if (!isActive()) return;
         List<RecipeViewerCategory> cats = visibleCategories();
@@ -1131,7 +2251,7 @@ public final class RecipeViewerOverlay {
     /** Whether the open preview (modal) owns the cursor: its hit volume covers
      *  the point, so everything behind it — recipe buttons, category tabs,
      *  page controls — must not hover. */
-    private static boolean previewOwnsCursor(int mx, int my) {
+    private boolean previewOwnsCursor(int mx, int my) {
         return RecipePopupLayer.isActive() && RecipePopupLayer.contains(mx, my);
     }
 
@@ -1139,7 +2259,7 @@ public final class RecipeViewerOverlay {
      *  preview, or a pin overlay covers the point.  Underlying screen widgets
      *  (creative-inventory tabs, recipe-book tabs, …) must not hover or show
      *  their tooltips while the cursor is inside one of these modal regions. */
-    public static boolean modalMaskOwnsCursor(int mx, int my) {
+    public boolean modalMaskOwnsCursor(int mx, int my) {
         if (PinOverlayManager.covers(mx, my)) return true;
         if (!isActive()) return false;
         return contains(mx, my) || previewOwnsCursor(mx, my);
@@ -1157,7 +2277,7 @@ public final class RecipeViewerOverlay {
      *  spaces (16px) right of the title, the right marker 1 space (4px) right
      *  of the left marker, at EXACT pixel anchors (no space padding — a 4px
      *  space grid cannot reproduce arbitrary glyph advances). */
-    private static void drawTabTooltip(GuiGraphicsExtractor gui, RecipeViewerCategory cat,
+    private void drawTabTooltip(GuiGraphicsExtractor gui, RecipeViewerCategory cat,
                                        int mouseX, int mouseY) {
         Minecraft mc = Minecraft.getInstance();
         List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
@@ -1202,7 +2322,7 @@ public final class RecipeViewerOverlay {
     /** This mod's display name — the "source mod" of the info category, read
      *  straight from the FabricLoader mod metadata (same BLUE+ITALIC style as
      *  every other mod-name line). */
-    private static Component selfModName() {
+    private Component selfModName() {
         String name = null;
         try {
             name = FabricLoader.getInstance()
@@ -1218,7 +2338,7 @@ public final class RecipeViewerOverlay {
     }
 
     /** Clicking a visible category tab switches the viewer to that category. */
-    private static boolean handleCategoryTabClick(MouseButtonEvent event) {
+    private boolean handleCategoryTabClick(MouseButtonEvent event) {
         if (event.button() != 0) return false;
         int mx = Mth.floor(event.x());
         int my = Mth.floor(event.y());
@@ -1234,13 +2354,11 @@ public final class RecipeViewerOverlay {
                 if (cat != currentCategory) {
                     ClientCompat.playPageFlipSound(mc);
                     switchCategory(cat);
-                } else {
-                    // Clicking the already-selected tab toggles browse-all:
-                    // enters the "show all objects" view while querying,
-                    // restores (same as pressing O) while browsing.
-                    ClientCompat.playPageFlipSound(mc);
-                    toggleBrowseAll();
                 }
+                // Clicking the ALREADY-SELECTED tab does nothing any more
+                // (browse-all is toggled ONLY by a click on the extension
+                // area's title — release without a drag).  The click is still
+                // consumed (it lies on the window's footprint).
                 return true;
             }
         }
@@ -1249,7 +2367,7 @@ public final class RecipeViewerOverlay {
 
     /** The built-in family backing {@code category}, for the left station
      *  column ({@code null} for categories without stations, e.g. info). */
-    private static RecipeViewerIndex.Family familyForCategory(RecipeViewerCategory category) {
+    private RecipeViewerIndex.Family familyForCategory(RecipeViewerCategory category) {
         if (category == null) return null;
         return switch (category.id()) {
             case "crafting" -> RecipeViewerIndex.Family.CRAFTING;
@@ -1272,7 +2390,7 @@ public final class RecipeViewerOverlay {
      *  laid out bottom-up (index 0 renders at the bottom) and the window
      *  starts at the list bottom ({@code stationScroll = 0} shows the first
      *  rows, i.e. the bottommost content). */
-    private static void rebuildStationColumn() {
+    private void rebuildStationColumn() {
         stationColumnItems = List.of();
         stationScroll = 0;
         if (currentCategory == null) return;
@@ -1285,7 +2403,10 @@ public final class RecipeViewerOverlay {
         if (family == RecipeViewerIndex.Family.FURNACE) {
             // Smelting / fuel: subcategory groups, bottom-up 烧炼 → 熔炼 →
             // 烟熏 → 营火, each group in the tooltip's left-to-right order.
-            stationColumnItems = RecipeViewerIndex.furnaceStationColumnItems();
+            // The fuel category (烧炼燃料) drops the campfire-cooking group —
+            // campfire cannot take fuel — while the furnace category keeps it.
+            boolean fuel = "fuel".equals(currentCategory.id());
+            stationColumnItems = RecipeViewerIndex.furnaceStationColumnItems(!fuel);
             return;
         }
         stationColumnItems = RecipeViewerIndex.workstationItems(family);
@@ -1293,13 +2414,13 @@ public final class RecipeViewerOverlay {
 
     /** How many station cells fit in the object area's height (the box's row
      *  count): the station window's viewport. */
-    private static int stationViewRows() {
-        return Math.max(1, (RecipeViewerOverlay.boxH - 8) / STATION_PITCH);
+    private int stationViewRows() {
+        return Math.max(1, (boxH - 8) / STATION_PITCH);
     }
 
     /** The workstation object in the column cell under (mx,my), or empty.
      *  Shared by the column click, R/U capture and the hover state. */
-    private static ItemStack stationCellAt(int mx, int my) {
+    private ItemStack stationCellAt(int mx, int my) {
         if (stationColumnItems.isEmpty()) return ItemStack.EMPTY;
         int rows = stationViewRows();
         int maxScroll = Math.max(0, stationColumnItems.size() - rows);
@@ -1322,7 +2443,7 @@ public final class RecipeViewerOverlay {
      *  border sits 5px above the topmost cell — the same inset the main
      *  box uses (its cells start at boxY+5), so a full column panel is exactly
      *  as tall as the main box (no off-by-one).  {@code shown} = visible rows. */
-    private static int[] stationColumnPanelRect(int shown) {
+    private int[] stationColumnPanelRect(int shown) {
         int bottom = boxY + boxH - 4;
         int colTop = bottom - shown * STATION_PITCH + 1 - 5;
         int colH = (boxY + boxH) - colTop;
@@ -1346,26 +2467,22 @@ public final class RecipeViewerOverlay {
      *  <p>NOTE: GUI sprite ids are relative to {@code textures/gui/sprites/}
      *  (same convention as {@link #OVERLAY_RECIPE_SPRITE}) — including the full
      *  path makes the sprite look-up miss and render the error texture. */
-    private static final Identifier COLUMN_PANEL_SPRITE =
+    private final Identifier COLUMN_PANEL_SPRITE =
             Identifier.fromNamespaceAndPath("brbe", "recipe_book/column_panel");
 
-    /** Variant used when the column fills the whole object area: the trimmed
-     *  top then lands exactly on the main box's top border (colTop == boxTop),
-     *  so the top border must run to the panel's right edge — the panel's top
-     *  border continues the box's top border as one straight line (the normal
-     *  sprite's TR T-junction would cut it).  Same open right side / bottom
-     *  band as {@link #COLUMN_PANEL_SPRITE}. */
-    private static final Identifier COLUMN_PANEL_TOP_SPRITE =
-            Identifier.fromNamespaceAndPath("brbe", "recipe_book/column_panel_top");
-
-    private static void drawStationColumnSurfaces(GuiGraphicsExtractor gui) {
+    private void drawStationColumnSurfaces(GuiGraphicsExtractor gui) {
         if (stationColumnItems.isEmpty()) return;
         int rows = stationViewRows();
         int shown = Math.min(stationColumnItems.size(), rows);
         if (shown <= 0) return;
         int[] rect = stationColumnPanelRect(shown);
-        Identifier sprite = rect[0] == boxTop() ? COLUMN_PANEL_TOP_SPRITE : COLUMN_PANEL_SPRITE;
-        ClientCompat.blitSprite(gui, sprite, panelLeft(), rect[0],
+        // The column always uses the normal (bottom-layer) texture; the
+        // full-height "column_panel_top" variant is not used any more — with
+        // the box's background extended upward the box's top border line
+        // moved up, so the column's top border no longer continues it as one
+        // straight line: the topmost workstation cell uses the same texture
+        // as the lower ones.
+        ClientCompat.blitSprite(gui, COLUMN_PANEL_SPRITE, panelLeft(), rect[0],
                 STATION_COL_WIDTH + 4, rect[1]);
     }
 
@@ -1376,7 +2493,7 @@ public final class RecipeViewerOverlay {
      *  wheel-driven window; fewer show no empty carriers — the column's panel
      *  background is trimmed to the actual content (top edge follows the
      *  topmost cell; see {@link #drawStationColumnSurfaces}). */
-    private static void drawStationColumn(GuiGraphicsExtractor gui, int mouseX, int mouseY) {
+    private void drawStationColumn(GuiGraphicsExtractor gui, int mouseX, int mouseY) {
         if (stationColumnItems.isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
@@ -1486,7 +2603,7 @@ public final class RecipeViewerOverlay {
 
     /** Clicking a left-column workstation object queries its recipes (re-opens
      *  the viewer for that object, R-key = "view recipe" semantics). */
-    private static boolean handleStationColumnClick(MouseButtonEvent event) {
+    private boolean handleStationColumnClick(MouseButtonEvent event) {
         if (event.button() != 0 || stationColumnItems.isEmpty() || ownerScreen == null) return false;
         int mx = Mth.floor(event.x());
         int my = Mth.floor(event.y());
@@ -1497,12 +2614,12 @@ public final class RecipeViewerOverlay {
         if (mc.getSoundManager() != null) {
             AbstractWidget.playButtonClickSound(mc.getSoundManager());
         }
-        return openFor(screen, hit, false);
+        return RecipeViewerOverlay.openNewViewer(screen, hit, false);
     }
 
     /** Wheel over the left station column slides its window — only when there
      *  are more stations than visible rows (no empty carriers otherwise). */
-    private static boolean handleStationColumnScroll(double mouseX, double mouseY, double vertical) {
+    private boolean handleStationColumnScroll(double mouseX, double mouseY, double vertical) {
         if (!isActive() || vertical == 0) return false;
         if (stationColumnItems.size() <= stationViewRows()) return false;
         // The wheel region follows the TRIMMED panel (the same rect the panel
@@ -1528,7 +2645,7 @@ public final class RecipeViewerOverlay {
     }
 
     /** Whether the cursor is over the category tab strip. */
-    private static boolean overTabStrip(double mouseX, double mouseY) {
+    private boolean overTabStrip(double mouseX, double mouseY) {
         int catCount = visibleCategories().size();
         if (catCount == 0) return false;
         int perPage = visibleTabCount();
@@ -1544,7 +2661,7 @@ public final class RecipeViewerOverlay {
      *  selection — the selected tab and the window move simultaneously, the
      *  highlight staying visually on that slot.  No animation — the tab
      *  switches immediately. */
-    public static boolean mouseScrolledTabs(double mouseX, double mouseY, double vertical) {
+    public boolean mouseScrolledTabs(double mouseX, double mouseY, double vertical) {
         if (!isActive() || vertical == 0) return false;
         List<RecipeViewerCategory> cats = visibleCategories();
         if (cats.size() <= 1) return false;
@@ -1590,7 +2707,7 @@ public final class RecipeViewerOverlay {
      *  rendered texture's bounds (shared {@link PopupGeometry}).  Public so
      *  the recipe button mixin can extend its hover area to the whole popup
      *  for adapted synthetic recipes. */
-    public static boolean isInPopupArea(AbstractWidget widget, int mx, int my) {
+    public boolean isInPopupArea(AbstractWidget widget, int mx, int my) {
         return popupGeometry(widget).contains(mx, my);
     }
 
@@ -1601,14 +2718,14 @@ public final class RecipeViewerOverlay {
      *  only while the object itself is hovered, exactly like the BRBE-adapted
      *  objects.  The open preview's hit volume — its own texture bounds,
      *  {@link #isInPopupArea} — keeps it open while the cursor is inside it. */
-    public static boolean isTriggerArea(AbstractWidget widget, int mx, int my) {
+    public boolean isTriggerArea(AbstractWidget widget, int mx, int my) {
         return mx >= widget.getX() && mx < widget.getX() + widget.getWidth()
                 && my >= widget.getY() && my < widget.getY() + widget.getHeight();
     }
 
     /** The shared popup geometry for {@code widget}'s recipe, in the viewer's
      *  current layout mode. */
-    private static PopupGeometry popupGeometry(AbstractWidget widget) {
+    private PopupGeometry popupGeometry(AbstractWidget widget) {
         OverlayRecipeButtonAccessor oba = (OverlayRecipeButtonAccessor) widget;
         RecipeDisplayId id = oba.brbe$getRecipe();
         return PopupGeometry.of(id, entryFor(id), viewerMode(), oba.brbe$getSlots(),
@@ -1618,13 +2735,13 @@ public final class RecipeViewerOverlay {
     /** The viewer's current layout mode (furnace / stonecutter / smithing /
      *  anvil / brewing / grindstone / crafting), shared with the pin overlays
      *  and the popup geometry. */
-    public static int viewerMode() {
+    public int viewerMode() {
         return modeForCategory(currentCategory);
     }
 
     /** Layout mode of a single category (the single source of
      *  {@link #viewerMode}). */
-    private static int modeForCategory(RecipeViewerCategory category) {
+    private int modeForCategory(RecipeViewerCategory category) {
         if (category == null) return PinOverlay.MODE_CRAFTING;
         return switch (category.id()) {
             case "furnace", "fuel" -> PinOverlay.MODE_FURNACE;
@@ -1640,17 +2757,17 @@ public final class RecipeViewerOverlay {
     /** The query-viewer button whose popup the cursor currently sits in
      *  (top-most of any overlap), set each render while Shift is held; it
      *  drives the independent popup layer and the popup tooltip. */
-    private static AbstractWidget hoverPopupField;
+    private AbstractWidget hoverPopupField;
 
     /** The viewer button under the cursor regardless of Shift, for the
      *  always-detailed button tooltip when no popup is open. */
-    private static AbstractWidget hoveredViewerButton;
+    private AbstractWidget hoveredViewerButton;
 
     /** The item rendered under the cursor inside the popup (its current cycled
      *  variant), or EMPTY when the cursor is on empty space.  For JEI-adapted
      *  popups the item comes from the live JEI drawable (which drives the
      *  visible cycling itself), so the tooltip matches the painted variant. */
-    public static ItemStack slotStackInPopup(AbstractWidget widget, int mx, int my) {
+    public ItemStack slotStackInPopup(AbstractWidget widget, int mx, int my) {
         OverlayRecipeButtonAccessor oba = (OverlayRecipeButtonAccessor) widget;
         RecipeDisplayId id = oba.brbe$getRecipe();
         PopupGeometry geometry = popupGeometry(widget);
@@ -1668,8 +2785,10 @@ public final class RecipeViewerOverlay {
     }
 
     /** Full tooltip for a popup slot's item (item name + source-mod line),
-     *  at the vanilla default position (no push-away — the mechanism is gone). */
-    private static void renderPopupSlotTooltip(GuiGraphicsExtractor gui, int mx, int my,
+     *  at the vanilla default position (no push-away — the mechanism is gone).
+     *  The title row carries the item's icon at the same enlarged scale as the
+     *  query object's tooltip. */
+    private void renderPopupSlotTooltip(GuiGraphicsExtractor gui, int mx, int my,
                                                ItemStack stack) {
         Minecraft mc = Minecraft.getInstance();
         List<Component> lines = new ArrayList<>(Screen.getTooltipFromItem(mc, stack));
@@ -1680,15 +2799,20 @@ public final class RecipeViewerOverlay {
         }
         List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
                 new ArrayList<>(lines.size());
-        for (Component line : lines) {
-            components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
-                    .create(line.getVisualOrderText()));
+        for (int i = 0; i < lines.size(); i++) {
+            if (i == 0) {
+                components.add(new com.alonie.brbe.util.TitleWithIconTooltipComponent(
+                        lines.get(0).getVisualOrderText(), stack));
+            } else {
+                components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                        .create(lines.get(i).getVisualOrderText()));
+            }
         }
         deferTooltip(gui, components, mx, my,
                 stack.get(net.minecraft.core.component.DataComponents.TOOLTIP_STYLE));
     }
 
-    public static void renderTooltip(GuiGraphicsExtractor gui, int mouseX, int mouseY) {
+    public void renderTooltip(GuiGraphicsExtractor gui, int mouseX, int mouseY) {
         if (!isActive()) return;
         // A pin under the cursor owns the tooltip; the viewer's is suppressed.
         if (PinOverlayManager.covers(mouseX, mouseY)) return;
@@ -1706,7 +2830,7 @@ public final class RecipeViewerOverlay {
                     // The title row also carries the item's icon to the right of
                     // the name, matching the detailed recipe tooltips of the
                     // other categories.
-                    components.add(new TitleWithIconTooltipComponent(
+                    components.add(new com.alonie.brbe.util.TitleWithIconTooltipComponent(
                             lines.get(0).getVisualOrderText(), gridHoverStack));
                 } else {
                     components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
@@ -1767,7 +2891,7 @@ public final class RecipeViewerOverlay {
      *  vanilla default position.  Shared by the viewer's button hover and the
      *  pin overlays' no-shift tooltip (both inherit the query object's
      *  tooltip). */
-    public static void renderDetailedRecipeTooltip(GuiGraphicsExtractor gui,
+    public void renderDetailedRecipeTooltip(GuiGraphicsExtractor gui,
                                                    RecipeDisplayEntry entry, RecipeDisplayId id,
                                                    int mouseX, int mouseY, int selIdx) {
         // The pin overlays share this method; their tooltip carries no
@@ -1778,7 +2902,7 @@ public final class RecipeViewerOverlay {
 
     /** Viewer object hover: the detailed tooltip with the recipe's full
      *  preview UI embedded (no Shift) — the same rendering the popup uses. */
-    public static void renderDetailedRecipeTooltip(GuiGraphicsExtractor gui,
+    public void renderDetailedRecipeTooltip(GuiGraphicsExtractor gui,
                                                    RecipeDisplayEntry entry, RecipeDisplayId id,
                                                    List<?> slots, boolean craftable, boolean partial,
                                                    int mouseX, int mouseY, int selIdx) {
@@ -1786,17 +2910,36 @@ public final class RecipeViewerOverlay {
                 mouseX, mouseY, selIdx, true);
     }
 
-    private static void renderDetailedRecipeTooltip(GuiGraphicsExtractor gui,
+    private void renderDetailedRecipeTooltip(GuiGraphicsExtractor gui,
                                                     RecipeDisplayEntry entry, RecipeDisplayId id,
                                                     List<?> slots, boolean craftable, boolean partial,
                                                     int mouseX, int mouseY, int selIdx,
                                                     boolean embedPreview) {
+        renderDetailedTooltipImpl(gui, entry, id, slots, craftable, partial,
+                mouseX, mouseY, selIdx, embedPreview,
+                viewerMode(), currentCategory, overlay.getRecipeCollection());
+    }
+
+    /** The shared implementation of the detailed recipe tooltip: the viewer
+     *  button hover (preview embedded) and the pin overlays' no-shift tooltip
+     *  (no preview).  {@code mode} / {@code category} / {@code collection} are
+     *  the window contexts; the pins-only (no window) pass supplies a
+     *  placeholder mode, null category (station row falls back to
+     *  {@link #categoryFor(RecipeDisplayEntry)}) and null collection (the
+     *  recipe-book incompatibility warning is skipped). */
+    private static void renderDetailedTooltipImpl(GuiGraphicsExtractor gui,
+                                                         RecipeDisplayEntry entry, RecipeDisplayId id,
+                                                         List<?> slots, boolean craftable, boolean partial,
+                                                         int mouseX, int mouseY, int selIdx,
+                                                         boolean embedPreview, int mode,
+                                                         RecipeViewerCategory category,
+                                                         RecipeCollection collection) {
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.player == null || mc.level == null) return;
         ItemStack output = resolveOutput(entry, mc, selIdx);
         if (output == null || output.isEmpty()) return;
 
-        List<Component> lines = buildTooltipLines(mc, output, id, entry);
+        List<Component> lines = buildTooltipLines(mc, output, id, entry, collection);
         Identifier style = output.get(net.minecraft.core.component.DataComponents.TOOLTIP_STYLE);
         List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
                 new ArrayList<>(lines.size());
@@ -1804,7 +2947,7 @@ public final class RecipeViewerOverlay {
             if (i == 0) {
                 // The title row also carries the item's icon to the right of
                 // the name, vertically centred in the row.
-                components.add(new TitleWithIconTooltipComponent(
+                components.add(new com.alonie.brbe.util.TitleWithIconTooltipComponent(
                         lines.get(0).getVisualOrderText(), output));
             } else {
                 components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
@@ -1817,7 +2960,7 @@ public final class RecipeViewerOverlay {
         // viewer object gets its preview: the delegated JEI UI (1:1) or the
         // vanilla-style popup (crafting grid / furnace fixed pair).
         if (embedPreview) {
-            components.add(new RecipePreviewTooltipComponent(id, entry, viewerMode(),
+            components.add(new RecipePreviewTooltipComponent(id, entry, mode,
                     slots, selIdx, craftable, partial));
         }
         if (RecipeViewerIndex.asFurnace(entry) != null) {
@@ -1826,7 +2969,7 @@ public final class RecipeViewerOverlay {
             // Crafting / stonecutting / smithing: show the workstations
             // that produce this recipe as icons at the bottom of the
             // tooltip (including mod workstations), no text label.
-            components.addAll(stationIconsTooltipComponents(entry));
+            components.addAll(stationIconsTooltipComponents(entry, category));
         }
         // Source-mod name always sits at the very bottom.
         if (BetterRecipeBook.config.showModName) {
@@ -1859,16 +3002,20 @@ public final class RecipeViewerOverlay {
         return null;
     }
 
-    /** Reproduces RecipeButton.getTooltipText including BRBE's appended lines. */
+    /** Reproduces RecipeButton.getTooltipText including BRBE's appended lines.
+     *  {@code collection} is the query window's collection (may be null in the
+     *  pins-only pass — the recipe-book incompatibility warning is skipped). */
     private static List<Component> buildTooltipLines(Minecraft mc, ItemStack output, RecipeDisplayId id,
-                                                     RecipeDisplayEntry entry) {
+                                                     RecipeDisplayEntry entry,
+                                                     RecipeCollection collection) {
         List<Component> lines = new ArrayList<>(Screen.getTooltipFromItem(mc, output));
 
         // 3x3 "cannot craft here" warning comes above the source-mod line.
-        if (BetterRecipeBook.config.showAllRecipesInSurvival
+        if (collection != null
+                && BetterRecipeBook.config.showAllRecipesInSurvival
                 && !BetterRecipeBook.config.hideIncompatibleMark
                 && mc.gui.screen() instanceof net.minecraft.client.gui.screens.inventory.InventoryScreen) {
-            if (IncompatibleCraftingUtil.checkIncompatible(overlay.getRecipeCollection(), id)) {
+            if (IncompatibleCraftingUtil.checkIncompatible(collection, id)) {
                 lines.add(Component.empty());
                 lines.add(Component.translatable("brbe.gui.environmentIncompatible")
                         .withStyle(net.minecraft.ChatFormatting.RED));
@@ -2062,47 +3209,6 @@ public final class RecipeViewerOverlay {
         }
     }
 
-    /** The tooltip's title row: the item's icon to the LEFT of the title
-     *  text, both vertically centred in the row (the row height is the icon's
-     *  16px). */
-    private static final class TitleWithIconTooltipComponent
-            implements net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent {
-        private static final int ICON_SIZE = 16;
-        private static final int GAP = 3;
-
-        private final FormattedCharSequence title;
-        private final ItemStack icon;
-
-        TitleWithIconTooltipComponent(FormattedCharSequence title, ItemStack icon) {
-            this.title = title;
-            this.icon = icon;
-        }
-
-        @Override
-        public int getWidth(Font font) {
-            return ICON_SIZE + GAP + font.width(title);
-        }
-
-        @Override
-        public int getHeight(Font font) {
-            return Math.max(font.lineHeight, ICON_SIZE);
-        }
-
-        @Override
-        public void extractText(GuiGraphicsExtractor gui, Font font, int x, int y) {
-            // Centre the title text vertically against the 16px row.
-            int ty = y + (getHeight(font) - font.lineHeight) / 2;
-            gui.text(font, title, x + ICON_SIZE + GAP, ty, -1, true);
-        }
-
-        @Override
-        public void extractImage(Font font, int x, int y, int width, int height,
-                                 GuiGraphicsExtractor gui) {
-            int iy = y + (getHeight(font) - ICON_SIZE) / 2;
-            gui.item(icon, x, iy, 0);
-        }
-    }
-
     /** Tooltip title row with the up marker pinned to an EXACT pixel anchor
      *  (no space padding between title and marker — a 4px space grid cannot
      *  reproduce arbitrary glyph advances, which is what made the marker
@@ -2141,7 +3247,7 @@ public final class RecipeViewerOverlay {
 
     /** Blank tooltip row holding only the down marker, drawn at the SAME
      *  anchorX as the up marker so ▲ and ▼ share one vertical line. */
-    private static final class StationMarkerTooltipComponent
+    private final class StationMarkerTooltipComponent
             implements net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent {
         private final net.minecraft.util.FormattedCharSequence marker;
         private final int anchorX;
@@ -2174,7 +3280,7 @@ public final class RecipeViewerOverlay {
      *  space padding — a 4px space grid cannot reproduce arbitrary glyph
      *  advances).  The row width is the title-plus-markers footprint so the
      *  tooltip keeps its current size. */
-    private static final class TabMarkerTitleTooltipComponent
+    private final class TabMarkerTitleTooltipComponent
             implements net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent {
         private final net.minecraft.util.FormattedCharSequence title;
         private final net.minecraft.util.FormattedCharSequence leftMarker;
@@ -2226,9 +3332,13 @@ public final class RecipeViewerOverlay {
     }
 
     /** One tooltip row tagging a non-furnace recipe with its workstation icon
-     *  and name (e.g. "Workstation: [crafting table]"). */
+     *  and name (e.g. "Workstation: [crafting table]").  {@code currentCategory}
+     *  is the query window's category while one is open; the pins-only (no
+     *  window) pass supplies null and the entry's owning category is resolved
+     *  via {@link #categoryFor(RecipeDisplayEntry)} instead. */
     private static List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent>
-            stationIconsTooltipComponents(RecipeDisplayEntry entry) {
+            stationIconsTooltipComponents(RecipeDisplayEntry entry,
+                                          RecipeViewerCategory currentCategory) {
         // The viewer's own category while it is open; otherwise resolve the
         // entry's owning category.  Pin overlays render this tooltip with the
         // viewer closed, where currentCategory is null — dereferencing it
@@ -2317,7 +3427,7 @@ public final class RecipeViewerOverlay {
      *  / JEI info text — one labelled row or text line per entry, exactly like
      *  the fuel category's burn-time rows.  The owning category is explicit:
      *  browse-all cells keep their own category's rows. */
-    private static List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent>
+    private List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent>
             gridTooltipComponents(RecipeViewerCategory category, ItemStack hovered) {
         if (category instanceof FuelRecipeCategory) {
             return fuelTooltipComponents((FuelRecipeCategory) category, hovered);
@@ -2333,7 +3443,7 @@ public final class RecipeViewerOverlay {
 
     /** Compost chance rows: one "概率：25%" line (JEI's own percentage —
      *  {@code floor(chance * 100)}). */
-    private static List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent>
+    private List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent>
             compostTooltipComponents(CompostRecipeCategory category, ItemStack hovered) {
         int percent = (int) Math.floor(category.chanceFor(hovered) * 100);
         List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
@@ -2348,7 +3458,7 @@ public final class RecipeViewerOverlay {
 
     /** JEI info text lines of the hovered item, one tooltip row per line
      *  (each info page's description, joined in registration order). */
-    private static List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent>
+    private List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent>
             infoTooltipComponents(InfoRecipeCategory category, ItemStack hovered) {
         List<FormattedText> lines = category.descriptionFor(hovered);
         if (lines.isEmpty()) return List.of();
@@ -2367,7 +3477,7 @@ public final class RecipeViewerOverlay {
      *  (furnace / blast furnace / smoker), each showing how many items the fuel
      *  can smelt plus the station's workstation icon.  No shift variation, no
      *  campfire. */
-    private static List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent>
+    private List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent>
             fuelTooltipComponents(FuelRecipeCategory category, ItemStack fuel) {
         int burn = category.burnDuration(fuel);
         // JEI-style: report how many standard (furnace 200-tick) items the fuel
@@ -2395,19 +3505,19 @@ public final class RecipeViewerOverlay {
 
     /** How many items {@code burn} ticks smelt at {@code cookTime} ticks each —
      *  whole count when it divides evenly, otherwise one decimal. */
-    private static String fuelCount(int burn, int cookTime) {
+    private String fuelCount(int burn, int cookTime) {
         if (burn <= 0 || cookTime <= 0) return "0";
         return burn % cookTime == 0 ? String.valueOf(burn / cookTime)
                 : String.format(Locale.ROOT, "%.1f", burn / (float) cookTime);
     }
 
     /** Turn-page buttons above the box (left edge aligned with the box left). */
-    private static void drawPageControls(GuiGraphicsExtractor gui, int mouseX, int mouseY) {
+    private void drawPageControls(GuiGraphicsExtractor gui, int mouseX, int mouseY) {
         if (!isPaged()) return;
         Minecraft mc = Minecraft.getInstance();
-        int bx = boxLeft();
+        int bx = pageBtnX();
         int by = boxTop();
-        int btnY = by - PAGE_BTN_HEIGHT - 2;
+        int btnY = by - PAGE_BTN_HEIGHT - 2 + PAGE_BTN_SHIFT_Y;
         boolean wrap = scrollWrap();
         boolean prevActive = wrap || viewerPage > 0;
         boolean nextActive = wrap || viewerPage < viewerPageCount - 1;
@@ -2421,7 +3531,7 @@ public final class RecipeViewerOverlay {
         }
     }
 
-    private static void drawPageButton(GuiGraphicsExtractor gui, int x, int y, boolean next,
+    private void drawPageButton(GuiGraphicsExtractor gui, int x, int y, boolean next,
                                       boolean active, int mouseX, int mouseY) {
         int u = next ? 14 : 0;
         if (active && !previewOwnsCursor(mouseX, mouseY)
@@ -2433,13 +3543,235 @@ public final class RecipeViewerOverlay {
                 PAGE_BTN_WIDTH, PAGE_BTN_HEIGHT, 256, 256);
     }
 
-    private static boolean inside(double x, double y, int left, int top, int width, int height) {
+    /** Draw the title bar: the band IS the extended panel background (the
+     *  background blits in {@link #render} / {@link #drawItemGrid} already
+     *  cover it), so this only paints the selected tab's title (centred) and
+     *  the ✕ close button (right end, top edge aligned with the turn-page
+     *  button row). */
+    /** The title's text x (band left edge + 6px padding). */
+    private int titleTextX() {
+        return windowChromeRect()[0] + 6;
+    }
+
+    /** The title's text right bound: when paged it stops before the
+     *  right-aligned turn-page buttons, otherwise at the band's right edge
+     *  (6px padding). */
+    private int titleTextRightBound() {
+        int[] r = windowChromeRect();
+        return isPaged() ? pageBtnX() - 4 : r[0] + r[2] - 6;
+    }
+
+    /** The title text as drawn (truncated with "…" when too long). */
+    private java.lang.String titleText() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.font == null) return titleBarTitle();
+        String title = titleBarTitle();
+        if (mc.font.width(title) > titleTextRightBound() - titleTextX()) {
+            title = mc.font.plainSubstrByWidth(title,
+                    Math.max(8, titleTextRightBound() - titleTextX() - mc.font.width("…")), true) + "…";
+        }
+        return title;
+    }
+
+    /** The title text row's top (centred on the turn-page buttons) minus 1px
+     *  of padding — the top of the title's clickable bounds. */
+    private int titleTextY() {
+        Minecraft mc = Minecraft.getInstance();
+        int lineHeight = mc != null && mc.font != null ? mc.font.lineHeight : 9;
+        return pageBtnY() + (PAGE_BTN_HEIGHT - lineHeight) / 2 - 1;
+    }
+
+    /** Draw the title bar: the selected tab's title LEFT-ALIGNED at the band's
+     *  left edge (always — independent of the turn-page buttons, which are
+     *  right-aligned), floating in the turn-page buttons' row.  The title is
+     *  clickable — a press+release with NO window drag toggles browse-all
+     *  (show all categories; dragging the window never triggers it) — with a
+     *  grey italic hint tooltip.  (The ✕ close button has been removed;
+     *  closing = right-click on the window.) */
+    private void drawTitleBar(GuiGraphicsExtractor gui, int mouseX, int mouseY) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.font == null) return;
+        Font font = mc.font;
+        String title = titleText();
+        int x = titleTextX();
+        // Vertically centred on the turn-page buttons' centreline.
+        int textY = titleTextY() + 1;
+        gui.text(font, title, x, textY, 0xFF000000, false);
+        // Title click hint (grey + italic) and pointing-hand cursor while
+        // hovering the title's text bounds — the same deferred-tooltip path
+        // the category tabs / station column use.
+        if (!previewOwnsCursor(mouseX, mouseY)) {
+            int w = font.width(title) + 2;
+            int h = font.lineHeight + 2;
+            if (inside(mouseX, mouseY, x, textY - 1, w, h)) {
+                gui.requestCursor(com.mojang.blaze3d.platform.cursor.CursorTypes.POINTING_HAND);
+                // State-dependent hint: normal query → "show all recipes",
+                // browsing (all recipes shown) → "hide irrelevant recipes".
+                Style hintBase = Style.EMPTY
+                        .withColor(ChatFormatting.GRAY).withItalic(true);
+                Component hint = Component.empty()
+                        .append(Component.literal("按“").withStyle(hintBase))
+                        .append(Component.literal("左键")
+                                .withStyle(hintBase.withBold(true)))
+                        .append(Component.literal("”").withStyle(hintBase))
+                        .append(Component.literal(browseAllMode
+                                ? "以隐藏不相关配方。"
+                                : "以显示所有配方。")
+                                .withStyle(hintBase));
+                deferTooltip(gui, java.util.List.of(
+                        net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                                .create(hint.getVisualOrderText())),
+                        mouseX, mouseY, ClientCompat.VIEWER_TOOLTIP_STYLE);
+            }
+        }
+        // (The ✕ close button has been removed: closing the window is a
+        // right-click anywhere on the window, see mouseClicked.)
+    }
+
+    /** Start (title bar / close button) or handle an in-progress window drag.
+     *  A RIGHT-click (button 1) anywhere on the window closes it (handled in
+     *  {@link #mouseClicked} — the only close action: the ✕ button has been
+     *  removed and ESC / outside clicks do nothing); the turn-page buttons
+     *  (which live inside the band) fall through to their own handler in the
+     *  normal click chain; any other left-press in the band starts the drag
+     *  (desktop semantics: grab the title bar and move the window); a
+     *  subsequent mouseDragged moves the whole box. */
+    private boolean handleWindowChromeClick(MouseButtonEvent event) {
+        int[] r = windowChromeRect();
+        // (Right-click closing is handled globally in mouseClicked — anywhere
+        // in the window region — so the band needs no branch of its own.)
+        if (event.button() != 0) return false;
+        // Left-press on the band TITLE arms the browse-all toggle ("show all
+        // categories"): fired on RELEASE only when the window was NOT dragged
+        // (a press that drags the window never triggers it — the press falls
+        // through to the drag grab so the title still moves the window).
+        Minecraft mc0 = Minecraft.getInstance();
+        if (mc0 != null && mc0.font != null) {
+            int tx = titleTextX();
+            int ty = titleTextY();
+            int tw = mc0.font.width(titleText()) + 2;
+            int th = mc0.font.lineHeight + 2;
+            if (inside(event.x(), event.y(), tx, ty, tw, th)) {
+                titlePressActive = true;
+                titleDragMoved = false;
+            }
+        }
+        // Page buttons sit inside the band; a press on them is not a drag.
+        if (isPaged()) {
+            int bx = pageBtnX();
+            int btnY = pageBtnY();
+            if (inside(event.x(), event.y(), bx, btnY, PAGE_BTN_WIDTH, PAGE_BTN_HEIGHT)
+                    || inside(event.x(), event.y(), bx + 15, btnY,
+                            PAGE_BTN_WIDTH, PAGE_BTN_HEIGHT)) {
+                return false;
+            }
+        }
+        if (inside(event.x(), event.y(), r[0], r[1], r[2], r[3])) {
+            windowDragging = true;
+            windowDragMoved = false;
+            windowDragOffX = Mth.floor(event.x()) - boxLeft();
+            windowDragOffY = Mth.floor(event.y()) - boxTop();
+            return true;
+        }
+        return false;
+    }
+
+    /** Move the window with the cursor during a title-bar drag.  A pure
+     *  translation: the whole geometry (box, anchor, bottom, overlay buttons
+     *  and grid cells) shifts by the same delta — no re-fit, so the single
+     *  band limit does not fight the drag. */
+    private boolean handleWindowDragged(MouseButtonEvent event) {
+        if (!windowDragging) return false;
+        if (event.button() != 0) {
+            windowDragging = false;
+            return false;
+        }
+        int nx = Mth.floor(event.x()) - windowDragOffX;
+        int ny = Mth.floor(event.y()) - windowDragOffY;
+        // THE ONLY position limit (2026-09-02 redesign): the extension band
+        // must stay inside the screen VERTICALLY — its top line never leaves
+        // the screen top and its bottom line never leaves the screen bottom.
+        // Horizontal is completely free (the window may hang off the screen's
+        // left/right edges) and the box below the band may protrude past the
+        // screen bottom.
+        ny = clampBandTop(ny);
+        int dx = nx - boxX;
+        int dy = ny - boxY;
+        if (dx == 0 && dy == 0) return true;
+        windowDragMoved = true;
+        if (titlePressActive) titleDragMoved = true;
+        boxX += dx;
+        boxY += dy;
+        anchorScreenX += dx;
+        anchorScreenY += dy;
+        bottomAnchor += dy;
+        if (!isGridMode()) {
+            OverlayRecipeComponentAccessor acc = (OverlayRecipeComponentAccessor) overlay;
+            acc.setX(acc.getX() + dx);
+            acc.setY(acc.getY() + dy);
+            for (AbstractWidget w : acc.getRecipeButtons()) {
+                w.setX(w.getX() + dx);
+                w.setY(w.getY() + dy);
+            }
+        }
+        return true;
+    }
+
+    /** End a title-bar drag (consumes the release so nothing falls through).
+     *  A press that started on the band TITLE and never moved the window
+     *  (release without a drag) fires the browse-all toggle here. */
+    private boolean handleWindowReleased() {
+        if (!windowDragging) return false;
+        boolean fire = titlePressActive && !titleDragMoved;
+        titlePressActive = false;
+        titleDragMoved = false;
+        windowDragMoved = false;
+        windowDragging = false;
+        if (fire) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc != null) {
+                ClientCompat.playPageFlipSound(mc);
+                toggleBrowseAll();
+            }
+        }
+        // The drag (or the browse-all toggle) changed position / page / category.
+        syncSpec();
+        return true;
+    }
+
+    /** Public drag/release entry points for the screen mixins (window drag
+     *  hooks).  The mixins route mouseDragged / mouseReleased here BEFORE the
+     *  pin handlers, because an active window drag owns the cursor. */
+    public boolean mouseDragged(MouseButtonEvent event) {
+        return handleWindowDragged(event);
+    }
+
+    public boolean mouseReleased(MouseButtonEvent event) {
+        return handleWindowReleased();
+    }
+
+    /** Whether a title-bar drag is currently in progress (window owns the
+     *  cursor: no pin drag, no click-through). */
+    public boolean isWindowDragging() {
+        return windowDragging;
+    }
+
+    private boolean inside(double x, double y, int left, int top, int width, int height) {
         return x >= left && x < left + width && y >= top && y < top + height;
     }
 
     /** Dismiss the viewer: clear state before hiding so the setVisible guard
-     *  does not cancel this sanctioned close. */
-    public static void close() {
+     *  does not cancel this sanctioned close.  The persisted spec is KEPT
+     *  (materialized flag cleared): the window restores on the next container
+     *  screen, exactly like a pin overlay surviving its host screen. */
+    public void close() {
+        close(false);
+    }
+
+    /** Close the window.  {@code removePersisted} = the right-click close
+     *  gesture: the entry is removed from {@code brbe.queryviewers.json}
+     *  permanently (no future restore). */
+    public void close(boolean removePersisted) {
         if (!isActive() && !overlay.isVisible()) return;
         // Close the popup layer too: its active flag must not keep blocking
         // button hover / clicks on the next screen.
@@ -2466,7 +3798,52 @@ public final class RecipeViewerOverlay {
         viewerZ = -1;
         hoverPopupField = null;
         hoveredViewerButton = null;
+        windowDragging = false;
+        windowDragMoved = false;
         overlay.setVisible(false);
+        if (removePersisted) {
+            if (spec != null) {
+                viewerSpecs.remove(spec);
+                saveViewerSpecs();
+            }
+        } else if (spec != null) {
+            // Passive close: keep the spec, allow a new materialization on
+            // the next container screen.
+            spec.materialized = false;
+        }
+        RecipeViewerOverlay.onWindowClosedSelf(this);
+    }
+
+    /** Create or refresh this window's persistent entry (query identity +
+     *  mode + category + page + position) and save the file asynchronously.
+     *  Called whenever a user-visible aspect of the window changes. */
+    private void syncSpec() {
+        // 预览模式：查询窗口不持久化——不写盘，并清掉历史遗留的窗口条目
+        // （配置文件曾持久化的旧窗口不会再恢复，文件也随之清空）。
+        if (BetterRecipeBook.config.previewMode) {
+            spec = null;
+            if (!viewerSpecs.isEmpty()) {
+                viewerSpecs.clear();
+                saveViewerSpecs();
+            }
+            return;
+        }
+        if (queryTarget == null || queryTarget.isEmpty()) return;
+        if (spec == null) {
+            spec = new ViewSpec();
+            viewerSpecs.add(spec);
+        }
+        // A window is bound to the spec right now: the restore pass must not
+        // create a SECOND window for it (it only re-creates after a passive
+        // close clears this flag).
+        spec.materialized = true;
+        spec.item = BuiltInRegistries.ITEM.getKey(queryTarget.getItem()).toString();
+        spec.usage = queryUsage;
+        spec.category = currentCategory == null ? null : currentCategory.id();
+        spec.page = viewerPage;
+        spec.x = boxX;
+        spec.y = boxY;
+        saveViewerSpecs();
     }
 
     /**
@@ -2474,7 +3851,7 @@ public final class RecipeViewerOverlay {
      * ghost slot), anchored around it.  Returns false when there is no target or
      * no matching recipes, leaving the key event for vanilla handling.
      */
-    private static boolean open(AbstractContainerScreen<?> screen, boolean viewUsage) {
+    private boolean open(AbstractContainerScreen<?> screen, boolean viewUsage) {
         ItemStack target = PinOverlayManager.captureTarget(screen);
         if (target.isEmpty()) return false;
         return openFor(screen, target, viewUsage);
@@ -2482,7 +3859,7 @@ public final class RecipeViewerOverlay {
 
     /** Open the viewer for an explicit {@code target} — the shared body of
      *  {@link #open} and the left station-column click query. */
-    private static boolean openFor(AbstractContainerScreen<?> screen, ItemStack target,
+    private boolean openFor(AbstractContainerScreen<?> screen, ItemStack target,
                                    boolean viewUsage) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return false;
@@ -2574,9 +3951,8 @@ public final class RecipeViewerOverlay {
             anchorY = (guiH - 166) / 2 + 83;
         }
         // The query anchors to the POINTER (falling back to the anchors above
-        // when the pointer is outside the window): unless a limit-level
-        // position adjustment kicks in, the first object's centre sits on the
-        // mouse.
+        // when the pointer is outside the window): unless the band limit
+        // kicks in, the first object's centre sits on the mouse.
         if (mc.mouseHandler != null && mc.getWindow() != null) {
             int mx = Mth.floor(mc.mouseHandler.getScaledXPos(mc.getWindow()));
             int my = Mth.floor(mc.mouseHandler.getScaledYPos(mc.getWindow()));
@@ -2592,11 +3968,10 @@ public final class RecipeViewerOverlay {
         // sits at boxX+4 (centre boxX+16), and — rows grow upward — row 0 sits
         // at the box bottom (centre boxY+boxH-16).  The anchor is the box
         // BOTTOM (bottomAnchor = anchorY+16), NOT a full-page-derived boxY:
-        // the limit-level clamps (25px edges, crafting-grid avoidance) run
-        // later in fitBoxToPage against the ACTUAL post-shrink box size, so a
-        // short box keeps its first row centred on the pointer even near the
-        // screen edges — only when the box really cannot fit (or would cover
-        // the crafting grid) does a position adjustment fire.
+        // the single band limit ({@link #clampBandTop}) runs later in
+        // fitBoxToPage against the ACTUAL post-shrink box size, so the
+        // pointer-anchored position survives unless keeping the band on
+        // screen requires a shift.
         boxX = anchorX - 16;
         boxY = anchorY - boxH + 16;
         anchorScreenX = anchorX;
@@ -2618,20 +3993,115 @@ public final class RecipeViewerOverlay {
             rebuildWithHits(hits);
         }
         // fitBoxToPage has already settled the anchor to the actual first-
-        // object centre (limit-level adjustments included).
+        // object centre (the band limit included).
         repaginateToSelected();
         rebuildStationColumn();
         viewerZ = PinOverlayManager.nextZ();
         RecipeViewerIndex.setViewerActive(true);
         RecipeViewerIndex.setViewerOpenedFromBook(anchorBookButton != null);
+        BetterRecipeBook.LOGGER.warn("[VIEWER-DBG] open target={} usage={} cat={} "
+                        + "window#{} box=({},{},{}x{}) anchor=({},{}) bottomA={} "
+                        + "stationCol={} grid={} gui={}x{} screen={}",
+                target.getHoverName().getString(), viewUsage,
+                currentCategory == null ? "null" : currentCategory.id(),
+                WINDOWS.size(), boxX, boxY, boxW, boxH, anchorScreenX, anchorScreenY,
+                bottomAnchor, stationColumnItems.size(),
+                gridHoverStack == null ? "-" : gridHoverStack.getHoverName().getString(),
+                guiW, guiH, screen.getClass().getSimpleName());
+        // Persist the fresh window (identity + mode + category + page + position).
+        syncSpec();
         return true;
+    }
+
+    /** Restore this window from {@code spec} onto {@code screen}: re-run the
+     *  saved query, pin the window at the saved position and re-select the
+     *  saved category / page.  Returns false when the spec cannot be resolved
+     *  yet (item unknown, category empty, engine building) — the spec stays
+     *  pending and is retried on the next render, exactly like a pin spec.
+     *  The band limit still applies: the saved position is the starting
+     *  point, the clamp only shifts it when the band would leave the screen. */
+    private boolean restoreFrom(ViewSpec spec, AbstractContainerScreen<?> screen) {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return false;
+        if (spec.item == null || spec.item.isEmpty()) return false;
+        ItemStack target = BuiltInRegistries.ITEM.getOptional(
+                Identifier.tryParse(spec.item)).map(item -> new ItemStack(item, 1))
+                .orElse(ItemStack.EMPTY);
+        if (target.isEmpty()) return false;
+        anchorOverlayWidget = null;
+        anchorBookButton = null;
+        resetBrowseAllState();
+        queryTarget = target;
+        queryUsage = spec.usage;
+        // Saved category first; fall back to the smart default when the item
+        // no longer has content in it.
+        currentCategory = categoryForId(spec.category);
+        if (currentCategory == null || !categoryHasQueryContent(currentCategory)) {
+            currentCategory = RecipeViewerCategories.defaultFor(target, spec.usage,
+                    screen.getMenu());
+        }
+        if (currentCategory == null) return false;
+        List<RecipeDisplayEntry> hits = null;
+        if (currentCategory.isGridCategory()) {
+            computeGridBoxSize();
+        } else {
+            hits = filterByRecipeBookStations(
+                    currentCategory.query(target, spec.usage));
+            if (hits.isEmpty()) return false;
+            computeBoxSize(hits);
+        }
+        ownerScreen = screen;
+        viewerPage = 0;
+        // Pin the window at the saved box position (the anchor is DERIVED from
+        // it, so fitBoxToPage's anchor refresh keeps the saved spot).
+        boxX = spec.x;
+        boxY = spec.y;
+        anchorScreenX = boxX + 16;
+        anchorScreenY = boxY + boxH - 16;
+        bottomAnchor = anchorScreenY + 16;
+        if (currentCategory.isGridCategory()) {
+            rebuildGrid(currentCategory.gridItems(target, spec.usage));
+        } else {
+            rebuildWithHits(hits);
+        }
+        // After the fit re-anchor the box to the saved position (the band
+        // clamp may have shifted it vertically) and restore the saved page.
+        boxX = spec.x;
+        boxY = clampBandTop(spec.y);
+        anchorScreenX = boxX + 16;
+        anchorScreenY = boxY + boxH - 16;
+        bottomAnchor = anchorScreenY + 16;
+        viewerPage = Math.min(Math.max(0, spec.page),
+                Math.max(0, viewerPageCount - 1));
+        if (!currentCategory.isGridCategory()) {
+            showPage(ownerScreen, boxX, boxY, boxW, boxH);
+        }
+        repaginateToSelected();
+        rebuildStationColumn();
+        viewerZ = PinOverlayManager.nextZ();
+        RecipeViewerIndex.setViewerActive(true);
+        RecipeViewerIndex.setViewerOpenedFromBook(false);
+        // Bind the window to the spec and write the (possibly corrected) page.
+        this.spec = spec;
+        spec.materialized = true;
+        syncSpec();
+        return true;
+    }
+
+    /** The category with {@code id}, or null. */
+    private RecipeViewerCategory categoryForId(String id) {
+        if (id == null) return null;
+        for (RecipeViewerCategory c : RecipeViewerCategories.all()) {
+            if (id.equals(c.id())) return c;
+        }
+        return null;
     }
 
     /** BRBE's engine found nothing for this item (e.g. a mod item while JEI is
      *  installed and jei-plugins is not): route the query to the active recipe
      *  viewer (JEI/REI) so mod recipes still open.  Returns whether the event
      *  was consumed. */
-    private static boolean fallbackToViewer(ItemStack target, boolean viewUsage) {
+    private boolean fallbackToViewer(ItemStack target, boolean viewUsage) {
         if (!ItemViewCompat.isLoaded()) return false;
         return viewUsage ? ItemViewCompat.openUsageView(target)
                          : ItemViewCompat.openRecipeView(target);
@@ -2639,9 +4109,21 @@ public final class RecipeViewerOverlay {
 
     /** Rebuild the overlay contents from a (possibly new category's) query hits,
      *  reusing the fixed box layout. */
-    private static void rebuildWithHits(List<RecipeDisplayEntry> hits) {
+    private void rebuildWithHits(List<RecipeDisplayEntry> hits) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || hits.isEmpty()) return;
+
+        // [BRBE-DIAG] 一次性：命中集合构成（书驱动 vs synthetic、id 列表）
+        if (HITS_DIAG.add(hits.hashCode())) {
+            StringBuilder sb = new StringBuilder("[");
+            for (RecipeDisplayEntry h : hits) {
+                boolean synth = com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.isSynthetic(h.id());
+                sb.append(h.id()).append(synth ? ":S" : ":B").append(' ');
+            }
+            BetterRecipeBook.LOGGER.warn("[BRBE-DIAG-PARTIAL] hits n=" + hits.size()
+                    + " synth=" + hits.stream().filter(h -> com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.isSynthetic(h.id())).count()
+                    + " ids=" + sb.append(']'));
+        }
 
         StackedItemContents stacked = new StackedItemContents();
         PartialCraftingUtil.fillSearchSpaceStackedContents(stacked);
@@ -2659,15 +4141,17 @@ public final class RecipeViewerOverlay {
         }
         RecipeViewerIndex.snapshotPartials(collection);
 
-        // Pinned (recipe-book pin) first, then fully-craftable, partial, uncraftable.
-        List<RecipeDisplayEntry> entries = collection.getRecipes();
-        entries.sort((a, b) -> Integer.compare(recipeRank(collection, b), recipeRank(collection, a)));
+        // 统一排序（ViewerObjectOrder）：pin 组在前（组内也按种类）→ 普通组
+        // 按种类（可合成 → 残缺 → 不可合成），同组同种类稳定。
+        List<RecipeDisplayEntry> entries = ViewerObjectOrder.reorder(collection.getRecipes(),
+                BetterRecipeBook.pinnedRecipeManager::isPinnedEntry,
+                e -> viewerKindRank(collection, e));
 
         viewerRecipes = new ArrayList<>(entries);
         computeBoxSize(hits);
         // The final box position is clamped inside showPage -> fitBoxToPage
         // with the ACTUAL (post-shrink) box size.  Clamping here with the
-        // full-page size would misjudge the 25px edges AND rewrite the
+        // full-page size would misjudge the band limit AND rewrite the
         // pointer-derived bottomAnchor (a phantom fifth row as a boundary),
         // which is exactly what the caller just anchored to the mouse.
         viewerPage = 0;
@@ -2675,7 +4159,7 @@ public final class RecipeViewerOverlay {
     }
 
     /** Compute boxW/boxH and viewerPageCount from the hit count. */
-    private static void computeBoxSize(List<RecipeDisplayEntry> hits) {
+    private void computeBoxSize(List<RecipeDisplayEntry> hits) {
         computeBoxSize(hits.size());
     }
 
@@ -2684,7 +4168,7 @@ public final class RecipeViewerOverlay {
      *  shrunk to the current page's actual rows/columns by
      *  {@link #fitBoxToPage} (called from showPage and the grid paths), which
      *  also re-clamps the position. */
-    private static void computeBoxSize(int total) {
+    private void computeBoxSize(int total) {
         boolean paged = total > PAGE_SIZE;
         viewerPageCount = paged ? (total + PAGE_SIZE - 1) / PAGE_SIZE : 1;
         boxW = PAGE_COLS * 25 + 8;
@@ -2698,13 +4182,13 @@ public final class RecipeViewerOverlay {
      *  to the first-object centre ({@link #anchorScreenX} / {@link
      *  #anchorScreenY}).
      *
-     *  <p>ESTABLISHED RULE: every limit-level position adjustment (25px edge
-     *  clamps, crafting-grid avoidance) is followed by refreshing the anchor
-     *  to the ACTUAL centre of the first row's first object — the settled
-     *  position is where the next rebuild starts from, so the interface never
-     *  snaps back to a pre-adjustment spot.  Returns the column count, which
-     *  the caller uses to place its objects. */
-    private static int fitBoxToPage(int pageCount) {
+     *  <p>ESTABLISHED RULE: after the single limit adjustment (band kept on
+     *  screen — {@link #clampBandTop}) the anchor is refreshed to the ACTUAL
+     *  centre of the first row's first object — the settled position is where
+     *  the next rebuild starts from, so the interface never snaps back to a
+     *  pre-adjustment spot.  Returns the column count, which the caller uses
+     *  to place its objects. */
+    private int fitBoxToPage(int pageCount) {
         int columns = Math.max(1, Math.min(PAGE_COLS, pageCount));
         int rows = (pageCount + columns - 1) / columns;
         boxW = columns * 25 + 8;
@@ -2712,44 +4196,17 @@ public final class RecipeViewerOverlay {
         ensureTabWidth();
         boxX = anchorScreenX - 16;
         boxY = anchorScreenY - boxH + 16;
-        clampBoxToAnchor();
-        clampBoxX();
-        avoidCraftingGrid();
-        // RULE: refresh the anchor after every limit-level adjustment.
+        boxY = clampBandTop(boxY);
+        // RULE: refresh the anchor after the limit adjustment.
         anchorScreenX = boxX + 16;
         anchorScreenY = boxY + boxH - 16;
         bottomAnchor = anchorScreenY + 16;
         return columns;
     }
 
-    /** Push the box below the crafting grid when it would actually cover the
-     *  grid — judged with the REAL (post-shrink) box size, so a short box
-     *  that already clears the grid is left anchored to the pointer.  This is
-     *  a limit-level position adjustment: when it fires, the first row no
-     *  longer centres on the mouse. */
-    private static void avoidCraftingGrid() {
-        if (ownerScreen == null) return;
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.getWindow() == null) return;
-        int guiH = mc.getWindow().getGuiScaledHeight();
-        int gridLeft = gridLeftScreenX(ownerScreen);
-        int gridRight = gridRightScreenX(ownerScreen);
-        int gridBottom = gridBottomScreenY(ownerScreen);
-        if (gridLeft < 0 || gridRight < 0 || gridBottom < 0) return;
-        if (boxX >= gridRight || boxX + boxW <= gridLeft || boxY >= gridBottom) return;
-        boxY = gridBottom;
-        int overlayH = boxH + TAB_OVERHANG;
-        if (boxY + overlayH > guiH) {
-            boxY = Math.max(0, guiH - overlayH);
-        }
-        // bottomAnchor is left untouched: the pinned first-object centre
-        // survives the avoidance, so paging away from a grid-covering page
-        // returns the first object to the anchor.
-    }
-
     /** {@link #fitBoxToPage} for a grid category, sized to the current page's
      *  slice of {@link #gridItems}. */
-    private static void fitGridBoxToPage() {
+    private void fitGridBoxToPage() {
         int start = viewerPage * PAGE_SIZE;
         int count = Math.min(start + PAGE_SIZE, gridItems.size()) - start;
         fitBoxToPage(count);
@@ -2757,7 +4214,7 @@ public final class RecipeViewerOverlay {
 
     /** Compute boxW/boxH and viewerPageCount for a grid category's item grid —
      *  same paging rule as the recipe grid, so a long list pages too. */
-    private static void computeGridBoxSize() {
+    private void computeGridBoxSize() {
         computeBoxSize(gridItems.size());
     }
 
@@ -2765,7 +4222,7 @@ public final class RecipeViewerOverlay {
      *  {@link #MAX_TABS} tabs on a page without folding when there are more tabs
      *  than recipe columns.  Only above {@link #MAX_TABS} do tabs fold into
      *  pages. */
-    private static void ensureTabWidth() {
+    private void ensureTabWidth() {
         int tabCount = Math.min(visibleCategories().size(), MAX_TABS);
         int tabW = tabCount * TAB_WIDTH + 8;
         if (tabW > boxW) {
@@ -2777,13 +4234,21 @@ public final class RecipeViewerOverlay {
      *  a specific item passes that item alone (JEI per-item semantics), a
      *  usage query of its station passes the whole list.  Keeps the tab strip
      *  anchored. */
-    private static void rebuildGrid(List<ItemStack> items) {
+    private void rebuildGrid(List<ItemStack> items) {
+        // 统一排序（ViewerObjectOrder）：燃料类别"拥有 → 缺失"作为组内种类
+        //（无 pin 组），组内保持原排序（燃烧时长升序），稳定。
+        if (currentCategory != null && currentCategory.isFuelCategory()) {
+            var counts = PartialCraftingUtil.searchSpaceItemCounts();
+            items = ViewerObjectOrder.reorder(items,
+                    s -> false,
+                    s -> counts.containsKey(s.getItem()) ? 0 : 1);
+        }
         gridItems = items;
         gridHoverStack = null;
         viewerRecipes = List.of();
         computeGridBoxSize();
         // Shrink the box to the first page (rows/columns without an object are
-        // dropped) and re-apply the 25px edge margins; the grid cells are
+        // dropped) and re-apply the single band limit; the grid cells are
         // positioned per-frame from boxX/boxY, so they follow automatically.
         viewerPage = 0;
         fitGridBoxToPage();
@@ -2792,7 +4257,7 @@ public final class RecipeViewerOverlay {
     /** Switch the viewer to {@code category}, re-querying the stored target.
      *  Repagination happens here, before the next render, so the newly selected
      *  tab always lands on the first visible row of the folded tab strip. */
-    private static void switchCategory(RecipeViewerCategory category) {
+    private void switchCategory(RecipeViewerCategory category) {
         if (category == null || category == currentCategory) return;
         if (category.isGridCategory()) {
             // Grid tabs (fuel / compost / info): a specific item target shows
@@ -2829,9 +4294,10 @@ public final class RecipeViewerOverlay {
             currentCategory = category;
             rebuildWithHits(hits);
         }
-        clampBoxX();
+        boxY = clampBandTop(boxY);
         repaginateToSelected();
         rebuildStationColumn();
+        syncSpec();
     }
 
     /** Filter a query's hits by the "hide objects of workstations without a
@@ -2839,7 +4305,7 @@ public final class RecipeViewerOverlay {
      *  recipe-book system are dropped.  Objects that also have a legitimate
      *  (recipe-book-backed) workstation survive — their tooltip icons are
      *  filtered separately.  No-op when the toggle is off. */
-    private static List<RecipeDisplayEntry> filterByRecipeBookStations(List<RecipeDisplayEntry> hits) {
+    private List<RecipeDisplayEntry> filterByRecipeBookStations(List<RecipeDisplayEntry> hits) {
         return filterByRecipeBookStations(hits, currentCategory);
     }
 
@@ -2847,7 +4313,7 @@ public final class RecipeViewerOverlay {
      *  judged against the category they CAME FROM, not the pre-toggle
      *  currentCategory — the old way would mis-judge every other category's
      *  entries (dropping legitimate ones or leaking illegal ones). */
-    private static List<RecipeDisplayEntry> filterByRecipeBookStations(
+    private List<RecipeDisplayEntry> filterByRecipeBookStations(
             List<RecipeDisplayEntry> hits, RecipeViewerCategory category) {
         if (!BetterRecipeBook.config.hideNoRecipeBookStationObjects) return hits;
         if (hits == null || hits.isEmpty()) return hits;
@@ -2867,12 +4333,12 @@ public final class RecipeViewerOverlay {
      *  registered as a blasting catalyst): the built-in-category exemption
      *  would otherwise leak its objects through, exactly like the tab-level
      *  cut in {@code switchCategory} / {@code visibleCategories}. */
-    private static boolean hasRecipeBookStation(RecipeDisplayEntry entry) {
+    private boolean hasRecipeBookStation(RecipeDisplayEntry entry) {
         return hasRecipeBookStation(entry, currentCategory);
     }
 
     /** Category-aware variant (browse-all) of {@link #hasRecipeBookStation}. */
-    private static boolean hasRecipeBookStation(RecipeDisplayEntry entry,
+    private boolean hasRecipeBookStation(RecipeDisplayEntry entry,
                                                 RecipeViewerCategory category) {
         if (entry == null) return false;
         if (!browseAllMode
@@ -2889,7 +4355,7 @@ public final class RecipeViewerOverlay {
 
     /** Whether {@code entry} has at least one recipe-book-backed workstation
      *  among {@code icons} or its display's declared crafting station. */
-    private static boolean entryHasRecipeBookStation(RecipeDisplayEntry entry, List<ItemStack> icons) {
+    private boolean entryHasRecipeBookStation(RecipeDisplayEntry entry, List<ItemStack> icons) {
         if (icons != null) {
             for (ItemStack station : icons) {
                 if (RecipeViewerEngine.isRecipeBookStation(station)) return true;
@@ -2915,52 +4381,40 @@ public final class RecipeViewerOverlay {
      *  recipe-book systems themselves.  The stonecutting category is NOT
      *  exempt: the stonecutter has no recipe-book UI (vanilla provides none
      *  and BRBE adds none), so it is a no-recipe-book workstation whose
-     *  objects the hide toggle filters like any mod station's. */
-    private static boolean isBuiltinCategory(RecipeViewerCategory category) {
+     *  objects the hide toggle filters like any mod station's.  Brewing IS
+     *  exempt — BRBE ships a brewing recipe book. */
+    private boolean isBuiltinCategory(RecipeViewerCategory category) {
         if (category == null) return false;
         return switch (category.id()) {
-            case "furnace", "crafting", "smithing", "fuel" -> true;
+            case "furnace", "crafting", "smithing", "brewing", "fuel" -> true;
             default -> false;
         };
     }
 
-    /** Re-clamp boxX so a box widened by a category switch stays on screen —
-     *  the same >= 25px edge margin {@code open()} applies when the box fits,
-     *  else fully inside. */
-    private static void clampBoxX() {
+    /** THE ONLY position adjustment (2026-09-02 redesign): clamp the box's
+     *  top so the extension band (title bar) stays inside the screen
+     *  VERTICALLY — the band's top line never leaves the screen top and its
+     *  bottom line never leaves the screen bottom.  Horizontal is completely
+     *  free (the window may hang off the screen's left/right edges) and the
+     *  box below the band may protrude past the screen bottom.  All previous
+     *  limits (25px edge margins, crafting-grid avoidance, x clamps) are
+     *  scrapped. */
+    private int clampBandTop(int boxTop) {
         Minecraft mc = Minecraft.getInstance();
-        if (mc.getWindow() == null) return;
-        int guiW = mc.getWindow().getGuiScaledWidth();
-        if (boxW <= guiW - 50) {
-            boxX = Math.max(25, Math.min(boxX, guiW - boxW - 25));
-        } else {
-            boxX = Math.max(0, Math.min(boxX, guiW - boxW));
-        }
-    }
-
-    /** Re-clamp boxY after a rebuild (category switch / browse toggle) grew or
-     *  shrank the box: the tab strip stays anchored to {@link #bottomAnchor}
-     *  (pinned to the first object's centre on open — it is NEVER rewritten
-     *  here, so a limit-level adjustment does not permanently move the
-     *  anchor), the box grows upward from it, and the top keeps the >= 25px
-     *  edge margin (bottom too when the box fits; otherwise fully inside). */
-    private static void clampBoxToAnchor() {
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.getWindow() == null) return;
+        if (mc.getWindow() == null) return boxTop;
         int guiH = mc.getWindow().getGuiScaledHeight();
-        int overlayH = boxH + TAB_OVERHANG;
-        if (overlayH <= guiH - 50) {
-            boxY = Math.max(25, Math.min(bottomAnchor - boxH, guiH - overlayH - 25));
-        } else {
-            boxY = Math.max(0, Math.min(bottomAnchor - boxH, guiH - overlayH));
-        }
+        // Band top = boxTop - TITLE_BAR_H (≥ 0)  →  boxTop ≥ TITLE_BAR_H.
+        // Band bottom = boxTop + PAGE_BTN_SHIFT_Y - 2 (≤ guiH)
+        //   →  boxTop ≤ guiH - (PAGE_BTN_SHIFT_Y - 2).
+        return Mth.clamp(boxTop, TITLE_BAR_H,
+                Math.max(TITLE_BAR_H, guiH - (PAGE_BTN_SHIFT_Y - 2)));
     }
 
     /** Keep the REI-style tab window valid and the selected category visible
      *  inside it — the window slides instead of paging, and folding never hides
      *  the selected tab.  Call after the box layout has been rebuilt (open /
      *  category switch). */
-    private static void repaginateToSelected() {
+    private void repaginateToSelected() {
         List<RecipeViewerCategory> cats = visibleCategories();
         if (currentCategory == null || cats.isEmpty()) {
             tabWindowStart = 0;
@@ -2977,13 +4431,13 @@ public final class RecipeViewerOverlay {
         }
     }
 
-    /** Ctrl+O toggle (monitored only while the cursor is inside the query
-     *  interface): gathers ALL queryable objects into the viewer and
-     *  distributes them into their correct categories — the "house"
-     *  metaphor: querying an item herds its related objects in, Ctrl+O
-     *  imports every queryable object into its own category (tab), a second
-     *  Ctrl+O drives the newly added ones back out. */
-    private static void toggleBrowseAll() {
+    /** Browse-all toggle — the ONLY trigger is a click (release without a
+     *  drag) on the extension area's title: gathers ALL queryable objects
+     *  into the viewer and distributes them into their correct categories —
+     *  the "house" metaphor: querying an item herds its related objects in,
+     *  the title click imports every queryable object into its own category
+     *  (tab); a second title click drives the newly added ones back out. */
+    private void toggleBrowseAll() {
         if (!isActive() || ownerScreen == null) return;
         if (browseAllMode) {
             leaveBrowseAll();
@@ -2995,7 +4449,7 @@ public final class RecipeViewerOverlay {
     /** Enter browse-all: keep the current category, but rebuild it with its
      *  COMPLETE object pool (every other tab does the same once switched
      *  to). */
-    private static void enterBrowseAll() {
+    private void enterBrowseAll() {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null || ownerScreen == null) return;
         browseAllReturnPage = viewerPage;
@@ -3011,7 +4465,7 @@ public final class RecipeViewerOverlay {
      *  cannot survive the restore — the normal selection flow picks an
      *  existing tab instead (the pre-browse-all tab first, then the
      *  best-content category). */
-    private static void leaveBrowseAll() {
+    private void leaveBrowseAll() {
         resetBrowseAllState();
         RecipeViewerCategory saved = browseAllReturnCategory;
         if (!categoryHasQueryContent(currentCategory)) {
@@ -3034,7 +4488,7 @@ public final class RecipeViewerOverlay {
     /** Whether {@code category} has ANY content in the non-browse (query)
      *  view — the "existed before browse-all" test: a browse-all-only tab
      *  has none and must not survive a restore. */
-    private static boolean categoryHasQueryContent(RecipeViewerCategory category) {
+    private boolean categoryHasQueryContent(RecipeViewerCategory category) {
         if (category == null) return false;
         return category.isGridCategory()
                 ? !gridSource(category).isEmpty()
@@ -3042,32 +4496,19 @@ public final class RecipeViewerOverlay {
     }
 
     /** The category's objects for the current mode: its complete pool while
-     *  browsing (Ctrl+O), its query-related subset otherwise. */
-    private static List<RecipeDisplayEntry> categoryHits(RecipeViewerCategory category) {
-        List<RecipeDisplayEntry> hits = new ArrayList<>(filterByRecipeBookStations(
+     *  browsing, its query-related subset otherwise. */
+    private List<RecipeDisplayEntry> categoryHits(RecipeViewerCategory category) {
+        return new ArrayList<>(filterByRecipeBookStations(
                 browseAllMode ? category.allEntries()
                         : category.query(queryTarget, queryUsage),
                 category));
-        // 配方书 pin 的配方对象置顶：pin 状态经稳定 key（idFor）匹配，只在
-        // 命中数 >1 时重排（单条无需）。
-        if (hits.size() > 1) {
-            List<RecipeDisplayEntry> pinned = new ArrayList<>();
-            List<RecipeDisplayEntry> rest = new ArrayList<>(hits.size());
-            for (RecipeDisplayEntry entry : hits) {
-                (BetterRecipeBook.pinnedRecipeManager.isPinnedEntry(entry) ? pinned : rest).add(entry);
-            }
-            if (!pinned.isEmpty()) {
-                hits.clear();
-                hits.addAll(pinned);
-                hits.addAll(rest);
-            }
-        }
-        return hits;
+        // 排序统一交给 ViewerObjectOrder（rebuildWithHits/rebuildGrid 调用）：
+        // pin 组在前（组内也按种类）→ 普通组按种类，稳定。
     }
 
     /** The grid category's item grid for the current mode (same semantics as
      *  {@link #categoryHits}). */
-    private static List<ItemStack> gridSource(RecipeViewerCategory category) {
+    private List<ItemStack> gridSource(RecipeViewerCategory category) {
         return browseAllMode ? category.allGridItems()
                 : category.gridItems(queryTarget, queryUsage);
     }
@@ -3075,7 +4516,7 @@ public final class RecipeViewerOverlay {
     /** Rebuild the selected category's own view — the shared body of
      *  {@link #switchCategory}, minus its early return (used when entering /
      *  leaving browse-all). */
-    private static void refreshCurrentCategory(boolean restorePage) {
+    private void refreshCurrentCategory(boolean restorePage) {
         if (currentCategory == null || ownerScreen == null) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
@@ -3083,7 +4524,7 @@ public final class RecipeViewerOverlay {
             List<ItemStack> items = gridSource(currentCategory);
             if (items.isEmpty()) return;
             rebuildGrid(items);
-            clampBoxX();
+            boxY = clampBandTop(boxY);
             repaginateToSelected();
             rebuildStationColumn();
         } else {
@@ -3095,18 +4536,66 @@ public final class RecipeViewerOverlay {
                 viewerPage = Math.min(browseAllReturnPage, maxPage);
                 showPage(ownerScreen, boxX, boxY, boxW, boxH);
             }
-            clampBoxX();
+            boxY = clampBandTop(boxY);
             // The browse-all tab list inserts categories before the selected
             // one; keep its tab inside the sliding window so the selection
             // stays visible after the mode flip.
             repaginateToSelected();
             rebuildStationColumn();
         }
+        syncSpec();
+    }
+
+    /** Re-evaluate this window's ordering and states when its inputs changed
+     *  while it was open: the pin set (A-pinning in the recipe book behind it)
+     *  or the search space (inventory pickup/drop — the fuel grid's owned→
+     *  missing order and every recipe's craftable/partial rank and face follow
+     *  in real time instead of on the next reopen).  Both are one cheap
+     *  comparison when nothing changed (int + long).  Rebuild keeps the
+     *  current page (clamped to the new page count); grids keep the fuel
+     *  page and get their re-sorted list the same way. */
+    private void refreshIfDirty() {
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player == null || mc.level == null) return;
+        ItemStack carried = mc.player.containerMenu != null
+                ? mc.player.containerMenu.getCarried() : ItemStack.EMPTY;
+        long spaceHash = PartialCraftingUtil.slotHash(
+                PartialCraftingUtil.searchSpaceSlots(), carried);
+        int pins = BetterRecipeBook.pinnedRecipeManager.version();
+        if (spaceHash == lastSpaceHash && pins == lastPinVersion) return;
+        lastSpaceHash = spaceHash;
+        lastPinVersion = pins;
+        if (currentCategory == null || ownerScreen == null) return;
+        if (currentCategory.isGridCategory()) {
+            List<ItemStack> items = gridSource(currentCategory);
+            if (items.isEmpty()) return;
+            int page = viewerPage;
+            rebuildGrid(items);
+            int maxPage = Math.max(0, viewerPageCount - 1);
+            viewerPage = Math.min(page, maxPage);
+            fitGridBoxToPage();
+            boxY = clampBandTop(boxY);
+            repaginateToSelected();
+            rebuildStationColumn();
+            syncSpec();
+            return;
+        }
+        List<RecipeDisplayEntry> hits = categoryHits(currentCategory);
+        if (hits.isEmpty()) return;
+        int page = viewerPage;
+        rebuildWithHits(hits);
+        int maxPage = Math.max(0, viewerPageCount - 1);
+        viewerPage = Math.min(page, maxPage);
+        showPage(ownerScreen, boxX, boxY, boxW, boxH);
+        boxY = clampBandTop(boxY);
+        repaginateToSelected();
+        rebuildStationColumn();
+        syncSpec();
     }
 
     /** Clear browse-all state (mode; the return page is cleared when the
      *  toggle completes). */
-    private static void resetBrowseAllState() {
+    private void resetBrowseAllState() {
         browseAllMode = false;
     }
 
@@ -3115,7 +4604,7 @@ public final class RecipeViewerOverlay {
      * fit the box to the page (empty rows/columns dropped, first row at the
      * bottom) and re-flow the buttons onto the page's column pitch.
      */
-    private static void showPage(AbstractContainerScreen<?> screen, int boxX, int boxY,
+    private void showPage(AbstractContainerScreen<?> screen, int boxX, int boxY,
                                  int boxW, int boxH) {
         if (viewerRecipes.isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();
@@ -3140,10 +4629,10 @@ public final class RecipeViewerOverlay {
         // short last page just makes the box shorter.  The layout below uses
         // the clamped (static) position, not the caller's stale boxX/boxY.
         int columns = fitBoxToPage(pageEntries.size());
-        int bx = RecipeViewerOverlay.boxX;
-        int by = RecipeViewerOverlay.boxY;
-        int bw = RecipeViewerOverlay.boxW;
-        int bh = RecipeViewerOverlay.boxH;
+        int bx = boxX;
+        int by = boxY;
+        int bw = boxW;
+        int bh = boxH;
         var ctx = SlotDisplayContext.fromLevel(mc.level);
         overlay.init(subset, ctx, false, bx, by, bw, bh, paged ? 1.0f : 0f);
         currentCollection = subset;
@@ -3179,12 +4668,12 @@ public final class RecipeViewerOverlay {
     }
 
     /** Whether the open viewer spans multiple pages. */
-    public static boolean isPaged() {
+    public boolean isPaged() {
         return isActive() && viewerPageCount > 1;
     }
 
     /** Whether {@code o} is the standalone viewer overlay instance. */
-    public static boolean isOwnOverlay(OverlayRecipeComponent o) {
+    public boolean isOwnOverlay(OverlayRecipeComponent o) {
         return o == overlay;
     }
 
@@ -3192,7 +4681,10 @@ public final class RecipeViewerOverlay {
      * Query target: viewer-overlay button first, then hovered container slot,
      * then ghost-preview slot, then a hovered recipe-book button.
      */
-    public static ItemStack captureTarget(AbstractContainerScreen<?> screen) {
+    /** Window-only capture: hovered viewer button / popup / grid cell /
+     *  workstation column (the screen part is static — see
+     *  {@link RecipeViewerOverlay#captureScreenTarget}). */
+    public ItemStack captureViewerAnchors(AbstractContainerScreen<?> screen) {
         // Reset the anchor each capture: only a hovered viewer-overlay recipe
         // button re-sets it, so a plain slot / book button / fuel cell capture
         // never leaves a stale recipe behind (pinning keys off it).
@@ -3231,59 +4723,12 @@ public final class RecipeViewerOverlay {
             }
         }
 
-        AbstractContainerScreenAccessor acc = (AbstractContainerScreenAccessor) screen;
-        Slot slot = acc.brbe$getHoveredSlot();
-        if (slot != null && slot.hasItem()) {
-            return slot.getItem();
-        }
-
-        // Hovering a ghost-preview ingredient slot (no real item): use the ghost
-        // item, so R/U works on ghost previews too.
-        if (slot != null && screen instanceof AbstractRecipeBookScreen<?> rbs) {
-            ItemStack ghost = captureGhostItem(rbs, slot);
-            if (!ghost.isEmpty()) return ghost;
-        }
-
-        // Hovering a vanilla recipe-book button.
-        if (screen instanceof AbstractRecipeBookScreen<?> rbs) {
-            RecipeBookComponent<?> book = ((AbstractRecipeBookScreenAccessor) rbs).brbe$getRecipeBookComponent();
-            if (book != null && book.isVisible()) {
-                RecipeBookPage page = ((RecipeBookComponentAccessor) book).getRecipeBookPage();
-                if (page != null) {
-                    for (RecipeButton button : ((RecipeBookPageAccessor) page).getButtons()) {
-                        if (button.isHoveredOrFocused()) {
-                            ItemStack stack = button.getDisplayStack();
-                            if (stack != null && !stack.isEmpty()) {
-                                anchorBookButton = button;
-                                return stack;
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
-        // Hovering a grid category's cell (fuel / compost / info) in the query
-        // viewer.
-        if (isGridMode() && gridHoverStack != null && !gridHoverStack.isEmpty()) {
-            return gridHoverStack;
-        }
-        // Hovering a left workstation column object: part of the viewer, so
-        // R/U over it queries that object (R = recipes, U = uses) like a
-        // normal item.
-        if (isActive()) {
-            Minecraft mc = Minecraft.getInstance();
-            int mx = Mth.floor(mc.mouseHandler.getScaledXPos(mc.getWindow()));
-            int my = Mth.floor(mc.mouseHandler.getScaledYPos(mc.getWindow()));
-            ItemStack station = stationCellAt(mx, my);
-            if (!station.isEmpty()) return station;
-        }
         return ItemStack.EMPTY;
     }
 
     /** Recipe id of the query-viewer recipe button under the cursor when the
      *  last capture happened, or null.  Lets a pin clone the full recipe button. */
-    public static RecipeDisplayId capturedOverlayRecipe() {
+    public RecipeDisplayId capturedOverlayRecipe() {
         if (anchorOverlayWidget instanceof OverlayRecipeButtonAccessor oba) {
             return oba.brbe$getRecipe();
         }
@@ -3294,14 +4739,14 @@ public final class RecipeViewerOverlay {
      *  captured recipe button), or null.  Lets a pin clone render with the
      *  source recipe's craftable / partial state instead of recomputing it
      *  against a fresh collection. */
-    public static RecipeCollection capturedOverlayCollection() {
+    public RecipeCollection capturedOverlayCollection() {
         if (anchorOverlayWidget == null) return null;
         return overlay.getRecipeCollection();
     }
 
     /** Centre of the hovered query-viewer recipe button, or null when the last
      *  capture was not an overlay button.  Pins open centred on their source. */
-    public static int[] capturedOverlayButtonCentre() {
+    public int[] capturedOverlayButtonCentre() {
         if (anchorOverlayWidget == null) return null;
         return new int[] { anchorOverlayWidget.getX() + anchorOverlayWidget.getWidth() / 2,
                            anchorOverlayWidget.getY() + anchorOverlayWidget.getHeight() / 2 };
@@ -3315,7 +4760,7 @@ public final class RecipeViewerOverlay {
      */
     /** The entry for {@code id}: the engine's registry first (covers synthetic
      *  entries from the companion mod), then the recipe book's known set. */
-    public static RecipeDisplayEntry entryFor(RecipeDisplayId id) {
+    public RecipeDisplayEntry entryFor(RecipeDisplayId id) {
         if (id == null) return null;
         RecipeDisplayEntry entry = RecipeViewerEngine.entryFor(id);
         if (entry != null) return entry;
@@ -3324,7 +4769,7 @@ public final class RecipeViewerOverlay {
         return ((ClientRecipeBookAccessor) mc.player.getRecipeBook()).brbe$getKnown().get(id);
     }
 
-    private static boolean recipeFitsScreen(RecipeDisplayId id, AbstractContainerScreen<?> screen) {
+    private boolean recipeFitsScreen(RecipeDisplayId id, AbstractContainerScreen<?> screen) {
         if (RecipeViewerEngine.isSynthetic(id)) return false;
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null) return false;
@@ -3352,7 +4797,7 @@ public final class RecipeViewerOverlay {
     }
 
     /** Result item of an overlay recipe button (its recipe's primary output). */
-    private static ItemStack overlayButtonResult(OverlayRecipeButtonAccessor button) {
+    private ItemStack overlayButtonResult(OverlayRecipeButtonAccessor button) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return ItemStack.EMPTY;
         try {
@@ -3373,108 +4818,22 @@ public final class RecipeViewerOverlay {
     }
 
     /** If {@code slot} currently holds a ghost-preview ingredient, return its item. */
-    private static ItemStack captureGhostItem(AbstractRecipeBookScreen<?> screen, Slot slot) {
-        try {
-            RecipeBookComponent<?> book = ((AbstractRecipeBookScreenAccessor) screen).brbe$getRecipeBookComponent();
-            if (book == null) return ItemStack.EMPTY;
-            GhostSlotsAccessor ghostAcc = (GhostSlotsAccessor) ((RecipeBookComponentAccessor) book).getGhostSlots();
-            if (ghostAcc == null) return ItemStack.EMPTY;
 
-            Object ghost = ghostAcc.getIngredients().get(slot);
-            if (ghost == null) return ItemStack.EMPTY;
 
-            // GhostSlot is a package-private Record(List<ItemStack>, boolean);
-            // its public getItem(int) cannot be reflectively invoked from a
-            // different package unless setAccessible(true).  Use the current
-            // slot-select animation index so an interchangeable material that
-            // rotates (~2s) resolves to the variant the user is seeing.
-            int idx = currentSlotSelectIndex(ghostAcc.getSlotSelectTime().currentIndex());
-            for (java.lang.reflect.Method m : ghost.getClass().getMethods()) {
-                if (m.getReturnType() == ItemStack.class && m.getParameterCount() == 1
-                        && m.getParameterTypes()[0] == int.class) {
-                    m.trySetAccessible();
-                    Object item = m.invoke(ghost, idx);
-                    if (item instanceof ItemStack stack && !stack.isEmpty()) {
-                        return stack;
-                    }
-                    break;
-                }
-            }
-
-            // Fallback: any public no-arg accessor returning a non-empty list.
-            for (java.lang.reflect.Method m : ghost.getClass().getMethods()) {
-                if (m.getReturnType() == List.class && m.getParameterCount() == 0) {
-                    m.trySetAccessible();
-                    List<?> items = (List<?>) m.invoke(ghost);
-                    if (items != null) {
-                        for (Object o : items) {
-                            if (o instanceof ItemStack stack && !stack.isEmpty()) {
-                                return stack;
-                            }
-                        }
-                    }
-                }
-            }
-            return ItemStack.EMPTY;
-        } catch (Exception e) {
-            return ItemStack.EMPTY;
-        }
-    }
-
-    /** Sort rank: 3 = pinned (recipe-book pin state), 2 = fully craftable,
-     *  1 = partial (missing materials), 0 = uncraftable.  Pinned objects lead
-     *  even the fully-craftable ones. */
-    private static int recipeRank(RecipeCollection collection, RecipeDisplayEntry entry) {
-        if (BetterRecipeBook.pinnedRecipeManager.isPinnedEntry(entry)) return 3;
+    /** Within-group kind rank for {@link ViewerObjectOrder}: 0 = fully
+     *  craftable, 1 = partial (missing materials), 2 = uncraftable.  Pin state
+     *  is the module's group predicate, not a kind. */
+    private int viewerKindRank(RecipeCollection collection, RecipeDisplayEntry entry) {
         boolean craftable = collection.isCraftable(entry.id());
         boolean partial = PartialCraftingUtil.isPartiallyCraftable(collection, entry.id());
-        if (craftable && !partial) return 2;
+        if (craftable && !partial) return 0;
         if (partial) return 1;
-        return 0;
-    }
-
-    /** Left edge (screen X) of the crafting grid, or -1 if the screen has none. */
-    private static int gridLeftScreenX(Screen screen) {
-        if (!(screen instanceof AbstractRecipeBookScreen<?> rs)) return -1;
-        AbstractContainerScreenAccessor acc = (AbstractContainerScreenAccessor) rs;
-        if (!(rs.getMenu() instanceof AbstractCraftingMenu menu)) return -1;
-        int left = acc.brbe$getLeftPos();
-        int gridLeft = Integer.MAX_VALUE;
-        for (Slot slot : menu.getInputGridSlots()) {
-            gridLeft = Math.min(gridLeft, left + slot.x);
-        }
-        return gridLeft == Integer.MAX_VALUE ? -1 : gridLeft;
-    }
-
-    /** Right edge (screen X) of the crafting grid, or -1 if the screen has none. */
-    private static int gridRightScreenX(Screen screen) {
-        if (!(screen instanceof AbstractRecipeBookScreen<?> rs)) return -1;
-        AbstractContainerScreenAccessor acc = (AbstractContainerScreenAccessor) rs;
-        if (!(rs.getMenu() instanceof AbstractCraftingMenu menu)) return -1;
-        int left = acc.brbe$getLeftPos();
-        int right = -1;
-        for (Slot slot : menu.getInputGridSlots()) {
-            right = Math.max(right, left + slot.x + 18);
-        }
-        return right;
-    }
-
-    /** Bottom Y (screen space) of the crafting grid, or -1 if the screen has none. */
-    private static int gridBottomScreenY(Screen screen) {
-        if (!(screen instanceof AbstractRecipeBookScreen<?> rs)) return -1;
-        AbstractContainerScreenAccessor acc = (AbstractContainerScreenAccessor) rs;
-        if (!(rs.getMenu() instanceof AbstractCraftingMenu menu)) return -1;
-        int top = acc.brbe$getTopPos();
-        int bottom = -1;
-        for (Slot slot : menu.getInputGridSlots()) {
-            bottom = Math.max(bottom, top + slot.y + 18);
-        }
-        return bottom;
+        return 2;
     }
 
     /** Whether the click lands on the overlay box (buttons + padding) or the
      *  workstation panel. */
-    private static boolean inBox(MouseButtonEvent event) {
+    private boolean inBox(MouseButtonEvent event) {
         int mx = Mth.floor(event.x());
         int my = Mth.floor(event.y());
         // Use the current box layout fields (not the overlay's buttons, which
@@ -3495,5 +4854,6 @@ public final class RecipeViewerOverlay {
             return my >= rect[0] && my < rect[0] + rect[1];
         }
         return false;
+    }
     }
 }

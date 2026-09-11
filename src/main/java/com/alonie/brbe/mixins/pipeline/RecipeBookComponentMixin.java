@@ -80,8 +80,14 @@ public abstract class RecipeBookComponentMixin {
     // cached list skips the two O(collections) stages (applyPins + partial
     // sort's categorize) — the dominant cost of every recipe-book open on
     // large recipe packs.  Invalidated on inventory change, pin set change
-    // (PinnedRecipeManager.version), search query change, config change, or
+    // (PinnedRecipeManager.version), search query change (the query TEXT —
+    // see brbe$cacheSearchText), isFiltering change (vanilla filters the list
+    // before this hook — see brbe$cacheIsFiltering), config change, or
     // collection rebuild (RecipeCraftingIndex.generation).
+    //
+    // ⚠️ 搜索词必须是缓存键的一部分：Stage 1 的输出是搜索词的函数，把它退化成
+    // "有没有搜索"的布尔量会让「空→非空」后的每一次改词都命中缓存、返回上一次
+    // 查询的结果（高级语法冻结在 1 字符前缀 "@"/"$"/"#"/"r" → 匹配为空 → 空页）。
 
     @Unique
     private List<RecipeCollection> brbe$cachedPipelinedList;
@@ -92,14 +98,42 @@ public abstract class RecipeBookComponentMixin {
     @Unique
     private int brbe$cachePinVersion = -1;
 
+    /**
+     * 上一次管线输出所对应的**搜索词原文**（HEAD 捕获的 {@link #brbe$savedSearchText}，
+     * 无搜索时为 {@code ""}）。缓存键必须包含它——搜索命中集合是搜索词的函数，
+     * 只有"有没有搜索"一个布尔量会让改词后的管线输出被错误复用。
+     */
     @Unique
-    private boolean brbe$cacheSearchActive;
+    private String brbe$cacheSearchText = "";
 
     @Unique
     private boolean brbe$cacheConfigKey;
 
     @Unique
     private boolean brbe$cacheHasPipelined;
+
+    /**
+     * 上一次管线输出对应的 {@code isFiltering}（"仅显示可合成"）。
+     * <p>
+     * 该值决定 **vanilla 在管线之前**对列表做的过滤
+     * （{@code if (isFiltering) removeIf(!hasCraftable())}），所以管线输出依赖它。
+     * 漏进缓存键的后果：切换过滤器后 vanilla 已把不可合成集合剔除，但缓存命中
+     * 会把上一轮（未过滤）的列表交回页面——应被隐藏的配方以**空按钮/空气占位符**
+     * 出现，点击该按钮时 {@code RecipeButton.getCurrentRecipe()} 除以 0 崩溃
+     * （BRBE 的 RecipeButtonSafetyMixin 只兜住了渲染路径）。
+     */
+    @Unique
+    private boolean brbe$cacheIsFiltering;
+
+    /**
+     * 本次管线调用对应的搜索词原文。{@code brbe$runPipeline} 期间搜索框已被清空
+     * （HEAD 的 {@code brbe$saveSearchText}），{@link #brbe$parsedQuery} 本身也不携带
+     * 原文——因此只能取 HEAD 保存的 {@link #brbe$savedSearchText}。
+     */
+    @Unique
+    private String brbe$currentSearchText() {
+        return brbe$savedSearchText == null ? "" : brbe$savedSearchText;
+    }
 
     @Unique
     private boolean brbe$configKey() {
@@ -234,7 +268,8 @@ public abstract class RecipeBookComponentMixin {
                 && com.alonie.brbe.util.RecipeCraftingIndex.inventoryUnchanged()
                 && brbe$cacheGeneration == com.alonie.brbe.util.RecipeCraftingIndex.generation()
                 && brbe$cachePinVersion == BetterRecipeBook.pinnedRecipeManager.version()
-                && brbe$cacheSearchActive == (brbe$parsedQuery != null)
+                && java.util.Objects.equals(brbe$cacheSearchText, brbe$currentSearchText())
+                && brbe$cacheIsFiltering == isFiltering
                 && brbe$cacheConfigKey == brbe$configKey()
                 && !resetPageNumber) {
             // 缓存的是管线输出**原样快照**（浅拷贝）：Stage 6 会原地改写传入列表
@@ -277,7 +312,8 @@ public abstract class RecipeBookComponentMixin {
             brbe$cachedPipelinedList = new ArrayList<>(list);
             brbe$cacheGeneration = com.alonie.brbe.util.RecipeCraftingIndex.generation();
             brbe$cachePinVersion = BetterRecipeBook.pinnedRecipeManager.version();
-            brbe$cacheSearchActive = brbe$parsedQuery != null;
+            brbe$cacheSearchText = brbe$currentSearchText();
+            brbe$cacheIsFiltering = isFiltering;
             brbe$cacheConfigKey = brbe$configKey();
             brbe$cacheHasPipelined = true;
         }

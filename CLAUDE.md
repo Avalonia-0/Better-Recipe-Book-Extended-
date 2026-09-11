@@ -952,3 +952,108 @@ hideoverlay 的 IngredientListOverlay/BookmarkOverlay mixin 与主 tick 的隐�
 setOverlaysHidden）只保留 `hideReiJeiOverlay` 配置开关；BRBE 查询/pin 打开时 JEI
 照常显示（IngredientListOverlayMixin 仍是配置开关的权威 gate）。1.21.1 的守卫本就
 只认配置（无需改）。已部署两实例（备份 20260828-221500，原子替换）。
+
+## 2026-09-08：高级搜索"几乎完全损坏"修复（26.2 + 1.21.11）
+
+用户反馈：本分支与 1.21.11 的配方书高级搜索几乎完全不可用（1.21.1 正常）。调查产物见
+`docs/1.21.11-26.2-高级搜索损坏调查报告.md`，回归测试 `tools/search-cache-harness/run.sh all`
+（用本分支真实编译产物驱动真实 `pipeline/RecipeBookComponentMixin`，只 stub Minecraft/协作者）。
+
+- **根因**：管线输出缓存（`18b0f87e`，2026-08-25 引入）的缓存键只比较「搜索是否激活」的布尔量
+  `brbe$cacheSearchActive == (brbe$parsedQuery != null)`，**漏掉搜索词本身**（注释却写着
+  "Invalidated on … search query change"）。→ 搜索框「空→非空」的第一次按键正常，之后每次改词
+  都命中缓存返回上一次的旧结果。高级语法因此冻结在 1 字符前缀：`parseToken` 只在长度 >1 时识别
+  `@`/`$`/`#`/`r/`，单字符被降级为普通子串 → 没有物品名含这些字符 → **整页空白**。
+  切标签（vanilla 唯一传 `resetPageNumber=true` 的路径）、重开配方书、物品栏变化会让缓存失配而
+  临时恢复一次——故现象是"几乎"而非"完全"。
+- **修复**：`brbe$cacheSearchActive: boolean` → `brbe$cacheSearchText: String`；命中判定
+  `java.util.Objects.equals(brbe$cacheSearchText, brbe$currentSearchText())`，存缓存时同步赋值。
+  ⚠️ 取值必须用 HEAD 捕获的 `brbe$savedSearchText`（`brbe$runPipeline` 期间搜索框已被清空、
+  `brbe$parsedQuery` 不携带原文）；无搜索时归一化为 `""`。新增 `@Unique brbe$currentSearchText()`。
+- **验证**：回归测试修复前 5 处 FAIL（`applySearch calls: [0]`）→ 修复后 `[0, 1, 2]`、**ALL GREEN
+  退出码 0**；`compileJava`/`build` 通过，已原子替换部署（备份 20260911-131947，md5 4e60edb4e44f…）。
+- **同源次要问题（未修，见报告 §4）**：`|` 在引号/正则内被 `OR_SPLIT` 提前切分（`r/a|b/` 失效，
+  测试标 `[XFAIL]`）；`brbe$saveSearchText` 无条件清空搜索框（javadoc 写的是 "if found"）→
+  `isAdvanced()` 成死代码、普通搜索不再走 vanilla `searchTrees()`；HEAD 清空 + TAIL 写回导致
+  EditBox 光标每次按键跳到末尾。
+
+## 2026-09-11：管线输出缓存第二个缺失键 —— `isFiltering`（"空气占位符"）
+
+用户反馈：关闭"移除配方过滤"（`partialCraftingEnabled=false`）并开启"仅显示可合成"后，
+**原本应被移除的配方变成空气占位符**（应直接隐藏）。
+
+- **根因**：管线输出缓存的键里也没有 `isFiltering`。该值决定 **vanilla 在管线之前**的过滤
+  （`RecipeBookComponent.updateCollections` 的 `if (isFiltering) removeIf(!hasCraftable())`），
+  管线又用它决定是否跑 Stage 4 排序——两者都是缓存输出的输入。
+  「过滤器关闭 → 管线缓存记下未过滤列表」→ 点"仅显示可合成"：vanilla 第 ③ 步已正确剔除
+  不可合成集合，但缓存命中（物品栏/配置/pin/搜索词都没变）→ **把未过滤的旧列表交回页面**。
+- **症状链**：`RecipeButton.init(collection, isFiltering=true)` →
+  `getSelectedRecipes(CRAFTABLE)` 对不可合成集合返回空 → `selectedEntries` 为空 →
+  渲染 `getDisplayStack()` 除以 0 被 `incompletecrafting/RecipeButtonSafetyMixin` 兜住返回
+  `ItemStack.EMPTY` = **空气占位符**；点击时 `RecipeBookPage.mouseClicked` 直接调
+  `getCurrentRecipe()`（**无兜底**）→ `ArithmeticException: / by zero` 崩客户端
+  （实例日志 `26.2-Fabric/logs/latest.log` 15:54:02 实锤）。
+- **修复**：缓存键加入 `isFiltering`（新 `@Unique brbe$cacheIsFiltering`，命中判定
+  `&& brbe$cacheIsFiltering == isFiltering`，存缓存时同步赋值）。回归测试新增 Phase C：
+  先 `isFiltering=false` 跑一次，再 `isFiltering=true` **且输入列表不同**跑一次，断言页面拿到
+  本次输入（修复前红：`unfiltered-all-recipes`；修复后绿）。已编译、两分支 ALL GREEN、
+  已构建部署。
+- **同批修复（第二轮）**：① `incompletecrafting/RecipeBookComponentMixin` 的
+  `@Redirect(ordinal = 0)` 实际落在 `!hasAnySelected()`（旧注释误称"主可合成过滤"；真正的是
+  第三处、只在 isFiltering 时执行）。旧 `keepPartial/keepIncompatible` 包装**只在集合没有任何
+  被选中配方时**才走到放行分支 —— 等于专门放行"没有可渲染条目"的集合（空气占位符 + 点击崩）。
+  修复：挂点留在 ordinal 0（唯一**无条件执行**的位置，残缺标注必须每轮都跑），谓词**原样交还
+  vanilla**（`return collections.removeIf(predicate);`）。残缺/不兼容的保留并不依赖绕过：
+  不兼容靠 `incompatibleenvironment/CraftingRecipeBookComponentMixin` 强制 `canDisplay=true`
+  → 被 `selectRecipes` 选中 → 通过该谓词，`elevateFullyCraftable3x3` 再进 craftable → 通过
+  可合成过滤；残缺同理（注入 craftable + canDisplay）。与 1.21.1「显式重现 vanilla 两处
+  removeIf、不绕过」对齐。**唯一可见变化**：物品栏界面 + `showAllRecipesInSurvival=false` 时
+  3×3 配方不再被私自放行（vanilla 语义：该界面看不了 3×3）。
+  ② 新增 `incompletecrafting/RecipeBookPageSafetyMixin`（已注册进 `mixins.brbe-common.json`）：
+  `updateButtonsForPage` RETURN 把**没有可渲染条目**的按钮 `visible = false`（直接隐藏，不再有
+  空气槽位；也让它天然不可点击），`mouseClicked` HEAD 再兜一层吞掉点到空按钮的点击 → 不再
+  `/ by zero` 崩客户端。注入点/字段均为本分支已在生产的同款写法
+  （`scrollablepages/RecipeBookPageMixin` 同样 @Inject 这两个方法，`RecipeBookPageAnimationMixin`
+  同样 `@Shadow private List<RecipeButton> buttons`），javap 核对过 1.21.11/26.2 MC jar 描述符
+  （`mouseClicked(MouseButtonEvent,int,int,int,int,boolean)`）。
+  第二轮已编译、harness ALL GREEN、已构建部署（备份 20260911-160604，md5 一致）。
+
+## 2026-09-11（二）：查询窗口存在时 ESC 退不出界面
+
+用户反馈："查询界面存在时无法通过按 ESC 退出当前界面；无论查询界面是否存在，用户都应该能用
+ESC 退出界面。"（详见 `docs/1.21.11-26.2-查询窗口ESC退出问题.md`）
+
+- **根因**：ESC 在 `mixins/recipeviewer/KeyboardHandlerMixin`（`KeyboardHandler.keyPress` HEAD，
+  `priority = 2000`，早于 `Screen.keyPressed`）就被 `RecipeViewerOverlay.keyPressed` 消费
+  （`ci.cancel()`）；而它调用的 `close()` 是**被动关闭**——只清 `spec.materialized`、保留持久化
+  spec（设计意图：窗口像 pin 一样在**下一个**容器界面恢复）。可是恢复通道
+  `restorePendingViewers()` 每帧由 `PinOverlayManager.render` 调用，且
+  `ViewerInstance.restoreFrom(spec, screen)` **不校验界面身份** → ESC 关掉的窗口**下一帧就在同一
+  界面复活** → ESC 每按一次只换来"窗口闪一下又回来"，用户永远退不出去。设计注释写的是
+  "restores on the **next** container screen"，实现与意图不符。
+- **修复**（`util/RecipeViewerOverlay.java`）：
+  ① 新增会话态 `restoreSuppressedScreen` + `suppressRestoreOnCurrentScreen()`；
+  `restorePendingViewers()` 里"界面未变"则跳过恢复（界面一变自动解除，**跨界面存活的原有语义保留**）；
+  ② ESC 分支改为：`close()` 关掉已打开的窗口 + 抑制本界面复活 + **`return false` 不消费**
+  （交回屏幕走原版 ESC）。语义：有窗口时 ESC = 关窗 **+** 原版 ESC 语义
+  （配方书界面先收起配方书——vanilla `RecipeBookComponent.keyPressed` 的
+  `isEscape() && !isOffsetNextToMainGUI()` → `setVisible(false)`，与本 mod 无关，故意不改；
+  其它容器界面直接关闭，窗口随宿主界面一起关）。
+  `mixins/recipeviewer/AbstractContainerScreenMixin` 的类 javadoc 同步更新。
+- 两分支同步；已编译、已构建部署（备份 20260911-162512，md5 一致）。
+- **顺带发现（未改）**：`mixins/scrollablepages/RecipeBookPageMixin` 翻页回调里的
+  `RecipeViewerOverlay.close()` 走同一被动关闭路径 → 同样下一帧被复活，该"翻页关窗"从未生效。
+
+## 2026-09-11（四）：Unique Dark - Lite 兼容包补 `column_panel`
+
+用户自制深色版 `column_panel.png`（32×32 RGBA：深绿 `#336B41` 填充 + 亮绿 `#6DA843` 描边 +
+外圈 1px 黑边）加入本分支兼容包
+`src/main/resources/resourcepacks/brbe_unique_dark/assets/brbe/textures/gui/sprites/recipe_book/column_panel.png`。
+
+- **此前缺项**：基础资源 `assets/brbe/.../recipe_book/column_panel.png`（浅灰 `#C6C6C6`）一直有，
+  但兼容包从未覆盖它 → 深色包下查询 viewer 的工作站列（`RecipeViewerOverlay.COLUMN_PANEL_SPRITE`
+  = `brbe:recipe_book/column_panel`，`drawStationColumnSurfaces` 以 9-slice 绘制）仍是浅色。
+- **无需新增 mcmeta**：新图与基础图同为 32×32，基础包的
+  `column_panel.png.mcmeta`（`nine_slice width/height=32 border=4`）继续生效；包内其余覆盖贴图同样只放 PNG。
+- `column_panel_top` 未动（代码侧已不再使用该变体）。
+- 已构建、原子替换部署（备份 20260911-174055，md5 一致），jar 内贴图与用户源文件 md5 一致。

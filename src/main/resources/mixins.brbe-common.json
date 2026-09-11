@@ -21,6 +21,7 @@
     "accessors.IMEPreeditOverlayAccessor",
     "accessors.CreativeModeTabsAccessor",
     "accessors.GhostSlotsAccessor",
+    "accessors.GhostSlotsSetSlotAccessor",
     "accessors.GuiGraphicsExtractorAccessor",
     "accessors.GenericRecipePageAccessor",
     "accessors.HolderReferenceAccessor",
@@ -44,6 +45,7 @@
     "incompletecrafting.OverlayRecipeComponentMixin",
     "incompletecrafting.RecipeButtonMixin",
     "incompletecrafting.RecipeButtonSafetyMixin",
+    "incompletecrafting.RecipeBookPageSafetyMixin",
     "incompletecrafting.RecipeBookComponentMixin",
     "incompletecrafting.GhostSlotsMixin",
     "pipeline.RecipeBookComponentMixin",
@@ -72,8 +74,8 @@
     "localcache.ClientRecipeBookMixin",
     "localcache.RecipeCollectionMixin",
     "recipeviewer.AbstractContainerScreenMixin",
-    "recipeviewer.CreativeModeInventoryScreenMixin",
     "recipeviewer.AbstractRecipeBookScreenMixin",
+    "recipeviewer.CreativeModeInventoryScreenMixin",
     "recipeviewer.KeyboardHandlerMixin",
     "recipeviewer.OverlayRecipeComponentMixin",
     "recipeviewer.OverlayRecipeComponentPositionMixin",
@@ -83,7 +85,9 @@
     "recipeviewer.ViewerOverlayTooltipMixin",
     "recipebookposition.RecipeBookComponentMixin",
     "recipebookposition.GenericRecipeBookComponentMixin",
-    "keybinding.KeyMappingSyncMixin"
+    "keybinding.KeyMappingSyncMixin",
+    "pausescreen.PauseScreenConfigButtonMixin",
+    "recipebook.RecipeBookToggleFocusMixin"
   ],
   "injectors": {
     "defaultRequire": 1
