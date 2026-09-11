@@ -39,13 +39,23 @@ public abstract class OverlayRecipeComponentMixin {
         }
     }
 
-    /** The paged viewer box is drawn entirely by {@code RecipeViewerOverlay}
-     *  (vanilla lays out at most 5 columns); skip the vanilla draw pass. */
+    /** The viewer box is drawn entirely by {@code RecipeViewerOverlay} (vanilla
+     *  lays out at most 5 columns); skip the vanilla draw pass for ANY active
+     *  viewer overlay, not only the paged ones.
+     *  <p>2026-09-11 (workstation-column junction): the guard used to require
+     *  {@code isPaged()}, so for a single-page window (≤50 results) vanilla also
+     *  drew its own background — a 5-column box, i.e. 133px wide ×
+     *  {@code ceil(n/5)*25+8} tall.  With 26…50 results that box is taller than
+     *  the viewer box, so its bottom border and left border column (= exactly
+     *  the workstation column / box junction x) stuck out below the window,
+     *  which read as "the junction is off by half a pixel" and made users chase
+     *  it by nudging the {@code column_panel.png} pixels (pointless — the stray
+     *  edge came from this second, vanilla-drawn box). */
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
-    private void brbe$skipPagedRender(GuiGraphics gui, int mouseX, int mouseY,
-                                      float delta, CallbackInfo ci) {
+    private void brbe$skipOwnOverlayRender(GuiGraphics gui, int mouseX, int mouseY,
+                                           float delta, CallbackInfo ci) {
         OverlayRecipeComponent self = (OverlayRecipeComponent) (Object) this;
-        if (RecipeViewerOverlay.isOwnOverlay(self) && RecipeViewerOverlay.isPaged()) {
+        if (RecipeViewerOverlay.isOwnActiveOverlay(self)) {
             ci.cancel();
         }
     }
