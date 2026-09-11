@@ -142,7 +142,7 @@
   "text.autoconfig.brbe.option.pinyinSearch": "Pinyin Search",
   "text.autoconfig.brbe.option.pinyinSearch.@Tooltip": "Type pinyin in the search bar to find items directly.",
   "text.autoconfig.brbe.option.pinyinSearch@Tooltip": "Type pinyin in the search bar to find items directly.",
-  "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain": "Enable Creative Mode Tabs",
+  "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain": "Enable Recipe Book Is Pain",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain.@PrefixText": "§eCreative Mode Tabs",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain.@Tooltip": "Aligns the vanilla recipe book tabs with the creative inventory. Reopen inventory to take effect.",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@PrefixText": "§eCreative Mode Tabs",

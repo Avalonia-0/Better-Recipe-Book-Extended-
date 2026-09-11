@@ -131,7 +131,7 @@
   "text.autoconfig.brbe.option.pinKey": "固定",
   "text.autoconfig.brbe.option.pinKey.@Tooltip": "レシピ本のレシピやタブを先頭ページに固定し、照会オブジェクトのプレビューを表示します。",
   "text.autoconfig.brbe.option.pinKey@Tooltip": "レシピ本のレシピやタブを先頭ページに固定し、照会オブジェクトのプレビューを表示します。",
-  "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain": "クリエイティブモードタブを有効化",
+  "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain": "Recipe Book Is Painを有効化",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain.@PrefixText": "§eクリエイティブモードタブ",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain.@Tooltip": "バニラのレシピ本タブをクリエイティブモードのインベントリに合わせます。インベントリを開き直すと適用されます。",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@PrefixText": "§eクリエイティブモードタブ",

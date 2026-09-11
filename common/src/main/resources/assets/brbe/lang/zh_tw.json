@@ -142,7 +142,7 @@
   "text.autoconfig.brbe.option.pinyinSearch": "拼音搜尋",
   "text.autoconfig.brbe.option.pinyinSearch.@Tooltip": "直接在搜尋欄中輸入拼音進行搜尋。",
   "text.autoconfig.brbe.option.pinyinSearch@Tooltip": "直接在搜尋欄中輸入拼音進行搜尋。",
-  "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain": "啟用創造模式標籤",
+  "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain": "啟用Recipe Book Is Pain",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain.@PrefixText": "§e創造模式標籤",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain.@Tooltip": "將原版的配方書標籤對齊創造模式物品欄。重新開啟物品欄生效。",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@PrefixText": "§e創造模式標籤",
