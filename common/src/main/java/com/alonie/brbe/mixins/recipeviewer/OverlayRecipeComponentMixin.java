@@ -29,13 +29,19 @@ public abstract class OverlayRecipeComponentMixin {
         }
     }
 
-    /** The paged viewer box is drawn entirely by {@code RecipeViewerOverlay}:
-     *  skip the vanilla draw pass for the viewer instance when paged. */
+    /** The viewer box is drawn entirely by {@code RecipeViewerOverlay}: skip the
+     *  vanilla draw pass for ANY active viewer overlay, not only paged ones.
+     *  <p>2026-09-11：守卫原先要求 {@code isPaged()}，于是单页窗口（≤50 条结果）
+     *  时 vanilla 还会自己画一个"最多 5 列"的背景盒子（133px 宽 ×
+     *  {@code ceil(n/5)*25+8} 高）——结果数 26…50 时它比查询窗口更高，其下边框与
+     *  左边框列（正好是工作站列与主体交界处的 x）会从窗口下缘露出来，看起来就像
+     *  "交界处偏了半个像素"，逼得人去反复微调 column_panel.png 的像素（无效——那条
+     *  多余边来自这个 vanilla 画的第二个盒子）。 */
     @Inject(method = "render", at = @At("HEAD"), cancellable = true)
-    private void brbe$skipPagedRender(GuiGraphics gui, int mouseX, int mouseY,
-                                      float delta, CallbackInfo ci) {
+    private void brbe$skipOwnOverlayRender(GuiGraphics gui, int mouseX, int mouseY,
+                                           float delta, CallbackInfo ci) {
         OverlayRecipeComponent self = (OverlayRecipeComponent) (Object) this;
-        if (RecipeViewerOverlay.isOwnOverlay(self) && RecipeViewerOverlay.isPaged()) {
+        if (RecipeViewerOverlay.isOwnActiveOverlay(self)) {
             ci.cancel();
         }
     }

@@ -1958,6 +1958,14 @@ public final class RecipeViewerOverlay {
         return o == overlayComponent;
     }
 
+    /** 该 overlay 是否属于**正在自行绘制**的查询界面：BRBE 的窗口每帧自己画整块
+     *  内容（背景 + 按钮 + 翻页控件），**与是否分页无关**；vanilla 的 draw pass
+     *  却按"最多 5 列"另算一个更窄（结果数 >25 时也更高）的背景盒子，会在窗口下缘
+     *  露出它的下边框与左边框列——正好落在工作站列与主体的交界处（2026-09-11）。 */
+    public static boolean isOwnActiveOverlay(OverlayRecipeComponent o) {
+        return o == overlayComponent && active;
+    }
+
     public static boolean isPaged() {
         return active && pageCount > 1;
     }
