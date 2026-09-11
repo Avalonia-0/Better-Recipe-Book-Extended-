@@ -147,8 +147,8 @@ public final class ConfigTipsHelper {
         moveBefore(defaultEntries, RBIP_MASTER_OPTION_KEY, VIEWER_ANCHOR_OPTION_KEY, true);
         // 2) 「启用一键制作」：紧随主开关之后
         moveAfter(defaultEntries, INSTANT_CRAFT_ENABLED_OPTION_KEY, RBIP_MASTER_OPTION_KEY);
-        // 3) 「显示一键制作按钮」：「界面」页顶部
-        moveToTop(uiEntries, INSTANT_CRAFT_BUTTON_OPTION_KEY);
+        // 3) 「显示一键制作按钮」：「界面」页顶部（跨类别：它原本在「实用功能」页的 instantCraft 组里）
+        moveToTopOf(uiEntries, defaultEntries, INSTANT_CRAFT_BUTTON_OPTION_KEY);
         // 4) RBIP 两个子开关：搬到「界面」页「隐藏物品管理器界面」之后（前置黄字分节行）
         List<Object> moved = new ArrayList<>();
         for (String key : RBIP_MOVED_OPTION_KEYS) {
@@ -185,10 +185,15 @@ public final class ConfigTipsHelper {
         entries.add(at < 0 ? entries.size() : at + 1, entry);
     }
 
-    /** 把 {@code optionKey} 的条目挪到该类别最前面。 */
-    private static void moveToTop(List<Object> entries, String optionKey) {
-        Object entry = removeByFieldName(entries, Component.translatable(optionKey));
-        if (entry != null) entries.add(0, entry);
+    /** 把 {@code optionKey} 的条目挪到 {@code to} 类别最前面。
+     *  条目可能本来就在 {@code to} 里（同类别置顶）、也可能在 {@code from} 里（跨类别搬运），
+     *  两个列表都找一遍 —— 只传一个列表时，传错会让整个操作**静默不生效**（曾经的 bug：
+     *  「显示一键制作按钮」传了「界面」列表，而条目实际在「实用功能」列表里）。 */
+    private static void moveToTopOf(List<Object> to, List<Object> from, String optionKey) {
+        Component name = Component.translatable(optionKey);
+        Object entry = removeByFieldName(to, name);
+        if (entry == null) entry = removeByFieldName(from, name);
+        if (entry != null) to.add(0, entry);
     }
 
     /** 黄色纯文字行（分节标题）。 */
