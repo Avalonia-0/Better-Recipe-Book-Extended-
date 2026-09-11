@@ -64,6 +64,7 @@ public final class ConfigTipsHelper {
             java.util.function.Function<ConfigBuilder, Screen> buildFn = builder -> {
                 addCarousels(builder);
                 addSectionLabels(builder);
+                relocateRbipEntries(builder);
                 return builder.build();
             };
             provider.setBuildFunction(buildFn);
@@ -92,17 +93,70 @@ public final class ConfigTipsHelper {
     private static void addSectionLabels(ConfigBuilder builder) {
         ConfigCategory category = builder.getOrCreateCategory(Component.translatable(SECTION_CATEGORY_KEY));
         List<Object> entries = category.getEntries();
-        Component anchor = Component.translatable(SECTION_ANCHOR_OPTION_KEY);
-        int at = entries.size();
+        int at = indexOfFieldName(entries, Component.translatable(SECTION_ANCHOR_OPTION_KEY));
+        entries.add(at < 0 ? entries.size() : at, textRow(builder, SECTION_LABEL_KEY));
+    }
+
+    // ── 「界面」页的「Recipe Book Is Pain」小节（条目搬运）──────────────────────
+
+    /** RBIP 的两个子开关（在 {@code [rbip]} 子对象里）要在「界面」页显示的分区锚点。 */
+    private static final String UI_CATEGORY_KEY = "text.autoconfig.brbe.category.ui";
+    private static final String DEFAULT_CATEGORY_KEY = "text.autoconfig.brbe.category.default";
+    private static final String UI_ANCHOR_OPTION_KEY = "text.autoconfig.brbe.option.hideReiJeiOverlay";
+    private static final String RBIP_SECTION_LABEL_KEY = "brbe.gui.section.recipeBookIsPain";
+    /** 依次搬过去的条目（相对顺序即此表顺序）。 */
+    private static final List<String> RBIP_MOVED_OPTION_KEYS = List.of(
+            "text.autoconfig.brbe.option.rbip.enableTabPage",
+            "text.autoconfig.brbe.option.rbip.hideTabPageButtons");
+
+    /**
+     * 把「启用上侧和下侧的标签」「隐藏翻页按钮」从「实用功能」页搬到「界面」页的
+     * 「隐藏物品管理器界面」之后，并在它们前面插一行黄色纯文字「Recipe Book Is Pain」。
+     *
+     * <p><b>为什么搬条目而不是搬字段</b>：Cloth 的子对象（{@code @TransitiveObject}）条目
+     * 只能落在父字段所属的类别里（类别只在顶层字段上解析），把字段升到顶层会让 TOML 路径从
+     * {@code [rbip] enableTabPage} 变成顶层键、老配置值失效。所以这里保持字段原地不动，
+     * 只把已经建好的条目对象在类别之间重排 —— 条目仍绑定原字段，保存逻辑不变。
+     * 「Recipe Book Is Pain」那行原本是主开关的 {@code @PrefixText}（会跟着开关一起跑），
+     * 现改为这里的独立文字行，主开关留在「实用功能」页。</p>
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static void relocateRbipEntries(ConfigBuilder builder) {
+        ConfigCategory from = builder.getOrCreateCategory(Component.translatable(DEFAULT_CATEGORY_KEY));
+        ConfigCategory to = builder.getOrCreateCategory(Component.translatable(UI_CATEGORY_KEY));
+        List<Object> moved = new ArrayList<>();
+        for (String key : RBIP_MOVED_OPTION_KEYS) {
+            Object entry = removeByFieldName(from.getEntries(), Component.translatable(key));
+            if (entry != null) moved.add(entry);
+        }
+        if (moved.isEmpty()) return;
+        List<Object> toInsert = new ArrayList<>();
+        toInsert.add(textRow(builder, RBIP_SECTION_LABEL_KEY));
+        toInsert.addAll(moved);
+        List<Object> target = to.getEntries();
+        int anchor = indexOfFieldName(target, Component.translatable(UI_ANCHOR_OPTION_KEY));
+        target.addAll(anchor < 0 ? target.size() : anchor + 1, toInsert);
+    }
+
+    /** 黄色纯文字行（分节标题）。 */
+    private static Object textRow(ConfigBuilder builder, String langKey) {
+        return builder.entryBuilder()
+                .startTextDescription(Component.translatable(langKey).withStyle(ChatFormatting.YELLOW))
+                .build();
+    }
+
+    private static int indexOfFieldName(List<Object> entries, Component fieldName) {
         for (int i = 0; i < entries.size(); i++) {
-            if (entries.get(i) instanceof AbstractConfigListEntry<?> entry && anchor.equals(entry.getFieldName())) {
-                at = i;
-                break;
+            if (entries.get(i) instanceof AbstractConfigListEntry<?> entry && fieldName.equals(entry.getFieldName())) {
+                return i;
             }
         }
-        entries.add(at, builder.entryBuilder()
-                .startTextDescription(Component.translatable(SECTION_LABEL_KEY).withStyle(ChatFormatting.YELLOW))
-                .build());
+        return -1;
+    }
+
+    private static Object removeByFieldName(List<Object> entries, Component fieldName) {
+        int at = indexOfFieldName(entries, fieldName);
+        return at < 0 ? null : entries.remove(at);
     }
 
     private static void addCarousels(ConfigBuilder builder) {
