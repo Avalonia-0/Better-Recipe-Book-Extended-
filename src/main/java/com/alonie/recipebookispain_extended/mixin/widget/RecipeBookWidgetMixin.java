@@ -151,6 +151,8 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     @Inject(at = @At("TAIL"), method = "render")
     private void rbip$renderPageControls(GuiGraphics context, int mouseX, int mouseY, float delta, CallbackInfo ci) {
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
+        // 「隐藏翻页按钮」：整块页控件不画 —— 两个箭头与页码提示一起消失。
+        if (rbip$pageButtonsHidden()) return;
         if (!this.isVisible() || this.rbip$pageCount <= 1) return;
 
         boolean wrap = com.alonie.brbe.BetterRecipeBook.config.scrolling.scrollAround;
@@ -167,6 +169,8 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     @Inject(at = @At("HEAD"), method = "mouseClicked", cancellable = true)
     private void rbip$mouseClickedPageControls(MouseButtonEvent click, boolean doubled, CallbackInfoReturnable<Boolean> cir) {
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
+        // 按钮已隐藏：该区域不再吞掉点击，交回配方书原本的点击逻辑。
+        if (rbip$pageButtonsHidden()) return;
         if (!this.isVisible() || this.rbip$pageCount <= 1 || click.button() != 0) return;
 
         int x = (int) click.x();
@@ -403,6 +407,14 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     @Unique
     private int rbip$getHorizontalTabStartX() {
         return this.rbip$getBookX() + (RBIP_BOOK_WIDTH - RBIP_TOP_SLOTS * RBIP_ROTATED_TAB_WIDTH) / 2;
+    }
+
+    /** 「隐藏翻页按钮」（默认关）：开启时 RBIP 标签栏的翻页按钮整块不画、也不吞点击。
+     *  只影响这两个箭头本身——标签区域的滚轮翻页（{@link #rbip$isMouseOverAnyVisibleTab}）不变。 */
+    @Unique
+    private static boolean rbip$pageButtonsHidden() {
+        return com.alonie.brbe.BetterRecipeBook.config != null
+                && com.alonie.brbe.BetterRecipeBook.config.rbip.hideTabPageButtons;
     }
 
     @Unique

@@ -151,6 +151,7 @@
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@PrefixText": "§eRecipe Book Is Pain",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@Tooltip": "將原版的配方書標籤對齊創造模式物品欄。重新開啟物品欄生效。",
   "text.autoconfig.brbe.option.rbip.enableTabPage": "啟用上方與下方的標籤",
+"text.autoconfig.brbe.option.rbip.hideTabPageButtons": "隱藏翻頁按鈕",
   "text.autoconfig.brbe.option.recipeViewKey": "查詢合成",
   "text.autoconfig.brbe.option.recipeViewKey.@Tooltip": "查詢該物品作為產物的配方。",
   "text.autoconfig.brbe.option.recipeViewKey@Tooltip": "查詢該物品作為產物的配方。",
