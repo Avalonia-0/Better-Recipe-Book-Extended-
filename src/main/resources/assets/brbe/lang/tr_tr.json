@@ -126,7 +126,7 @@
   "text.autoconfig.brbe.option.pinKey": "Sabitle",
   "text.autoconfig.brbe.option.pinKey.@Tooltip": "Tarif kitabındaki tarifleri veya sekmeleri ilk sayfaya sabitler ve sorgu nesnesinin önizlemesini açar.",
   "text.autoconfig.brbe.option.pinKey@Tooltip": "Tarif kitabındaki tarifleri veya sekmeleri ilk sayfaya sabitler ve sorgu nesnesinin önizlemesini açar.",
-  "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain": "RBIP'i Etkinleştir",
+  "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain": "Recipe Book Is Pain'i Etkinleştir",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain.@PrefixText": "§eRecipe Book Is Pain",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain.@Tooltip": "Orijinal tarif kitabı sekmelerini yaratıcı mod envanterine hizalar. Envanteri yeniden açarak etkinleştirin.",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@PrefixText": "§eRecipe Book Is Pain",
