@@ -142,10 +142,11 @@ public abstract class RecipeBookComponentMixin {
         }
     }
 
-    // ordinal = 0: 26.1.2 has three removeIf(Predicate) calls inside
-    // updateCollections.  Only intercept the first one (the main craftability
-    // filter) so that the search filter and the crafting-table filter still
-    // run vanilla's own predicate with our already-modified craftable set.
+    // ordinal = 0 落在 vanilla updateCollections 的**第一处** removeIf 上，即
+    // `removeIf(c -> !c.hasAnySelected())`（反编译 1.21.11 / 26.2 核实；可合成过滤是
+    // 第三处、只在 isFiltering 时执行，搜索过滤是第二处）。
+    // 之所以挂这里：它是唯一**无条件执行**的挂点——残缺标注/注入必须每轮都跑，
+    // 不能只在 isFiltering 时跑。挂点只借执行时机，**不改过滤语义**（见方法尾）。
     @Redirect(method = "updateCollections", at = @At(value = "INVOKE", target = "Ljava/util/List;removeIf(Ljava/util/function/Predicate;)Z", ordinal = 0))
     private boolean brbe$keepPartiallyCraftable(List<RecipeCollection> collections, Predicate<? super RecipeCollection> predicate) {
         this.brbe$lastProcessedCollections = collections;
@@ -270,6 +271,13 @@ public abstract class RecipeBookComponentMixin {
             inventoryCounts.merge(offhand.getItem(), offhand.getCount(), Integer::sum);
         }
 
+        // Custom display 家族（厨锅等 mod 配方）：原版 canCraft 不可信（材料
+        // 齐全也可能 false），先按布局输入槽提升（与 viewer 的 prepareForViewer
+        // 同一逻辑），否则材料齐全的 FD 配方会被下面的残缺标注误判。
+        for (RecipeCollection collection : collections) {
+            PartialCraftingUtil.elevateDisplayCraftable(collection, inventoryItems, inventoryCounts);
+        }
+
         for (RecipeCollection collection : collections) {
             PartialCraftingUtil.markPartialMaterials(collection, inventoryItems, inventoryCounts, markItems, onInventoryScreen);
         }
@@ -322,29 +330,25 @@ public abstract class RecipeBookComponentMixin {
             }
         }
 
-        // ── Retention flags for the removeIf predicate ──
-        boolean hasSearchActive = searchBox != null && !searchBox.getValue().isEmpty();
-        boolean keepPartial = retainPartial && !hasSearchActive;
-        boolean keepIncompatible = retainIncompatible
-                && IncompatibleCraftingUtil.isActive()
-                && !hasSearchActive;
-
-        if (!keepPartial && !keepIncompatible) {
-            return collections.removeIf(predicate);
-        }
-
-        boolean removed = collections.removeIf(collection -> {
-            if (!predicate.test(collection)) return false;
-            if (keepPartial && PartialCraftingUtil.hasPartialMaterials(collection)) {
-                // 3×3 partial recipes are material-deficient and were injected
-                // into craftable, so they survive the vanilla filter normally.
-                return false;
-            }
-            if (keepIncompatible && IncompatibleCraftingUtil.hasIncompatibleRecipes(collection)) return false;
-            return true;
-        });
-
-        return removed;
+        // ── 谓词原样交还 vanilla（不绕过任何 vanilla 过滤）──
+        // 曾经这里用 keepPartial / keepIncompatible 放行"有残缺材料 / 有不兼容配方"
+        // 的集合。但本谓词是 `!hasAnySelected()`——放行分支只在**该集合没有任何
+        // 被选中的配方**时才会走到，也就是说它放行的恰好是"没有可渲染条目"的集合：
+        // 按钮渲染成空气占位符（渲染路径被 RecipeButtonSafetyMixin 兜住不崩），
+        // 点击时 RecipeButton.getCurrentRecipe() 除以 0 崩客户端
+        // （2026-09-11 实例日志：ArithmeticException: / by zero @
+        //  RecipeBookPage.mouseClicked → RecipeButton.getCurrentRecipe）。
+        //
+        // 残缺 / 不兼容配方的保留本来就不需要绕过这里：
+        //   ① 不兼容（3×3）：`incompatibleenvironment/CraftingRecipeBookComponentMixin`
+        //      强制 canDisplay=true → 配方被 selectRecipes 选中 → 自然通过本谓词；
+        //      `elevateFullyCraftable3x3` 再把材料齐全的放进 craftable → 通过可合成过滤。
+        //   ② 残缺：markPartialMaterials + 注入 craftable 集合 → 通过可合成过滤；
+        //      选中与否同样由 canDisplay 决定（物品栏界面 + showAllRecipesInSurvival
+        //      同上被放行）。showAllRecipesInSurvival=false 时 3×3 配方在物品栏界面
+        //      本就不该显示（vanilla 语义），此处不再私自放行。
+        // 1.21.1 分支同样是"显式重现 vanilla 两处 removeIf、不绕过"的做法，行为对齐。
+        return collections.removeIf(predicate);
     }
 
     /** True if a crafting display needs more than a 2×2 grid. */
