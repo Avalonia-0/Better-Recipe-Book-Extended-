@@ -130,6 +130,7 @@
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@PrefixText": "§eRecipe Book Is Pain",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@Tooltip": "Выравнивает вкладки книги рецептов по инвентарю творческого режима. Вступает в силу после повторного открытия инвентаря.",
   "text.autoconfig.brbe.option.rbip.enableTabPage": "Включить верхние и нижние вкладки",
+"text.autoconfig.brbe.option.rbip.hideTabPageButtons": "Скрыть кнопки перелистывания",
   "text.autoconfig.brbe.option.recipeViewKey": "Запросить рецепты",
   "text.autoconfig.brbe.option.recipeViewKey.@Tooltip": "Показывает рецепты, где этот предмет является результатом.",
   "text.autoconfig.brbe.option.recipeViewKey@Tooltip": "Показывает рецепты, где этот предмет является результатом.",

@@ -130,6 +130,7 @@
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@PrefixText": "§eRecipe Book Is Pain",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@Tooltip": "Orijinal tarif kitabı sekmelerini yaratıcı mod envanterine hizalar. Envanteri yeniden açarak etkinleştirin.",
   "text.autoconfig.brbe.option.rbip.enableTabPage": "Üst ve Alt Sekmeleri Etkinleştir",
+"text.autoconfig.brbe.option.rbip.hideTabPageButtons": "Sayfa Düğmelerini Gizle",
   "text.autoconfig.brbe.option.recipeViewKey": "Tarifleri Sorgula",
   "text.autoconfig.brbe.option.recipeViewKey.@Tooltip": "Bu eşyayı ürün olarak üreten tarifleri gösterir.",
   "text.autoconfig.brbe.option.recipeViewKey@Tooltip": "Bu eşyayı ürün olarak üreten tarifleri gösterir.",

@@ -130,6 +130,7 @@
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@PrefixText": "§eRecipe Book Is Pain",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@Tooltip": "バニラのレシピ本タブをクリエイティブモードのインベントリに合わせます。インベントリを開き直すと適用されます。",
   "text.autoconfig.brbe.option.rbip.enableTabPage": "上部・下部タブを有効化",
+"text.autoconfig.brbe.option.rbip.hideTabPageButtons": "ページ送りボタンを隠す",
   "text.autoconfig.brbe.option.recipeViewKey": "レシピ照会",
   "text.autoconfig.brbe.option.recipeViewKey.@Tooltip": "そのアイテムを産物とするレシピを照会します。",
   "text.autoconfig.brbe.option.recipeViewKey@Tooltip": "そのアイテムを産物とするレシピを照会します。",

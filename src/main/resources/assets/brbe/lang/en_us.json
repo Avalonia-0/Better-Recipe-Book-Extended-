@@ -150,6 +150,7 @@
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@PrefixText": "§eRecipe Book Is Pain",
   "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain@Tooltip": "Aligns the vanilla recipe book tabs with the creative inventory. Reopen inventory to take effect.",
   "text.autoconfig.brbe.option.rbip.enableTabPage": "Enable Top and Bottom Tabs",
+"text.autoconfig.brbe.option.rbip.hideTabPageButtons": "Hide Page Buttons",
   "text.autoconfig.brbe.option.recipeViewKey": "Query Recipes",
   "text.autoconfig.brbe.option.recipeViewKey.@PrefixText": "§eJust Emulated Items",
   "text.autoconfig.brbe.option.recipeViewKey@PrefixText": "§eJust Emulated Items",
