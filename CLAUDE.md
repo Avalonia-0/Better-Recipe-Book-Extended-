@@ -484,6 +484,10 @@ When porting from `1.21.11` → `26.1.2`, grep every Mixin `@Inject`/`@Redirect`
 - `animation/edge_width.json`（PageAnimationEdges 读取——此前缺失，翻页动画左右边距读不到默认值）
 - `textures/gui/sprites/recipe_book/furnace_fire.png` + **FURNACE_FIRE_SPRITE 引用修正**：`recipe_book/flame`（1.21.1 原版无此 sprite → 渲染空）→ `zzzbrbe:recipe_book/furnace_fire`（自有资源，1.21.11 一致）
 - 未补：column_panel/column_panel_top（1.21.1 无代码引用——1.21.11 的 viewer 面板背景，1.21.1 自绘面板不用）；icon.png（1.21.1 在三模块已有）
+  - ⚠️ **本条已过时**（2026-09-11 修订）：2026-08-29 查询浮层按 1.21.11 结构重写后，1.21.1
+    **有**代码引用 `RecipeViewerOverlay.java` 的 `COLUMN_PANEL_SPRITE` / `COLUMN_PANEL_TOP_SPRITE`
+    （工作站列 9-slice），贴图与 mcmeta 当时已从 1.21.11 复制；Unique Dark 兼容包缺这两张深色覆盖
+    已在本日补齐（见文末 2026-09-11 轮次）。
 
 **待办**：pinoverlay 浮层（最后可选）。
 
@@ -1484,3 +1488,53 @@ disableScissor 之间。提交 77c0cf61。**待用户实测**。
 画 pin 无 scissor，悬出可见。修复：pin 用「网格外扩 PIN_OVERHANG(=4)」专属
 scissor 绘制——保留悬出（与静态一致）且滑出时仍被裁（issue #3 不回归）。顺序：
 内容 scissor(严格)→disable→pin scissor(扩边)→blitSprite→disable。提交 05493c33。
+
+## 2026-09-11：ESC 语义对齐 1.21.11/26.2 + Unique Dark 包补 column_panel（已部署双端）
+
+**①「查询窗口存在时 ESC 退不出界面」——1.21.1 同源那一半**
+
+用户反馈（1.21.11/26.2）修复后，顺带核对 1.21.1：本分支 viewer 是轻量实现，
+**没有** `brbe.queryviewers.json` 持久化与 `restorePendingViewers()` 恢复通道 →
+不存在 1.21.11/26.2 的"关掉下一帧复活"死循环环节，但 **"ESC 被吞掉"完全同源**：
+
+- 旧代码（`common/.../util/RecipeViewerOverlay.keyPressed`）：
+  `if (keyCode == 256) return PinOverlayManager.handleEscape();`
+- `PinOverlayManager.handleEscape()` = `isActive() && closeSilently()` → 窗口开着返回 true
+  → `mixins/recipeviewer/KeyboardHandlerMixin`（`KeyboardHandler.keyPress` HEAD，
+  `priority = 2000`）`ci.cancel()` → vanilla `Screen.keyPressed` 收不到 ESC
+  → **有查询窗口时按一次 ESC 只关窗、界面不动**。
+- 修复（与 1.21.11/26.2 语义一致）：
+  ```java
+  if (keyCode == 256) {
+      closeSilently();   // 已打开的窗口随这次 ESC 一起关闭
+      return false;      // 不消费：交回屏幕走原版 ESC
+  }
+  ```
+  无需 `restoreSuppressedScreen` 抑制（本分支无恢复通道）；pin 永不因 ESC 关闭；
+  配方书界面"第一次 ESC 收配方书"是原版行为，不改。
+  副作用：`PinOverlayManager.handleEscape()` 在三个维护分支现在都**无调用者**（保留为公开 API）。
+- 验证：`javap -p -c` 核对部署 jar 内 `RecipeViewerOverlay.class` 的 keyPressed ——
+  ESC 分支已是 `sipush 256 / if_icmpne / invokestatic closeSilently / iconst_0 / ireturn`。
+- 详细对照见 `docs/1.21.11-26.2-查询窗口ESC退出问题.md` §4。
+
+**②Unique Dark - Lite 兼容包补深色 `column_panel`**
+
+- 用户自制 `column_panel.png`（32×32 RGBA，md5 `4d02cc3d4e1efadaaef941401603230c`）
+  复制进 `common/src/main/resources/resourcepacks/brbe_unique_dark/assets/brbe/textures/gui/sprites/recipe_book/`（逐字节一致）。
+- **额外补 `column_panel_top.png`**：1.21.1 与 1.21.11/26.2 不同——本分支
+  `drawStationColumnSurfaces` 在工作站列顶到框顶时切 `COLUMN_PANEL_TOP_SPRITE`
+  （`rect[0] == boxY`），所以两张都要覆盖，否则该场景仍是浅灰。
+  基础资源里 `_top` 与 `column_panel` 的**唯一差异**是右上角 5 像素
+  （(29,0)(30,0) 高光→黑描边、(31,0) 填充→黑描边、(31,1)(31,2) 填充→高光），
+  按同一关系在用户配色下机械派生（高光 `#6DA843`、填充 `#336B41`、描边 `#000000`），
+  其余像素逐点不变（已脚本核验 diff=5 px）。
+- 无需新增 `.mcmeta`：与基础图同为 32×32，基础包既有的
+  `column_panel.png.mcmeta`（`nine_slice 32 border 4`）继续生效；包内其余 25 张覆盖贴图同样只放 PNG。
+- 顺带修订 2026-08-27 轮次 18 的过时记录："1.21.1 无 column_panel 代码引用"已被
+  2026-08-29 的浮层重写推翻（工作站列 9-slice）。
+
+**部署**：`:common/:fabric/:neoforge compileJava` → `:fabric:build :neoforge:build -x test -x check`
+全部通过；原子替换部署 1.21.1-Fabric（md5 `f7221e68229e3436e8703394001569be`）与
+1.21.1-NeoForge（md5 `d45fcb195f37cec66642318b8bb29fb2`），备份 `20260911-174439`；
+jar 内两张贴图 md5 与源文件一致，包内 `recipe_book` 覆盖贴图 25→27 张。
+**待用户实测**：有查询窗口时一次 ESC 关闭窗口且界面照常退出；深色主题下工作站列（含顶到框顶的变体）为深绿。

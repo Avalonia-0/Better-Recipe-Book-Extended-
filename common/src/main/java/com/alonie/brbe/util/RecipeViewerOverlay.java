@@ -414,10 +414,19 @@ public final class RecipeViewerOverlay {
         Minecraft mc = Minecraft.getInstance();
         if (mc.screen != screen) return false;
 
-        // ESC：只关最顶层（pin 打开 → 只关 pin？1.21.11 语义：ESC 只关 viewer，
-        // pin 永不因 ESC 关闭）——pin 由 PinOverlayManager.handleEscape 处理。
+        // ESC **永远交回屏幕**（2026-09-11 对齐 1.21.11/26.2）：关掉已打开的查询
+        // 窗口，但**不消费**这次按键。旧实现返回 PinOverlayManager.handleEscape()
+        // 的 true → 按键在 KeyboardHandler 层（priority 2000）被 ci.cancel()，
+        // vanilla 收不到 ESC → "查询窗口存在时按 ESC 退不出界面"（用户反馈，
+        // 与 1.21.11/26.2 同源缺陷）。返回 false 让 vanilla 继续：
+        // 配方书界面第一次 ESC 收起配方书是原版行为（RecipeBookComponent.keyPressed），
+        // 其它容器界面直接关闭、窗口随之消失。
+        // 本分支无窗口持久化（close() 全量清状态，无 spec/restore 通道），故不需要
+        // 1.21.11/26.2 那套 restoreSuppressedScreen"同界面不复活"抑制。
+        // pin 永不因 ESC 关闭（1.21.11 语义，误按 ESC 不应破坏已固定的布局）。
         if (keyCode == 256) {
-            return com.alonie.brbe.pinoverlay.PinOverlayManager.handleEscape();
+            closeSilently();
+            return false;
         }
 
         if (active) {
