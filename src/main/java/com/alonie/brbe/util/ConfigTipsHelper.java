@@ -113,8 +113,8 @@ public final class ConfigTipsHelper {
         }
     }
 
-    /** 「快捷键&数值」页的两条分节标题行（黄色纯文字）：页首的「通用」与数值项之前的
-     *  「音效与动画」。与轮循 tips 无关，故不受 {@code hideConfigTips} 影响。 */
+    /** 分节标题行（黄色纯文字）：「功能」页页首的「配方书」、「快捷键&数值」页页首的「通用」
+     *  与数值项之前的「音效与动画」。与轮循 tips 无关，故不受 {@code hideConfigTips} 影响。 */
     private static final String SECTION_CATEGORY_KEY = "text.autoconfig.brbe.category.keybindings";
     private static final String SECTION_LABEL_KEY = "brbe.gui.section.soundAnimation";
     /** 分节标题的锚点：插在这一项之前（识别按 AutoConfig 的 option i18n 键，与语言无关）。 */
@@ -122,17 +122,34 @@ public final class ConfigTipsHelper {
     /** 页首分节标题「通用」：插在「固定」（pinKey）之前。 */
     private static final String GENERAL_SECTION_LABEL_KEY = "brbe.gui.section.general";
     private static final String GENERAL_SECTION_ANCHOR_OPTION_KEY = "text.autoconfig.brbe.option.pinKey";
+    /** 「功能」页页首分节标题「配方书」的锚点：插在「拼音搜索」之前
+     *  （文案键复用「界面」页那条 {@link #RECIPE_BOOK_SECTION_LABEL_KEY}，两处同一行文字）。 */
+    private static final String PINYIN_SECTION_ANCHOR_OPTION_KEY =
+            "text.autoconfig.brbe.option.pinyinSearch";
 
     /**
-     * 往「快捷键&数值」类别里插两条纯文字分节标题行（黄色）：
-     * 页首的「通用」（「固定」之前）与数值项之前的「音效与动画」。
+     * 插三条纯文字分节标题行（黄色）：「功能」页页首的「配方书」（「拼音搜索」之前）、
+     * 「快捷键&数值」页页首的「通用」（「固定」之前）与数值项之前的「音效与动画」。
      *
      * <p>Cloth 的类别条目由 AutoConfig 按字段声明顺序生成，标题行只能在这里插进条目列表：
      * 定位方式是把条目的 {@code getFieldName()} 与 {@code text.autoconfig.brbe.option.<字段名>}
      * 的翻译组件比较（AutoConfig 的字段条目名就是 {@code Component.translatable(optionI13n)}）。
-     * 找不到锚点时：页首那条退化为整页第一条（本来就是"页首"语义），数值那条退化为页尾。</p>
+     * 找不到锚点时：页首那两条退化为整页第一条（本来就是"页首"语义），数值那条退化为页尾。
+     * ⚠️「拼音搜索」这一锚点在**非中文语言**下必然找不到 —— {@code PinyinSearchGuiRegistrar}
+     * 的 provider 在该语言下返回空表（整条不显示），此时走的正是"退化为页首"这条路径。</p>
      */
     private static void addSectionLabels(ConfigBuilder builder) {
+        // ⓪ 「功能」页页首的「配方书」黄字行：插在「拼音搜索」之前（用户 2026-09-12 要求）。
+        //    该类别此刻还没有任何被搬走的条目，且 relocateEntries 用字段名定位、不认下标，
+        //    所以先插它不会影响后面的搬运。
+        ConfigCategory defaultCategory =
+                builder.getOrCreateCategory(Component.translatable(DEFAULT_CATEGORY_KEY));
+        List<Object> defaultEntries = defaultCategory.getEntries();
+        int pinyinAt = indexOfFieldName(defaultEntries,
+                Component.translatable(PINYIN_SECTION_ANCHOR_OPTION_KEY));
+        defaultEntries.add(pinyinAt < 0 ? 0 : pinyinAt,
+                textRow(builder, RECIPE_BOOK_SECTION_LABEL_KEY));
+
         ConfigCategory category = builder.getOrCreateCategory(Component.translatable(SECTION_CATEGORY_KEY));
         List<Object> entries = category.getEntries();
         // ① 页首「通用」：插在「固定」之前
