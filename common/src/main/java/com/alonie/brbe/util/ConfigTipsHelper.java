@@ -3,9 +3,12 @@ package com.alonie.brbe.util;
 import com.alonie.brbe.api.ConfigTipCarousel;
 import me.shedaniel.autoconfig.AutoConfig;
 import me.shedaniel.autoconfig.gui.ConfigScreenProvider;
+import me.shedaniel.clothconfig2.api.AbstractConfigEntry;
 import me.shedaniel.clothconfig2.api.AbstractConfigListEntry;
 import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
+import me.shedaniel.clothconfig2.gui.AbstractConfigScreen;
+import me.shedaniel.clothconfig2.gui.ClothConfigScreen;
 import me.shedaniel.clothconfig2.gui.entries.TextListEntry;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -18,8 +21,10 @@ import java.util.List;
 /**
  * 配置界面轮循提示行注册表 + 统一打开入口。
  *
- * <p>通过 {@link #registerCarousel} 注册 {@link ConfigTipCarousel}（每个绑定一个配置分类
- * 页面 + 文案池）。打开配置界面时遍历所有注册的轮循行，在各自分类最上方插入显示行。
+ * <p>通过 {@link #registerCarousel} 注册 {@link ConfigTipCarousel}（文案池 +
+ * 显示位置）。打开配置界面时遍历所有注册的轮循行，按各自的位置插入显示行：默认注册的
+ * "功能 tips" 行是**屏幕级**的 —— 插在搜索栏之上、切到任何类别页都可见（见
+ * {@link #installScreenWideTips}）；其余轮循行仍插在自己绑定类别的最上方。
  * 每次打开每个轮循行随机选一条且避免相邻重复。</p>
  *
  * <p>所有配置界面入口统一走 {@link #openConfigScreen}（自动带轮循行）。</p>
@@ -29,9 +34,11 @@ public final class ConfigTipsHelper {
     private static final List<ConfigTipCarousel> CAROUSELS = new ArrayList<>();
 
     static {
-        // 默认：功能页面顶部"提示：xxx"功能 tips 轮循行
+        // 默认："提示：xxx"功能 tips 轮循行 —— **屏幕级**：显示在搜索栏之上，所有类别页都可见
+        // （category(...) 仅作标识；屏幕级由 .screenWide(true) 决定）
         registerCarousel(ConfigTipCarousel.builder()
                 .category(Component.translatable("text.autoconfig.brbe.category.default"))
+                .screenWide(true)
                 .prefix(Component.translatable("brbe.gui.tip.prefix"))
                 .tipKeys(List.of("brbe.gui.tip.1", "brbe.gui.tip.2", "brbe.gui.tip.3", "brbe.gui.tip.4",
                         "brbe.gui.tip.5", "brbe.gui.tip.6", "brbe.gui.tip.7",
@@ -82,14 +89,19 @@ public final class ConfigTipsHelper {
             var provider = (ConfigScreenProvider) AutoConfig.getConfigScreen(configClass, parent);
             // 显式声明 lambda 的目标类型：provider 是 raw 类型（(ConfigScreenProvider) 强转），
             // 直接把 lambda 内联进 setBuildFunction 会把参数推断成 Object（编译报错）。
+            // 屏幕级轮循行的条目只能在 build 回调里建（那里才有 ConfigBuilder），
+            // 拿到屏幕后再挂到它的 afterInitConsumer 上（首次打开时 init() 才会跑）。
+            List<AbstractConfigListEntry<?>> screenWideRows = new ArrayList<>();
             java.util.function.Function<ConfigBuilder, Screen> buildFn = builder -> {
-                addCarousels(builder);
+                addCarousels(builder, screenWideRows);
                 addSectionLabels(builder);
                 relocateEntries(builder);
                 return builder.build();
             };
             provider.setBuildFunction(buildFn);
-            return provider.get();
+            Screen built = provider.get();
+            installScreenWideTips(built, screenWideRows);
+            return built;
         } catch (NoClassDefFoundError e) {
             return parent;                       // Cloth Config 不可用
         } catch (RuntimeException e) {
@@ -334,17 +346,82 @@ public final class ConfigTipsHelper {
         return at < 0 ? null : entries.remove(at);
     }
 
-    private static void addCarousels(ConfigBuilder builder) {
+    /** 建轮循提示行。{@code screenWide} 的行（见 {@link ConfigTipCarousel#screenWide()}）收进
+     *  {@code screenWide} 列表，由 {@link #installScreenWideTips} 插到**搜索栏之上**（所有类别页
+     *  可见）；其余仍按老规矩插到各自绑定类别的第一条。 */
+    private static void addCarousels(ConfigBuilder builder, List<AbstractConfigListEntry<?>> screenWide) {
         if (hidesTips()) return;
         for (ConfigTipCarousel carousel : CAROUSELS) {
             if (!carousel.hasTips()) continue;
-            ConfigCategory category = builder.getOrCreateCategory(carousel.categoryTitle());
             int idx = carousel.nextTipIndex();
             Component line = carousel.prefix() == null
                     ? carousel.tipAt(idx).copy().withStyle(carousel.style())
                     : carousel.prefix().copy().withStyle(carousel.style())
                             .append(carousel.tipAt(idx).copy().withStyle(carousel.style()));
-            category.getEntries().add(0, builder.entryBuilder().startTextDescription(line).build());
+            AbstractConfigListEntry<?> row = builder.entryBuilder().startTextDescription(line).build();
+            if (carousel.screenWide()) {
+                screenWide.add(row);
+                continue;
+            }
+            ConfigCategory category = builder.getOrCreateCategory(carousel.categoryTitle());
+            category.getEntries().add(0, row);
         }
+    }
+
+    // ── 屏幕级轮循行：搜索栏之上、所有类别页可见 ─────────────────────────────
+
+    /**
+     * 把屏幕级轮循行插到「搜索栏之上」，并在**所有类别页**显示（用户 2026-09-12 要求）。
+     *
+     * <p><b>为什么位置是"列表第 0 位"</b>：Cloth 的配置界面里搜索栏**不是屏幕级控件**，而是
+     * **列表的第一个内容行** —— {@code ClothConfigScreen.init()} 往 {@code listWidget.children()}
+     * 里依次塞 {@code EmptyEntry(5)} → {@code SearchFieldEntry} → {@code EmptyEntry(5)} →
+     * 当前类别的条目。所以"搜索栏之上"就是这个列表的第 0 位（插在 5px 空行与搜索栏之前）。</p>
+     *
+     * <p><b>为什么必须挂在 {@code setAfterInitConsumer}</b>：类别切换走的是
+     * {@code ClothConfigTabButton.onPress → screen.init(width, height)}，而 {@code init()} 每次都会
+     * **新建一个 ListWidget**（旧列表连同插入过的行一起被丢弃），窗口缩放同理；{@code init()} 末尾
+     * 会调用 {@code afterInitConsumer}，在那里重新插入即可一次覆盖「首次打开 / 切类别 / 缩放」。
+     * 条目实例只在打开界面时建一次 → <b>切类别不会重新随机 tip</b>（同一行文案在整次打开期间稳定）。</p>
+     *
+     * <p><b>搜索不会把它滤掉</b>：{@code SearchFieldEntry} 的过滤器要求
+     * {@code entry.isDisplayed() && screen.matchesSearch(entry.getSearchTags())}，而
+     * {@code matchesSearch} 对**没有搜索标签**的条目恒返回 true（{@code !tags.hasNext()} 分支），
+     * 文字行正好没有标签 —— 输入搜索词时它仍留在搜索栏上方。</p>
+     *
+     * <p>{@code setScreen} 必须调用：{@code AbstractConfigEntry} 的 {@code screen} 字段被
+     * {@code wrapLines(...)} / {@code addTooltip(...)} 使用（类别内的条目由
+     * {@code ClothConfigScreen} 构造器统一设置，我们这条不在任何类别里）。</p>
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    private static void installScreenWideTips(Screen screen, List<AbstractConfigListEntry<?>> rows) {
+        if (rows.isEmpty() || !(screen instanceof AbstractConfigScreen configScreen)) return;
+        java.util.function.Consumer<Screen> install = s -> {
+            if (!(s instanceof ClothConfigScreen cloth)) {
+                warnNonClothScreenOnce(s);
+                return;
+            }
+            List<AbstractConfigEntry<AbstractConfigEntry<?>>> children = cloth.listWidget.children();
+            // 逆序插回：注册顺序 = 自上而下的显示顺序（先注册的最靠上）
+            for (int i = rows.size() - 1; i >= 0; i--) {
+                AbstractConfigEntry row = rows.get(i);
+                if (children.contains(row)) continue;          // 幂等（同一实例已在列表里）
+                row.setScreen(cloth);
+                children.add(0, row);
+            }
+        };
+        configScreen.setAfterInitConsumer(install);
+    }
+
+    /** 一次性告警：屏幕级轮循行只认 {@code ClothConfigScreen}（Cloth 的 globalized 变体
+     *  {@code GlobalizedClothConfigScreen} 是它的兄弟类、没有 {@code listWidget}）。真出现这种
+     *  屏幕时行会装不上 —— 打一次日志说明原因，而不是静默丢失。 */
+    private static boolean warnedNonClothScreen;
+
+    private static void warnNonClothScreenOnce(Screen screen) {
+        if (warnedNonClothScreen) return;
+        warnedNonClothScreen = true;
+        com.alonie.brbe.BetterRecipeBook.LOGGER.warn("[BRBE] 屏幕级轮循行未安装：{} 不是 ClothConfigScreen",
+                screen.getClass().getName());
     }
 }
