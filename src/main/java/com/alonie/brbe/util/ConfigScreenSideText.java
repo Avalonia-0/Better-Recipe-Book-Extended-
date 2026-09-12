@@ -22,9 +22,15 @@ import java.util.WeakHashMap;
  * 每个字再**逐个横向之字形摆动**（奇数字向左、偶数字向右，幅度 2~8px 随机）并**逐个随机倾斜**
  * （方向顺/逆时针随机、角度 2~12° 随机）—— 两者都是每字独立随机、**每次刷新重掷**，两侧同款。</p>
 
- * <p><b>分片上色</b>：默认中灰 10% 透明；再按 {@link #LEFT_TINTS} / {@link #RIGHT_TINTS}
- * 的规则把指定片段换色 —— "Recipe Book" 绿、♡ 粉、"aVa" 蓝，透明度和其它字一样是 10%，
- * 只有色相不同。</p>
+ * <p><b>分片上色</b>：所有字都是 10% 透明，只有色相不同。</p>
+ *
+ * <ul>
+ *   <li><b>固定片段</b>：按 {@link #LEFT_TINTS} / {@link #RIGHT_TINTS} 的规则换色 ——
+ *       "Recipe Book" 绿、♡ 粉、"aVa" 蓝。</li>
+ *   <li><b>其余字段</b>：按「<b>一个单词 = 一个字段</b>」切分，每个字段<b>独立</b>从
+ *       {@link #RANDOM_PALETTE}（黄 / 紫 / 橙 / 白）里随机取一色；<b>每次刷新重新分配</b>
+ *       （打开界面 / 切类别 / 缩放都会走 {@link #onScreenInit}，与摆动、倾斜同一时机）。</li>
+ * </ul>
  *
  * <p><b>为什么两侧都有位置</b>：Cloth 的配置列表虽然占满屏幕宽（{@code left = 0}、
  * {@code right = width}），但**行**只画在 {@code getRowLeft() .. +getItemWidth()} 这一段 ——
@@ -65,20 +71,29 @@ public final class ConfigScreenSideText {
      *  不画阴影，像素字更干净。要更淡/更亮就改前两位 alpha
      *  （0x1A=10% / 0x26=15% / 0x33=20% / 0x40=25% / 0x59=35%）。 */
     private static final int COLOR_DEFAULT = 0x1AA0A0A0;
-    /** 分片上色用的色相（同样保持 10% 透明，只有色相不同）。 */
+    /** 固定片段的色相（同样保持 10% 透明，只有色相不同）。 */
     private static final int COLOR_PINK = 0x1AFF77CC;      // ♡
     private static final int COLOR_BLUE = 0x1A77B7FF;      // aVa
     private static final int COLOR_GREEN = 0x1A77FF77;     // Recipe Book
-    /** 左列上色规则：把 "Recipe Book" 染绿。 */
+    /** 左列固定上色规则：把 "Recipe Book" 染绿。 */
     private static final List<Tint> LEFT_TINTS = List.of(
             new Tint("Recipe Book", COLOR_GREEN));
-    /** 右列上色规则：♡ 染粉、aVa 染蓝（两条规则命中的片段互不重叠）。 */
+    /** 右列固定上色规则：♡ 染粉、aVa 染蓝（两条规则命中的片段互不重叠）。 */
     private static final List<Tint> RIGHT_TINTS = List.of(
             new Tint("♡", COLOR_PINK),
             new Tint("aVa", COLOR_BLUE));
-    /** 两列逐字颜色表（类初始化时算一次，下标与**码点**一一对应）。 */
-    private static final int[] LEFT_COLORS = tintArray(LEFT_TEXT, LEFT_TINTS);
-    private static final int[] RIGHT_COLORS = tintArray(RIGHT_TEXT, RIGHT_TINTS);
+    /** 剩余字段的随机色池：黄 / 紫 / 橙 / 白（每个字段独立抽签，每次刷新重抽）。 */
+    private static final int[] RANDOM_PALETTE = {
+            0x1AFFFF55,     // 黄
+            0x1AFF55FF,     // 紫
+            0x1AFFAA00,     // 橙
+            0x1AFFFFFF,     // 白
+    };
+    /** "还没分配色相"的哨兵值：固定规则没命中的位置留它，交给 {@link #rollColors} 抽签。 */
+    private static final int UNASSIGNED = 0;
+    /** 两列的**固定**色表（类初始化时算一次，下标与**码点**一一对应；未命中规则处为 {@link #UNASSIGNED}）。 */
+    private static final int[] LEFT_FIXED = tintArray(LEFT_TEXT, LEFT_TINTS);
+    private static final int[] RIGHT_FIXED = tintArray(RIGHT_TEXT, RIGHT_TINTS);
     /** 是否带阴影（原版字体阴影）。 */
     private static final boolean TEXT_SHADOW = false;
 
@@ -115,21 +130,22 @@ public final class ConfigScreenSideText {
      *  每列的数组下标与**码点**一一对应。键是弱引用，界面关掉后自动回收。 */
     private static final Map<Screen, Roll[]> ROLLS = new WeakHashMap<>();
 
-    /** 一次"刷新"内固定的一组随机量。 */
-    private record Roll(int[] swayPx, float[] angleRad) {
+    /** 一次"刷新"内固定的一组随机量：逐字偏移、逐字倾角，以及**本次分配**的逐字颜色。 */
+    private record Roll(int[] swayPx, float[] angleRad, int[] colors) {
     }
 
-    /** 一条上色规则：把 {@code text} 里出现的 {@code needle} 全部染成 {@code color}。 */
+    /** 一条固定上色规则：把 {@code text} 里出现的 {@code needle} 全部染成 {@code color}。 */
     private record Tint(String needle, int color) {
     }
 
     /**
-     * 生成逐字颜色表：先全填 {@link #COLOR_DEFAULT}，再让每条 {@link Tint} 规则覆盖它命中的码点。
-     * 文案是常量，所以只需在类初始化时算一次。
+     * 生成**固定**逐字颜色表：先全填 {@link #UNASSIGNED}，再让每条 {@link Tint} 规则覆盖它命中的码点。
+     * 文案与规则都是常量，所以只需在类初始化时算一次；剩下的 {@link #UNASSIGNED} 位置留给
+     * {@link #rollColors} 每次刷新时抽签。
      */
     private static int[] tintArray(String text, List<Tint> tints) {
         int[] out = new int[text.codePointCount(0, text.length())];
-        Arrays.fill(out, COLOR_DEFAULT);
+        Arrays.fill(out, UNASSIGNED);
         for (Tint tint : tints) {
             int from = 0;
             while (true) {
@@ -144,6 +160,36 @@ public final class ConfigScreenSideText {
         return out;
     }
 
+    /**
+     * 在固定色表的基础上分配**剩余字段**的颜色：把连续、未被固定规则命中、且非空白的码点视为
+     * 一个<b>单词</b>（= 一个字段），逐字段从 {@link #RANDOM_PALETTE} 里独立抽一色 ——
+     * 所以同一列里两个单词完全可能撞色，也可能全不同；每次刷新重抽。
+     *
+     * <p>空白字符不参与抽签（本身画不出颜色），按 {@link #COLOR_DEFAULT} 处理。</p>
+     */
+    private static int[] rollColors(String text, int[] fixedColors) {
+        int[] cps = text.codePoints().toArray();
+        int[] out = fixedColors.clone();
+        int start = -1;                       // 当前单词的起点；-1 = 当前不在单词里
+        for (int i = 0; i <= cps.length; i++) {
+            boolean inWord = i < cps.length
+                    && out[i] == UNASSIGNED
+                    && !Character.isWhitespace(cps[i]);
+            if (inWord) {
+                if (start < 0) start = i;
+            } else if (start >= 0) {
+                int color = RANDOM_PALETTE[RANDOM.nextInt(RANDOM_PALETTE.length)];
+                Arrays.fill(out, start, i, color);
+                start = -1;
+            }
+        }
+        // 兜底：剩下的未分配位置（空白字符；正常不会有别的）用默认灰。
+        for (int i = 0; i < out.length; i++) {
+            if (out[i] == UNASSIGNED) out[i] = COLOR_DEFAULT;
+        }
+        return out;
+    }
+
     private ConfigScreenSideText() {
     }
 
@@ -154,11 +200,11 @@ public final class ConfigScreenSideText {
 
     /**
      * 屏幕初始化时调用（打开配置界面 / 切类别 / 缩放都会重跑 {@code init()}）：
-     * **重新掷一次左右偏移与倾斜角**。必须在首次渲染之前调用（入口挂在屏幕初始化事件上）。
+     * **重新掷一次左右偏移、倾斜角与字段颜色**。必须在首次渲染之前调用（入口挂在屏幕初始化事件上）。
      */
     public static void onScreenInit(Screen screen) {
         if (!shouldRender(screen)) return;
-        ROLLS.put(screen, new Roll[] { roll(LEFT_TEXT), roll(RIGHT_TEXT) });
+        ROLLS.put(screen, new Roll[] { roll(LEFT_TEXT, LEFT_FIXED), roll(RIGHT_TEXT, RIGHT_FIXED) });
     }
 
     /**
@@ -185,7 +231,7 @@ public final class ConfigScreenSideText {
         // 没有初始化记录时兜底现掷一次（正常路径由 onScreenInit 负责）。
         Roll[] rolls = ROLLS.get(screen);
         if (rolls == null) {
-            rolls = new Roll[] { roll(LEFT_TEXT), roll(RIGHT_TEXT) };
+            rolls = new Roll[] { roll(LEFT_TEXT, LEFT_FIXED), roll(RIGHT_TEXT, RIGHT_FIXED) };
             ROLLS.put(screen, rolls);
         }
 
@@ -196,13 +242,13 @@ public final class ConfigScreenSideText {
         int screenLeft = Math.min(0, list.left);
         int screenRight = Math.max(list.right, list.left + list.width);
         drawColumn(gui, mc.font, LEFT_TEXT, leftCenter, top, bottom, LEFT_SPACING, rolls[0],
-                LEFT_COLORS, screenLeft, screenRight);
+                screenLeft, screenRight);
         drawColumn(gui, mc.font, RIGHT_TEXT, rightCenter, top, bottom, RIGHT_SPACING, rolls[1],
-                RIGHT_COLORS, screenLeft, screenRight);
+                screenLeft, screenRight);
     }
 
-    /** 掷一列的随机量：左右偏移（奇数字向左、偶数字向右）与倾斜角（方向也逐字随机）。 */
-    private static Roll roll(String text) {
+    /** 掷一列这一"刷"的随机量：字段颜色 + 左右偏移（奇数字向左、偶数字向右）+ 倾斜角（方向也逐字随机）。 */
+    private static Roll roll(String text, int[] fixedColors) {
         int n = text.codePointCount(0, text.length());
         int[] sway = new int[n];
         float[] angle = new float[n];
@@ -221,7 +267,7 @@ public final class ConfigScreenSideText {
                 angle[i] = (float) Math.toRadians(RANDOM.nextBoolean() ? deg : -deg);
             }
         }
-        return new Roll(sway, angle);
+        return new Roll(sway, angle, rollColors(text, fixedColors));
     }
 
     /**
@@ -235,9 +281,10 @@ public final class ConfigScreenSideText {
      */
     private static void drawColumn(GuiGraphicsExtractor gui, Font font, String text,
                                    int centerX, int top, int bottom, float spacing, Roll roll,
-                                   int[] colors, int screenLeft, int screenRight) {
+                                   int screenLeft, int screenRight) {
         int[] cps = text.codePoints().toArray();
         if (cps.length == 0) return;
+        int[] colors = (roll != null) ? roll.colors() : null;
 
         float span = bottom - top;
         // 需要的总高（含字距系数）= lineHeight * scale * (1 + (n-1) * spacing) → 反解 scale
@@ -267,7 +314,7 @@ public final class ConfigScreenSideText {
                 gui.pose().translate(-w / 2.0F, -glyphH / 2.0F);
             }
             gui.pose().scale(scale, scale);
-            int color = (i < colors.length) ? colors[i] : COLOR_DEFAULT;
+            int color = (colors != null && i < colors.length) ? colors[i] : COLOR_DEFAULT;
             gui.text(font, glyph, 0, 0, color, TEXT_SHADOW);
             gui.pose().popMatrix();
         }
