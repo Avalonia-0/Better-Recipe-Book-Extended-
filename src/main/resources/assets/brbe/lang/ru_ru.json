@@ -164,9 +164,9 @@
   "text.autoconfig.brbe.option.previewMode.@Tooltip": "Окна запросов не восстанавливаются при повторном открытии интерфейса, а взаимодействие с другими элементами закрывает их.",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "Показывает рецепты, где этот предмет используется как материал или станок.",
   "text.autoconfig.brbe.option.recipeViewerEnabled": "Включить JEI BRBE",
-  "text.autoconfig.brbe.option.recipeViewerEnabled.@PrefixText": "§eJust Emulated Items",
+  "text.autoconfig.brbe.option.recipeViewerEnabled.@PrefixText": "§eJust Emulated Items (менеджер предметов)",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@Tooltip": "Наведите курсор на предмет или рецепт в книге рецептов и нажмите R/U (по умолчанию), чтобы просмотреть рецепты создания и рецепты, где предмет используется как материал.\nОтключите эту функцию или измените клавиши, если хотите использовать собственный поиск менеджера предметов.\nЭто JEI — не тот JEI. <3",
-  "text.autoconfig.brbe.option.recipeViewerEnabled@PrefixText": "§eJust Emulated Items",
+  "text.autoconfig.brbe.option.recipeViewerEnabled@PrefixText": "§eJust Emulated Items (менеджер предметов)",
   "text.autoconfig.brbe.option.recipeViewerEnabled@Tooltip": "Наведите курсор на предмет или рецепт в книге рецептов и нажмите R/U (по умолчанию), чтобы просмотреть рецепты создания и рецепты, где предмет используется как материал.\nОтключите эту функцию или измените клавиши, если хотите использовать собственный поиск менеджера предметов.\nЭто JEI — не тот JEI. <3",
   "text.autoconfig.brbe.title": "Настройки лучшей книги рецептов"
 }
