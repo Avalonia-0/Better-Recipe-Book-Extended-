@@ -16,7 +16,8 @@ import java.util.WeakHashMap;
  *
  * <p>用户需求：左侧竖排 {@value #LEFT_TEXT}，逐字符纵向排列（字符本身保持正立、只改排布），
  * 首字符顶着上方横线、末字符顶着下方横线；字号与字距可调，窗口缩放后要跟着刷新；
- * 每个字再**逐个横向之字形摆动**（奇数字向左、偶数字向右，幅度 2~8px 随机，每次刷新重掷）。
+ * 每个字再**逐个横向之字形摆动**（奇数字向左、偶数字向右，幅度 2~8px 随机）并**逐个随机倾斜**
+ * （方向顺/逆时针随机、角度 2~12° 随机）—— 两者都是每字独立随机、**每次刷新重掷**。
  * 右侧那一列（{@code Adorable♡Girl aVa Seriously Extended}）已按用户要求于同日移除。</p>
  *
  * <p><b>为什么左侧有位置</b>：Cloth 的配置列表虽然占满屏幕宽（{@code left = 0}、
@@ -75,14 +76,22 @@ public final class ConfigScreenSideText {
      *  每个字的幅度独立随机。0 / 0 = 关掉摆动（回到竖直的一条线）。 */
     private static final int SWAY_MIN_PX = 2;
     private static final int SWAY_MAX_PX = 8;
+    /** 逐字随机倾斜的角度范围（度，**含两端**）：方向（顺时针 / 逆时针）也逐字随机。
+     *  0 / 0 = 关掉倾斜。 */
+    private static final int ROTATE_MIN_DEG = 2;
+    private static final int ROTATE_MAX_DEG = 12;
 
     // ── 状态 ────────────────────────────────────────────────────────────────
 
     private static final Random RANDOM = new Random();
 
-    /** 每个屏幕当前这一"刷"的横向摆动量，下标与**码点**一一对应。
+    /** 每个屏幕当前这一"刷"的随机装饰量（左右偏移 + 倾斜角），数组下标与**码点**一一对应。
      *  键是弱引用，界面关掉后自动回收。 */
-    private static final Map<Screen, int[]> SWAY = new WeakHashMap<>();
+    private static final Map<Screen, Roll> ROLLS = new WeakHashMap<>();
+
+    /** 一次"刷新"内固定的一组随机量。 */
+    private record Roll(int[] swayPx, float[] angleRad) {
+    }
 
     private ConfigScreenSideText() {
     }
@@ -94,11 +103,11 @@ public final class ConfigScreenSideText {
 
     /**
      * 屏幕初始化时调用（打开配置界面 / 切类别 / 缩放都会重跑 {@code init()}）：
-     * **重新掷一次之字形偏移**。必须在首次渲染之前调用（入口挂在屏幕初始化事件上）。
+     * **重新掷一次左右偏移与倾斜角**。必须在首次渲染之前调用（入口挂在屏幕初始化事件上）。
      */
     public static void onScreenInit(Screen screen) {
         if (!shouldRender(screen)) return;
-        SWAY.put(screen, rollSway(LEFT_TEXT));
+        ROLLS.put(screen, roll(LEFT_TEXT));
     }
 
     /**
@@ -121,28 +130,38 @@ public final class ConfigScreenSideText {
         if (bottom - top < 8) return;
 
         // 没有初始化记录时兜底现掷一次（正常路径由 onScreenInit 负责）。
-        int[] sway = SWAY.get(screen);
-        if (sway == null) {
-            sway = rollSway(LEFT_TEXT);
-            SWAY.put(screen, sway);
+        Roll roll = ROLLS.get(screen);
+        if (roll == null) {
+            roll = roll(LEFT_TEXT);
+            ROLLS.put(screen, roll);
         }
 
         // 中心线 = 屏幕左边界与内容区左边界的正中
         int centerX = (list.left + rowLeft) / 2;
-        drawColumn(gui, mc.font, LEFT_TEXT, centerX, top, bottom, LEFT_SPACING, sway);
+        drawColumn(gui, mc.font, LEFT_TEXT, centerX, top, bottom, LEFT_SPACING, roll);
     }
 
-    /** 掷一列的横向摆动：奇数字（下标 0、2、…）向左、偶数字向右，幅度各自独立随机。 */
-    private static int[] rollSway(String text) {
+    /** 掷一列的随机量：左右偏移（奇数字向左、偶数字向右）与倾斜角（方向也逐字随机）。 */
+    private static Roll roll(String text) {
         int n = text.codePointCount(0, text.length());
-        int[] out = new int[n];
-        if (SWAY_MAX_PX <= 0) return out;                        // 摆动关闭
-        int span = Math.max(0, SWAY_MAX_PX - SWAY_MIN_PX) + 1;    // 含两端
+        int[] sway = new int[n];
+        float[] angle = new float[n];
+        boolean swayOn = SWAY_MAX_PX > 0;
+        boolean rotateOn = ROTATE_MAX_DEG > 0;
+        int swaySpan = Math.max(1, SWAY_MAX_PX - SWAY_MIN_PX + 1);        // 含两端
+        int rotateSpan = Math.max(1, ROTATE_MAX_DEG - ROTATE_MIN_DEG + 1);
         for (int i = 0; i < n; i++) {
-            int mag = SWAY_MIN_PX + RANDOM.nextInt(span);
-            out[i] = (i % 2 == 0) ? -mag : mag;
+            if (swayOn) {
+                int mag = SWAY_MIN_PX + RANDOM.nextInt(swaySpan);
+                sway[i] = (i % 2 == 0) ? -mag : mag;
+            }
+            if (rotateOn) {
+                float deg = ROTATE_MIN_DEG + RANDOM.nextInt(rotateSpan);
+                // 正角 = 屏幕上的顺时针（MC 的 y 轴朝下）；方向逐字独立随机
+                angle[i] = (float) Math.toRadians(RANDOM.nextBoolean() ? deg : -deg);
+            }
         }
-        return out;
+        return new Roll(sway, angle);
     }
 
     /**
@@ -155,7 +174,7 @@ public final class ConfigScreenSideText {
      * 但**始终首末顶格**。</p>
      */
     private static void drawColumn(GuiGraphics gui, Font font, String text,
-                                   int centerX, int top, int bottom, float spacing, int[] sway) {
+                                   int centerX, int top, int bottom, float spacing, Roll roll) {
         int[] cps = text.codePoints().toArray();
         if (cps.length == 0) return;
 
@@ -172,11 +191,18 @@ public final class ConfigScreenSideText {
         for (int i = 0; i < cps.length; i++) {
             String glyph = new String(Character.toChars(cps[i]));
             float w = font.width(glyph) * scale;
-            int offset = (sway != null && i < sway.length) ? sway[i] : 0;
+            int offset = (roll != null && i < roll.swayPx().length) ? roll.swayPx()[i] : 0;
+            float angle = (roll != null && i < roll.angleRad().length) ? roll.angleRad()[i] : 0.0F;
             float x = centerX + offset - w / 2.0F;
             float y = top + i * step;
             gui.pose().pushPose();
             gui.pose().translate(x, y, 0);
+            if (angle != 0.0F) {
+                // 绕**自身中心**旋转：先把原点挪到字格中心，转完再挪回来
+                gui.pose().translate(w / 2.0F, glyphH / 2.0F, 0);
+                gui.pose().mulPose(com.mojang.math.Axis.ZP.rotation(angle));
+                gui.pose().translate(-w / 2.0F, -glyphH / 2.0F, 0);
+            }
             gui.pose().scale(scale, scale, 1.0F);
             gui.drawString(font, glyph, 0, 0, TEXT_COLOR, TEXT_SHADOW);
             gui.pose().popPose();

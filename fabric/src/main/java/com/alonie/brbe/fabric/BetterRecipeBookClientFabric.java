@@ -33,8 +33,6 @@ import java.util.WeakHashMap;
 
 public class BetterRecipeBookClientFabric implements ClientModInitializer {
     private final Set<Screen> registeredScreens = Collections.newSetFromMap(new WeakHashMap<>());
-    /** 已注册「两侧竖排装饰文字」渲染回调的屏幕（init 会重复触发：切类别 / 缩放）。 */
-    private final Set<Screen> sideTextScreens = Collections.newSetFromMap(new WeakHashMap<>());
 
     @Override
     public void onInitializeClient() {
@@ -94,14 +92,15 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             this.registeredScreens.remove(screen);
-            // 配置界面两侧的竖排装饰文字（屏幕级覆盖绘制）：每个屏幕实例只注册一次，
-            // 重复 init（切类别 / 缩放）不会再叠一层回调。
+            // 配置界面左侧的竖排装饰文字（屏幕级覆盖绘制）。
+            // ⚠️ 必须**每次 init 都重新注册**、不能按屏幕去重：Fabric 在 Screen.init 的 HEAD
+            // 会重建该屏幕的全部事件对象（ScreenMixin.beforeInit → createAfterExtractEvent[]），
+            // 上一次注册的监听器随旧对象一起作废 —— 去重会导致「窗口缩放 / 切类别后装饰消失」。
+            // 每次 init 的事件对象都是新的，所以重复注册不会叠加。
             if (ConfigScreenSideText.shouldRender(screen)) {
-                // 每次 init（打开 / 切类别 / 缩放）重掷之字形横向偏移
+                // 每次 init（打开 / 切类别 / 缩放）重掷左右偏移与旋转角
                 ConfigScreenSideText.onScreenInit(screen);
-                if (this.sideTextScreens.add(screen)) {
-                    ScreenEvents.afterRender(screen).register(ConfigScreenSideText::render);
-                }
+                ScreenEvents.afterRender(screen).register(ConfigScreenSideText::render);
             }
             // 查询浮层：整屏渲染完成后绘制（最顶层）——Screen.render TAIL 在容器
             // 内容之前执行，浮层会被背包/配方书盖住。
