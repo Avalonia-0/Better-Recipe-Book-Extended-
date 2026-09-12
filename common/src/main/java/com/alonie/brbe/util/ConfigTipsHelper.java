@@ -9,6 +9,9 @@ import me.shedaniel.clothconfig2.api.ConfigBuilder;
 import me.shedaniel.clothconfig2.api.ConfigCategory;
 import me.shedaniel.clothconfig2.gui.AbstractConfigScreen;
 import me.shedaniel.clothconfig2.gui.ClothConfigScreen;
+import me.shedaniel.clothconfig2.gui.ClothConfigTabButton;
+import me.shedaniel.clothconfig2.gui.widget.DynamicEntryListWidget;
+import me.shedaniel.math.Rectangle;
 import me.shedaniel.clothconfig2.gui.entries.TextListEntry;
 import net.minecraft.ChatFormatting;
 import net.minecraft.client.Minecraft;
@@ -96,11 +99,14 @@ public final class ConfigTipsHelper {
                 addCarousels(builder, screenWideRows);
                 addSectionLabels(builder);
                 relocateEntries(builder);
+                // 顶部标题带移除：Cloth 把标题文字写死在 y=18（无法平移），所以直接清空标题；
+                // 腾出的那 41px 由 installScreenTweaks 把标签行与列表整体上移（removeTitleBand）。
+                builder.setTitle(Component.empty());
                 return builder.build();
             };
             provider.setBuildFunction(buildFn);
             Screen built = provider.get();
-            installScreenWideTips(built, screenWideRows);
+            installScreenTweaks(built, screenWideRows);
             return built;
         } catch (NoClassDefFoundError e) {
             return parent;                       // Cloth Config 不可用
@@ -394,23 +400,114 @@ public final class ConfigTipsHelper {
      * {@code ClothConfigScreen} 构造器统一设置，我们这条不在任何类别里）。</p>
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
-    private static void installScreenWideTips(Screen screen, List<AbstractConfigListEntry<?>> rows) {
-        if (rows.isEmpty() || !(screen instanceof AbstractConfigScreen configScreen)) return;
+    private static void installScreenTweaks(Screen screen, List<AbstractConfigListEntry<?>> rows) {
+        if (!(screen instanceof AbstractConfigScreen configScreen)) return;
         java.util.function.Consumer<Screen> install = s -> {
             if (!(s instanceof ClothConfigScreen cloth)) {
                 warnNonClothScreenOnce(s);
                 return;
             }
-            List<AbstractConfigEntry<AbstractConfigEntry<?>>> children = cloth.listWidget.children();
-            // 逆序插回：注册顺序 = 自上而下的显示顺序（先注册的最靠上）
-            for (int i = rows.size() - 1; i >= 0; i--) {
-                AbstractConfigEntry row = rows.get(i);
-                if (children.contains(row)) continue;          // 幂等（同一实例已在列表里）
-                row.setScreen(cloth);
-                children.add(0, row);
+            if (!rows.isEmpty()) {
+                List<AbstractConfigEntry<AbstractConfigEntry<?>>> children = cloth.listWidget.children();
+                // 逆序插回：注册顺序 = 自上而下的显示顺序（先注册的最靠上）
+                for (int i = rows.size() - 1; i >= 0; i--) {
+                    AbstractConfigEntry row = rows.get(i);
+                    if (children.contains(row)) continue;      // 幂等（同一实例已在列表里）
+                    row.setScreen(cloth);
+                    children.add(0, row);
+                }
             }
+            // 「隐藏配置界面的Tips」开着时上面那段不跑，标题带照样要移除 → 这里不早退。
+            removeTitleBand(cloth);
         };
         configScreen.setAfterInitConsumer(install);
+    }
+
+    // ── 顶部标题带移除（2026-09-12（十九））──────────────────────────────────
+
+    /** 标签行贴顶后的上边距（Cloth 原本是 41 = 标题带高度；留 2px，与标签按钮自身的内边距一致）。 */
+    private static final int TABS_TOP_MARGIN = 2;
+
+    /** Cloth 私有布局字段的反射缓存 —— Cloth 是**可选依赖**（缺失时 BRBE 照常运行），
+     *  所以这里不引 mixin 而是反射取用；字段取不到就退化为"保留标题带"并打一次日志。 */
+    private static final java.util.Map<String, java.lang.reflect.Field> CLOTH_LAYOUT_FIELDS =
+            new java.util.HashMap<>();
+
+    private static boolean titleBandWarned;
+
+    private static java.lang.reflect.Field clothLayoutField(String name)
+            throws NoSuchFieldException {
+        java.lang.reflect.Field cached = CLOTH_LAYOUT_FIELDS.get(name);
+        if (cached != null) return cached;
+        java.lang.reflect.Field field = ClothConfigScreen.class.getDeclaredField(name);
+        field.setAccessible(true);
+        CLOTH_LAYOUT_FIELDS.put(name, field);
+        return field;
+    }
+
+    /**
+     * 去掉配置界面顶部的**标题带**：Cloth 把界面标题固定画在 y=18、标签条固定在 y=41..65、
+     * 列表从 y=70 起 —— 标题占掉的那 41px 在大 GUI 缩放下很浪费（用户 2026-09-12 要求
+     * "类别行直接放在顶部"）。标题**文字**的坐标在 Cloth 里写死、无法平移，所以文本改在
+     * {@link #buildConfigScreen} 里用 {@code builder.setTitle(Component.empty())} 清空；
+     * 这里把**标签条与列表整体上移**同样的距离。
+     *
+     * <p>四处必须一起动，漏一处就是"按钮跑到条带外面"或"被裁掉"（Cloth 的
+     * {@code extractRenderState} 用 {@code tabsBounds} 开 scissor 裁标签）：
+     * ① 标签按钮 —— {@code childrenL()} 里的 {@link ClothConfigTabButton}；
+     * ② 左右滚动按钮 {@code buttonLeftTab} / {@code buttonRightTab}（私有字段）；
+     * ③ 三个命中/绘制矩形 {@code tabsBounds} / {@code tabsLeftBounds} / {@code tabsRightBounds}
+     *   （私有字段；{@link Rectangle} 的 x/y/width/height 是 public 可变字段）；
+     * ④ 列表控件 —— {@code listWidget} 本身 public，其 {@code top}/{@code bottom} 字段与
+     *   {@code updateSize(...)} 也是 public，直接改。
+     *
+     * <p>上移量按**实际布局**算（标签按钮当前 y − {@link #TABS_TOP_MARGIN}），不写死 41：
+     * 三个 Cloth 版本的常量万一不同也能自适应。没有标签行（单类别界面）时不动。
+     * 每次 {@code init()}（打开 / 切类别 / 缩放窗口）都会重跑，位置始终一致。
+     */
+    private static void removeTitleBand(ClothConfigScreen cloth) {
+        int tabY = Integer.MAX_VALUE;
+        for (Object child : cloth.childrenL()) {
+            if (child instanceof ClothConfigTabButton tab) {
+                tabY = Math.min(tabY, tab.getY());
+            }
+        }
+        if (tabY == Integer.MAX_VALUE) return;                 // 无标签行：保持 Cloth 原样
+        int shift = tabY - TABS_TOP_MARGIN;
+        if (shift <= 0) return;                                // 已经贴顶，无需再动
+        try {
+            for (Object child : cloth.childrenL()) {
+                if (child instanceof ClothConfigTabButton tab) {
+                    tab.setY(tab.getY() - shift);
+                }
+            }
+            for (String name : new String[] {"buttonLeftTab", "buttonRightTab"}) {
+                shiftWidgetY(clothLayoutField(name).get(cloth), -shift);
+            }
+            for (String name : new String[] {"tabsBounds", "tabsLeftBounds", "tabsRightBounds"}) {
+                if (clothLayoutField(name).get(cloth) instanceof Rectangle rect) {
+                    rect.y -= shift;
+                }
+            }
+        } catch (ReflectiveOperationException e) {
+            if (!titleBandWarned) {
+                titleBandWarned = true;
+                com.alonie.brbe.BetterRecipeBook.LOGGER.warn("[BRBE] 配置界面顶部标题带未能移除（Cloth 布局字段有变？）：{}",
+                        e.toString());
+            }
+            return;
+        }
+        DynamicEntryListWidget<?> list = (DynamicEntryListWidget<?>) (Object) cloth.listWidget;
+        list.updateSize(list.width, list.height, list.top - shift, list.bottom);
+    }
+
+    /** 反射调 {@code setY(int)}：滚动按钮的编译期类型在两套映射下不同
+     *  （Mojang 的 AbstractWidget / Yarn 的 ClickableWidget），反射就能写一份代码。 */
+    private static void shiftWidgetY(Object widget, int delta) throws ReflectiveOperationException {
+        if (widget == null) return;
+        java.lang.reflect.Method get = widget.getClass().getMethod("getY");
+        java.lang.reflect.Method set = widget.getClass().getMethod("setY", int.class);
+        set.invoke(widget, ((Integer) get.invoke(widget)) + delta);
     }
 
     /** 一次性告警：屏幕级轮循行只认 {@code ClothConfigScreen}（Cloth 的 globalized 变体
