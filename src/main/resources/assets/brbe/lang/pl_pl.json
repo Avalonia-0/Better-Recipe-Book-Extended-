@@ -85,6 +85,8 @@
   "text.autoconfig.brbe.option.expandedRecipeBook@Tooltip": "Większa księga receptur z nowym układem interfejsu. Na razie nie działa poprawnie, ale możesz rzucić okiem.",
   "text.autoconfig.brbe.option.hideConfigTips": "Ukryj wskazówki w konfiguracji",
   "text.autoconfig.brbe.option.hidePauseMenuConfigEntry": "Ukryj wpis konfiguracji w menu pauzy",
+  "text.autoconfig.brbe.option.hideConfigTitleBand": "Ukryj górny pasek tytułu ekranu konfiguracji",
+  "text.autoconfig.brbe.option.hideConfigSideText": "Ukryj tekst po bokach ekranu konfiguracji",
   "text.autoconfig.brbe.option.hideConfigTips.@Tooltip": "Chodzi o linię wskazówek nad polem wyszukiwania u góry ekranu konfiguracji, która zmienia się przy każdym jego otwarciu.",
   "text.autoconfig.brbe.option.hideConfigTips@Tooltip": "Chodzi o linię wskazówek nad polem wyszukiwania u góry ekranu konfiguracji, która zmienia się przy każdym jego otwarciu.",
   "text.autoconfig.brbe.option.hideIncompatibleMark": "Ukryj oznaczenia przepisów 3x3 w trybie przetrwania",

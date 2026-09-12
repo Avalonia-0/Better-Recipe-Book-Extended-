@@ -85,6 +85,8 @@
   "text.autoconfig.brbe.option.expandedRecipeBook@Tooltip": "Большая книга рецептов с новым макетом. Пока не работает нормально, но можно посмотреть.",
   "text.autoconfig.brbe.option.hideConfigTips": "Скрыть подсказки конфигурации",
   "text.autoconfig.brbe.option.hidePauseMenuConfigEntry": "Скрыть пункт конфигурации в меню паузы",
+  "text.autoconfig.brbe.option.hideConfigTitleBand": "Скрыть верхнюю область заголовка экрана настроек",
+  "text.autoconfig.brbe.option.hideConfigSideText": "Скрыть текст по бокам экрана настроек",
   "text.autoconfig.brbe.option.hideConfigTips.@Tooltip": "Это строка подсказок над строкой поиска в верхней части экрана настроек, которая меняется при каждом его открытии.",
   "text.autoconfig.brbe.option.hideConfigTips@Tooltip": "Это строка подсказок над строкой поиска в верхней части экрана настроек, которая меняется при каждом его открытии.",
   "text.autoconfig.brbe.option.hideIncompatibleMark": "Скрыть отметки рецептов 3x3 в книге рецептов режима выживания",

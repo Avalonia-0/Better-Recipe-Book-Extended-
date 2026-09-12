@@ -102,6 +102,8 @@
   "text.autoconfig.brbe.option.expandedRecipeBook@Tooltip": "更大的配方书，新的UI布局。暂时还没法正常使用，不过可以看看。",
   "text.autoconfig.brbe.option.hideConfigTips": "隐藏配置界面的Tips",
   "text.autoconfig.brbe.option.hidePauseMenuConfigEntry": "隐藏暂停菜单的配置界面入口",
+  "text.autoconfig.brbe.option.hideConfigTitleBand": "隐藏配置界面顶部的标题区域",
+  "text.autoconfig.brbe.option.hideConfigSideText": "隐藏配置界面两侧的文字",
   "text.autoconfig.brbe.option.hideConfigTips.@Tooltip": "就是配置界面顶部（搜索栏上方）那个每次打开配置界面都会变化的Tips。",
   "text.autoconfig.brbe.option.hideConfigTips@Tooltip": "就是配置界面顶部（搜索栏上方）那个每次打开配置界面都会变化的Tips。",
   "text.autoconfig.brbe.option.hideIncompatibleMark": "隐藏生存模式配方书中的3x3配方标记",

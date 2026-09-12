@@ -95,7 +95,8 @@ public final class ConfigTipsHelper {
                 relocateEntries(builder);
                 // 顶部标题带移除：Cloth 把标题文字写死在 y=18（无法平移），所以直接清空标题；
                 // 腾出的那 41px 由 installScreenTweaks 把标签行与列表整体上移（removeTitleBand）。
-                builder.setTitle(Component.empty());
+                // 「隐藏配置界面顶部的标题区域」关掉时两处都不做 → 恢复 Cloth 原来的标题带。
+                if (hideTitleBand()) builder.setTitle(Component.empty());
                 return builder.build();
             };
             provider.setBuildFunction(buildFn);
@@ -396,10 +397,18 @@ public final class ConfigTipsHelper {
                     children.add(0, row);
                 }
             }
-            // 「隐藏配置界面的Tips」开着时上面那段不跑，标题带照样要移除 → 这里不早退。
-            removeTitleBand(cloth);
+            // 「隐藏配置界面的Tips」开着时上面那段不跑；标题带是否移除由
+            // 「隐藏配置界面顶部的标题区域」单独决定（默认开）→ 这里不早退。
+            if (hideTitleBand()) removeTitleBand(cloth);
         };
         configScreen.setAfterInitConsumer(install);
+    }
+
+    /** 「隐藏配置界面顶部的标题区域」是否生效：**默认开**；Cloth 缺失 / 配置尚未注册时
+     *  （{@code config == null}）也按"隐藏"处理，与出厂默认一致。 */
+    private static boolean hideTitleBand() {
+        return com.alonie.brbe.BetterRecipeBook.config == null
+                || com.alonie.brbe.BetterRecipeBook.config.hideConfigTitleBand;
     }
 
     // ── 顶部标题带移除（2026-09-12（十九））──────────────────────────────────
@@ -430,6 +439,10 @@ public final class ConfigTipsHelper {
      * "类别行直接放在顶部"）。标题**文字**的坐标在 Cloth 里写死、无法平移，所以文本改在
      * {@link #buildConfigScreen} 里用 {@code builder.setTitle(Component.empty())} 清空；
      * 这里把**标签条与列表整体上移**同样的距离。
+     *
+     * <p><b>整个移除动作由「杂项」页的「隐藏配置界面顶部的标题区域」开关控制</b>
+     * （{@link #hideTitleBand()}，默认开）：<b>关掉时本方法与 {@code setTitle(...)} 都不执行</b>，
+     * 界面回到 Cloth 原样（y=18 的标题文字 + 标题带那 41px 留白，列表从 y=70 起）。</p>
      *
      * <p>四处必须一起动，漏一处就是"按钮跑到条带外面"或"被裁掉"（Cloth 的
      * {@code extractRenderState} 用 {@code tabsBounds} 开 scissor 裁标签）：

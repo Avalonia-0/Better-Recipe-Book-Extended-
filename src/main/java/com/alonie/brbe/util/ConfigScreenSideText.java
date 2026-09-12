@@ -54,6 +54,10 @@ import java.util.WeakHashMap;
  * 但**之字形偏移不每帧重掷**（那样会 60fps 抖动），只在 {@link #onScreenInit} 时重掷一次 ——
  * 打开界面 / 切类别 / 缩放都会走那里。</p>
  *
+ * <p><b>开关</b>：「杂项」页的<b>隐藏配置界面两侧的文字</b>（{@code hideConfigSideText}，默认关）
+ * 打开时 {@link #shouldRender} 与 {@link #render} 都直接不画 —— fabric 入口的按屏注册因此压根不会发生，
+ * NeoForge 的全局监听也在这里被挡下。</p>
+ *
  * <p><b>注册方式</b>：本类**不引用任何加载器 API**（1.21.1 的 common 模块也要编译它），
  * 事件注册在各分支入口完成 —— fabric 用 {@code ScreenEvents.afterExtract}（26.2）/
  * {@code ScreenEvents.afterRender}（1.21.11、1.21.1-fabric），neoforge 用
@@ -193,17 +197,37 @@ public final class ConfigScreenSideText {
     private ConfigScreenSideText() {
     }
 
-    /** 入口侧过滤：只有 Cloth 的配置界面才画。（Cloth 是可选依赖，缺失时这里永远为 false。） */
-    public static boolean shouldRender(Screen screen) {
+    /** 屏幕**类型**过滤：只有 Cloth 的配置界面才装饰（Cloth 是可选依赖，缺失时永远 false）。
+     *
+     *  <p>fabric 的三个入口用<b>本方法</b>决定要不要注册渲染监听 —— 它<b>不含开关判定</b>：
+     *  开关是每帧在 {@link #render} 里判的，所以配置界面里直接切换「隐藏配置界面两侧的文字」
+     *  两个方向都<b>立即生效</b>；若改用 {@link #shouldRender} 注册，开关开着时压根不会注册，
+     *  关掉后要切类别 / 重开界面才回来（渲染监听只在 {@code Screen.init()} 时挂）。</p> */
+    public static boolean isDecoratedScreen(Screen screen) {
         return screen instanceof ClothConfigScreen;
+    }
+
+    /** "此刻该不该画" = 屏幕类型对 + 「隐藏配置界面两侧的文字」没开。
+     *  （{@link #render} 内部另有同一条兜底判定 —— NeoForge 走全局监听不过入口过滤。） */
+    public static boolean shouldRender(Screen screen) {
+        return isDecoratedScreen(screen) && !hiddenByConfig();
+    }
+
+    /** 「隐藏配置界面两侧的文字」是否开启（**默认关**；配置尚未注册时按关处理 = 照常绘制）。 */
+    private static boolean hiddenByConfig() {
+        return com.alonie.brbe.BetterRecipeBook.config != null
+                && com.alonie.brbe.BetterRecipeBook.config.hideConfigSideText;
     }
 
     /**
      * 屏幕初始化时调用（打开配置界面 / 切类别 / 缩放都会重跑 {@code init()}）：
      * **重新掷一次左右偏移、倾斜角与字段颜色**。必须在首次渲染之前调用（入口挂在屏幕初始化事件上）。
+     *
+     * <p>按<b>屏幕类型</b>过滤（不看开关）：开关开着时也照常掷，玩家随后关掉开关就能立刻看到
+     * 这一刷的颜色；即便一次都没掷过，{@link #render} 里也有"现掷一刷"的兜底。</p>
      */
     public static void onScreenInit(Screen screen) {
-        if (!shouldRender(screen)) return;
+        if (!isDecoratedScreen(screen)) return;
         ROLLS.put(screen, new Roll[] { roll(LEFT_TEXT, LEFT_FIXED), roll(RIGHT_TEXT, RIGHT_FIXED) });
     }
 
@@ -212,6 +236,7 @@ public final class ConfigScreenSideText {
      */
     public static void render(Screen screen, GuiGraphicsExtractor gui, int mouseX, int mouseY, float partialTick) {
         if (!(screen instanceof ClothConfigScreen cloth)) return;
+        if (hiddenByConfig()) return;                       // NeoForge 走全局监听，入口不过滤 → 这里兜住
         Minecraft mc = Minecraft.getInstance();
         if (mc == null || mc.font == null) return;
         DynamicEntryListWidget<?> list = (DynamicEntryListWidget<?>) (Object) cloth.listWidget;
