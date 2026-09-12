@@ -51,10 +51,30 @@ public final class ConfigTipsHelper {
     /**
      * 打开配置界面（注入所有注册的轮循行）。所有入口统一走这里。
      */
-    @SuppressWarnings({"unchecked", "rawtypes"})
     public static void openConfigScreen(Class configClass, Screen parent) {
+        Screen screen = buildConfigScreen(configClass, parent);
+        if (screen != null && screen != parent) Minecraft.getInstance().setScreen(screen);
+    }
+
+    /**
+     * 构建（并整理）配置界面并返回 —— 供需要拿到 {@code Screen} 的入口使用
+     * （暂停菜单按钮 / ModMenu 配置按钮 / NeoForge 的 {@code IConfigScreenFactory}）。
+     *
+     * <p>⚠️ <b>所有配置界面入口都必须走这里或 {@link #openConfigScreen}</b>：直接调
+     * {@code AutoConfig.getConfigScreen(...)} 会拿到**未经整理**的界面（没有轮循提示行、
+     * 没有分节黄字行、条目也是字段声明顺序）——2026-09-12 用户实测：暂停菜单入口进去后
+     * "大量配置项顺序错乱"，就是因为它当时绕过了这里。</p>
+     *
+     * <p>整理过程抛异常时**回退到未整理的原始界面**并打 ERROR 日志 —— 宁可顺序没整理好，
+     * 也不能让入口按钮点了没反应（同日的教训：relocateEntries 越界异常抛在按钮的
+     * mouseClicked 里，按钮表现为"无反应"）。Cloth 缺失时返回 {@code parent}。</p>
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static Screen buildConfigScreen(Class configClass, Screen parent) {
         try {
             var provider = (ConfigScreenProvider) AutoConfig.getConfigScreen(configClass, parent);
+            // 显式声明 lambda 的目标类型：provider 是 raw 类型（(ConfigScreenProvider) 强转），
+            // 直接把 lambda 内联进 setBuildFunction 会把参数推断成 Object（编译报错）。
             java.util.function.Function<ConfigBuilder, Screen> buildFn = builder -> {
                 addCarousels(builder);
                 addSectionLabels(builder);
@@ -62,9 +82,16 @@ public final class ConfigTipsHelper {
                 return builder.build();
             };
             provider.setBuildFunction(buildFn);
-            Minecraft.getInstance().setScreen(provider.get());
+            return provider.get();
         } catch (NoClassDefFoundError e) {
-            // Cloth Config not available
+            return parent;                       // Cloth Config 不可用
+        } catch (RuntimeException e) {
+            BetterRecipeBook.LOGGER.error("[BRBE] 配置界面条目整理失败，回退到未整理的默认顺序", e);
+            try {
+                return (Screen) AutoConfig.getConfigScreen(configClass, parent).get();
+            } catch (Throwable t) {
+                return parent;
+            }
         }
     }
 
@@ -254,20 +281,26 @@ public final class ConfigTipsHelper {
      *  锚点或条目找不到时**什么都不做**（保持条目原位，不产生半成品布局）。 */
     private static void moveAfterFirstFound(List<List<Object>> lists, List<String> optionKeys, String anchorKey) {
         Component anchor = Component.translatable(anchorKey);
-        for (List<Object> anchorList : lists) {
-            int at = indexOfFieldName(anchorList, anchor);
-            if (at < 0) continue;
-            for (String optionKey : optionKeys) {
-                Component name = Component.translatable(optionKey);
-                for (List<Object> from : lists) {
-                    Object entry = removeByFieldName(from, name);
-                    if (entry != null) {
+        for (String optionKey : optionKeys) {
+            Component name = Component.translatable(optionKey);
+            for (List<Object> from : lists) {
+                Object entry = removeByFieldName(from, name);
+                if (entry == null) continue;
+                // ⚠️ 必须**先摘出条目、再查锚点下标**：条目与锚点同在一张列表、且条目排在锚点
+                //    之前时，摘除会让锚点整体前移一位；沿用摘除前算好的下标就会 add(size + 1)
+                //    越界。2026-09-12 实测崩溃：锚点「配方书翻页动画」是「界面」页最后一条，
+                //    而「启用解锁弹跳动画」在它前面 → IndexOutOfBoundsException: Index: 14,
+                //    Size: 13，异常抛在按钮的 mouseClicked 里 → 配方书内的设置按钮点了没反应。
+                for (List<Object> anchorList : lists) {
+                    int at = indexOfFieldName(anchorList, anchor);
+                    if (at >= 0) {
                         anchorList.add(at + 1, entry);
                         return;
                     }
                 }
+                from.add(entry);   // 锚点找不到：放回原位（不产生半成品布局）
+                return;
             }
-            return;
         }
     }
 

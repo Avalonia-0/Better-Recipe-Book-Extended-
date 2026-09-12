@@ -18,8 +18,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.TreeMap;
-import java.util.function.Supplier;
-
 /**
  * 暂停菜单「中间那一行按钮」的右侧插入一个 20×20 方形图标按钮，点击打开 BRBE 配置界面。
  *
@@ -106,14 +104,9 @@ public abstract class PauseScreenConfigButtonMixin extends Screen {
         return new int[]{rowRightEdges.get(middleY), middleY};
     }
 
-    /** 构建 Cloth Config 配置屏（与 ModMenu 反射桥、书内设置按钮同源）。 */
+    /** 构建 Cloth Config 配置屏 —— **必须走 ConfigTipsHelper**（与书内设置按钮、ModMenu 同源）：
+     *  直接调 AutoConfig 只会拿到未整理的界面（没有轮循行/分节行、条目是字段声明顺序）。 */
     private static Screen createConfigScreen(Screen parent) {
-        try {
-            Supplier<Screen> supplier = me.shedaniel.autoconfig.AutoConfig
-                    .getConfigScreen(BrbeConfig.class, parent);
-            return supplier.get();
-        } catch (Exception e) {
-            return parent;
-        }
+        return com.alonie.brbe.util.ConfigTipsHelper.buildConfigScreen(BrbeConfig.class, parent);
     }
 }
