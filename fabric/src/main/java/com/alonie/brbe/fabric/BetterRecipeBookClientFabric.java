@@ -6,6 +6,7 @@ import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.compat.emi.EmiCompat;
 import com.alonie.brbe.compat.rei.ReiCompat;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
+import com.alonie.brbe.util.ConfigScreenSideText;
 import com.alonie.brbe.config.KeybindingGuiRegistrar;
 import com.alonie.brbe.config.PinyinSearchGuiRegistrar;
 import com.alonie.brbe.config.RecipeViewerGuiRegistrar;
@@ -32,6 +33,8 @@ import java.util.WeakHashMap;
 
 public class BetterRecipeBookClientFabric implements ClientModInitializer {
     private final Set<Screen> registeredScreens = Collections.newSetFromMap(new WeakHashMap<>());
+    /** 已注册「两侧竖排装饰文字」渲染回调的屏幕（init 会重复触发：切类别 / 缩放）。 */
+    private final Set<Screen> sideTextScreens = Collections.newSetFromMap(new WeakHashMap<>());
 
     @Override
     public void onInitializeClient() {
@@ -91,6 +94,11 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             this.registeredScreens.remove(screen);
+            // 配置界面两侧的竖排装饰文字（屏幕级覆盖绘制）：每个屏幕实例只注册一次，
+            // 重复 init（切类别 / 缩放）不会再叠一层回调。
+            if (ConfigScreenSideText.shouldRender(screen) && this.sideTextScreens.add(screen)) {
+                ScreenEvents.afterRender(screen).register(ConfigScreenSideText::render);
+            }
             // 查询浮层：整屏渲染完成后绘制（最顶层）——Screen.render TAIL 在容器
             // 内容之前执行，浮层会被背包/配方书盖住。
             ScreenEvents.afterRender(screen).register(TopLayerOverlayRenderer::renderViewer);

@@ -129,6 +129,14 @@ public class BetterRecipeBookClientNeoForge {
             }
         });
 
+        // 配置界面两侧的竖排装饰文字（屏幕级覆盖绘制）：全局 Render.Post 监听 +
+        // 现场过滤屏幕类型，无需像 fabric 那样按屏幕注册（也就没有重复注册问题）。
+        NeoForge.EVENT_BUS.addListener(ScreenEvent.Render.Post.class, renderEvent -> {
+            com.alonie.brbe.util.ConfigScreenSideText.render(
+                    renderEvent.getScreen(), renderEvent.getGuiGraphics(),
+                    renderEvent.getMouseX(), renderEvent.getMouseY(), renderEvent.getPartialTick());
+        });
+
         NeoForge.EVENT_BUS.addListener(ClientTickEvent.Post.class, event -> {
             Minecraft client = Minecraft.getInstance();
             Screen screen = client.screen;
