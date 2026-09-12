@@ -96,8 +96,12 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             this.registeredScreens.remove(screen);
             // 配置界面两侧的竖排装饰文字（屏幕级覆盖绘制）：每个屏幕实例只注册一次，
             // 重复 init（切类别 / 缩放）不会再叠一层回调。
-            if (ConfigScreenSideText.shouldRender(screen) && this.sideTextScreens.add(screen)) {
-                ScreenEvents.afterRender(screen).register(ConfigScreenSideText::render);
+            if (ConfigScreenSideText.shouldRender(screen)) {
+                // 每次 init（打开 / 切类别 / 缩放）重掷之字形横向偏移
+                ConfigScreenSideText.onScreenInit(screen);
+                if (this.sideTextScreens.add(screen)) {
+                    ScreenEvents.afterRender(screen).register(ConfigScreenSideText::render);
+                }
             }
             // 查询浮层：整屏渲染完成后绘制（最顶层）——Screen.render TAIL 在容器
             // 内容之前执行，浮层会被背包/配方书盖住。
