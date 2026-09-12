@@ -196,8 +196,6 @@ public final class RecipeViewerOverlay {
     private static final int TAB_V_BOTTOM = TAB_TEX_HEIGHT - TAB_V_TOP - TAB_V_CUT;
     private static final int TAB_HEIGHT = TAB_TEX_WIDTH - TAB_CUT;
     private static final int TAB_OVERHANG = TAB_HEIGHT - 4;
-    /** 标签条硬上限（列上限是软上限，见 {@link #maxTabs()}）。 */
-    private static final int MAX_TABS = 10;
 
     /** 查询界面「配方区行上限」（配置项，默认 3）：对象区一页最多显示的行数；
      *  同时就是工作站列的对象数量上限（{@link #stationViewRows()} 由框体高度
@@ -208,7 +206,7 @@ public final class RecipeViewerOverlay {
     }
 
     /** 查询界面「配方区列上限」（配置项，默认 7）：对象区一页最多显示的列数；
-     *  同时也就是底部标签的数量上限（{@link #maxTabs()}）。 */
+     *  同时也就是底部标签的数量上限（{@link #maxTabs()} = 列上限）。 */
     private static int pageCols() {
         com.alonie.brbe.config.BrbeConfig cfg = BetterRecipeBook.config;
         return clampLimit(cfg == null ? DEFAULT_COL_LIMIT : cfg.recipeViewerColumnLimit);
@@ -219,9 +217,21 @@ public final class RecipeViewerOverlay {
         return pageRows() * pageCols();
     }
 
-    /** 标签条一次最多显示的标签数 = {@code min(MAX_TABS, 列上限)}。 */
+    /** 标签条自身的**撑宽上限** = {@link #pageCols()} 列上限（一列一个标签）。原来这里还写死了
+     *  一个 {@code MAX_TABS = 10}，列上限调到 10 以上时标签数上不去（用户 2026-09-13 反馈）——
+     *  **标签数上限 = 列上限**。
+     *
+     *  <p>绘制/命中/滚轮用的**实际窗口大小**是 {@link #visibleTabCount()}（框体真实列数）。</p> */
     private static int maxTabs() {
-        return Math.max(1, Math.min(MAX_TABS, pageCols()));
+        return Math.max(1, pageCols());
+    }
+
+    /** 标签条**每页显示的标签数** = REI 式滑窗（{@code tabWindowStart}）的窗口大小 =
+     *  框体**真实的列数**（{@code (boxW - 8) / TAB_WIDTH}）。框体宽度由对象列数（≤ 列上限）与
+     *  {@link #ensureTabWidth}（标签条最多撑到"列上限"列）共同决定，所以
+     *  **标签数上限 = 列上限**（用户 2026-09-13）。 */
+    private static int visibleTabCount() {
+        return Math.max(1, (boxW - 8) / TAB_WIDTH);
     }
 
     private static int clampLimit(int value) {
@@ -851,7 +861,7 @@ public final class RecipeViewerOverlay {
         if (cats.isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
-        int perPage = maxTabs();
+        int perPage = visibleTabCount();
         int maxStart = Math.max(0, cats.size() - perPage);
         tabWindowStart = Math.max(0, Math.min(tabWindowStart, maxStart));
         int start = tabWindowStart;
@@ -893,9 +903,9 @@ public final class RecipeViewerOverlay {
                 appendModName(lines, cat.icon());
                 // 阶段一 #7：标签窗可滑动时附 ◀▶ 标记（1.21.11 滑窗标记的信息
                 // 语义：窗口未至最左最右 → ◀▶；最左/最右分别 → ▶/◀）。
-                if (tabWindowCount() > maxTabs()) {
+                if (tabWindowCount() > visibleTabCount()) {
                     boolean canLeft = tabWindowStart > 0;
-                    boolean canRight = tabWindowStart + maxTabs() < tabWindowCount();
+                    boolean canRight = tabWindowStart + visibleTabCount() < tabWindowCount();
                     if (canLeft && canRight) {
                         lines.add(Component.literal("◀ ▶"));
                     } else if (canLeft) {
@@ -1099,7 +1109,7 @@ public final class RecipeViewerOverlay {
         if (button != 0) return false;
         int tabY = tabTop();
         List<RecipeViewerCategory> cats = visibleCategories();
-        int perPage = maxTabs();
+        int perPage = visibleTabCount();
         int start = tabWindowStart;
         int end = Math.min(start + perPage, cats.size());
         for (int i = start; i < end; i++) {
@@ -1123,11 +1133,14 @@ public final class RecipeViewerOverlay {
     private static boolean overTabStrip(double mx, double my) {
         int catCount = visibleCategories().size();
         if (catCount == 0) return false;
-        int shown = Math.min(maxTabs(), catCount);
+        int shown = Math.min(visibleTabCount(), catCount);
         return inside(mx, my, boxX, tabTop(), shown * TAB_WIDTH, TAB_HEIGHT);
     }
 
-    /** 标签条滚轮：切类别 + REI 式窗口滑动（选中到第 6 槽起随窗口滑动）。 */
+    /** 标签条滚轮：切类别 + REI 式窗口滑动。**滑动起始位 = 窗口正中**（用户 2026-09-13）：
+     *  窗口大小 {@code N} 为**奇数**时就是正中心那一槽（左右方向都是它），为**偶数**时是中间两槽
+     *  ——向右滚用右边那槽（{@code N/2}）、向左滚用左边那槽（{@code (N-1)/2}）。选中标签到达该槽位
+     *  后窗口跟着它一起滑，**看起来相对静止**。（改前左侧写死 {@code N/2 - 1}，奇数窗口下会早一步滑动。） */
     public static boolean mouseScrolledTabs(double mx, double my, double vertical) {
         if (!active || vertical == 0) return false;
         List<RecipeViewerCategory> cats = visibleCategories();
@@ -1138,12 +1151,13 @@ public final class RecipeViewerOverlay {
         int delta = vertical > 0 ? -1 : 1;
         int newIdx = idx + delta;
         if (newIdx < 0 || newIdx >= cats.size()) return false;
-        int perPage = maxTabs();
+        int perPage = visibleTabCount();
         int maxStart = Math.max(0, cats.size() - perPage);
-        // 选中标签到达窗口中央槽位起随窗口滑动（右：中央槽本身；左：其下一槽）。
+        // 选中标签到达"滑动起始位"后窗口随它一起滑：奇数窗口两者都是正中那一槽，
+        // 偶数窗口是中间两槽（原来写死 6/5）。
         int slot = idx - tabWindowStart;
-        int pinRight = Math.max(0, perPage / 2);
-        int pinLeft = Math.max(0, perPage / 2 - 1);
+        int pinRight = perPage / 2;        // 偶数：中间偏右；奇数：正中间
+        int pinLeft = (perPage - 1) / 2;   // 偶数：中间偏左；奇数：正中间
         if (delta > 0 && maxStart > 0 && slot >= pinRight) {
             tabWindowStart = Math.min(maxStart, tabWindowStart + 1);
         } else if (delta < 0 && maxStart > 0 && slot <= pinLeft) {
@@ -1472,8 +1486,8 @@ public final class RecipeViewerOverlay {
         fitBoxToPage(count);
     }
 
-    /** 标签条最多 maxTabs() = min(MAX_TABS, 列上限) 个标签（一列一个标签，
-     *  故列上限同时也是标签数量上限）：不足时加空列撑宽框体。 */
+    /** 标签条最多 {@link #maxTabs()} = 列上限 个标签（一列一个标签，故列上限同时也是标签数量
+     *  上限，不再有额外的硬上限）：不足时加空列撑宽框体。 */
     private static void ensureTabWidth() {
         int tabCount = Math.min(visibleCategories().size(), maxTabs());
         int tabW = tabCount * TAB_WIDTH + 8;
@@ -1540,7 +1554,7 @@ public final class RecipeViewerOverlay {
             tabWindowStart = 0;
             return;
         }
-        int perPage = maxTabs();
+        int perPage = visibleTabCount();
         int maxStart = Math.max(0, cats.size() - perPage);
         tabWindowStart = Math.max(0, Math.min(tabWindowStart, maxStart));
         int idx = cats.indexOf(currentCategory);
