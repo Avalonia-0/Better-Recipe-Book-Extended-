@@ -25,8 +25,8 @@ import java.util.WeakHashMap;
  * <p><b>分片上色</b>：所有字都是 10% 透明，只有色相不同。</p>
  *
  * <ul>
- *   <li><b>固定片段</b>：按 {@link #LEFT_TINTS} / {@link #RIGHT_TINTS} 的规则换色 ——
- *       "Recipe Book" 绿、♡ 粉、"aVa" 蓝。</li>
+ *   <li><b>固定片段</b>：按 {@link #TINTS} 的规则换色 —— "Recipe Book" 绿、♡ 粉、"aVa" 蓝
+ *       （一张表对两列都生效，颜色跟着文字走）。</li>
  *   <li><b>其余字段</b>：按「<b>一个单词 = 一个字段</b>」切分，每个字段<b>独立</b>从
  *       {@link #RANDOM_PALETTE}（黄 / 紫 / 橙 / 白）里随机取一色；<b>每次刷新重新分配</b>
  *       （打开界面 / 切类别 / 缩放都会走 {@link #onScreenInit}，与摆动、倾斜同一时机）。</li>
@@ -54,10 +54,14 @@ import java.util.WeakHashMap;
  * 但**之字形偏移不每帧重掷**（那样会 60fps 抖动），只在 {@link #onScreenInit} 时重掷一次 ——
  * 打开界面 / 切类别 / 缩放都会走那里。</p>
  *
- * <p><b>字号</b>：<b>两列共用同一个字号</b>，以字少的<b>左列</b>为基准（{@link #naturalScale}）——
- * 右列字数约为左列两倍，塞进同样的高度意味着步长小于字格高、相邻字在<b>纵向</b>上叠排，
- * 靠逐字之字形摆动（{@link #SWAY_MIN_PX}~{@link #SWAY_MAX_PX}）左右错开（用户 2026-09-13
- * 要求"右侧文字的字符大小直接同步左侧"）。</p>
+ * <p><b>字号</b>：<b>两列共用同一个字号</b> = 两列"各自能放下的最大字号"里较大的那个
+ * （{@link #naturalScale}），也就是<b>字数少的那一列</b>的字号；字数多的那列步长因此小于
+ * 字格高、相邻字在<b>纵向</b>上叠排，靠逐字之字形摆动（{@link #SWAY_MIN_PX}~{@link #SWAY_MAX_PX}）
+ * 左右错开。规则与左右无关，所以**调换两侧内容不会改变字号**（用户 2026-09-13）。</p>
+ *
+ * <p><b>左右分工</b>：字数多的长文案放<b>左</b>侧 —— 左侧空白竖条约 42px、右侧约 38px
+ * （右列还要再右移 {@link #RIGHT_SHIFT_PX}，实际更窄），长文案需要更多横向空间来容纳
+ * 摆动与倾斜（用户 2026-09-13："我发现左侧空间更大"）。</p>
  *
  * <p><b>开关</b>：「杂项」页的<b>隐藏配置界面两侧的文字</b>（{@code hideConfigSideText}，默认关）
  * 打开时 {@link #shouldRender} 与 {@link #render} 都直接不画 —— fabric 入口的按屏注册因此压根不会发生，
@@ -72,12 +76,14 @@ public final class ConfigScreenSideText {
 
     // ── 可调参数 ────────────────────────────────────────────────────────────
 
-    /** 竖排文字（左侧）。 */
-    private static final String LEFT_TEXT = "Better Recipe Book";
+    /** 竖排文字（左侧）。**字数多的长文案放左边** —— 左侧空白竖条更宽（42px vs 38px，
+     *  且右列还要再右移 {@link #RIGHT_SHIFT_PX}），长文案需要更多横向空间容纳摆动与倾斜。 */
+    private static final String LEFT_TEXT = "Adorable♡Girl aVa Seriously Extended";
     /** 竖排文字（右侧）。 */
-    private static final String RIGHT_TEXT = "Adorable♡Girl aVa Seriously Extended";
-    /** 左列的码点数 —— <b>两列共用的字号基准</b>（右列字号直接同步它，见 {@link #naturalScale}）。 */
+    private static final String RIGHT_TEXT = "Better Recipe Book";
+    /** 两列的码点数 —— 字号取两列中**较大的那个自然字号**（见 {@link #naturalScale}），与左右无关。 */
     private static final int LEFT_LENGTH = LEFT_TEXT.codePointCount(0, LEFT_TEXT.length());
+    private static final int RIGHT_LENGTH = RIGHT_TEXT.codePointCount(0, RIGHT_TEXT.length());
     /** 默认字色（ARGB，中灰）：**透明度 10%**（alpha 0x1A = 26/255 ≈ 10.2%），纯水印观感；
      *  不画阴影，像素字更干净。要更淡/更亮就改前两位 alpha
      *  （0x1A=10% / 0x26=15% / 0x33=20% / 0x40=25% / 0x59=35%）。 */
@@ -86,11 +92,11 @@ public final class ConfigScreenSideText {
     private static final int COLOR_PINK = 0x1AFF77CC;      // ♡
     private static final int COLOR_BLUE = 0x1A77B7FF;      // aVa
     private static final int COLOR_GREEN = 0x1A77FF77;     // Recipe Book
-    /** 左列固定上色规则：把 "Recipe Book" 染绿。 */
-    private static final List<Tint> LEFT_TINTS = List.of(
-            new Tint("Recipe Book", COLOR_GREEN));
-    /** 右列固定上色规则：♡ 染粉、aVa 染蓝（两条规则命中的片段互不重叠）。 */
-    private static final List<Tint> RIGHT_TINTS = List.of(
+    /** 固定上色规则（**两列共用一张表**）："Recipe Book" 染绿、♡ 染粉、"aVa" 染蓝。
+     *  三条 needle 分属不同文案、互不重叠，所以同一张表对两列都适用 ——
+     *  这样**调换左右内容时颜色自动跟着文字走**，不用改表。 */
+    private static final List<Tint> TINTS = List.of(
+            new Tint("Recipe Book", COLOR_GREEN),
             new Tint("♡", COLOR_PINK),
             new Tint("aVa", COLOR_BLUE));
     /** 剩余字段的随机色池：黄 / 紫 / 橙 / 白（每个字段独立抽签，每次刷新重抽）。 */
@@ -103,8 +109,8 @@ public final class ConfigScreenSideText {
     /** "还没分配色相"的哨兵值：固定规则没命中的位置留它，交给 {@link #rollColors} 抽签。 */
     private static final int UNASSIGNED = 0;
     /** 两列的**固定**色表（类初始化时算一次，下标与**码点**一一对应；未命中规则处为 {@link #UNASSIGNED}）。 */
-    private static final int[] LEFT_FIXED = tintArray(LEFT_TEXT, LEFT_TINTS);
-    private static final int[] RIGHT_FIXED = tintArray(RIGHT_TEXT, RIGHT_TINTS);
+    private static final int[] LEFT_FIXED = tintArray(LEFT_TEXT, TINTS);
+    private static final int[] RIGHT_FIXED = tintArray(RIGHT_TEXT, TINTS);
     /** 是否带阴影（原版字体阴影）。 */
     private static final boolean TEXT_SHADOW = false;
 
@@ -114,10 +120,10 @@ public final class ConfigScreenSideText {
     /** 字号吸附粒度：字号会向下取到 1/4 的整数倍（1.0 / 0.75 / 0.5 / 0.25），
      *  避免分数缩放把像素字糊掉。 */
     private static final int SCALE_STEPS = 4;
-    /** 字间空隙系数：1.0 = 字符首尾相接，&gt;1 = 留出空隙。真正的位置仍由"首字符顶上线、
-     *  末字符顶下线"决定 —— 该系数只影响**字号基准列（左列）**的字号取值。
-     *  右列没有独立系数：它的字号直接同步左列（用户 2026-09-13 要求）。 */
-    private static final float LEFT_SPACING = 1.10F;
+    /** 字间空隙系数：1.0 = 字符首尾相接、&gt;1 = 留出空隙。真正的位置仍由"首字符顶上线、
+     *  末字符顶下线"决定 —— 该系数**只影响字号取值**，且两列共用同一个值
+     *  （两列字号相同，见 {@link #naturalScale}）。越大 → 字号越小。 */
+    private static final float SPACING = 1.10F;
     /** 纵向微调（px）：像素字的墨迹在字符格里略偏上，需要时用这两个值压一压。 */
     private static final int TOP_NUDGE = 0;
     private static final int BOTTOM_NUDGE = 0;
@@ -273,10 +279,14 @@ public final class ConfigScreenSideText {
         // 屏幕左右边界：摆到极限 + 大字号时也不让字形越出屏幕（正常参数用不到）
         int screenLeft = Math.min(0, list.left);
         int screenRight = Math.max(list.right, list.left + list.width);
-        // 两列**共用同一个字号**：以字少的左列为基准（右列字号 = 左列字号，用户 2026-09-13）。
-        // 右列 36 个字塞进同样的高度 → 步长被压到小于字格高，相邻字在纵向上叠排，
-        // 但逐字之字形摆动把它们左右错开（相邻两字一左一右，横向至少差 4px）。
-        float scale = naturalScale(mc.font, bottom - top, LEFT_LENGTH, LEFT_SPACING);
+        // 两列**共用同一个字号** = 两列各自"能放下的最大字号"里**较大的那个** ——
+        // 也就是**字数少的那一列**的字号（它末字正好顶下线、字最大），字数多的那列步长被
+        // 压到小于字格高、相邻字在纵向上叠排，靠之字形摆动左右错开（相邻两字一左一右，
+        // 横向至少差 4px）。这种写法与"哪一侧放哪段文字"**无关** ——
+        // 调换左右内容不会改变字号（用户 2026-09-13：先要求右侧同步左侧、再调换左右内容）。
+        int span = bottom - top;
+        float scale = Math.max(naturalScale(mc.font, span, LEFT_LENGTH, SPACING),
+                naturalScale(mc.font, span, RIGHT_LENGTH, SPACING));
         drawColumn(gui, mc.font, LEFT_TEXT, leftCenter, top, bottom, rolls[0],
                 scale, screenLeft, screenRight);
         drawColumn(gui, mc.font, RIGHT_TEXT, rightCenter, top, bottom, rolls[1],
@@ -311,8 +321,9 @@ public final class ConfigScreenSideText {
      * 最大字号（{@code span / (lineHeight * (1 + (n-1) * spacing))}），再向下吸附到
      * {@code 1/SCALE_STEPS} 的整数倍、并以 {@link #MAX_SCALE} 封顶。
      *
-     * <p>只用来算**字号基准列（左列）**的值，算出来的 scale 两列共用 —— 所以改这个函数的参数
-     * （或 {@link #LEFT_SPACING} / {@link #MAX_SCALE}）会同时改两列的字号。</p>
+     * <p>{@link #render} 对**两列各算一次、取较大的那个**当两列共用的字号 —— 也就是字数少的
+     * 那一列的字号。要调字号就改 {@link #SPACING}（字距系数，越大学号越小）或
+     * {@link #MAX_SCALE}（上限），两列会一起变。</p>
      */
     private static float naturalScale(Font font, int span, int n, float spacing) {
         float raw = span / (font.lineHeight * (1.0F + (n - 1) * spacing));
