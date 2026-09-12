@@ -12,24 +12,25 @@ import java.util.Random;
 import java.util.WeakHashMap;
 
 /**
- * 配置界面**左侧的竖排像素字**（屏幕级覆盖绘制，零 mixin —— 用户 2026-09-12 选定的 B 方案）。
+ * 配置界面**两侧的竖排像素字**（屏幕级覆盖绘制，零 mixin —— 用户 2026-09-12 选定的 B 方案）。
  *
- * <p>用户需求：左侧竖排 {@value #LEFT_TEXT}，逐字符纵向排列（字符本身保持正立、只改排布），
+ * <p>用户需求：左侧竖排 {@value #LEFT_TEXT}、右侧竖排 {@value #RIGHT_TEXT}，逐字符纵向排列
+ * （字符本身保持正立、只改排布），
  * 首字符顶着上方横线、末字符顶着下方横线；字号与字距可调，窗口缩放后要跟着刷新；
  * 每个字再**逐个横向之字形摆动**（奇数字向左、偶数字向右，幅度 2~8px 随机）并**逐个随机倾斜**
- * （方向顺/逆时针随机、角度 2~12° 随机）—— 两者都是每字独立随机、**每次刷新重掷**。
- * 右侧那一列（{@code Adorable♡Girl aVa Seriously Extended}）已按用户要求于同日移除。</p>
+ * （方向顺/逆时针随机、角度 2~12° 随机）—— 两者都是每字独立随机、**每次刷新重掷**，两侧同款。</p>
  *
- * <p><b>为什么左侧有位置</b>：Cloth 的配置列表虽然占满屏幕宽（{@code left = 0}、
+ * <p><b>为什么两侧都有位置</b>：Cloth 的配置列表虽然占满屏幕宽（{@code left = 0}、
  * {@code right = width}），但**行**只画在 {@code getRowLeft() .. +getItemWidth()} 这一段 ——
  * 两者都从字节码核实过：{@code renderList} 用 {@code getRowLeft()} 当 x、
  * {@code getItemWidth()} 当宽，而 {@code ClothConfigScreen$ListWidget} 覆写了
  * {@code getItemWidth() = width - 80}、{@code getRowLeft() = left + width/2 - getItemWidth()/2 + 2}
- * → 行恒定落在 {@code 42 .. width - 38}。左侧因此留下一条约 42px 的空白竖条，
+ * → 行恒定落在 {@code 42 .. width - 38}。左右因此各留下一条约 42px / 38px 的空白竖条，
  * 正好放这种装饰文字（不会压到任何行内容）。</p>
  *
- * <p><b>中心线</b>：取"屏幕左边界"与"内容区左边界"的**正中** ——
- * {@code (list.left + rowLeft) / 2}（≈ 21px 处）。</p>
+ * <p><b>中心线</b>：取"屏幕边界"与"内容区边界"的**正中** —— 左列
+ * {@code (list.left + rowLeft) / 2}（≈ 21px 处）、右列 {@code (rowRight + list.right) / 2}
+ * 再按 {@link #RIGHT_SHIFT_PX} 额外右移（当前 +4px）。</p>
  *
  * <p><b>纵向范围</b>：{@code listWidget.top}（类别栏下方的横线）到
  * {@code listWidget.bottom = height - 32}（底部按钮栏上方的横线）—— 两者都是
@@ -52,6 +53,8 @@ public final class ConfigScreenSideText {
 
     /** 竖排文字（左侧）。 */
     private static final String LEFT_TEXT = "Better Recipe Book";
+    /** 竖排文字（右侧）。 */
+    private static final String RIGHT_TEXT = "Adorable♡Girl aVa Seriously Extended";
     /** 文字颜色（ARGB）：**透明度 10%**（alpha 0x1A = 26/255 ≈ 10.2%）+ 中灰，纯水印观感；
      *  不画阴影，像素字更干净。要更淡/更亮就改这一行（前两位是 alpha：
      *  0x1A=10% / 0x26=15% / 0x33=20% / 0x40=25% / 0x59=35%）。 */
@@ -68,6 +71,7 @@ public final class ConfigScreenSideText {
     /** 字间空隙系数：1.0 = 字符首尾相接，&gt;1 = 留出空隙。
      *  真正的位置仍由"首字符顶上线、末字符顶下线"决定 —— 该系数只影响字号取值。 */
     private static final float LEFT_SPACING = 1.10F;
+    private static final float RIGHT_SPACING = 1.06F;
     /** 纵向微调（px）：像素字的墨迹在字符格里略偏上，需要时用这两个值压一压。 */
     private static final int TOP_NUDGE = 0;
     private static final int BOTTOM_NUDGE = 0;
@@ -80,14 +84,16 @@ public final class ConfigScreenSideText {
      *  0 / 0 = 关掉倾斜。 */
     private static final int ROTATE_MIN_DEG = 2;
     private static final int ROTATE_MAX_DEG = 12;
+    /** 右列中心线的额外位移（px）：正数更靠右（按"内容右边界与屏幕右边界的正中"算出来是 0）。 */
+    private static final int RIGHT_SHIFT_PX = 4;
 
     // ── 状态 ────────────────────────────────────────────────────────────────
 
     private static final Random RANDOM = new Random();
 
-    /** 每个屏幕当前这一"刷"的随机装饰量（左右偏移 + 倾斜角），数组下标与**码点**一一对应。
-     *  键是弱引用，界面关掉后自动回收。 */
-    private static final Map<Screen, Roll> ROLLS = new WeakHashMap<>();
+    /** 每个屏幕当前这一"刷"的随机装饰量，{@code [0] = 左列}、{@code [1] = 右列}；
+     *  每列的数组下标与**码点**一一对应。键是弱引用，界面关掉后自动回收。 */
+    private static final Map<Screen, Roll[]> ROLLS = new WeakHashMap<>();
 
     /** 一次"刷新"内固定的一组随机量。 */
     private record Roll(int[] swayPx, float[] angleRad) {
@@ -107,7 +113,7 @@ public final class ConfigScreenSideText {
      */
     public static void onScreenInit(Screen screen) {
         if (!shouldRender(screen)) return;
-        ROLLS.put(screen, roll(LEFT_TEXT));
+        ROLLS.put(screen, new Roll[] { roll(LEFT_TEXT), roll(RIGHT_TEXT) });
     }
 
     /**
@@ -129,16 +135,25 @@ public final class ConfigScreenSideText {
         int bottom = list.bottom - BOTTOM_NUDGE;
         if (bottom - top < 8) return;
 
+        int rowRight = rowLeft + list.getItemWidth();
+
         // 没有初始化记录时兜底现掷一次（正常路径由 onScreenInit 负责）。
-        Roll roll = ROLLS.get(screen);
-        if (roll == null) {
-            roll = roll(LEFT_TEXT);
-            ROLLS.put(screen, roll);
+        Roll[] rolls = ROLLS.get(screen);
+        if (rolls == null) {
+            rolls = new Roll[] { roll(LEFT_TEXT), roll(RIGHT_TEXT) };
+            ROLLS.put(screen, rolls);
         }
 
-        // 中心线 = 屏幕左边界与内容区左边界的正中
-        int centerX = (list.left + rowLeft) / 2;
-        drawColumn(gui, mc.font, LEFT_TEXT, centerX, top, bottom, LEFT_SPACING, roll);
+        // 中心线 = 屏幕边界与内容区边界的正中（右列再按 RIGHT_SHIFT_PX 右移）
+        int leftCenter = (list.left + rowLeft) / 2;
+        int rightCenter = (rowRight + list.right) / 2 + RIGHT_SHIFT_PX;
+        // 屏幕左右边界：摆到极限 + 大字号时也不让字形越出屏幕（正常参数用不到）
+        int screenLeft = Math.min(0, list.left);
+        int screenRight = Math.max(list.right, list.left + list.width);
+        drawColumn(gui, mc.font, LEFT_TEXT, leftCenter, top, bottom, LEFT_SPACING, rolls[0],
+                screenLeft, screenRight);
+        drawColumn(gui, mc.font, RIGHT_TEXT, rightCenter, top, bottom, RIGHT_SPACING, rolls[1],
+                screenLeft, screenRight);
     }
 
     /** 掷一列的随机量：左右偏移（奇数字向左、偶数字向右）与倾斜角（方向也逐字随机）。 */
@@ -174,7 +189,8 @@ public final class ConfigScreenSideText {
      * 但**始终首末顶格**。</p>
      */
     private static void drawColumn(GuiGraphics gui, Font font, String text,
-                                   int centerX, int top, int bottom, float spacing, Roll roll) {
+                                   int centerX, int top, int bottom, float spacing, Roll roll,
+                                   int screenLeft, int screenRight) {
         int[] cps = text.codePoints().toArray();
         if (cps.length == 0) return;
 
@@ -194,6 +210,8 @@ public final class ConfigScreenSideText {
             int offset = (roll != null && i < roll.swayPx().length) ? roll.swayPx()[i] : 0;
             float angle = (roll != null && i < roll.angleRad().length) ? roll.angleRad()[i] : 0.0F;
             float x = centerX + offset - w / 2.0F;
+            // 钳进屏幕：右列 +4px 位移在极端组合（大字号 + 最大右摆 + 最宽字形）下会越界 1px
+            x = Math.max(screenLeft, Math.min(screenRight - w, x));
             float y = top + i * step;
             gui.pose().pushMatrix();
             gui.pose().translate(x, y);
