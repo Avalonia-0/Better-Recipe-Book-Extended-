@@ -210,10 +210,6 @@ public final class RecipeViewerOverlay {
     /** Tabs overhang the box bottom by TAB_HEIGHT - 4 (tab top is 4px above the box bottom). */
     private static final int TAB_OVERHANG = TAB_HEIGHT - 4;
 
-    /** 标签条**硬上限**：即使列上限更大，标签窗口也不会超过这个宽度（列上限
-     *  是软上限，见 {@link #maxTabs()}）。 */
-    private static final int MAX_TABS = 10;
-
     /** 查询界面「配方区行上限」（配置项，默认 3）：对象区**一页最多显示的行数**。
      *
      *  <p>行上限同时就是**工作站列的对象数量上限**：左侧工作站列的行数由框体
@@ -227,9 +223,8 @@ public final class RecipeViewerOverlay {
     }
 
     /** 查询界面「配方区列上限」（配置项，默认 7）：对象区**一页最多显示的列数**，
-     *  同时也就是**底部标签的数量上限**（{@link #maxTabs()} = 列上限与
-     *  {@link #MAX_TABS} 的较小者，一列一个标签；超出时标签条按 REI 式滑窗
-     *  滑动而不是折行）。
+     *  同时也就是**底部标签的数量上限**（{@link #maxTabs()} = 列上限，一列一个标签；
+     *  超出时标签条按 REI 式滑窗滑动而不是折行）。
      *
      *  <p>唯一的例外是**顶部元素**：标题栏整行的加列优先级高于本上限 ——
      *  {@link #ensureTitleWidth()} 仍可继续创建列（空列）把框体撑宽，直到标题
@@ -244,9 +239,14 @@ public final class RecipeViewerOverlay {
         return pageRows() * pageCols();
     }
 
-    /** 标签条一次最多显示的标签数 = {@code min(MAX_TABS, 列上限)}。 */
+    /** 标签条自身的**撑宽上限** = {@link #pageCols()} 列上限（一列一个标签）：标签条最多把框体
+     *  撑到"列上限"那么宽。原来这里还写死了一个 {@code MAX_TABS = 10}，列上限调到 10 以上时标签数
+     *  上不去（用户 2026-09-13 反馈）—— **标签数上限 = 列上限**。
+     *
+     *  <p>绘制/命中/滚轮用的**实际窗口大小**是 {@link #visibleTabCount()}：它取框体**真实的列数**，
+     *  所以标题栏（{@link #ensureTitleWidth}）撑出额外列时，标签条也能跟着**临时突破列上限**。</p> */
     private static int maxTabs() {
-        return Math.max(1, Math.min(MAX_TABS, pageCols()));
+        return Math.max(1, pageCols());
     }
 
     /** 把配置里的上限夹进 {@link #LIMIT_MIN}..{@link #LIMIT_MAX}。 */
@@ -1139,7 +1139,7 @@ public final class RecipeViewerOverlay {
     }
 
     /** First visible category index of the REI-style sliding tab window (window
-     *  size = {@link #maxTabs()}); {@code 0} when every tab fits.  The wheel over
+     *  size = {@link #visibleTabCount()}); {@code 0} when every tab fits.  The wheel over
      *  the tab strip switches the selected category and slides the window when
      *  the selection reaches an edge. */
     private int tabWindowStart;
@@ -1849,7 +1849,7 @@ public final class RecipeViewerOverlay {
 
     /** Fill the current page's EMPTY cells with EMPTY placeholder objects:
      *  the box may be wider than the object columns (the tab strip widens it
-     *  to fit up to {@link #maxTabs()} tabs) and a partially-filled row leaves
+     *  to fit up to {@link #visibleTabCount()} tabs) and a partially-filled row leaves
      *  trailing cells — the mechanism fills every empty cell of the box's
      *  content rows WITHOUT adding rows/columns (the box itself is never
      *  grown).  The placeholder face is HARD-CODED per the row's RIGHTMOST
@@ -2122,13 +2122,15 @@ public final class RecipeViewerOverlay {
         return boxY + boxH - 4 + 1;
     }
 
-    /** Tabs shown per page — the size of the REI-style sliding tab window
-     *  ({@link #tabWindowStart}) = {@link #maxTabs()} = {@code min(MAX_TABS,
-     *  列上限)}: the object column cap is ALSO the tab-count cap (one tab per
-     *  column).  The box is widened (with empty columns) to hold that many tabs;
-     *  with more, the window slides instead of folding into pages. */
+    /** 标签条**每页显示的标签数** = REI 式滑窗（{@link #tabWindowStart}）的窗口大小 =
+     *  框体**真实的列数**（{@code (boxW - 8) / TAB_WIDTH}）。
+     *
+     *  <p>框体宽度由三件事依次决定：对象列数（≤ 列上限）→ {@link #ensureTabWidth}（标签条自己
+     *  最多撑到"列上限"列）→ {@link #ensureTitleWidth}（标题栏可再撑出额外的列）。于是
+     *  **标签数上限 = 列上限**（用户 2026-09-13），而标题栏撑宽时标签条随之**临时突破列上限**。
+     *  标签比窗口多时窗口滑动而不折页。</p> */
     private int visibleTabCount() {
-        return maxTabs();
+        return Math.max(1, (boxW - 8) / TAB_WIDTH);
     }
 
     /** Categories that actually have results for the current query target
@@ -2352,7 +2354,7 @@ public final class RecipeViewerOverlay {
         List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
                 new ArrayList<>();
         net.minecraft.util.FormattedCharSequence title = cat.name().getVisualOrderText();
-        int maxStart = Math.max(0, visibleCategories().size() - maxTabs());
+        int maxStart = Math.max(0, visibleCategories().size() - visibleTabCount());
         if (maxStart > 0) {
             String left = tabWindowStart > 0 ? "\u25C0" : "\u25C1";
             String right = tabWindowStart < maxStart ? "\u25B6" : "\u25B7";
@@ -2723,13 +2725,12 @@ public final class RecipeViewerOverlay {
         return inside(mouseX, mouseY, boxX, tabY, shown * TAB_WIDTH, TAB_HEIGHT);
     }
 
-    /** Scroll over the tab strip switches the selected category; as soon as
-     *  the selection reaches the SIXTH slot counted from the edge it moves
-     *  toward (6th from the left when scrolling right, 6th from the right
-     *  when scrolling left), the REI-style tab window slides WITH the
-     *  selection — the selected tab and the window move simultaneously, the
-     *  highlight staying visually on that slot.  No animation — the tab
-     *  switches immediately. */
+    /** 在标签条上滚轮 = 切类别 + REI 式滑窗；**滑窗的"滑动起始位"就是窗口正中**（用户 2026-09-13）：
+     *  窗口大小 {@code N} 为**奇数**时就是正中心那一槽（左右方向都是它）；为**偶数**时是中间两槽
+     *  ——向右滚用右边那槽（{@code N/2}）、向左滚用左边那槽（{@code (N-1)/2}）。
+     *  选中标签一旦到达该槽位，窗口就跟着它一起滑，**选中标签看起来相对静止**。
+     *  （改前左侧起始位写死为 {@code N/2 - 1}，奇数窗口下比正中偏左一槽 —— 列上限设成 7 这类
+     *  奇数后滑窗会比预期早一步启动。）没有动画，类别立即切换。 */
     public boolean mouseScrolledTabs(double mouseX, double mouseY, double vertical) {
         if (!isActive() || vertical == 0) return false;
         List<RecipeViewerCategory> cats = visibleCategories();
@@ -2740,16 +2741,14 @@ public final class RecipeViewerOverlay {
         int delta = vertical > 0 ? -1 : 1;
         int newIdx = idx + delta;
         if (newIdx < 0 || newIdx >= cats.size()) return false;
-        int perPage = maxTabs();
+        int perPage = visibleTabCount();
         int maxStart = Math.max(0, cats.size() - perPage);
-        // Slide the window a step WITH the selection as soon as the selection
-        // reaches the window's centre slot: it then stays pinned on that slot
-        // while the window follows (right: the centre slot itself; left: one
-        // below it — in the original ten-tab window that is exactly the old
-        // 5 / 4 rule).
+        // 选中标签到达"滑动起始位"后窗口随它一起滑，标签因此钉在该槽位不动：
+        // 向右滚用 pinRight、向左滚用 pinLeft —— 奇数窗口两者都是正中那一槽，
+        // 偶数窗口是中间两槽（原来写死 6/5，即十列窗口的 5/4 规则）。
         int slot = idx - tabWindowStart;
-        int pinRight = Math.max(0, perPage / 2);
-        int pinLeft = Math.max(0, perPage / 2 - 1);
+        int pinRight = perPage / 2;        // 偶数：中间偏右；奇数：正中间
+        int pinLeft = (perPage - 1) / 2;   // 偶数：中间偏左；奇数：正中间
         if (delta > 0 && maxStart > 0 && slot >= pinRight) {
             tabWindowStart = Math.min(maxStart, tabWindowStart + 1);
         } else if (delta < 0 && maxStart > 0 && slot <= pinLeft) {
@@ -4323,11 +4322,12 @@ public final class RecipeViewerOverlay {
      *  than object columns.  Above {@link #maxTabs()} the strip slides (REI-style
      *  window) instead of folding.
      *
-     *  <p>{@code maxTabs() = min(MAX_TABS, 列上限)} — one tab per column — so this
-     *  can never widen the box past the column cap's full width
-     *  ({@code pageCols() * 25 + 8}): the TAB STRIP is subject to the column cap.
-     *  The only element allowed to create columns beyond the cap is the title bar,
-     *  see {@link #ensureTitleWidth()}. */
+     *  <p>{@code maxTabs() = 列上限} — one tab per column — so this can never widen
+     *  the box past the column cap's full width ({@code pageCols() * 25 + 8}):
+     *  the TAB STRIP is subject to the column cap (the old hard {@code MAX_TABS = 10}
+     *  was removed, user 2026-09-13).  The only element allowed to create columns
+     *  beyond the cap is the title bar, see {@link #ensureTitleWidth()} — and the
+     *  strip then grows into those extra columns too ({@link #visibleTabCount()}). */
     private void ensureTabWidth() {
         int tabCount = Math.min(visibleCategories().size(), maxTabs());
         int tabW = tabCount * TAB_WIDTH + 8;
@@ -4569,7 +4569,7 @@ public final class RecipeViewerOverlay {
             tabWindowStart = 0;
             return;
         }
-        int perPage = maxTabs();
+        int perPage = visibleTabCount();
         int maxStart = Math.max(0, cats.size() - perPage);
         tabWindowStart = Math.max(0, Math.min(tabWindowStart, maxStart));
         int idx = cats.indexOf(currentCategory);
