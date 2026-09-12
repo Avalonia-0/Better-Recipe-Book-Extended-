@@ -77,10 +77,11 @@ public final class ConfigScreenSideText {
 
     /** 之字形横向摆动的幅度范围（px，**含两端**）：第 1 个字向左、第 2 个向右、第 3 个向左……
      *  每个字的幅度独立随机。0 / 0 = 关掉摆动（两列回到竖直的一条线）。 */
-    private static final int SWAY_MIN_PX = 5;
+    private static final int SWAY_MIN_PX = 2;
     private static final int SWAY_MAX_PX = 8;
-    /** 右列中心线的额外位移（px）：正数更靠右。按"内容右边界与屏幕右边界的正中"算出来是 0。 */
-    private static final int RIGHT_SHIFT_PX = 0;
+    /** 右列中心线的额外位移（px）：正数更靠右。按"内容右边界与屏幕右边界的正中"算出来是 0，
+     *  当前额外右移 4px（用户 2026-09-12 要求）。 */
+    private static final int RIGHT_SHIFT_PX = 4;
 
     // ── 状态 ────────────────────────────────────────────────────────────────
 
@@ -138,8 +139,13 @@ public final class ConfigScreenSideText {
         int leftCenter = (list.left + rowLeft) / 2;
         int rightCenter = (rowRight + list.right) / 2 + RIGHT_SHIFT_PX;
 
-        drawColumn(gui, mc.font, LEFT_TEXT, leftCenter, top, bottom, LEFT_SPACING, sway[0]);
-        drawColumn(gui, mc.font, RIGHT_TEXT, rightCenter, top, bottom, RIGHT_SPACING, sway[1]);
+        // 屏幕左右边界：摆到极限时也不让字形越出屏幕（纯保险，正常取值用不到）
+        int screenLeft = Math.min(0, list.left);
+        int screenRight = Math.max(list.right, list.left + list.width);
+        drawColumn(gui, mc.font, LEFT_TEXT, leftCenter, top, bottom, LEFT_SPACING, sway[0],
+                screenLeft, screenRight);
+        drawColumn(gui, mc.font, RIGHT_TEXT, rightCenter, top, bottom, RIGHT_SPACING, sway[1],
+                screenLeft, screenRight);
     }
 
     /** 掷一列的横向摆动：奇数字（下标 0、2、…）向左、偶数字向右，幅度各自独立随机。 */
@@ -165,7 +171,8 @@ public final class ConfigScreenSideText {
      * 但**始终首末顶格**。</p>
      */
     private static void drawColumn(GuiGraphicsExtractor gui, Font font, String text,
-                                   int centerX, int top, int bottom, float spacing, int[] sway) {
+                                   int centerX, int top, int bottom, float spacing, int[] sway,
+                                   int screenLeft, int screenRight) {
         int[] cps = text.codePoints().toArray();
         if (cps.length == 0) return;
 
@@ -184,6 +191,8 @@ public final class ConfigScreenSideText {
             float w = font.width(glyph) * scale;
             int offset = (sway != null && i < sway.length) ? sway[i] : 0;
             float x = centerX + offset - w / 2.0F;
+            // 钳进屏幕：摆到极限 + 大字号时也不会画到屏幕外（正常参数下不生效）
+            x = Math.max(screenLeft, Math.min(screenRight - w, x));
             float y = top + i * step;
             gui.pose().pushMatrix();
             gui.pose().translate(x, y);
