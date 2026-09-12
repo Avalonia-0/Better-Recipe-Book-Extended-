@@ -2,10 +2,6 @@ package com.alonie.brbe.fabric;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.fabric.PlatformPotionUtilImpl;
-import com.alonie.brbe.compat.OverlayHider;
-import com.alonie.brbe.impl.hud.EmiHudHider;
-import com.alonie.brbe.impl.hud.JeiHudHider;
-import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.compat.emi.EmiCompat;
 import com.alonie.brbe.compat.rei.ReiCompat;
@@ -78,11 +74,6 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             PotionLoader.clear();
         });
 
-        // Register HUD hiders (JEI + REI overlay control)
-        OverlayHider.register(new JeiHudHider());
-        OverlayHider.register(new ReiHudHider());
-        OverlayHider.register(new EmiHudHider());
-
         // Initialize RBIP platform (Fabric)
         RecipeBookIsPain.PLATFORM = new FabricPlatform();
         RecipeBookIsPain.isOwOLoaded = RecipeBookIsPain.PLATFORM.isModLoaded("owo");
@@ -100,7 +91,6 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             this.registeredScreens.remove(screen);
-            OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
             // 查询浮层：整屏渲染完成后绘制（最顶层）——Screen.render TAIL 在容器
             // 内容之前执行，浮层会被背包/配方书盖住。
             ScreenEvents.afterRender(screen).register(TopLayerOverlayRenderer::renderViewer);
@@ -115,9 +105,6 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             // 每 tick 轮询（指纹去重，见 BrbeJeiBridge.refresh），1.21.11 同策略。
             if (client.level != null) {
                 com.alonie.brbe.cache.BrbeJeiBridge.refresh();
-            }
-            if (BetterRecipeBook.config.hideReiJeiOverlay && screen != null) {
-                OverlayHider.ensureJeiOverlayHidden();
             }
             if (screen == null || this.registeredScreens.contains(screen) || !TopLayerOverlayRenderer.hasOverlay(screen)) {
                 return;

@@ -24,8 +24,8 @@ import java.util.Map;
  * 的 {@link RecipeViewerEngine#registerJeiType}。
  *
  * <p>headless-jei 产物按 intermediary 映射发布（与 BRBE 核心 jar 一致），
- * 其桥 API 无法直接用于 BRBE 的 mojang 编译——改用反射（与 JeiHudHider
- * 同模式）；headless-jei mod 缺席（真实 JEI 或纯原版）时所有调用静默跳过，
+ * 其桥 API 无法直接用于 BRBE 的 mojang 编译——改用纯反射调用；
+ * headless-jei mod 缺席（真实 JEI 或纯原版）时所有调用静默跳过，
  * anvil/grindstone 等类别降级为信息页。</p>
  */
 public final class BrbeJeiBridge {

@@ -45,9 +45,6 @@ config = "mixins.brbe-common.json"
 config = "mixins.brbe-common-compat.json"
 
 [[mixins]]
-config = "mixins.brbe-jei.json"
-
-[[mixins]]
 config = "mixins.brbe-rei-common.json"
 
 [[mixins]]

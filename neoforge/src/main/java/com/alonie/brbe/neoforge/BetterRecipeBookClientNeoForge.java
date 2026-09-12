@@ -4,10 +4,6 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.neoforge.PlatformPotionUtilImpl;
 import com.alonie.brbe.config.KeybindingGuiRegistrar;
 import com.alonie.brbe.config.RecipeViewerGuiRegistrar;
-import com.alonie.brbe.compat.OverlayHider;
-import com.alonie.brbe.impl.hud.EmiHudHider;
-import com.alonie.brbe.impl.hud.JeiHudHider;
-import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.compat.emi.EmiCompat;
 import com.alonie.brbe.compat.rei.ReiCompat;
@@ -102,11 +98,6 @@ public class BetterRecipeBookClientNeoForge {
         modEventBus.addListener(net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent.class,
                 com.alonie.brbe.cache.BrbeJeiBridge::registerAtlasReloadListener);
 
-        // Register HUD hiders (JEI + REI overlay control)
-        OverlayHider.register(new JeiHudHider());
-        OverlayHider.register(new ReiHudHider());
-        OverlayHider.register(new EmiHudHider());
-
         // Cloth Config 键位配置项（R/U/A 键）：与 fabric 端对称注册，
         // 否则配置界面显示为原始文本框（raw 键名未翻译）。
         KeybindingGuiRegistrar.register();
@@ -127,7 +118,6 @@ public class BetterRecipeBookClientNeoForge {
             Screen screen = event.getScreen();
             if (screen != null) {
                 registeredScreens.remove(screen);
-                OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
                 // 查询浮层：整屏渲染完成后绘制（最顶层）——Screen.render TAIL 在容器
                 // 内容之前执行，浮层会被背包/配方书盖住（R 打开但面板被遮挡 = "无法使用"）。
                 NeoForge.EVENT_BUS.addListener(ScreenEvent.Render.Post.class, renderEvent -> {
@@ -150,9 +140,6 @@ public class BetterRecipeBookClientNeoForge {
             // 1.21.11 同策略。
             if (client.level != null) {
                 com.alonie.brbe.cache.BrbeJeiBridge.refresh();
-            }
-            if (BetterRecipeBook.config.hideReiJeiOverlay && screen != null) {
-                OverlayHider.ensureJeiOverlayHidden();
             }
             if (screen == null || registeredScreens.contains(screen) || !TopLayerOverlayRenderer.hasOverlay(screen)) {
                 return;

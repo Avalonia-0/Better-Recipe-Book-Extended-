@@ -56,10 +56,6 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.Tooltip
     public boolean expandedRecipeBook = false;
 
-    @ConfigEntry.Category("ui")
-    @ConfigEntry.Gui.Tooltip
-    public boolean hideReiJeiOverlay = false;
-
     /** 鼠标滚轮翻页音效：滚轮翻页（配方区/配方书标签/查询浮层）时播放点击音。 */
     @ConfigEntry.Category("ui")
     @ConfigEntry.Gui.PrefixText
