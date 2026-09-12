@@ -117,6 +117,9 @@ public final class ConfigTipsHelper {
     /** 一键制作子配置的两个条目：「启用一键制作」跟到主开关下面，「显示一键制作按钮」去「界面」页顶部。 */
     private static final String INSTANT_CRAFT_ENABLED_OPTION_KEY = "text.autoconfig.brbe.option.instantCraft.enabled";
     private static final String INSTANT_CRAFT_BUTTON_OPTION_KEY = "text.autoconfig.brbe.option.instantCraft.showButton";
+    /** 「显示设置按钮」「启用配方书」：一起搬到「Recipe Book Is Pain」黄字行之前（相对顺序不变）。 */
+    private static final String SETTINGS_BUTTON_OPTION_KEY = "text.autoconfig.brbe.option.settingsButton";
+    private static final String ENABLE_BOOK_OPTION_KEY = "text.autoconfig.brbe.option.enableBook";
 
     /**
      * 按期望的最终布局重排 GUI 条目（只重排条目对象，字段与 TOML 路径都保持原样）：
@@ -127,7 +130,8 @@ public final class ConfigTipsHelper {
      *   <li>「启用上侧和下侧的标签」「隐藏翻页按钮」→「界面」页「隐藏物品管理器界面」之后
      *       （并在它们前面插一行黄色纯文字「Recipe Book Is Pain」）；</li>
      *   <li>「隐藏物品管理器界面」→「界面」页最顶部（第 0 条）——RBIP 分区**不跟着走**
-     *       （所以本步必须排在第 4 步之后，见方法内注释）。</li>
+     *       （所以本步必须排在第 4 步之后，见方法内注释）；</li>
+     *   <li>「显示设置按钮」「启用配方书」→「Recipe Book Is Pain」黄字行之前，两者相对顺序不变。</li>
      * </ol>
      *
      * <p><b>为什么搬条目而不是搬字段</b>：Cloth 的子对象（{@code @TransitiveObject}）条目
@@ -162,9 +166,11 @@ public final class ConfigTipsHelper {
             Object entry = removeByFieldName(defaultEntries, Component.translatable(key));
             if (entry != null) moved.add(entry);
         }
+        Object rbipSectionRow = null;
         if (!moved.isEmpty()) {
+            rbipSectionRow = textRow(builder, RBIP_SECTION_LABEL_KEY);
             List<Object> toInsert = new ArrayList<>();
-            toInsert.add(textRow(builder, RBIP_SECTION_LABEL_KEY));
+            toInsert.add(rbipSectionRow);
             toInsert.addAll(moved);
             // 锚点条目自身没有 @PrefixText，所以 +1 就落在它下面（黄字行是独立插入的）。
             int anchor = indexOfFieldName(uiEntries, Component.translatable(UI_ANCHOR_OPTION_KEY));
@@ -174,6 +180,12 @@ public final class ConfigTipsHelper {
         //    ⚠️ 必须排在第 4 步【之后】：本步会把该锚点整条搬到第 0 条，若先搬，第 4 步
         //    按它定位就会把整个 RBIP 分区一起带到页面顶部（用户明确要求只搬这一行）。
         moveToTopOf(uiEntries, defaultEntries, UI_ANCHOR_OPTION_KEY);
+        // 6) 「显示设置按钮」「启用配方书」→「Recipe Book Is Pain」黄字行【之前】，相对顺序不变。
+        //    该行是 textRow 现造的，字段名是随机 UUID，只能按**对象引用**定位（见 moveBeforeEntry）。
+        if (rbipSectionRow != null) {
+            moveBeforeEntry(uiEntries, SETTINGS_BUTTON_OPTION_KEY, rbipSectionRow);
+            moveAfter(uiEntries, ENABLE_BOOK_OPTION_KEY, SETTINGS_BUTTON_OPTION_KEY);
+        }
     }
 
     /** 把 {@code optionKey} 的条目挪到 {@code anchorKey} 条目之前；{@code skipTextRowAbove} 为真时
@@ -196,6 +208,16 @@ public final class ConfigTipsHelper {
         if (entry == null) return;
         int at = indexOfFieldName(entries, Component.translatable(anchorKey));
         entries.add(at < 0 ? entries.size() : at + 1, entry);
+    }
+
+    /** 把 {@code optionKey} 的条目挪到 {@code anchorEntry} 这条**已有条目对象**之前。
+     *  纯文字行（{@code TextListEntry}）的字段名是随机 UUID，{@link #indexOfFieldName} 定位不到，
+     *  只能按对象引用查找；条目或锚点缺失时静默不动（与其它 move* 一致）。 */
+    private static void moveBeforeEntry(List<Object> entries, String optionKey, Object anchorEntry) {
+        Object entry = removeByFieldName(entries, Component.translatable(optionKey));
+        if (entry == null) return;
+        int at = entries.indexOf(anchorEntry);
+        entries.add(at < 0 ? entries.size() : at, entry);
     }
 
     /** 把 {@code optionKey} 的条目挪到 {@code to} 类别最前面。
