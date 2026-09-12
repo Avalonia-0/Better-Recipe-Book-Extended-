@@ -90,6 +90,8 @@
   "text.autoconfig.brbe.option.expandedRecipeBook.@Tooltip": "より大きなレシピ本、新しいUIレイアウト。まだ正常に動作しませんが、プレビューできます。",
   "text.autoconfig.brbe.option.expandedRecipeBook@Tooltip": "より大きなレシピ本、新しいUIレイアウト。まだ正常に動作しませんが、プレビューできます。",
   "text.autoconfig.brbe.option.hideConfigTips": "設定画面のTipsを隠す",
+  "text.autoconfig.brbe.option.hideConfigTitleBand": "設定画面の上部タイトル領域を隠す",
+  "text.autoconfig.brbe.option.hideConfigSideText": "設定画面の両側のテキストを隠す",
   "text.autoconfig.brbe.option.hideConfigTips.@Tooltip": "設定画面の上部（検索欄の上）にある、開くたびに変わるTipsのことです。",
   "text.autoconfig.brbe.option.hideConfigTips@Tooltip": "設定画面の上部（検索欄の上）にある、開くたびに変わるTipsのことです。",
   "text.autoconfig.brbe.option.hideIncompatibleMark": "サバイバルのレシピ本で3x3レシピのマークを非表示",

@@ -166,6 +166,16 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.Tooltip
     public boolean hideConfigTips = false;
 
+    /** 隐藏配置界面顶部的标题区域：**默认开** —— 关掉它就恢复 Cloth 原来的标题带
+     *  （y=18 的界面标题文字 + 上方那 41px 留白）。无 tooltip。 */
+    @ConfigEntry.Category("miscellaneous")
+    public boolean hideConfigTitleBand = true;
+
+    /** 隐藏配置界面两侧的文字：打开时左右两条竖排装饰文字（{@code ConfigScreenSideText}）
+     *  不再绘制。无 tooltip，默认关。 */
+    @ConfigEntry.Category("miscellaneous")
+    public boolean hideConfigSideText = false;
+
     // -- Inner config class ---------------------------------------------------
 
     public static class PageAnimation {
