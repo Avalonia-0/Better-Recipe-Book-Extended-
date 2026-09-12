@@ -20,7 +20,7 @@
   "brbe.gui.tip.7": "すべてのコードはDeepSeekによって生成されています！",
   "brbe.gui.tip.8": "Ctrlキーを押しながらレシピエリアのページ送りボタンをクリックすると、先頭または末尾のページへ素早く移動できます。",
   "brbe.gui.tip.9": "レシピエリアで指定ページへ移動する方法：検索バーに「……」と入力し、続けてページ番号、最後に「……」と入力します。（「……」は「^」に置き換え可能）",
-"brbe.gui.section.recipeBookIsPain": "Recipe Book Is Pain",
+"brbe.gui.section.recipeBookIsPain": "Recipe Book Is Pain（レシピ本タブ）",
 "brbe.gui.section.general": "一般",
 "brbe.gui.section.soundAnimation": "効果音とアニメーション",
   "brbe.gui.togglePotions.brewable": "醸造可能を表示",
