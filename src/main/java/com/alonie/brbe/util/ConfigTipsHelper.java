@@ -137,7 +137,7 @@ public final class ConfigTipsHelper {
     private static final List<String> RBIP_MOVED_OPTION_KEYS = List.of(
             "text.autoconfig.brbe.option.rbip.enableTabPage",
             "text.autoconfig.brbe.option.rbip.hideTabPageButtons");
-    /** RBIP 主开关：移到「§eJust Emulated Items」文字行（{@code recipeViewerEnabled} 项）之前。 */
+    /** RBIP 主开关：移到「§eJust Emulated Items（物品管理器）」文字行（{@code recipeViewerEnabled} 项）之前。 */
     private static final String RBIP_MASTER_OPTION_KEY = "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain";
     private static final String VIEWER_ANCHOR_OPTION_KEY = "text.autoconfig.brbe.option.recipeViewerEnabled";
     /** 一键制作子配置的两个条目：「启用一键制作」跟到主开关下面，「显示一键制作按钮」去「界面」页顶部。 */
@@ -161,7 +161,7 @@ public final class ConfigTipsHelper {
     /**
      * 按期望的最终布局重排 GUI 条目（只重排条目对象，字段与 TOML 路径都保持原样）：
      * <ol>
-     *   <li>「启用Recipe Book Is Pain」→「§eJust Emulated Items」文字行之前；</li>
+     *   <li>「启用Recipe Book Is Pain」→「§eJust Emulated Items（物品管理器）」文字行之前；</li>
      *   <li>「启用一键制作」→ 紧随「启用Recipe Book Is Pain」之后；</li>
      *   <li>「显示一键制作按钮」→「界面」页顶部，并在它上面插一行黄色纯文字「配方书」；</li>
      *   <li>「启用上侧和下侧的标签」「隐藏翻页按钮」→「界面」页「隐藏物品管理器界面」之后
