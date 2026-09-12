@@ -11,6 +11,7 @@ import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
+import com.alonie.brbe.util.ConfigScreenSideText;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
@@ -31,6 +32,8 @@ import java.util.WeakHashMap;
 
 public class BetterRecipeBookClientFabric implements ClientModInitializer {
     private final Set<Screen> registeredScreens = Collections.newSetFromMap(new WeakHashMap<>());
+    /** 已注册「两侧竖排装饰文字」渲染回调的屏幕（init 会重复触发：切类别 / 缩放）。 */
+    private final Set<Screen> sideTextScreens = Collections.newSetFromMap(new WeakHashMap<>());
 
     /** 启动时以配置（brbe.toml）为权威，把固定/查询键同步到原版 KeyMapping 并
      *  持久化到 options.txt（防 Options.load 旧值覆盖导致的键位回退）。 */
@@ -112,6 +115,11 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             this.registeredScreens.remove(screen);
+            // 配置界面两侧的竖排装饰文字（屏幕级覆盖绘制）：每个屏幕实例只注册一次，
+            // 重复 init（切类别 / 缩放）不会再叠一层回调。
+            if (ConfigScreenSideText.shouldRender(screen) && this.sideTextScreens.add(screen)) {
+                ScreenEvents.afterExtract(screen).register(ConfigScreenSideText::render);
+            }
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             // 无头 JEI registry 导入查询引擎：headless 收集在
