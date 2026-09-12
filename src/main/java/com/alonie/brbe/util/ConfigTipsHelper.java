@@ -44,7 +44,10 @@ public final class ConfigTipsHelper {
                 .category(Component.translatable("text.autoconfig.brbe.category.default"))
                 .screenWide(true)
                 .prefix(Component.translatable("brbe.gui.tip.prefix"))
-                .tipKeys(List.of("brbe.gui.tip.1", "brbe.gui.tip.2", "brbe.gui.tip.3", "brbe.gui.tip.4", "brbe.gui.tip.5", "brbe.gui.tip.6", "brbe.gui.tip.7", "brbe.gui.tip.8", "brbe.gui.tip.9"))
+                // 文案池：序号保留历史编号 —— 原来的 4 / 5 已按用户要求移除、不补位，
+                // 这样 "tip.N" 在译文/文档/对话里始终指同一条（tip.2 与 tip.9 也按用户定稿改过文案）。
+                .tipKeys(List.of("brbe.gui.tip.1", "brbe.gui.tip.2", "brbe.gui.tip.3",
+                        "brbe.gui.tip.6", "brbe.gui.tip.7", "brbe.gui.tip.8", "brbe.gui.tip.9"))
                 .build());
     }
 
