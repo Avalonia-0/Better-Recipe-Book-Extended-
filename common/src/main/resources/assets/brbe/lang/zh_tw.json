@@ -29,7 +29,7 @@
   "brbe.gui.tip.7": "所有代碼均由DeepSeek生成！",
   "brbe.gui.tip.8": "按住Ctrl並點擊配方區的翻頁鍵，即可快速跳轉至首頁或末頁。",
   "brbe.gui.tip.9": "在配方區跳轉指定頁碼的方法：在搜尋欄輸入「……」，再輸入頁碼，最後再輸入「……」。（「……」可替換為「^」）",
-"brbe.gui.section.recipeBookIsPain": "Recipe Book Is Pain",
+"brbe.gui.section.recipeBookIsPain": "Recipe Book Is Pain（配方書標籤）",
 "brbe.gui.section.general": "通用",
 "brbe.gui.section.soundAnimation": "音效與動畫",
   "brbe.gui.togglePotions.brewable": "顯示可釀造",

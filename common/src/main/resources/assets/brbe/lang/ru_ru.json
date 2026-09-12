@@ -22,7 +22,7 @@
   "brbe.gui.tip.7": "Весь код сгенерирован DeepSeek!",
   "brbe.gui.tip.8": "Удерживайте Ctrl и нажмите кнопку перелистывания в области рецептов, чтобы быстро перейти на первую или последнюю страницу.",
   "brbe.gui.tip.9": "Как перейти на нужную страницу в области рецептов: введите «……» в строку поиска, затем номер страницы и снова «……». («……» можно заменить на «^»)",
-"brbe.gui.section.recipeBookIsPain": "Recipe Book Is Pain",
+"brbe.gui.section.recipeBookIsPain": "Recipe Book Is Pain (вкладки книги рецептов)",
 "brbe.gui.section.general": "Общие",
 "brbe.gui.section.soundAnimation": "Звук и анимация",
   "brbe.gui.togglePotions.brewable": "Показывать доступные для варки",
