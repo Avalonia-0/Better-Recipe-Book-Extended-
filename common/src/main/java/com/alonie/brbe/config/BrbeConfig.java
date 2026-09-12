@@ -141,7 +141,7 @@ public class BrbeConfig implements ConfigData {
 
     // -- 杂项（miscellaneous 标签）--------------------------------------------
 
-    /** 隐藏配置界面的Tips：打开时隐藏「实用功能」页面顶部的轮循提示行。 */
+    /** 隐藏配置界面的Tips：打开时隐藏「功能」页面顶部的轮循提示行。 */
     @ConfigEntry.Category("miscellaneous")
     @ConfigEntry.Gui.Tooltip
     public boolean hideConfigTips = false;
@@ -153,7 +153,7 @@ public class BrbeConfig implements ConfigData {
     }
 
     public static class RecipeBookIsPain implements ConfigData {
-        /** 主开关（留在「实用功能」页）。原 `@PrefixText`「§eRecipe Book Is Pain」黄字行
+        /** 主开关（留在「功能」页）。原 `@PrefixText`「§eRecipe Book Is Pain」黄字行
          *  已改为「界面」页里的独立纯文字行，与下面两个子开关一起搬过去 —— 见
          *  {@code ConfigTipsHelper.relocateRbipEntries}。字段仍留在本子对象里，
          *  故 TOML 路径保持 {@code [rbip]} 不变（玩家配置不失效）。 */
