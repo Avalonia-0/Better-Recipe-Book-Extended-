@@ -42,8 +42,9 @@ public final class ConfigScreenSideText {
     private static final String LEFT_TEXT = "Better Recipe Book";
     /** 右侧竖排文字。 */
     private static final String RIGHT_TEXT = "Adorable♡Girl aVa Seriously Extended";
-    /** 文字颜色（ARGB）。半透明可以当水印；不想要阴影，像素字更干净。 */
-    private static final int TEXT_COLOR = 0xB0A0A0A0;
+    /** 文字颜色（ARGB）：**透明度 25%**（alpha 0x40 = 64/255）+ 中灰，纯水印观感；
+     *  不画阴影，像素字更干净。要更淡/更亮就改这一行（前两位是 alpha）。 */
+    private static final int TEXT_COLOR = 0x40A0A0A0;
     /** 是否带阴影（原版字体阴影）。 */
     private static final boolean TEXT_SHADOW = false;
 
