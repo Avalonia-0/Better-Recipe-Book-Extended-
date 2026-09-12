@@ -54,6 +54,11 @@ import java.util.WeakHashMap;
  * 但**之字形偏移不每帧重掷**（那样会 60fps 抖动），只在 {@link #onScreenInit} 时重掷一次 ——
  * 打开界面 / 切类别 / 缩放都会走那里。</p>
  *
+ * <p><b>字号</b>：<b>两列共用同一个字号</b>，以字少的<b>左列</b>为基准（{@link #naturalScale}）——
+ * 右列字数约为左列两倍，塞进同样的高度意味着步长小于字格高、相邻字在<b>纵向</b>上叠排，
+ * 靠逐字之字形摆动（{@link #SWAY_MIN_PX}~{@link #SWAY_MAX_PX}）左右错开（用户 2026-09-13
+ * 要求"右侧文字的字符大小直接同步左侧"）。</p>
+ *
  * <p><b>开关</b>：「杂项」页的<b>隐藏配置界面两侧的文字</b>（{@code hideConfigSideText}，默认关）
  * 打开时 {@link #shouldRender} 与 {@link #render} 都直接不画 —— fabric 入口的按屏注册因此压根不会发生，
  * NeoForge 的全局监听也在这里被挡下。</p>
@@ -71,6 +76,8 @@ public final class ConfigScreenSideText {
     private static final String LEFT_TEXT = "Better Recipe Book";
     /** 竖排文字（右侧）。 */
     private static final String RIGHT_TEXT = "Adorable♡Girl aVa Seriously Extended";
+    /** 左列的码点数 —— <b>两列共用的字号基准</b>（右列字号直接同步它，见 {@link #naturalScale}）。 */
+    private static final int LEFT_LENGTH = LEFT_TEXT.codePointCount(0, LEFT_TEXT.length());
     /** 默认字色（ARGB，中灰）：**透明度 10%**（alpha 0x1A = 26/255 ≈ 10.2%），纯水印观感；
      *  不画阴影，像素字更干净。要更淡/更亮就改前两位 alpha
      *  （0x1A=10% / 0x26=15% / 0x33=20% / 0x40=25% / 0x59=35%）。 */
@@ -107,10 +114,10 @@ public final class ConfigScreenSideText {
     /** 字号吸附粒度：字号会向下取到 1/4 的整数倍（1.0 / 0.75 / 0.5 / 0.25），
      *  避免分数缩放把像素字糊掉。 */
     private static final int SCALE_STEPS = 4;
-    /** 字间空隙系数：1.0 = 字符首尾相接，&gt;1 = 留出空隙。
-     *  真正的位置仍由"首字符顶上线、末字符顶下线"决定 —— 该系数只影响字号取值。 */
+    /** 字间空隙系数：1.0 = 字符首尾相接，&gt;1 = 留出空隙。真正的位置仍由"首字符顶上线、
+     *  末字符顶下线"决定 —— 该系数只影响**字号基准列（左列）**的字号取值。
+     *  右列没有独立系数：它的字号直接同步左列（用户 2026-09-13 要求）。 */
     private static final float LEFT_SPACING = 1.10F;
-    private static final float RIGHT_SPACING = 1.06F;
     /** 纵向微调（px）：像素字的墨迹在字符格里略偏上，需要时用这两个值压一压。 */
     private static final int TOP_NUDGE = 0;
     private static final int BOTTOM_NUDGE = 0;
@@ -266,10 +273,14 @@ public final class ConfigScreenSideText {
         // 屏幕左右边界：摆到极限 + 大字号时也不让字形越出屏幕（正常参数用不到）
         int screenLeft = Math.min(0, list.left);
         int screenRight = Math.max(list.right, list.left + list.width);
-        drawColumn(gui, mc.font, LEFT_TEXT, leftCenter, top, bottom, LEFT_SPACING, rolls[0],
-                screenLeft, screenRight);
-        drawColumn(gui, mc.font, RIGHT_TEXT, rightCenter, top, bottom, RIGHT_SPACING, rolls[1],
-                screenLeft, screenRight);
+        // 两列**共用同一个字号**：以字少的左列为基准（右列字号 = 左列字号，用户 2026-09-13）。
+        // 右列 36 个字塞进同样的高度 → 步长被压到小于字格高，相邻字在纵向上叠排，
+        // 但逐字之字形摆动把它们左右错开（相邻两字一左一右，横向至少差 4px）。
+        float scale = naturalScale(mc.font, bottom - top, LEFT_LENGTH, LEFT_SPACING);
+        drawColumn(gui, mc.font, LEFT_TEXT, leftCenter, top, bottom, rolls[0],
+                scale, screenLeft, screenRight);
+        drawColumn(gui, mc.font, RIGHT_TEXT, rightCenter, top, bottom, rolls[1],
+                scale, screenLeft, screenRight);
     }
 
     /** 掷一列这一"刷"的随机量：字段颜色 + 左右偏移（奇数字向左、偶数字向右）+ 倾斜角（方向也逐字随机）。 */
@@ -296,27 +307,36 @@ public final class ConfigScreenSideText {
     }
 
     /**
+     * 一列的**自然字号**：把 {@code n} 个字以 {@code spacing} 的字距塞进 {@code span} 高度所需的
+     * 最大字号（{@code span / (lineHeight * (1 + (n-1) * spacing))}），再向下吸附到
+     * {@code 1/SCALE_STEPS} 的整数倍、并以 {@link #MAX_SCALE} 封顶。
+     *
+     * <p>只用来算**字号基准列（左列）**的值，算出来的 scale 两列共用 —— 所以改这个函数的参数
+     * （或 {@link #LEFT_SPACING} / {@link #MAX_SCALE}）会同时改两列的字号。</p>
+     */
+    private static float naturalScale(Font font, int span, int n, float spacing) {
+        float raw = span / (font.lineHeight * (1.0F + (n - 1) * spacing));
+        float scale = Math.min(MAX_SCALE, snapDown(raw));
+        return scale <= 0.0F ? 1.0F / SCALE_STEPS : scale;
+    }
+
+    /**
      * 在竖列里自上而下逐字符画 {@code text}：
      * <b>首字符顶端 = {@code top}，末字符底端 = {@code bottom}</b>（正好顶着上下两条横线），
      * 每个字符在自己的格里水平居中，再按 {@code sway} 逐个左右错开。
      *
-     * <p>字号先按"字符紧贴 + 字距系数"求能放下的最大值，再向下吸附到
-     * {@code 1/SCALE_STEPS} 的整数倍；因此屏幕越高字越大、越矮字越小，
-     * 但**始终首末顶格**。</p>
+     * <p>字号由调用方给定（{@link #naturalScale}，**两列共用**同一值）：屏幕越高字越大、
+     * 越矮字越小，但**始终首末顶格** —— 步长 = {@code (span - 字格高) / (字数 - 1)}，
+     * 因此字数多的右列步长会小于字格高（字在纵向叠着排）。</p>
      */
     private static void drawColumn(GuiGraphics gui, Font font, String text,
-                                   int centerX, int top, int bottom, float spacing, Roll roll,
+                                   int centerX, int top, int bottom, Roll roll, float scale,
                                    int screenLeft, int screenRight) {
         int[] cps = text.codePoints().toArray();
         if (cps.length == 0) return;
         int[] colors = (roll != null) ? roll.colors() : null;
 
         float span = bottom - top;
-        // 需要的总高（含字距系数）= lineHeight * scale * (1 + (n-1) * spacing) → 反解 scale
-        float raw = span / (font.lineHeight * (1.0F + (cps.length - 1) * spacing));
-        float scale = Math.min(MAX_SCALE, snapDown(raw));
-        if (scale <= 0.0F) scale = 1.0F / SCALE_STEPS;
-
         float glyphH = font.lineHeight * scale;
         // 首字顶 top、末字底 bottom → 步长（n == 1 时无步长）
         float step = cps.length > 1 ? (span - glyphH) / (cps.length - 1) : 0.0F;
