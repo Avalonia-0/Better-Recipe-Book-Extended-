@@ -20,8 +20,8 @@ import java.util.Map;
  * {@code JeiRecipeRegistry}（轻量桥）条目 → BRBE 查询引擎（display 版）。
  *
  * <p>headless-jei 产物按 intermediary 映射发布（与 BRBE 核心 jar 一致），
- * 其桥 API 无法直接用于 BRBE 的 official 编译——改用反射（与 JeiHudHider
- * 同模式）；headless-jei mod 缺席（真实 JEI 或纯原版）时所有调用静默跳过。
+ * 其桥 API 无法直接用于 BRBE 的 official 编译——改用纯反射调用；
+ * headless-jei mod 缺席（真实 JEI 或纯原版）时所有调用静默跳过。
  * 渲染侧 {@link SyntheticRecipeRendererImpl} 经
  * {@link #reflectRecipeManager} / {@link #reflectCategory} /
  * {@link #emptyFocusGroup} 反射复用 headless-jei 的 JEI 运行时。</p>

@@ -167,7 +167,8 @@ public final class ConfigTipsHelper {
     /** RBIP 的两个子开关（在 {@code [rbip]} 子对象里）要在「界面」页显示的分区锚点。 */
     private static final String UI_CATEGORY_KEY = "text.autoconfig.brbe.category.ui";
     private static final String DEFAULT_CATEGORY_KEY = "text.autoconfig.brbe.category.default";
-    private static final String UI_ANCHOR_OPTION_KEY = "text.autoconfig.brbe.option.hideReiJeiOverlay";
+    /** RBIP 分区（黄字行 + 两个子开关）在「界面」页的落脚点：插在「配方书居中」之后。 */
+    private static final String RBIP_ANCHOR_OPTION_KEY = "text.autoconfig.brbe.option.keepCentered";
     private static final String RBIP_SECTION_LABEL_KEY = "brbe.gui.section.recipeBookIsPain";
     /** 「界面」页「配方书」分节的黄色标题行：插在「显示一键制作按钮」之前。 */
     private static final String RECIPE_BOOK_SECTION_LABEL_KEY = "brbe.gui.section.recipeBook";
@@ -202,10 +203,8 @@ public final class ConfigTipsHelper {
      *   <li>「启用Recipe Book Is Pain」→「§eJust Emulated Items（物品管理器）」文字行之前；</li>
      *   <li>「启用一键制作」→ 紧随「启用Recipe Book Is Pain」之后；</li>
      *   <li>「显示一键制作按钮」→「界面」页顶部，并在它上面插一行黄色纯文字「配方书」；</li>
-     *   <li>「启用上侧和下侧的标签」「隐藏翻页按钮」→「界面」页「隐藏物品管理器界面」之后
+     *   <li>「启用上侧和下侧的标签」「隐藏翻页按钮」→「界面」页「配方书居中」之后
      *       （并在它们前面插一行黄色纯文字「Recipe Book Is Pain」）；</li>
-     *   <li>「隐藏物品管理器界面」→「界面」页最顶部（第 0 条）——RBIP 分区**不跟着走**
-     *       （所以本步必须排在第 4 步之后，见方法内注释）；</li>
      *   <li>「显示设置按钮」「启用配方书」→「Recipe Book Is Pain」黄字行之前，两者相对顺序不变；</li>
      *   <li>「启用解锁弹跳动画」→「配方书翻页动画」之后（跨页：1.21.1 上它原本在「配方」页）。</li>
      * </ol>
@@ -235,7 +234,7 @@ public final class ConfigTipsHelper {
         // 3b) 它上面那条黄色纯文字「配方书」——本节（配方书相关开关）的分节标题行
         int craftButtonAt = indexOfFieldName(uiEntries, Component.translatable(INSTANT_CRAFT_BUTTON_OPTION_KEY));
         uiEntries.add(craftButtonAt < 0 ? 0 : craftButtonAt, textRow(builder, RECIPE_BOOK_SECTION_LABEL_KEY));
-        // 4) RBIP 两个子开关：搬到「界面」页「隐藏物品管理器界面」之后（前置黄字分节行）
+        // 4) RBIP 两个子开关：搬到「界面」页「配方书居中」之后（前置黄字分节行）
         List<Object> moved = new ArrayList<>();
         for (String key : RBIP_MOVED_OPTION_KEYS) {
             Object entry = removeByFieldName(defaultEntries, Component.translatable(key));
@@ -248,20 +247,16 @@ public final class ConfigTipsHelper {
             toInsert.add(rbipSectionRow);
             toInsert.addAll(moved);
             // 锚点条目自身没有 @PrefixText，所以 +1 就落在它下面（黄字行是独立插入的）。
-            int anchor = indexOfFieldName(uiEntries, Component.translatable(UI_ANCHOR_OPTION_KEY));
+            int anchor = indexOfFieldName(uiEntries, Component.translatable(RBIP_ANCHOR_OPTION_KEY));
             uiEntries.addAll(anchor < 0 ? uiEntries.size() : anchor + 1, toInsert);
         }
-        // 5) 「隐藏物品管理器界面」：「界面」页最顶部（第 0 条）
-        //    ⚠️ 必须排在第 4 步【之后】：本步会把该锚点整条搬到第 0 条，若先搬，第 4 步
-        //    按它定位就会把整个 RBIP 分区一起带到页面顶部（用户明确要求只搬这一行）。
-        moveToTopOf(uiEntries, defaultEntries, UI_ANCHOR_OPTION_KEY);
-        // 6) 「显示设置按钮」「启用配方书」→「Recipe Book Is Pain」黄字行【之前】，相对顺序不变。
+        // 5) 「显示设置按钮」「启用配方书」→「Recipe Book Is Pain」黄字行【之前】，相对顺序不变。
         //    该行是 textRow 现造的，字段名是随机 UUID，只能按**对象引用**定位（见 moveBeforeEntry）。
         if (rbipSectionRow != null) {
             moveBeforeEntry(uiEntries, SETTINGS_BUTTON_OPTION_KEY, rbipSectionRow);
             moveAfter(uiEntries, ENABLE_BOOK_OPTION_KEY, SETTINGS_BUTTON_OPTION_KEY);
         }
-        // 7) 「启用解锁弹跳动画」→「配方书翻页动画」之后（条目可能在 default / ui / recipeSettings
+        // 6) 「启用解锁弹跳动画」→「配方书翻页动画」之后（条目可能在 default / ui / recipeSettings
         //    任意一页里，所以三张列表都参与查找；锚点固定在「界面」页）
         List<Object> recipeEntries =
                 builder.getOrCreateCategory(Component.translatable(RECIPE_SETTINGS_CATEGORY_KEY)).getEntries();

@@ -43,7 +43,7 @@ public final class AppContext {
     // -- Config change detection -----------------------------------------------
     // Cached values of recipe-relevant config fields.  Used to skip
     // unnecessary recipe-book refreshes when unrelated configs change
-    // (e.g. instantCraft, hideReiJeiOverlay).
+    // (e.g. instantCraft, scrolling).
 
     private boolean cachedPartialCraftingEnabled;
     private boolean cachedPartialMarkingEnabled;
@@ -104,7 +104,7 @@ public final class AppContext {
             events.publish(new ConfigEventBus.PinningChanged(true));
             events.publish(new ConfigEventBus.BookVisibilityChanged(cfg.enableBook));
             // Only refresh recipe book if recipe-relevant fields changed.
-            // instantCraft, scrolling, hideReiJeiOverlay etc. do NOT
+            // instantCraft, scrolling, etc. do NOT
             // need a recipe-book refresh.
             if (recipeRelevantChanged(cfg)) {
                 events.requestConfigRefresh();
