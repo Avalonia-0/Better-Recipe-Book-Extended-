@@ -121,6 +121,17 @@ public final class ConfigTipsHelper {
     /** 「显示设置按钮」「启用配方书」：一起搬到「Recipe Book Is Pain」黄字行之前（相对顺序不变）。 */
     private static final String SETTINGS_BUTTON_OPTION_KEY = "text.autoconfig.brbe.option.settingsButton";
     private static final String ENABLE_BOOK_OPTION_KEY = "text.autoconfig.brbe.option.enableBook";
+    private static final String RECIPE_SETTINGS_CATEGORY_KEY = "text.autoconfig.brbe.category.recipeSettings";
+    /** 「启用解锁弹跳动画」：搬到「配方书翻页动画」（{@code pageAnimation.pageAnimationEnabled}）之后。
+     *  ⚠️ 该字段三分支不同 —— 26.2/1.21.11 是顶层 {@code enableBounce}，1.21.1 仍在
+     *  {@code newRecipes} 子对象里（{@code newRecipes.enableBounce}）。子对象条目跟随
+     *  **父字段**的类别（反编译 {@code ConfigScreenProvider} 核实：类别只由顶层字段的
+     *  {@code @ConfigEntry.Category} 决定），所以按候选键逐一找，条目可能在任何一页。 */
+    private static final List<String> ENABLE_BOUNCE_OPTION_KEYS = List.of(
+            "text.autoconfig.brbe.option.enableBounce",
+            "text.autoconfig.brbe.option.newRecipes.enableBounce");
+    private static final String PAGE_ANIMATION_ENABLED_OPTION_KEY =
+            "text.autoconfig.brbe.option.pageAnimation.pageAnimationEnabled";
 
     /**
      * 按期望的最终布局重排 GUI 条目（只重排条目对象，字段与 TOML 路径都保持原样）：
@@ -132,7 +143,8 @@ public final class ConfigTipsHelper {
      *       （并在它们前面插一行黄色纯文字「Recipe Book Is Pain」）；</li>
      *   <li>「隐藏物品管理器界面」→「界面」页最顶部（第 0 条）——RBIP 分区**不跟着走**
      *       （所以本步必须排在第 4 步之后，见方法内注释）；</li>
-     *   <li>「显示设置按钮」「启用配方书」→「Recipe Book Is Pain」黄字行之前，两者相对顺序不变。</li>
+     *   <li>「显示设置按钮」「启用配方书」→「Recipe Book Is Pain」黄字行之前，两者相对顺序不变；</li>
+     *   <li>「启用解锁弹跳动画」→「配方书翻页动画」之后（跨页：1.21.1 上它原本在「配方」页）。</li>
      * </ol>
      *
      * <p><b>为什么搬条目而不是搬字段</b>：Cloth 的子对象（{@code @TransitiveObject}）条目
@@ -186,6 +198,12 @@ public final class ConfigTipsHelper {
             moveBeforeEntry(uiEntries, SETTINGS_BUTTON_OPTION_KEY, rbipSectionRow);
             moveAfter(uiEntries, ENABLE_BOOK_OPTION_KEY, SETTINGS_BUTTON_OPTION_KEY);
         }
+        // 7) 「启用解锁弹跳动画」→「配方书翻页动画」之后（条目可能在 default / ui / recipeSettings
+        //    任意一页里，所以三张列表都参与查找；锚点固定在「界面」页）
+        List<Object> recipeEntries =
+                builder.getOrCreateCategory(Component.translatable(RECIPE_SETTINGS_CATEGORY_KEY)).getEntries();
+        moveAfterFirstFound(List.of(defaultEntries, uiEntries, recipeEntries),
+                ENABLE_BOUNCE_OPTION_KEYS, PAGE_ANIMATION_ENABLED_OPTION_KEY);
     }
 
     /** 把 {@code optionKey} 的条目挪到 {@code anchorKey} 条目之前；{@code skipTextRowAbove} 为真时
@@ -229,6 +247,28 @@ public final class ConfigTipsHelper {
         Object entry = removeByFieldName(to, name);
         if (entry == null) entry = removeByFieldName(from, name);
         if (entry != null) to.add(0, entry);
+    }
+
+    /** 把候选键里的条目（第一个找到的）挪到 {@code anchorKey} 条目之后；三张类别列表都参与查找
+     *  （子对象条目跟随父字段类别，落哪一页随分支而变），锚点也必须能在某张列表里找到。
+     *  锚点或条目找不到时**什么都不做**（保持条目原位，不产生半成品布局）。 */
+    private static void moveAfterFirstFound(List<List<Object>> lists, List<String> optionKeys, String anchorKey) {
+        Component anchor = Component.translatable(anchorKey);
+        for (List<Object> anchorList : lists) {
+            int at = indexOfFieldName(anchorList, anchor);
+            if (at < 0) continue;
+            for (String optionKey : optionKeys) {
+                Component name = Component.translatable(optionKey);
+                for (List<Object> from : lists) {
+                    Object entry = removeByFieldName(from, name);
+                    if (entry != null) {
+                        anchorList.add(at + 1, entry);
+                        return;
+                    }
+                }
+            }
+            return;
+        }
     }
 
     /** 黄色纯文字行（分节标题）。 */
