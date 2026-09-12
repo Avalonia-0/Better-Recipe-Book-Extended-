@@ -30,7 +30,7 @@ public final class ConfigTipsHelper {
     private static final List<ConfigTipCarousel> CAROUSELS = new ArrayList<>();
 
     static {
-        // 默认：实用功能页面顶部"提示：xxx"功能 tips 轮循行
+        // 默认：功能页面顶部"提示：xxx"功能 tips 轮循行
         registerCarousel(ConfigTipCarousel.builder()
                 .category(Component.translatable("text.autoconfig.brbe.category.default"))
                 .prefix(Component.translatable("brbe.gui.tip.prefix"))
@@ -146,7 +146,7 @@ public final class ConfigTipsHelper {
         moveBefore(defaultEntries, RBIP_MASTER_OPTION_KEY, VIEWER_ANCHOR_OPTION_KEY, true);
         // 2) 「启用一键制作」：紧随主开关之后
         moveAfter(defaultEntries, INSTANT_CRAFT_ENABLED_OPTION_KEY, RBIP_MASTER_OPTION_KEY);
-        // 3) 「显示一键制作按钮」：「界面」页顶部（跨类别：它原本在「实用功能」页的 instantCraft 组里）
+        // 3) 「显示一键制作按钮」：「界面」页顶部（跨类别：它原本在「功能」页的 instantCraft 组里）
         moveToTopOf(uiEntries, defaultEntries, INSTANT_CRAFT_BUTTON_OPTION_KEY);
         // 3b) 它上面那条黄色纯文字「配方书」——本节（配方书相关开关）的分节标题行
         int craftButtonAt = indexOfFieldName(uiEntries, Component.translatable(INSTANT_CRAFT_BUTTON_OPTION_KEY));
@@ -214,7 +214,7 @@ public final class ConfigTipsHelper {
     /** 把 {@code optionKey} 的条目挪到 {@code to} 类别最前面。
      *  条目可能本来就在 {@code to} 里（同类别置顶）、也可能在 {@code from} 里（跨类别搬运），
      *  两个列表都找一遍 —— 只传一个列表时，传错会让整个操作**静默不生效**（曾经的 bug：
-     *  「显示一键制作按钮」传了「界面」列表，而条目实际在「实用功能」列表里）。 */
+     *  「显示一键制作按钮」传了「界面」列表，而条目实际在「功能」列表里）。 */
     private static void moveToTopOf(List<Object> to, List<Object> from, String optionKey) {
         Component name = Component.translatable(optionKey);
         Object entry = removeByFieldName(to, name);
