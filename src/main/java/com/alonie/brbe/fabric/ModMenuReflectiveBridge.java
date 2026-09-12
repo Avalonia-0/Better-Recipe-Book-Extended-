@@ -1,6 +1,8 @@
 package com.alonie.brbe.fabric;
 
 import com.alonie.brbe.BetterRecipeBook;
+import com.alonie.brbe.config.BrbeConfig;
+import com.alonie.brbe.util.ConfigTipsHelper;
 import net.minecraft.client.gui.screens.Screen;
 
 import java.lang.reflect.Method;
@@ -45,15 +47,9 @@ public final class ModMenuReflectiveBridge {
                     new Class<?>[]{factoryInterface},
                     (Object proxy, Method method, Object[] args) -> {
                         if ("create".equals(method.getName()) && args.length == 1) {
-                            try {
-                                Class<?> autoConfigClient = Class.forName("me.shedaniel.autoconfig.AutoConfigClient");
-                                Method getConfigScreen = autoConfigClient.getMethod("getConfigScreen", Class.class, Screen.class);
-                                Object future = getConfigScreen.invoke(null, BetterRecipeBook.config.getClass(), args[0]);
-                                Method getMethod = future.getClass().getMethod("get");
-                                return getMethod.invoke(future);
-                            } catch (Exception e) {
-                                return args[0];
-                            }
+                            // 走 ConfigTipsHelper：ModMenu 的配置按钮同样要拿到整理过的界面
+                            // （直接调 AutoConfigClient 会得到未整理的字段声明顺序）
+                            return ConfigTipsHelper.buildConfigScreen(BrbeConfig.class, (Screen) args[0]);
                         }
                         // Default method handling (equals, hashCode, toString)
                         if (method.getDeclaringClass() == Object.class) {
