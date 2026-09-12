@@ -88,7 +88,7 @@
   "text.autoconfig.brbe.category.miscellaneous": "Miscellaneous",
   "text.autoconfig.brbe.category.recipeSettings": "Recipes",
   "text.autoconfig.brbe.category.ui": "UI",
-  "text.autoconfig.brbe.category.keybindings": "Values",
+  "text.autoconfig.brbe.category.keybindings": "Keybinds & Values",
   "text.autoconfig.brbe.option.alternativeRecipes.@PrefixText": "§eAlternative Recipes",
   "text.autoconfig.brbe.option.alternativeRecipes.noGrouped": "Ungroup Alternative Recipe Groups",
   "text.autoconfig.brbe.option.alternativeRecipes.onHover": "Show Alternative Recipes Only on Hover",

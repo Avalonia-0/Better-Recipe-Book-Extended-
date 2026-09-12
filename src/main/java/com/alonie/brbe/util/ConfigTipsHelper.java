@@ -116,7 +116,7 @@ public final class ConfigTipsHelper {
         }
     }
 
-    /** 分节标题行（黄色纯文字）：「数值」页页首的「通用」与数值项之前的「音效与动画」。
+    /** 分节标题行（黄色纯文字）：「快捷键&数值」页页首的「通用」与数值项之前的「音效与动画」。
      *  与轮循 tips 无关，故不受 {@code hideConfigTips} 影响。 */
     private static final String SECTION_CATEGORY_KEY = "text.autoconfig.brbe.category.keybindings";
     private static final String SECTION_LABEL_KEY = "brbe.gui.section.soundAnimation";
@@ -127,7 +127,7 @@ public final class ConfigTipsHelper {
     private static final String GENERAL_SECTION_ANCHOR_OPTION_KEY = "text.autoconfig.brbe.option.pinKey";
 
     /**
-     * 插两条纯文字分节标题行（黄色）：「数值」页页首的「通用」（「固定」之前）与数值项之前的
+     * 插两条纯文字分节标题行（黄色）：「快捷键&数值」页页首的「通用」（「固定」之前）与数值项之前的
      * 「音效与动画」。
      *
      * <p>Cloth 的类别条目由 AutoConfig 按字段声明顺序生成，标题行只能在这里插进条目列表：

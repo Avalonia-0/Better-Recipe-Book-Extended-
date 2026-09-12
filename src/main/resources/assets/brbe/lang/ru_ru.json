@@ -71,7 +71,7 @@
   "text.autoconfig.brbe.category.miscellaneous": "Разное",
   "text.autoconfig.brbe.category.recipeSettings": "Рецепты",
   "text.autoconfig.brbe.category.ui": "Интерфейс",
-  "text.autoconfig.brbe.category.keybindings": "Значения",
+  "text.autoconfig.brbe.category.keybindings": "Клавиши и значения",
   "text.autoconfig.brbe.option.alternativeRecipes.@PrefixText": "§eАльтернативные рецепты",
   "text.autoconfig.brbe.option.alternativeRecipes.noGrouped": "Разделять группы альтернативных рецептов",
   "text.autoconfig.brbe.option.alternativeRecipes.onHover": "Показывать альтернативные рецепты только при наведении",
