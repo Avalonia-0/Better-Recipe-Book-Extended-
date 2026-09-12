@@ -7,6 +7,8 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 
+import java.util.Arrays;
+import java.util.List;
 import java.util.Map;
 import java.util.Random;
 import java.util.WeakHashMap;
@@ -19,6 +21,10 @@ import java.util.WeakHashMap;
  * 首字符顶着上方横线、末字符顶着下方横线；字号与字距可调，窗口缩放后要跟着刷新；
  * 每个字再**逐个横向之字形摆动**（奇数字向左、偶数字向右，幅度 2~8px 随机）并**逐个随机倾斜**
  * （方向顺/逆时针随机、角度 2~12° 随机）—— 两者都是每字独立随机、**每次刷新重掷**，两侧同款。</p>
+
+ * <p><b>分片上色</b>：默认中灰 10% 透明；再按 {@link #LEFT_TINTS} / {@link #RIGHT_TINTS}
+ * 的规则把指定片段换色 —— "Recipe Book" 绿、♡ 粉、"aVa" 蓝，透明度和其它字一样是 10%，
+ * 只有色相不同。</p>
  *
  * <p><b>为什么两侧都有位置</b>：Cloth 的配置列表虽然占满屏幕宽（{@code left = 0}、
  * {@code right = width}），但**行**只画在 {@code getRowLeft() .. +getItemWidth()} 这一段 ——
@@ -55,10 +61,24 @@ public final class ConfigScreenSideText {
     private static final String LEFT_TEXT = "Better Recipe Book";
     /** 竖排文字（右侧）。 */
     private static final String RIGHT_TEXT = "Adorable♡Girl aVa Seriously Extended";
-    /** 文字颜色（ARGB）：**透明度 10%**（alpha 0x1A = 26/255 ≈ 10.2%）+ 中灰，纯水印观感；
-     *  不画阴影，像素字更干净。要更淡/更亮就改这一行（前两位是 alpha：
-     *  0x1A=10% / 0x26=15% / 0x33=20% / 0x40=25% / 0x59=35%）。 */
-    private static final int TEXT_COLOR = 0x1AA0A0A0;
+    /** 默认字色（ARGB，中灰）：**透明度 10%**（alpha 0x1A = 26/255 ≈ 10.2%），纯水印观感；
+     *  不画阴影，像素字更干净。要更淡/更亮就改前两位 alpha
+     *  （0x1A=10% / 0x26=15% / 0x33=20% / 0x40=25% / 0x59=35%）。 */
+    private static final int COLOR_DEFAULT = 0x1AA0A0A0;
+    /** 分片上色用的色相（同样保持 10% 透明，只有色相不同）。 */
+    private static final int COLOR_PINK = 0x1AFF77CC;      // ♡
+    private static final int COLOR_BLUE = 0x1A77B7FF;      // aVa
+    private static final int COLOR_GREEN = 0x1A77FF77;     // Recipe Book
+    /** 左列上色规则：把 "Recipe Book" 染绿。 */
+    private static final List<Tint> LEFT_TINTS = List.of(
+            new Tint("Recipe Book", COLOR_GREEN));
+    /** 右列上色规则：♡ 染粉、aVa 染蓝（两条规则命中的片段互不重叠）。 */
+    private static final List<Tint> RIGHT_TINTS = List.of(
+            new Tint("♡", COLOR_PINK),
+            new Tint("aVa", COLOR_BLUE));
+    /** 两列逐字颜色表（类初始化时算一次，下标与**码点**一一对应）。 */
+    private static final int[] LEFT_COLORS = tintArray(LEFT_TEXT, LEFT_TINTS);
+    private static final int[] RIGHT_COLORS = tintArray(RIGHT_TEXT, RIGHT_TINTS);
     /** 是否带阴影（原版字体阴影）。 */
     private static final boolean TEXT_SHADOW = false;
 
@@ -97,6 +117,31 @@ public final class ConfigScreenSideText {
 
     /** 一次"刷新"内固定的一组随机量。 */
     private record Roll(int[] swayPx, float[] angleRad) {
+    }
+
+    /** 一条上色规则：把 {@code text} 里出现的 {@code needle} 全部染成 {@code color}。 */
+    private record Tint(String needle, int color) {
+    }
+
+    /**
+     * 生成逐字颜色表：先全填 {@link #COLOR_DEFAULT}，再让每条 {@link Tint} 规则覆盖它命中的码点。
+     * 文案是常量，所以只需在类初始化时算一次。
+     */
+    private static int[] tintArray(String text, List<Tint> tints) {
+        int[] out = new int[text.codePointCount(0, text.length())];
+        Arrays.fill(out, COLOR_DEFAULT);
+        for (Tint tint : tints) {
+            int from = 0;
+            while (true) {
+                int at = text.indexOf(tint.needle(), from);
+                if (at < 0) break;
+                int start = text.codePointCount(0, at);
+                int len = tint.needle().codePointCount(0, tint.needle().length());
+                for (int i = start; i < start + len && i < out.length; i++) out[i] = tint.color();
+                from = at + tint.needle().length();
+            }
+        }
+        return out;
     }
 
     private ConfigScreenSideText() {
@@ -151,9 +196,9 @@ public final class ConfigScreenSideText {
         int screenLeft = Math.min(0, list.left);
         int screenRight = Math.max(list.right, list.left + list.width);
         drawColumn(gui, mc.font, LEFT_TEXT, leftCenter, top, bottom, LEFT_SPACING, rolls[0],
-                screenLeft, screenRight);
+                LEFT_COLORS, screenLeft, screenRight);
         drawColumn(gui, mc.font, RIGHT_TEXT, rightCenter, top, bottom, RIGHT_SPACING, rolls[1],
-                screenLeft, screenRight);
+                RIGHT_COLORS, screenLeft, screenRight);
     }
 
     /** 掷一列的随机量：左右偏移（奇数字向左、偶数字向右）与倾斜角（方向也逐字随机）。 */
@@ -190,7 +235,7 @@ public final class ConfigScreenSideText {
      */
     private static void drawColumn(GuiGraphicsExtractor gui, Font font, String text,
                                    int centerX, int top, int bottom, float spacing, Roll roll,
-                                   int screenLeft, int screenRight) {
+                                   int[] colors, int screenLeft, int screenRight) {
         int[] cps = text.codePoints().toArray();
         if (cps.length == 0) return;
 
@@ -222,7 +267,8 @@ public final class ConfigScreenSideText {
                 gui.pose().translate(-w / 2.0F, -glyphH / 2.0F);
             }
             gui.pose().scale(scale, scale);
-            gui.text(font, glyph, 0, 0, TEXT_COLOR, TEXT_SHADOW);
+            int color = (i < colors.length) ? colors[i] : COLOR_DEFAULT;
+            gui.text(font, glyph, 0, 0, color, TEXT_SHADOW);
             gui.pose().popMatrix();
         }
     }
