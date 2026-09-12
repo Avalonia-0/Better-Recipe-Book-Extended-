@@ -24,6 +24,7 @@
   "brbe.gui.tip.9": "Sposób na przejście do wybranej strony w obszarze receptur: wpisz „……” w pasku wyszukiwania, następnie numer strony i na końcu ponownie „……”. („……” można zastąpić znakiem „^”)",
   "brbe.gui.tip.prefix": "Wskazówka: ",
 "brbe.gui.section.recipeBookIsPain": "Recipe Book Is Pain",
+"brbe.gui.section.recipeBook": "Księga receptur",
 "brbe.gui.section.soundAnimation": "Dźwięk i animacja",
   "brbe.gui.togglePotions.brewable": "Pokaż warzalne",
   "category.brbe": "Better Recipe Book",
