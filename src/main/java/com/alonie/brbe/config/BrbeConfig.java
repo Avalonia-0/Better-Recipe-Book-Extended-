@@ -85,8 +85,10 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.TransitiveObject
     public PageAnimation pageAnimation = new PageAnimation();
 
+    /** 「显示设置按钮」原先带一条 {@code @PrefixText} 黄字提示行
+     *  （"如果你禁用了以下两个选项，需要通过模组菜单来重新打开它们"），
+     *  按用户要求已移除该文字行 —— 注解一并删除，AutoConfig 不再生成该条目。 */
     @ConfigEntry.Category("ui")
-    @ConfigEntry.Gui.PrefixText
     @ConfigEntry.Gui.Tooltip
     public boolean settingsButton = true;
 
