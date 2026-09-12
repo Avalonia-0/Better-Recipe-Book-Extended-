@@ -84,7 +84,7 @@
   "text.autoconfig.brbe.category.miscellaneous": "雜項",
   "text.autoconfig.brbe.category.recipeSettings": "配方",
   "text.autoconfig.brbe.category.ui": "介面",
-"text.autoconfig.brbe.category.keybindings": "數值",
+"text.autoconfig.brbe.category.keybindings": "快捷鍵&數值",
   "text.autoconfig.brbe.option.alternativeRecipes.@PrefixText": "§e替代配方",
   "text.autoconfig.brbe.option.alternativeRecipes.noGrouped": "拆散替代配方組",
   "text.autoconfig.brbe.option.alternativeRecipes.onHover": "只在懸停時顯示替代配方",
