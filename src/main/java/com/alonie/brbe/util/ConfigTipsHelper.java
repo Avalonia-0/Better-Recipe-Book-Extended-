@@ -68,24 +68,33 @@ public final class ConfigTipsHelper {
         }
     }
 
-    /** 「快捷键&数值」页底部的分节标题行：黄色纯文字「音效与动画」，插在数值项之前。
-     *  与轮循 tips 无关，故不受 {@code hideConfigTips} 影响。 */
+    /** 「快捷键&数值」页的两条分节标题行（黄色纯文字）：页首的「通用」与数值项之前的
+     *  「音效与动画」。与轮循 tips 无关，故不受 {@code hideConfigTips} 影响。 */
     private static final String SECTION_CATEGORY_KEY = "text.autoconfig.brbe.category.keybindings";
     private static final String SECTION_LABEL_KEY = "brbe.gui.section.soundAnimation";
     /** 分节标题的锚点：插在这一项之前（识别按 AutoConfig 的 option i18n 键，与语言无关）。 */
     private static final String SECTION_ANCHOR_OPTION_KEY = "text.autoconfig.brbe.option.pageFlipVolume";
+    /** 页首分节标题「通用」：插在「固定」（pinKey）之前。 */
+    private static final String GENERAL_SECTION_LABEL_KEY = "brbe.gui.section.general";
+    private static final String GENERAL_SECTION_ANCHOR_OPTION_KEY = "text.autoconfig.brbe.option.pinKey";
 
     /**
-     * 往「快捷键&数值」类别里插一条纯文字分节标题行（黄色）。
+     * 往「快捷键&数值」类别里插两条纯文字分节标题行（黄色）：
+     * 页首的「通用」（「固定」之前）与数值项之前的「音效与动画」。
      *
      * <p>Cloth 的类别条目由 AutoConfig 按字段声明顺序生成，标题行只能在这里插进条目列表：
-     * 定位方式是把条目的 {@code getFieldName()} 与 {@code text.autoconfig.brbe.option.pageFlipVolume}
-     * 的翻译组件比较（AutoConfig 的字段条目名就是 {@code Component.translatable(optionI13n)}），
-     * 找到就插在它前面，找不到（例如将来该项被移除）则退化为追加到该类别末尾。</p>
+     * 定位方式是把条目的 {@code getFieldName()} 与 {@code text.autoconfig.brbe.option.<字段名>}
+     * 的翻译组件比较（AutoConfig 的字段条目名就是 {@code Component.translatable(optionI13n)}）。
+     * 找不到锚点时：页首那条退化为整页第一条（本来就是"页首"语义），数值那条退化为页尾。</p>
      */
     private static void addSectionLabels(ConfigBuilder builder) {
         ConfigCategory category = builder.getOrCreateCategory(Component.translatable(SECTION_CATEGORY_KEY));
         List<Object> entries = category.getEntries();
+        // ① 页首「通用」：插在「固定」之前
+        int generalAt = indexOfFieldName(entries, Component.translatable(GENERAL_SECTION_ANCHOR_OPTION_KEY));
+        entries.add(generalAt < 0 ? 0 : generalAt, textRow(builder, GENERAL_SECTION_LABEL_KEY));
+        // ② 数值分节的「音效与动画」：插在「音效音量」之前
+        //    ⚠️ 必须在 ① 之后重新查下标——① 已经把后面的条目整体后移了一位。
         int at = indexOfFieldName(entries, Component.translatable(SECTION_ANCHOR_OPTION_KEY));
         entries.add(at < 0 ? entries.size() : at, textRow(builder, SECTION_LABEL_KEY));
     }
