@@ -157,6 +157,8 @@
   "text.autoconfig.brbe.option.showModName.@Tooltip": "Показывает мод, из которого взят предмет, аналогично Jade.",
   "text.autoconfig.brbe.option.showModName@Tooltip": "Показывает мод, из которого взят предмет, аналогично Jade.",
   "text.autoconfig.brbe.option.usageViewKey": "Запросить применения",
+  "text.autoconfig.brbe.option.recipeViewerRowLimit": "Лимит строк области рецептов",
+  "text.autoconfig.brbe.option.recipeViewerColumnLimit": "Лимит столбцов области рецептов",
   "text.autoconfig.brbe.option.usageViewKey.@Tooltip": "Показывает рецепты, где этот предмет используется как материал или станок.",
   "text.autoconfig.brbe.option.previewMode": "Режим предпросмотра",
   "text.autoconfig.brbe.option.previewMode.@Tooltip": "Окна запросов не восстанавливаются при повторном открытии интерфейса, а взаимодействие с другими элементами закрывает их.",

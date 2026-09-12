@@ -184,6 +184,8 @@
   "text.autoconfig.brbe.option.showModName.@Tooltip": "Shows the source mod of an item, similar to Jade.",
   "text.autoconfig.brbe.option.showModName@Tooltip": "Shows the source mod of an item, similar to Jade.",
   "text.autoconfig.brbe.option.usageViewKey": "Query Usages",
+  "text.autoconfig.brbe.option.recipeViewerRowLimit": "Recipe Area Row Limit",
+  "text.autoconfig.brbe.option.recipeViewerColumnLimit": "Recipe Area Column Limit",
   "text.autoconfig.brbe.option.usageViewKey.@Tooltip": "Shows the recipes that use this item as a material or workstation.",
   "text.autoconfig.brbe.option.previewMode": "Preview Mode",
   "text.autoconfig.brbe.option.previewMode.@Tooltip": "Query windows are no longer restored when reopening a screen, and interacting with other elements closes them.",

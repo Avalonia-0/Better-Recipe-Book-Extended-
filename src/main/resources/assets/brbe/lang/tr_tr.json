@@ -157,6 +157,8 @@
   "text.autoconfig.brbe.option.showModName.@Tooltip": "Eşyanın kaynak modunu gösterir, Jade'e benzer.",
   "text.autoconfig.brbe.option.showModName@Tooltip": "Eşyanın kaynak modunu gösterir, Jade'e benzer.",
   "text.autoconfig.brbe.option.usageViewKey": "Kullanımları Sorgula",
+  "text.autoconfig.brbe.option.recipeViewerRowLimit": "Tarif Alanı Satır Sınırı",
+  "text.autoconfig.brbe.option.recipeViewerColumnLimit": "Tarif Alanı Sütun Sınırı",
   "text.autoconfig.brbe.option.usageViewKey.@Tooltip": "Bu eşyayı malzeme veya tezgâh olarak kullanan tarifleri gösterir.",
   "text.autoconfig.brbe.option.previewMode": "Önizleme modu",
   "text.autoconfig.brbe.option.previewMode.@Tooltip": "Ekran yeniden açıldığında sorgu pencereleri geri yüklenmez ve diğer öğelerle etkileşim onları kapatır.",
