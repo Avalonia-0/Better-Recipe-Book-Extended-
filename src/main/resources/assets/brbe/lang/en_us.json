@@ -103,6 +103,8 @@
   "text.autoconfig.brbe.option.expandedRecipeBook@Tooltip": "A larger recipe book with a new UI layout. Not functional yet, but you can take a look.",
   "text.autoconfig.brbe.option.hideConfigTips": "Hide Configuration Tips",
   "text.autoconfig.brbe.option.hidePauseMenuConfigEntry": "Hide the pause menu config entry",
+  "text.autoconfig.brbe.option.hideConfigTitleBand": "Hide the config screen's top title band",
+  "text.autoconfig.brbe.option.hideConfigSideText": "Hide the config screen's side text",
   "text.autoconfig.brbe.option.hideConfigTips.@Tooltip": "The rotating tip line above the search bar at the top of the config screen, which changes every time it opens.",
   "text.autoconfig.brbe.option.hideConfigTips@Tooltip": "The rotating tip line above the search bar at the top of the config screen, which changes every time it opens.",
   "text.autoconfig.brbe.option.hideIncompatibleMark": "Hide 3x3 Recipe Marks in Survival Recipe Book",

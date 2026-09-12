@@ -118,7 +118,9 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             // 会重建该屏幕的全部事件对象（ScreenMixin.beforeInit → createAfterExtractEvent[]），
             // 上一次注册的监听器随旧对象一起作废 —— 去重会导致「窗口缩放 / 切类别后装饰消失」。
             // 每次 init 的事件对象都是新的，所以重复注册不会叠加。
-            if (ConfigScreenSideText.shouldRender(screen)) {
+            // 按屏幕**类型**注册（不看开关）：「隐藏配置界面两侧的文字」在 render 里每帧判定，
+            // 这样在配置界面里切换开关两个方向都立即生效。
+            if (ConfigScreenSideText.isDecoratedScreen(screen)) {
                 // 每次 init（打开 / 切类别 / 缩放）重掷左右偏移与旋转角
                 ConfigScreenSideText.onScreenInit(screen);
                 ScreenEvents.afterRender(screen).register(ConfigScreenSideText::render);
