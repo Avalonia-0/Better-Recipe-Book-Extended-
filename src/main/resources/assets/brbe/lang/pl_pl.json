@@ -72,7 +72,7 @@
   "text.autoconfig.brbe.category.miscellaneous": "Różne",
   "text.autoconfig.brbe.category.recipeSettings": "Receptury",
   "text.autoconfig.brbe.category.ui": "Interfejs",
-  "text.autoconfig.brbe.category.keybindings": "Klawisze i wartości",
+  "text.autoconfig.brbe.category.keybindings": "Wartości",
   "text.autoconfig.brbe.option.alternativeRecipes.@PrefixText": "§eAlternatywne receptury",
   "text.autoconfig.brbe.option.alternativeRecipes.noGrouped": "Rozdziel grupy alternatywnych receptur",
   "text.autoconfig.brbe.option.alternativeRecipes.onHover": "Pokaż alternatywne receptury tylko po najechaniu",

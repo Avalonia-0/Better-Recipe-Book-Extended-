@@ -165,7 +165,7 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Category("keybindings")
     public int recipeViewerColumnLimit = 7;
 
-    // -- 「快捷键&数值」页底部的数值项（分节标题「音效与动画」由 ConfigTipsHelper 注入）----
+    // -- 「数值」页底部的数值项（分节标题「音效与动画」由 ConfigTipsHelper 注入）------------
 
     /** 翻页音效音量（0.0–1.0，默认 1.0 = 原生音量），可在「音乐与声音」界面调节。 */
     @ConfigEntry.Category("keybindings")
