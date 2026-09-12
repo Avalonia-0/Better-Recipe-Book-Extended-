@@ -165,9 +165,13 @@ public final class RecipeViewerOverlay {
             ResourceLocation.withDefaultNamespace("recipe_book/overlay_recipe");
     private static final ResourceLocation RBIP_PAGE_BUTTONS =
             ResourceLocation.fromNamespaceAndPath("brbe", "textures/rbip/recipe_book_buttons.png");
-    private static final int PAGE_COLS = 10;
-    private static final int PAGE_ROWS = 5;
-    private static final int PAGE_SIZE = PAGE_COLS * PAGE_ROWS;
+    /** 对象区的行上限 / 列上限（配置项「配方区行上限」「配方区列上限」，默认
+     *  3 行 x 7 列）的兜底夹紧区间 —— 见 {@link #pageRows()} / {@link #pageCols()}。 */
+    private static final int LIMIT_MIN = 1;
+    private static final int LIMIT_MAX = 64;
+    /** 配置尚未就绪（{@code config == null}）时的退化值（与字段默认一致）。 */
+    private static final int DEFAULT_ROW_LIMIT = 3;
+    private static final int DEFAULT_COL_LIMIT = 7;
     private static final int PAGE_BTN_WIDTH = 14;
     private static final int PAGE_BTN_HEIGHT = 13;
     private static final int STATION_CELL = 24;
@@ -192,7 +196,37 @@ public final class RecipeViewerOverlay {
     private static final int TAB_V_BOTTOM = TAB_TEX_HEIGHT - TAB_V_TOP - TAB_V_CUT;
     private static final int TAB_HEIGHT = TAB_TEX_WIDTH - TAB_CUT;
     private static final int TAB_OVERHANG = TAB_HEIGHT - 4;
+    /** 标签条硬上限（列上限是软上限，见 {@link #maxTabs()}）。 */
     private static final int MAX_TABS = 10;
+
+    /** 查询界面「配方区行上限」（配置项，默认 3）：对象区一页最多显示的行数；
+     *  同时就是工作站列的对象数量上限（{@link #stationViewRows()} 由框体高度
+     *  推导，而框体高度 = 本页行数 x 25 + 8，本页行数恒 <= 行上限）。 */
+    private static int pageRows() {
+        com.alonie.brbe.config.BrbeConfig cfg = BetterRecipeBook.config;
+        return clampLimit(cfg == null ? DEFAULT_ROW_LIMIT : cfg.recipeViewerRowLimit);
+    }
+
+    /** 查询界面「配方区列上限」（配置项，默认 7）：对象区一页最多显示的列数；
+     *  同时也就是底部标签的数量上限（{@link #maxTabs()}）。 */
+    private static int pageCols() {
+        com.alonie.brbe.config.BrbeConfig cfg = BetterRecipeBook.config;
+        return clampLimit(cfg == null ? DEFAULT_COL_LIMIT : cfg.recipeViewerColumnLimit);
+    }
+
+    /** 一页的对象容量 = 行上限 x 列上限。 */
+    private static int pageSize() {
+        return pageRows() * pageCols();
+    }
+
+    /** 标签条一次最多显示的标签数 = {@code min(MAX_TABS, 列上限)}。 */
+    private static int maxTabs() {
+        return Math.max(1, Math.min(MAX_TABS, pageCols()));
+    }
+
+    private static int clampLimit(int value) {
+        return Math.max(LIMIT_MIN, Math.min(LIMIT_MAX, value));
+    }
 
     /** 工作站列面板（9-slice，右开口与框体无缝相接；顶部裁切变体）。 */
     private static final ResourceLocation COLUMN_PANEL_SPRITE =
@@ -725,7 +759,7 @@ public final class RecipeViewerOverlay {
                 w.render(gui, mouseX, mouseY, delta);
                 if (w.isMouseOver(mouseX, mouseY)) {
                     hoveredButton = w;
-                    hoveredIndex = page * PAGE_SIZE + li;
+                    hoveredIndex = page * pageSize() + li;
                     hoveredEntryInternal(mouseX, mouseY);
                 }
             } else {
@@ -745,7 +779,7 @@ public final class RecipeViewerOverlay {
                     renderScaledCellItem(gui, mat, cell[0] + 6 + mi * 6, cell[1] + 15);
                 }
                 if (hovered) {
-                    hoveredIndex = page * PAGE_SIZE + li;
+                    hoveredIndex = page * pageSize() + li;
                     hoveredEntryInternal(mouseX, mouseY);
                 }
             }
@@ -817,7 +851,7 @@ public final class RecipeViewerOverlay {
         if (cats.isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();
         if (mc == null) return;
-        int perPage = MAX_TABS;
+        int perPage = maxTabs();
         int maxStart = Math.max(0, cats.size() - perPage);
         tabWindowStart = Math.max(0, Math.min(tabWindowStart, maxStart));
         int start = tabWindowStart;
@@ -859,9 +893,9 @@ public final class RecipeViewerOverlay {
                 appendModName(lines, cat.icon());
                 // 阶段一 #7：标签窗可滑动时附 ◀▶ 标记（1.21.11 滑窗标记的信息
                 // 语义：窗口未至最左最右 → ◀▶；最左/最右分别 → ▶/◀）。
-                if (tabWindowCount() > MAX_TABS) {
+                if (tabWindowCount() > maxTabs()) {
                     boolean canLeft = tabWindowStart > 0;
-                    boolean canRight = tabWindowStart + MAX_TABS < tabWindowCount();
+                    boolean canRight = tabWindowStart + maxTabs() < tabWindowCount();
                     if (canLeft && canRight) {
                         lines.add(Component.literal("◀ ▶"));
                     } else if (canLeft) {
@@ -926,9 +960,9 @@ public final class RecipeViewerOverlay {
     private static void drawItemGrid(GuiGraphics gui, int mouseX, int mouseY) {
         if (gridItems.isEmpty()) return;
         gui.blitSprite(OVERLAY_RECIPE_SPRITE, boxX, boxY, boxW, boxH);
-        int start = page * PAGE_SIZE;
-        int end = Math.min(start + PAGE_SIZE, gridItems.size());
-        int columns = Math.max(1, Math.min(PAGE_COLS, end - start));
+        int start = page * pageSize();
+        int end = Math.min(start + pageSize(), gridItems.size());
+        int columns = Math.max(1, Math.min(pageCols(), end - start));
         gridHoverStack = null;
         gridHoverCategory = currentCategory;
         for (int i = start; i < end; i++) {
@@ -1065,7 +1099,7 @@ public final class RecipeViewerOverlay {
         if (button != 0) return false;
         int tabY = tabTop();
         List<RecipeViewerCategory> cats = visibleCategories();
-        int perPage = MAX_TABS;
+        int perPage = maxTabs();
         int start = tabWindowStart;
         int end = Math.min(start + perPage, cats.size());
         for (int i = start; i < end; i++) {
@@ -1089,7 +1123,7 @@ public final class RecipeViewerOverlay {
     private static boolean overTabStrip(double mx, double my) {
         int catCount = visibleCategories().size();
         if (catCount == 0) return false;
-        int shown = Math.min(MAX_TABS, catCount);
+        int shown = Math.min(maxTabs(), catCount);
         return inside(mx, my, boxX, tabTop(), shown * TAB_WIDTH, TAB_HEIGHT);
     }
 
@@ -1104,17 +1138,21 @@ public final class RecipeViewerOverlay {
         int delta = vertical > 0 ? -1 : 1;
         int newIdx = idx + delta;
         if (newIdx < 0 || newIdx >= cats.size()) return false;
-        int maxStart = Math.max(0, cats.size() - MAX_TABS);
+        int perPage = maxTabs();
+        int maxStart = Math.max(0, cats.size() - perPage);
+        // 选中标签到达窗口中央槽位起随窗口滑动（右：中央槽本身；左：其下一槽）。
         int slot = idx - tabWindowStart;
-        if (delta > 0 && maxStart > 0 && slot >= 5) {
+        int pinRight = Math.max(0, perPage / 2);
+        int pinLeft = Math.max(0, perPage / 2 - 1);
+        if (delta > 0 && maxStart > 0 && slot >= pinRight) {
             tabWindowStart = Math.min(maxStart, tabWindowStart + 1);
-        } else if (delta < 0 && maxStart > 0 && slot <= 4) {
+        } else if (delta < 0 && maxStart > 0 && slot <= pinLeft) {
             tabWindowStart = Math.max(0, tabWindowStart - 1);
         }
         if (newIdx < tabWindowStart) {
             tabWindowStart = newIdx;
-        } else if (newIdx >= tabWindowStart + MAX_TABS) {
-            tabWindowStart = Math.min(maxStart, newIdx - (MAX_TABS - 1));
+        } else if (newIdx >= tabWindowStart + perPage) {
+            tabWindowStart = Math.min(maxStart, newIdx - (perPage - 1));
         }
         switchCategory(cats.get(newIdx));
         ClientCompat.playPageFlipSound(Minecraft.getInstance());
@@ -1399,9 +1437,9 @@ public final class RecipeViewerOverlay {
 
     /** 框尺寸（全页 258x133）+ 页数；实际收缩在 fitBoxToPage。 */
     private static void computeBoxSize(int total) {
-        pageCount = total > PAGE_SIZE ? (total + PAGE_SIZE - 1) / PAGE_SIZE : 1;
-        boxW = PAGE_COLS * 25 + 8;
-        boxH = PAGE_ROWS * 25 + 8;
+        pageCount = total > pageSize() ? (total + pageSize() - 1) / pageSize() : 1;
+        boxW = pageCols() * 25 + 8;
+        boxH = pageRows() * 25 + 8;
         ensureTabWidth();
     }
 
@@ -1411,7 +1449,7 @@ public final class RecipeViewerOverlay {
 
     /** 按当前页实际对象数收缩框体并重新钳位（1.21.11 fitBoxToPage）。 */
     private static int fitBoxToPage(int count) {
-        int columns = Math.max(1, Math.min(PAGE_COLS, count));
+        int columns = Math.max(1, Math.min(pageCols(), count));
         int rows = (count + columns - 1) / columns;
         boxW = columns * 25 + 8;
         boxH = rows * 25 + 8;
@@ -1429,14 +1467,15 @@ public final class RecipeViewerOverlay {
     }
 
     private static void fitGridBoxToPage() {
-        int start = page * PAGE_SIZE;
-        int count = Math.min(start + PAGE_SIZE, gridItems.size()) - start;
+        int start = page * pageSize();
+        int count = Math.min(start + pageSize(), gridItems.size()) - start;
         fitBoxToPage(count);
     }
 
-    /** 标签条最多 MAX_TABS 个标签：不足 10 列宽时加空列撑宽框体。 */
+    /** 标签条最多 maxTabs() = min(MAX_TABS, 列上限) 个标签（一列一个标签，
+     *  故列上限同时也是标签数量上限）：不足时加空列撑宽框体。 */
     private static void ensureTabWidth() {
-        int tabCount = Math.min(visibleCategories().size(), MAX_TABS);
+        int tabCount = Math.min(visibleCategories().size(), maxTabs());
         int tabW = tabCount * TAB_WIDTH + 8;
         if (tabW > boxW) {
             boxW = tabW;
@@ -1501,14 +1540,15 @@ public final class RecipeViewerOverlay {
             tabWindowStart = 0;
             return;
         }
-        int maxStart = Math.max(0, cats.size() - MAX_TABS);
+        int perPage = maxTabs();
+        int maxStart = Math.max(0, cats.size() - perPage);
         tabWindowStart = Math.max(0, Math.min(tabWindowStart, maxStart));
         int idx = cats.indexOf(currentCategory);
         if (idx < 0) return;
         if (idx < tabWindowStart) {
             tabWindowStart = idx;
-        } else if (idx >= tabWindowStart + MAX_TABS) {
-            tabWindowStart = Math.min(maxStart, idx - (MAX_TABS - 1));
+        } else if (idx >= tabWindowStart + perPage) {
+            tabWindowStart = Math.min(maxStart, idx - (perPage - 1));
         }
     }
 
@@ -1516,8 +1556,8 @@ public final class RecipeViewerOverlay {
     private static void showPage(AbstractContainerScreen<?> screen) {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
-        int start = page * PAGE_SIZE;
-        int end = Math.min(start + PAGE_SIZE, entries.size());
+        int start = page * pageSize();
+        int end = Math.min(start + pageSize(), entries.size());
         List<DisplayEntry> pageSlice = new ArrayList<>(entries.subList(start, end));
         List<RecipeHolder<?>> holders = new ArrayList<>();
         for (DisplayEntry e : pageSlice) {
@@ -1675,7 +1715,7 @@ public final class RecipeViewerOverlay {
     private static void renderShiftPopup(GuiGraphics gui) {
         if (popupAnchorIndex < 0 || popupAnchorIndex >= entries.size()) return;
         DisplayEntry e = entries.get(popupAnchorIndex);
-        int li = popupAnchorIndex - page * PAGE_SIZE;
+        int li = popupAnchorIndex - page * pageSize();
         if (li < 0 || li >= pageEntries.size()) return;
         int[] cell = gridCellFor(li);
         int cx = cell[0] + 12;
