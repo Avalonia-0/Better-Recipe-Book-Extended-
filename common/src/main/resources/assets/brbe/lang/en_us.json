@@ -33,6 +33,7 @@
   "brbe.gui.tip.9": "To jump to a specific page in the recipe area: type \"……\" in the search bar, then the page number, then \"……\" again. (\"……\" can be replaced with \"^\")",
   "brbe.gui.tip.prefix": "Tip: ",
 "brbe.gui.section.recipeBookIsPain": "Recipe Book Is Pain",
+"brbe.gui.section.recipeBook": "Recipe Book",
 "brbe.gui.section.soundAnimation": "Sound & Animation",
   "brbe.gui.togglePotions.brewable": "Show Brewable",
   "brbe.tooltip.station": "Station",

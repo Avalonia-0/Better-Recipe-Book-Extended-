@@ -33,6 +33,7 @@
   "brbe.gui.tip.9": "在配方区跳转指定页码的方法：在搜索栏输入“……”，“再输入页码，最后再输入“……”。（“……”可替换为“^”）",
   "brbe.gui.tip.prefix": "提示：",
 "brbe.gui.section.recipeBookIsPain": "Recipe Book Is Pain",
+"brbe.gui.section.recipeBook": "配方书",
 "brbe.gui.section.soundAnimation": "音效与动画",
   "brbe.gui.togglePotions.brewable": "显示可酿造",
   "brbe.tooltip.station": "工作站",
