@@ -8,9 +8,16 @@ import java.util.List;
 /**
  * 一条配置界面轮循提示行。
  *
- * <p>每个轮循行绑定一个配置分类（页面）、一个可选前缀（如"提示："）、一个文案池。
- * 每次打开配置界面，该行显示一条（随机，且避免相邻重复）。多个轮循行可注册到不同
- * 页面或同一页面，各自独立不重复。</p>
+ * <p>每个轮循行有一个可选前缀（如"提示："）与一个文案池，每次打开配置界面显示一条
+ * （随机，且避免相邻重复）。多个轮循行各自独立不重复。</p>
+ *
+ * <p>显示位置有两种（{@link #screenWide()}）：</p>
+ * <ul>
+ *   <li><b>屏幕级</b>（{@code screenWide = true}，推荐）：插在配置界面**搜索栏之上**，
+ *       切到任何类别页都可见 —— 位置与 {@code category(...)} 无关；</li>
+ *   <li><b>类别内</b>（默认，{@code false}）：插在 {@code category(...)} 所绑定类别条目列表的
+ *       第一条（老行为）。</li>
+ * </ul>
  *
  * <p>通过 {@link com.alonie.brbe.util.ConfigTipsHelper#registerCarousel} 注册。</p>
  */
@@ -20,15 +27,17 @@ public final class ConfigTipCarousel {
     private final Component prefix;
     private final List<String> tipKeys;
     private final ChatFormatting style;
+    private final boolean screenWide;
 
     private int lastIndex = -1;
 
     private ConfigTipCarousel(Component categoryTitle, Component prefix,
-                              List<String> tipKeys, ChatFormatting style) {
+                              List<String> tipKeys, ChatFormatting style, boolean screenWide) {
         this.categoryTitle = categoryTitle;
         this.prefix = prefix;
         this.tipKeys = tipKeys;
         this.style = style;
+        this.screenWide = screenWide;
     }
 
     public Component categoryTitle() {
@@ -66,6 +75,14 @@ public final class ConfigTipCarousel {
         return style;
     }
 
+    /**
+     * 是否显示在**屏幕级**：插在配置界面搜索栏之上，所有类别页都可见（{@code category(...)}
+     * 此时仅作标识，不决定位置）。
+     */
+    public boolean screenWide() {
+        return screenWide;
+    }
+
     public static Builder builder() {
         return new Builder();
     }
@@ -75,6 +92,7 @@ public final class ConfigTipCarousel {
         private Component prefix;
         private List<String> tipKeys = List.of();
         private ChatFormatting style = ChatFormatting.YELLOW;
+        private boolean screenWide = false;
 
         private Builder() {
         }
@@ -99,11 +117,17 @@ public final class ConfigTipCarousel {
             return this;
         }
 
+        /** 屏幕级显示：搜索栏之上、所有类别页可见（默认 {@code false} = 插在绑定类别内）。 */
+        public Builder screenWide(boolean screenWide) {
+            this.screenWide = screenWide;
+            return this;
+        }
+
         public ConfigTipCarousel build() {
             if (categoryTitle == null) {
                 throw new IllegalStateException("category required");
             }
-            return new ConfigTipCarousel(categoryTitle, prefix, tipKeys, style);
+            return new ConfigTipCarousel(categoryTitle, prefix, tipKeys, style, screenWide);
         }
     }
 }
