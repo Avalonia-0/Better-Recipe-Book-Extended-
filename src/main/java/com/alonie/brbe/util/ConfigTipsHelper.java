@@ -97,6 +97,8 @@ public final class ConfigTipsHelper {
     private static final String DEFAULT_CATEGORY_KEY = "text.autoconfig.brbe.category.default";
     private static final String UI_ANCHOR_OPTION_KEY = "text.autoconfig.brbe.option.hideReiJeiOverlay";
     private static final String RBIP_SECTION_LABEL_KEY = "brbe.gui.section.recipeBookIsPain";
+    /** 「界面」页「配方书」分节的黄色标题行：插在「显示一键制作按钮」之前。 */
+    private static final String RECIPE_BOOK_SECTION_LABEL_KEY = "brbe.gui.section.recipeBook";
     /** 依次搬过去的条目（相对顺序即此表顺序）。 */
     private static final List<String> RBIP_MOVED_OPTION_KEYS = List.of(
             "text.autoconfig.brbe.option.rbip.enableTabPage",
@@ -113,9 +115,11 @@ public final class ConfigTipsHelper {
      * <ol>
      *   <li>「启用Recipe Book Is Pain」→「§eJust Emulated Items」文字行之前；</li>
      *   <li>「启用一键制作」→ 紧随「启用Recipe Book Is Pain」之后；</li>
-     *   <li>「显示一键制作按钮」→「界面」页顶部（第 0 条）；</li>
+     *   <li>「显示一键制作按钮」→「界面」页顶部，并在它上面插一行黄色纯文字「配方书」；</li>
      *   <li>「启用上侧和下侧的标签」「隐藏翻页按钮」→「界面」页「隐藏物品管理器界面」之后
-     *       （并在它们前面插一行黄色纯文字「Recipe Book Is Pain」）。</li>
+     *       （并在它们前面插一行黄色纯文字「Recipe Book Is Pain」）；</li>
+     *   <li>「隐藏物品管理器界面」→「界面」页最顶部（第 0 条）——RBIP 分区**不跟着走**
+     *       （所以本步必须排在第 4 步之后，见方法内注释）。</li>
      * </ol>
      *
      * <p><b>为什么搬条目而不是搬字段</b>：Cloth 的子对象（{@code @TransitiveObject}）条目
@@ -140,18 +144,27 @@ public final class ConfigTipsHelper {
         moveAfter(defaultEntries, INSTANT_CRAFT_ENABLED_OPTION_KEY, RBIP_MASTER_OPTION_KEY);
         // 3) 「显示一键制作按钮」：「界面」页顶部（跨类别：它原本在「实用功能」页的 instantCraft 组里）
         moveToTopOf(uiEntries, defaultEntries, INSTANT_CRAFT_BUTTON_OPTION_KEY);
+        // 3b) 它上面那条黄色纯文字「配方书」——本节（配方书相关开关）的分节标题行
+        int craftButtonAt = indexOfFieldName(uiEntries, Component.translatable(INSTANT_CRAFT_BUTTON_OPTION_KEY));
+        uiEntries.add(craftButtonAt < 0 ? 0 : craftButtonAt, textRow(builder, RECIPE_BOOK_SECTION_LABEL_KEY));
         // 4) RBIP 两个子开关：搬到「界面」页「隐藏物品管理器界面」之后（前置黄字分节行）
         List<Object> moved = new ArrayList<>();
         for (String key : RBIP_MOVED_OPTION_KEYS) {
             Object entry = removeByFieldName(defaultEntries, Component.translatable(key));
             if (entry != null) moved.add(entry);
         }
-        if (moved.isEmpty()) return;
-        List<Object> toInsert = new ArrayList<>();
-        toInsert.add(textRow(builder, RBIP_SECTION_LABEL_KEY));
-        toInsert.addAll(moved);
-        int anchor = indexOfFieldName(uiEntries, Component.translatable(UI_ANCHOR_OPTION_KEY));
-        uiEntries.addAll(anchor < 0 ? uiEntries.size() : anchor + 1, toInsert);
+        if (!moved.isEmpty()) {
+            List<Object> toInsert = new ArrayList<>();
+            toInsert.add(textRow(builder, RBIP_SECTION_LABEL_KEY));
+            toInsert.addAll(moved);
+            // 锚点条目自身没有 @PrefixText，所以 +1 就落在它下面（黄字行是独立插入的）。
+            int anchor = indexOfFieldName(uiEntries, Component.translatable(UI_ANCHOR_OPTION_KEY));
+            uiEntries.addAll(anchor < 0 ? uiEntries.size() : anchor + 1, toInsert);
+        }
+        // 5) 「隐藏物品管理器界面」：「界面」页最顶部（第 0 条）
+        //    ⚠️ 必须排在第 4 步【之后】：本步会把该锚点整条搬到第 0 条，若先搬，第 4 步
+        //    按它定位就会把整个 RBIP 分区一起带到页面顶部（用户明确要求只搬这一行）。
+        moveToTopOf(uiEntries, defaultEntries, UI_ANCHOR_OPTION_KEY);
     }
 
     /** 把 {@code optionKey} 的条目挪到 {@code anchorKey} 条目之前；{@code skipTextRowAbove} 为真时
