@@ -19,8 +19,9 @@ import java.util.WeakHashMap;
  * <p>用户需求：左侧竖排 {@value #LEFT_TEXT}、右侧竖排 {@value #RIGHT_TEXT}，逐字符纵向排列
  * （字符本身保持正立、只改排布），
  * 首字符顶着上方横线、末字符顶着下方横线；字号与字距可调，窗口缩放后要跟着刷新；
- * 每个字再**逐个横向之字形摆动**（奇数字向左、偶数字向右，幅度 2~8px 随机）并**逐个随机倾斜**
- * （方向顺/逆时针随机、角度 2~12° 随机）—— 两者都是每字独立随机、**每次刷新重掷**，两侧同款。</p>
+ * 每个字再**逐个横向之字形摆动**（奇数字向左、偶数字向右，幅度每字独立随机：左列 2~12px、
+ * 右列 2~8px）并**逐个随机倾斜**（方向顺/逆时针随机、角度 2~12° 随机）——
+ * 两者都是每字独立随机、**每次刷新重掷**。</p>
 
  * <p><b>分片上色</b>：所有字都是 10% 透明，只有色相不同。</p>
  *
@@ -56,7 +57,7 @@ import java.util.WeakHashMap;
  *
  * <p><b>字号</b>：<b>两列共用同一个字号</b> = 两列"各自能放下的最大字号"里较大的那个
  * （{@link #naturalScale}），也就是<b>字数少的那一列</b>的字号；字数多的那列步长因此小于
- * 字格高、相邻字在<b>纵向</b>上叠排，靠逐字之字形摆动（{@link #SWAY_MIN_PX}~{@link #SWAY_MAX_PX}）
+ * 字格高、相邻字在<b>纵向</b>上叠排，靠逐字之字形摆动（{@link #LEFT_SWAY_MIN_PX}~{@link #LEFT_SWAY_MAX_PX} 等）
  * 左右错开。规则与左右无关，所以**调换两侧内容不会改变字号**（用户 2026-09-13）。</p>
  *
  * <p><b>左右分工</b>：字数多的长文案放<b>左</b>侧 —— 左侧空白竖条约 42px、右侧约 38px
@@ -129,9 +130,12 @@ public final class ConfigScreenSideText {
     private static final int BOTTOM_NUDGE = 0;
 
     /** 之字形横向摆动的幅度范围（px，**含两端**）：第 1 个字向左、第 2 个向右、第 3 个向左……
-     *  每个字的幅度独立随机。0 / 0 = 关掉摆动（回到竖直的一条线）。 */
-    private static final int SWAY_MIN_PX = 2;
-    private static final int SWAY_MAX_PX = 8;
+     *  每个字的幅度独立随机。0 / 0 = 关掉摆动（回到竖直的一条线）。
+     *  **左右两列各一组**（用户 2026-09-13：左列 2~12px，右列维持 2~8px）。 */
+    private static final int LEFT_SWAY_MIN_PX = 2;
+    private static final int LEFT_SWAY_MAX_PX = 12;
+    private static final int RIGHT_SWAY_MIN_PX = 2;
+    private static final int RIGHT_SWAY_MAX_PX = 8;
     /** 逐字随机倾斜的角度范围（度，**含两端**）：方向（顺时针 / 逆时针）也逐字随机。
      *  0 / 0 = 关掉倾斜。 */
     private static final int ROTATE_MIN_DEG = 2;
@@ -241,7 +245,7 @@ public final class ConfigScreenSideText {
      */
     public static void onScreenInit(Screen screen) {
         if (!isDecoratedScreen(screen)) return;
-        ROLLS.put(screen, new Roll[] { roll(LEFT_TEXT, LEFT_FIXED), roll(RIGHT_TEXT, RIGHT_FIXED) });
+        ROLLS.put(screen, new Roll[] { rollLeft(), rollRight() });
     }
 
     /**
@@ -269,7 +273,7 @@ public final class ConfigScreenSideText {
         // 没有初始化记录时兜底现掷一次（正常路径由 onScreenInit 负责）。
         Roll[] rolls = ROLLS.get(screen);
         if (rolls == null) {
-            rolls = new Roll[] { roll(LEFT_TEXT, LEFT_FIXED), roll(RIGHT_TEXT, RIGHT_FIXED) };
+            rolls = new Roll[] { rollLeft(), rollRight() };
             ROLLS.put(screen, rolls);
         }
 
@@ -293,18 +297,29 @@ public final class ConfigScreenSideText {
                 scale, screenLeft, screenRight);
     }
 
-    /** 掷一列这一"刷"的随机量：字段颜色 + 左右偏移（奇数字向左、偶数字向右）+ 倾斜角（方向也逐字随机）。 */
-    private static Roll roll(String text, int[] fixedColors) {
+    /** 掷左列的随机量（文案 + 固定色表 + **左列自己的**摆动幅度）。 */
+    private static Roll rollLeft() {
+        return roll(LEFT_TEXT, LEFT_FIXED, LEFT_SWAY_MIN_PX, LEFT_SWAY_MAX_PX);
+    }
+
+    /** 掷右列的随机量（右列有自己的摆动幅度）。 */
+    private static Roll rollRight() {
+        return roll(RIGHT_TEXT, RIGHT_FIXED, RIGHT_SWAY_MIN_PX, RIGHT_SWAY_MAX_PX);
+    }
+
+    /** 掷一列这一"刷"的随机量：字段颜色 + 左右偏移（奇数字向左、偶数字向右，幅度由
+     *  {@code swayMinPx}~{@code swayMaxPx} 给定）+ 倾斜角（方向也逐字随机）。 */
+    private static Roll roll(String text, int[] fixedColors, int swayMinPx, int swayMaxPx) {
         int n = text.codePointCount(0, text.length());
         int[] sway = new int[n];
         float[] angle = new float[n];
-        boolean swayOn = SWAY_MAX_PX > 0;
+        boolean swayOn = swayMaxPx > 0;
         boolean rotateOn = ROTATE_MAX_DEG > 0;
-        int swaySpan = Math.max(1, SWAY_MAX_PX - SWAY_MIN_PX + 1);        // 含两端
+        int swaySpan = Math.max(1, swayMaxPx - swayMinPx + 1);            // 含两端
         int rotateSpan = Math.max(1, ROTATE_MAX_DEG - ROTATE_MIN_DEG + 1);
         for (int i = 0; i < n; i++) {
             if (swayOn) {
-                int mag = SWAY_MIN_PX + RANDOM.nextInt(swaySpan);
+                int mag = swayMinPx + RANDOM.nextInt(swaySpan);
                 sway[i] = (i % 2 == 0) ? -mag : mag;
             }
             if (rotateOn) {
