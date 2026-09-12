@@ -3,7 +3,7 @@ package com.alonie.brbe.neoforge;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.neoforge.PlatformPotionUtilImpl;
 import com.alonie.brbe.config.BrbeConfig;
-import me.shedaniel.autoconfig.AutoConfig;
+import com.alonie.brbe.util.ConfigTipsHelper;
 import net.neoforged.api.distmarker.Dist;
 import net.neoforged.fml.ModContainer;
 import net.neoforged.fml.ModList;
@@ -23,7 +23,7 @@ public final class BetterRecipeBookNeoForge {
 
             ModContainer container = ModList.get().getModContainerById(BetterRecipeBook.MOD_ID).get();
             IConfigScreenFactory factory = (modContainer, parent) ->
-                    AutoConfig.getConfigScreen(BrbeConfig.class, parent).get();
+                    ConfigTipsHelper.buildConfigScreen(BrbeConfig.class, parent);
             container.registerExtensionPoint(IConfigScreenFactory.class, factory);
         }
     }
