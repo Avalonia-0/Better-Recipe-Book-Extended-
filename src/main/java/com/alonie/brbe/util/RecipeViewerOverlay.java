@@ -129,11 +129,20 @@ public final class RecipeViewerOverlay {
      *  no separate panel). */
     private static final int TITLE_BAR_H = 14;
 
-    private static final int PAGE_COLS = 10;
+    /** 对象区的行上限 / 列上限（配置项「配方区行上限」「配方区列上限」，默认
+     *  3 行 x 7 列）的兜底夹紧区间：这两个配置项是**无界限的整型输入框**，
+     *  0 / 负数 / 天文数字都必须退化到能算的区间 —— 一页的容量 = 行 x 列既不能
+     *  为 0（{@code (total + pageSize() - 1) / pageSize()} 会除零）也不能溢出
+     *  int；见 {@link #pageRows()} / {@link #pageCols()}。 */
+    private static final int LIMIT_MIN = 1;
 
-    private static final int PAGE_ROWS = 5;
+    private static final int LIMIT_MAX = 64;
 
-    private static final int PAGE_SIZE = PAGE_COLS * PAGE_ROWS;
+    /** 配置尚未就绪（Cloth Config 缺席 / 启动早期 {@code config == null}）时的
+     *  退化值，与两个配置字段的默认值一致。 */
+    private static final int DEFAULT_ROW_LIMIT = 3;
+
+    private static final int DEFAULT_COL_LIMIT = 7;
 
     private static final int PAGE_BTN_WIDTH = 14;
 
@@ -195,8 +204,49 @@ public final class RecipeViewerOverlay {
     /** Tabs overhang the box bottom by TAB_HEIGHT - 4 (tab top is 4px above the box bottom). */
     private static final int TAB_OVERHANG = TAB_HEIGHT - 4;
 
-    /** Tabs only fold into pages once there are more than this many. */
+    /** 标签条**硬上限**：即使列上限更大，标签窗口也不会超过这个宽度（列上限
+     *  是软上限，见 {@link #maxTabs()}）。 */
     private static final int MAX_TABS = 10;
+
+    /** 查询界面「配方区行上限」（配置项，默认 3）：对象区**一页最多显示的行数**。
+     *
+     *  <p>行上限同时就是**工作站列的对象数量上限**：左侧工作站列的行数由框体
+     *  高度推导（{@link #stationViewRows()} = {@code (boxH - 8) / 25}），而框体
+     *  高度 = 本页行数 x 25 + 8（{@link #fitBoxToPage}），本页行数 =
+     *  {@code ceil(对象数 / 列数)} 恒 <= 行上限 —— 所以工作站列里最多只会出现
+     *  "行上限"个对象，无需再单独钳制列的高度。 */
+    private static int pageRows() {
+        com.alonie.brbe.config.BrbeConfig cfg = BetterRecipeBook.config;
+        return clampLimit(cfg == null ? DEFAULT_ROW_LIMIT : cfg.recipeViewerRowLimit);
+    }
+
+    /** 查询界面「配方区列上限」（配置项，默认 7）：对象区**一页最多显示的列数**，
+     *  同时也就是**底部标签的数量上限**（{@link #maxTabs()} = 列上限与
+     *  {@link #MAX_TABS} 的较小者，一列一个标签；超出时标签条按 REI 式滑窗
+     *  滑动而不是折行）。
+     *
+     *  <p>唯一的例外是**顶部元素**：标题栏整行的加列优先级高于本上限 ——
+     *  {@link #ensureTitleWidth()} 仍可继续创建列（空列）把框体撑宽，直到标题
+     *  文字连同旁边翻页键的占位一起放得下。 */
+    private static int pageCols() {
+        com.alonie.brbe.config.BrbeConfig cfg = BetterRecipeBook.config;
+        return clampLimit(cfg == null ? DEFAULT_COL_LIMIT : cfg.recipeViewerColumnLimit);
+    }
+
+    /** 一页的对象容量 = 行上限 x 列上限。 */
+    private static int pageSize() {
+        return pageRows() * pageCols();
+    }
+
+    /** 标签条一次最多显示的标签数 = {@code min(MAX_TABS, 列上限)}。 */
+    private static int maxTabs() {
+        return Math.max(1, Math.min(MAX_TABS, pageCols()));
+    }
+
+    /** 把配置里的上限夹进 {@link #LIMIT_MIN}..{@link #LIMIT_MAX}。 */
+    private static int clampLimit(int value) {
+        return Math.max(LIMIT_MIN, Math.min(LIMIT_MAX, value));
+    }
 
 
     /** Whether the cycle-pause key (Alt) is currently held — shared with the
@@ -1013,8 +1063,9 @@ public final class RecipeViewerOverlay {
 
 
     // ── Paging ─────────────────────────────────────────────────────────────
-    // Over 50 hits the overlay shows PAGE_SIZE (10 x 5) recipes per page with
-    // the RBIP turn-page buttons above the box.
+    // More objects than one page holds (行上限 x 列上限，配置默认 3 x 7 = 21) the
+    // overlay pages: one page's objects at a time with the turn-page buttons
+    // above the box.
     /** The vanilla alternative-group background sprite (also used by the paged box). */
     private final Identifier OVERLAY_RECIPE_SPRITE =
             Identifier.withDefaultNamespace("recipe_book/overlay_recipe");
@@ -1081,7 +1132,7 @@ public final class RecipeViewerOverlay {
     }
 
     /** First visible category index of the REI-style sliding tab window (window
-     *  size = {@link #MAX_TABS}); {@code 0} when every tab fits.  The wheel over
+     *  size = {@link #maxTabs()}); {@code 0} when every tab fits.  The wheel over
      *  the tab strip switches the selected category and slides the window when
      *  the selection reaches an edge. */
     private int tabWindowStart;
@@ -1508,7 +1559,7 @@ public final class RecipeViewerOverlay {
                     fitGridBoxToPage();
                 }
                 showPage(ownerScreen, boxLeft(), boxTop(),
-                        PAGE_COLS * 25 + 8, PAGE_ROWS * 25 + 8);
+                        pageCols() * 25 + 8, pageRows() * 25 + 8);
                 syncSpec();
             }
             return true;
@@ -1523,7 +1574,7 @@ public final class RecipeViewerOverlay {
     private boolean overScrollZone(double mouseX, double mouseY) {
         int bx = boxLeft();
         int by = boxTop();
-        if (inside(mouseX, mouseY, bx, by, PAGE_COLS * 25 + 8, PAGE_ROWS * 25 + 8)) {
+        if (inside(mouseX, mouseY, bx, by, pageCols() * 25 + 8, pageRows() * 25 + 8)) {
             return true;
         }
         int btnY = pageBtnY();
@@ -1573,7 +1624,7 @@ public final class RecipeViewerOverlay {
                 if (isGridMode()) {
                     fitGridBoxToPage();
                 }
-                showPage(ownerScreen, bx, by, PAGE_COLS * 25 + 8, PAGE_ROWS * 25 + 8);
+                showPage(ownerScreen, bx, by, pageCols() * 25 + 8, pageRows() * 25 + 8);
                 syncSpec();
             }
             return true;
@@ -1590,7 +1641,7 @@ public final class RecipeViewerOverlay {
                 if (isGridMode()) {
                     fitGridBoxToPage();
                 }
-                showPage(ownerScreen, bx, by, PAGE_COLS * 25 + 8, PAGE_ROWS * 25 + 8);
+                showPage(ownerScreen, bx, by, pageCols() * 25 + 8, pageRows() * 25 + 8);
                 syncSpec();
             }
             return true;
@@ -1618,7 +1669,7 @@ public final class RecipeViewerOverlay {
             OverlayRecipeComponentAccessor acc0 = (OverlayRecipeComponentAccessor) overlay;
             acc0.setX(boxX);
             acc0.setY(boxY);
-            int cols = Math.max(1, Math.min(PAGE_COLS, acc0.getRecipeButtons().size()));
+            int cols = Math.max(1, Math.min(pageCols(), acc0.getRecipeButtons().size()));
             List<AbstractWidget> btns0 = acc0.getRecipeButtons();
             for (int i = 0; i < btns0.size(); i++) {
                 int row = i / cols;
@@ -1733,7 +1784,7 @@ public final class RecipeViewerOverlay {
             drawCategoryTabs(gui, mouseX, mouseY, true);
             // Draw the background at the widened box width (the extra columns
             // hold the tab strip), then the buttons at their re-flowed
-            // 10-column positions (see showPage).  vanilla's render
+            // pageCols()-column positions (see showPage).  vanilla's render
             // shrink-wraps the background to the recipe columns, which would
             // leave the widened tabs floating past the box edge.
             OverlayRecipeComponentAccessor acc = (OverlayRecipeComponentAccessor) overlay;
@@ -1776,7 +1827,7 @@ public final class RecipeViewerOverlay {
      *  {@code viewerRecipes} 条目），pin 判定走与配方书相同的稳定 key。 */
     private void drawViewerPinMarkers(GuiGraphics gui, List<AbstractWidget> buttons) {
         if (buttons.isEmpty() || viewerRecipes.isEmpty()) return;
-        int pageStart = viewerPage * PAGE_SIZE;
+        int pageStart = viewerPage * pageSize();
         int count = Math.min(buttons.size(), viewerRecipes.size() - pageStart);
         if (count <= 0) return;
         for (int i = 0; i < count; i++) {
@@ -1791,7 +1842,7 @@ public final class RecipeViewerOverlay {
 
     /** Fill the current page's EMPTY cells with EMPTY placeholder objects:
      *  the box may be wider than the object columns (the tab strip widens it
-     *  to fit up to {@link #MAX_TABS} tabs) and a partially-filled row leaves
+     *  to fit up to {@link #maxTabs()} tabs) and a partially-filled row leaves
      *  trailing cells — the mechanism fills every empty cell of the box's
      *  content rows WITHOUT adding rows/columns (the box itself is never
      *  grown).  The placeholder face is HARD-CODED per the row's RIGHTMOST
@@ -1801,18 +1852,18 @@ public final class RecipeViewerOverlay {
      *  face.  Grid categories (fuel / compost / info) have no state: the
      *  plain cell face.  Pure decoration: not clickable, no hover, no tooltip. */
     private void drawEmptyRowFillers(GuiGraphics gui) {
-        int start = viewerPage * PAGE_SIZE;
+        int start = viewerPage * pageSize();
         int count;
         if (isGridMode()) {
-            count = Math.min(PAGE_SIZE, gridItems.size() - start);
+            count = Math.min(pageSize(), gridItems.size() - start);
         } else {
-            count = Math.min(PAGE_SIZE, viewerRecipes.size() - start);
+            count = Math.min(pageSize(), viewerRecipes.size() - start);
         }
         if (count <= 0) return;
         // Content columns (mirror of fitBoxToPage) vs the box-wide columns:
         // the tab strip can widen the box WITHOUT adding object columns —
         // those tab-created empty columns belong to the filled area too.
-        int columns = Math.max(1, Math.min(PAGE_COLS, count));
+        int columns = Math.max(1, Math.min(pageCols(), count));
         int rows = (count + columns - 1) / columns;
         int colsFill = Math.max(columns, (boxW - 8) / 25);
         List<AbstractWidget> buttons = isGridMode() ? List.of()
@@ -1887,9 +1938,9 @@ public final class RecipeViewerOverlay {
         // Rows grow upward: row 0 sits at the box bottom (against the tab
         // strip); the box was sized to this page's rows/columns by
         // fitGridBoxToPage, so empty rows/columns are already dropped.
-        int start = viewerPage * PAGE_SIZE;
-        int end = Math.min(start + PAGE_SIZE, gridItems.size());
-        int columns = Math.max(1, Math.min(PAGE_COLS, end - start));
+        int start = viewerPage * pageSize();
+        int end = Math.min(start + pageSize(), gridItems.size());
+        int columns = Math.max(1, Math.min(pageCols(), end - start));
         gridHoverStack = null;
         gridHoverCategory = currentCategory;
         var fuelCounts = currentCategory.isFuelCategory()
@@ -1921,9 +1972,9 @@ public final class RecipeViewerOverlay {
         if (gridItems.isEmpty() || currentCategory == null || !currentCategory.isFuelCategory()) {
             return ItemStack.EMPTY;
         }
-        int start = viewerPage * PAGE_SIZE;
-        int end = Math.min(start + PAGE_SIZE, gridItems.size());
-        int columns = Math.max(1, Math.min(PAGE_COLS, end - start));
+        int start = viewerPage * pageSize();
+        int end = Math.min(start + pageSize(), gridItems.size());
+        int columns = Math.max(1, Math.min(pageCols(), end - start));
         for (int i = start; i < end; i++) {
             int idx = i - start;
             int row = idx / columns;
@@ -2052,11 +2103,12 @@ public final class RecipeViewerOverlay {
     }
 
     /** Tabs shown per page — the size of the REI-style sliding tab window
-     *  ({@link #tabWindowStart}).  The box is widened (with empty columns) to
-     *  hold up to {@link #MAX_TABS} tabs, so up to ten tabs are visible at once;
+     *  ({@link #tabWindowStart}) = {@link #maxTabs()} = {@code min(MAX_TABS,
+     *  列上限)}: the object column cap is ALSO the tab-count cap (one tab per
+     *  column).  The box is widened (with empty columns) to hold that many tabs;
      *  with more, the window slides instead of folding into pages. */
     private int visibleTabCount() {
-        return MAX_TABS;
+        return maxTabs();
     }
 
     /** Categories that actually have results for the current query target
@@ -2265,7 +2317,7 @@ public final class RecipeViewerOverlay {
      *  indicators, and the source-mod line directly below the title (gated by
      *  {@code showModName} like every other mod-name line, resolved from the
      *  category's icon item).  The indicators appear only while the strip
-     *  actually slides (more categories than {@link #MAX_TABS}), like the
+     *  actually slides (more categories than {@link #maxTabs()}), like the
      *  station column's markers: ◀ solid while content remains to the LEFT of
      *  the window (window not at the leftmost edge) and hollow ◁ at the
      *  leftmost edge; ▶ solid while content remains to the RIGHT and hollow ▷
@@ -2282,7 +2334,7 @@ public final class RecipeViewerOverlay {
         List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
                 new ArrayList<>();
         net.minecraft.util.FormattedCharSequence title = cat.name().getVisualOrderText();
-        int maxStart = Math.max(0, visibleCategories().size() - MAX_TABS);
+        int maxStart = Math.max(0, visibleCategories().size() - maxTabs());
         if (maxStart > 0) {
             String left = tabWindowStart > 0 ? "\u25C0" : "\u25C1";
             String right = tabWindowStart < maxStart ? "\u25B6" : "\u25B7";
@@ -2679,23 +2731,27 @@ public final class RecipeViewerOverlay {
         int delta = vertical > 0 ? -1 : 1;
         int newIdx = idx + delta;
         if (newIdx < 0 || newIdx >= cats.size()) return false;
-        int maxStart = Math.max(0, cats.size() - MAX_TABS);
+        int perPage = maxTabs();
+        int maxStart = Math.max(0, cats.size() - perPage);
         // Slide the window a step WITH the selection as soon as the selection
-        // is at or past the 6th slot from the edge it moves toward (right:
-        // slot >= 5, left: slot <= 4 in a MAX_TABS-wide window); the old rule
-        // only slid once the selection ran off an edge.
+        // reaches the window's centre slot: it then stays pinned on that slot
+        // while the window follows (right: the centre slot itself; left: one
+        // below it — in the original ten-tab window that is exactly the old
+        // 5 / 4 rule).
         int slot = idx - tabWindowStart;
-        if (delta > 0 && maxStart > 0 && slot >= 5) {
+        int pinRight = Math.max(0, perPage / 2);
+        int pinLeft = Math.max(0, perPage / 2 - 1);
+        if (delta > 0 && maxStart > 0 && slot >= pinRight) {
             tabWindowStart = Math.min(maxStart, tabWindowStart + 1);
-        } else if (delta < 0 && maxStart > 0 && slot <= 4) {
+        } else if (delta < 0 && maxStart > 0 && slot <= pinLeft) {
             tabWindowStart = Math.max(0, tabWindowStart - 1);
         }
         // Keep the newly selected tab visible (safety net when the selection
         // arrived at an edge by other means).
         if (newIdx < tabWindowStart) {
             tabWindowStart = newIdx;
-        } else if (newIdx >= tabWindowStart + MAX_TABS) {
-            tabWindowStart = Math.min(maxStart, newIdx - (MAX_TABS - 1));
+        } else if (newIdx >= tabWindowStart + perPage) {
+            tabWindowStart = Math.min(maxStart, newIdx - (perPage - 1));
         }
         switchCategory(cats.get(newIdx));
         Minecraft mc = Minecraft.getInstance();
@@ -3571,12 +3627,30 @@ public final class RecipeViewerOverlay {
         return windowChromeRect()[0] + 6;
     }
 
-    /** The title's text right bound: when paged it stops before the
-     *  right-aligned turn-page buttons, otherwise at the band's right edge
-     *  (6px padding). */
+    /** Whether the turn-page buttons share the title band: this window spans
+     *  more than one page, so {@link #drawPageControls} right-aligns the two
+     *  buttons inside the band and the title has to make room for them.
+     *
+     *  <p>LAYOUT-time predicate — deliberately NOT {@link #isPaged()}: the box is
+     *  laid out (open / category switch / grid rebuild) BEFORE
+     *  {@code setViewerActive(true)}, so inside {@link #computeBoxSize} /
+     *  {@link #fitBoxToPage} the viewer's active flag is still false on the
+     *  FIRST open.  {@code isPaged()} would then answer "no buttons" and the
+     *  title would reserve no room for the buttons it is about to share its row
+     *  with (31px short) — the title degrades to "…" even though
+     *  {@link #ensureTitleWidth} was supposed to create another column.  The
+     *  layout and the drawn bound both use THIS predicate, so the reserved width
+     *  and the rendered truncation limit can never disagree. */
+    private boolean pageButtonsInBand() {
+        return viewerPageCount > 1;
+    }
+
+    /** The title's text right bound: while the turn-page buttons share the band
+     *  it stops 4px before them, otherwise at the band's right edge (6px
+     *  padding). */
     private int titleTextRightBound() {
         int[] r = windowChromeRect();
-        return isPaged() ? pageBtnX() - 4 : r[0] + r[2] - 6;
+        return pageButtonsInBand() ? pageBtnX() - 4 : r[0] + r[2] - 6;
     }
 
     /** The title text as drawn (truncated with "…" when too long). */
@@ -4178,24 +4252,31 @@ public final class RecipeViewerOverlay {
     }
 
     /** Shared box sizing for the recipe and fuel grids: page count from the
-     *  total, box at the full PAGE_COLS x PAGE_ROWS size.  The box is then
-     *  shrunk to the current page's actual rows/columns by
-     *  {@link #fitBoxToPage} (called from showPage and the grid paths), which
-     *  also re-clamps the position. */
+     *  total, box at the FULL page size (行上限 x 列上限 = {@link #pageRows()} x
+     *  {@link #pageCols()}).  The box is then shrunk to the current page's actual
+     *  rows/columns by {@link #fitBoxToPage} (called from showPage and the grid
+     *  paths), which also re-clamps the position; {@link #ensureTabWidth} and
+     *  {@link #ensureTitleWidth} may then widen it again with empty columns. */
     private void computeBoxSize(int total) {
-        boolean paged = total > PAGE_SIZE;
-        viewerPageCount = paged ? (total + PAGE_SIZE - 1) / PAGE_SIZE : 1;
-        boxW = PAGE_COLS * 25 + 8;
-        boxH = PAGE_ROWS * 25 + 8;
+        int perPage = pageSize();
+        boolean paged = total > perPage;
+        viewerPageCount = paged ? (total + perPage - 1) / perPage : 1;
+        boxW = pageCols() * 25 + 8;
+        boxH = pageRows() * 25 + 8;
         ensureTabWidth();
+        // MUST follow viewerPageCount (set just above): the title reserves room
+        // for the turn-page buttons whenever this window will be paged.
         ensureTitleWidth();
     }
 
-    /** Shrink the box to {@code pageCount} objects and re-clamp it: columns
-     *  cap at PAGE_COLS and empty rows/columns are dropped (the tab strip can
-     *  still widen the box via {@link #ensureTabWidth}), and the box re-anchors
-     *  to the first-object centre ({@link #anchorScreenX} / {@link
-     *  #anchorScreenY}).
+    /** Shrink the box to {@code pageCount} objects and re-clamp it: columns cap
+     *  at the configured 列上限 ({@link #pageCols()} — which is also the tab-count
+     *  cap) and empty rows/columns are dropped.  The resulting row count is
+     *  always {@code <=} the 行上限 ({@link #pageRows()}) and IS the workstation
+     *  column's row count ({@link #stationViewRows()}); the tab strip may then
+     *  widen the box via {@link #ensureTabWidth} and — beyond the column cap —
+     *  the title bar via {@link #ensureTitleWidth}.  The box re-anchors to the
+     *  first-object centre ({@link #anchorScreenX} / {@link #anchorScreenY}).
      *
      *  <p>ESTABLISHED RULE: after the single limit adjustment (band kept on
      *  screen — {@link #clampBandTop}) the anchor is refreshed to the ACTUAL
@@ -4204,7 +4285,7 @@ public final class RecipeViewerOverlay {
      *  pre-adjustment spot.  Returns the column count, which the caller uses
      *  to place its objects. */
     private int fitBoxToPage(int pageCount) {
-        int columns = Math.max(1, Math.min(PAGE_COLS, pageCount));
+        int columns = Math.max(1, Math.min(pageCols(), pageCount));
         int rows = (pageCount + columns - 1) / columns;
         boxW = columns * 25 + 8;
         boxH = rows * 25 + 8;
@@ -4223,8 +4304,8 @@ public final class RecipeViewerOverlay {
     /** {@link #fitBoxToPage} for a grid category, sized to the current page's
      *  slice of {@link #gridItems}. */
     private void fitGridBoxToPage() {
-        int start = viewerPage * PAGE_SIZE;
-        int count = Math.min(start + PAGE_SIZE, gridItems.size()) - start;
+        int start = viewerPage * pageSize();
+        int count = Math.min(start + pageSize(), gridItems.size()) - start;
         fitBoxToPage(count);
     }
 
@@ -4235,11 +4316,17 @@ public final class RecipeViewerOverlay {
     }
 
     /** Widen the box (with empty columns) so the tab strip can show up to
-     *  {@link #MAX_TABS} tabs on a page without folding when there are more tabs
-     *  than recipe columns.  Only above {@link #MAX_TABS} do tabs fold into
-     *  pages. */
+     *  {@link #maxTabs()} tabs on a page without folding when there are more tabs
+     *  than object columns.  Above {@link #maxTabs()} the strip slides (REI-style
+     *  window) instead of folding.
+     *
+     *  <p>{@code maxTabs() = min(MAX_TABS, 列上限)} — one tab per column — so this
+     *  can never widen the box past the column cap's full width
+     *  ({@code pageCols() * 25 + 8}): the TAB STRIP is subject to the column cap.
+     *  The only element allowed to create columns beyond the cap is the title bar,
+     *  see {@link #ensureTitleWidth()}. */
     private void ensureTabWidth() {
-        int tabCount = Math.min(visibleCategories().size(), MAX_TABS);
+        int tabCount = Math.min(visibleCategories().size(), maxTabs());
         int tabW = tabCount * TAB_WIDTH + 8;
         if (tabW > boxW) {
             boxW = tabW;
@@ -4257,9 +4344,22 @@ public final class RecipeViewerOverlay {
      *  truncation branch of {@link #titleText} no longer triggers for any
      *  category name.  The width required is the title's text plus the two pads
      *  {@link #titleTextX} / {@link #titleTextRightBound} impose: 6px at the
-     *  band's left edge; on the right either the same 6px (unpaged) or the
-     *  right-aligned turn-page buttons' footprint (paged).  Both pads are
+     *  band's left edge; on the right either the same 6px (no turn-page buttons)
+     *  or the right-aligned turn-page buttons' footprint.  Both pads are
      *  boxW-independent, so this needs no knowledge of the window's position.
+     *
+     *  <p><b>标题与翻页键绑在一起</b>（2026-09-12）：标题栏整行是"顶部元素"，
+     *  其加列优先级高于列上限（{@link #pageCols()}）；而对象放不下（
+     *  {@link #pageButtonsInBand()}：窗口不止一页）时两个翻页键就右对齐地占着
+     *  同一条标题栏，标题必须给它们让位。于是右内边距在分页时 = 翻页键的占位宽度，
+     *  标题连同伴随的翻页键一起放不下时**继续创建列**，而不是把标题截成"…"。
+     *
+     *  <p>判据用 {@link #pageButtonsInBand()}（只看页数）而**不是**
+     *  {@link #isPaged()}（还要求窗口已激活）：布局发生在窗口被标记为激活之前
+     *  ——{@code openFor} 先 computeBoxSize/fitBoxToPage、后
+     *  {@code setViewerActive(true)}——用 isPaged() 会在**首次打开**时误判"没有
+     *  翻页键"，少留一个按钮位的宽度，而绘制时 {@link #titleTextRightBound} 又按
+     *  "有翻页键"裁切，标题因此退化成"…"。
      *
      *  <p>Horizontal placement stays free (the window may hang off a screen
      *  edge — {@link #clampBandTop} is the only limit), so a long category
@@ -4461,14 +4561,15 @@ public final class RecipeViewerOverlay {
             tabWindowStart = 0;
             return;
         }
-        int maxStart = Math.max(0, cats.size() - MAX_TABS);
+        int perPage = maxTabs();
+        int maxStart = Math.max(0, cats.size() - perPage);
         tabWindowStart = Math.max(0, Math.min(tabWindowStart, maxStart));
         int idx = cats.indexOf(currentCategory);
         if (idx < 0) return;
         if (idx < tabWindowStart) {
             tabWindowStart = idx;
-        } else if (idx >= tabWindowStart + MAX_TABS) {
-            tabWindowStart = Math.min(maxStart, idx - (MAX_TABS - 1));
+        } else if (idx >= tabWindowStart + perPage) {
+            tabWindowStart = Math.min(maxStart, idx - (perPage - 1));
         }
     }
 
@@ -4651,8 +4752,8 @@ public final class RecipeViewerOverlay {
         Minecraft mc = Minecraft.getInstance();
         if (mc.player == null || mc.level == null) return;
 
-        int start = viewerPage * PAGE_SIZE;
-        int end = Math.min(start + PAGE_SIZE, viewerRecipes.size());
+        int start = viewerPage * pageSize();
+        int end = Math.min(start + pageSize(), viewerRecipes.size());
         List<RecipeDisplayEntry> pageEntries = new ArrayList<>(viewerRecipes.subList(start, end));
 
         StackedItemContents stacked = new StackedItemContents();
