@@ -58,7 +58,8 @@ import java.util.WeakHashMap;
  * <p><b>字号</b>：<b>两列共用同一个字号</b> = 两列"各自能放下的最大字号"里较大的那个
  * （{@link #naturalScale}），也就是<b>字数少的那一列</b>的字号；字数多的那列步长因此小于
  * 字格高、相邻字在<b>纵向</b>上叠排，靠逐字之字形摆动（{@link #LEFT_SWAY_MIN_PX}~{@link #LEFT_SWAY_MAX_PX} 等）
- * 左右错开。规则与左右无关，所以**调换两侧内容不会改变字号**（用户 2026-09-13）。</p>
+ * 左右错开。规则与左右无关，所以**调换两侧内容不会改变字号**（用户 2026-09-13）。
+ * 算出来的字号最后整体乘 {@link #SIZE_BOOST}（当前 1.25 = 放大 25%）。</p>
  *
  * <p><b>左右分工</b>：字数多的长文案放<b>左</b>侧 —— 左侧空白竖条约 42px、右侧约 38px
  * （右列还要再右移 {@link #RIGHT_SHIFT_PX}，实际更窄），长文案需要更多横向空间来容纳
@@ -119,9 +120,15 @@ public final class ConfigScreenSideText {
     /** 是否带阴影（原版字体阴影）。 */
     private static final boolean TEXT_SHADOW = false;
 
+    /** 字号**整体倍率**：{@link #naturalScale} 的基准字号再乘这个值 —— 用户 2026-09-13
+     *  要求"字号整体放大 25%"。1.0 = 不放大。基准字号是 {@code 1/SCALE_STEPS} 的整数倍，
+     *  乘 1.25 后仍落在 1/16 的整数倍上，不会引入新的分数粒度。 */
+    private static final float SIZE_BOOST = 1.25F;
     /** 字号上限（倍）：越大字号随窗口长得越猛。1.0 = 原版 8px 像素字的 1 倍；
-     *  取 2.0 时普通窗口下约 13~18px。 */
-    private static final float MAX_SCALE = 2.0F;
+     *  取 2.5 时普通窗口下约 16~22px。
+     *  ⚠️ 它是**封顶值**（在 {@link #SIZE_BOOST} 之后生效）—— 所以放大整体字号时这个上限
+     *  也要跟着抬，否则大窗口那一档会被削掉增量（2.0 → 2.5 就是配合 +25% 抬的）。 */
+    private static final float MAX_SCALE = 2.5F;
     /** 字号吸附粒度：字号会向下取到 1/4 的整数倍（1.0 / 0.75 / 0.5 / 0.25），
      *  避免分数缩放把像素字糊掉。 */
     private static final int SCALE_STEPS = 4;
@@ -336,18 +343,21 @@ public final class ConfigScreenSideText {
     }
 
     /**
-     * 一列的**自然字号**：把 {@code n} 个字以 {@code spacing} 的字距塞进 {@code span} 高度所需的
-     * 最大字号（{@code span / (lineHeight * (1 + (n-1) * spacing))}），再向下吸附到
-     * {@code 1/SCALE_STEPS} 的整数倍、并以 {@link #MAX_SCALE} 封顶。
+     * 一列的**自然字号**，三步：
+     * ① 求出把 {@code n} 个字以 {@code spacing} 的字距塞进 {@code span} 所需的最大字号
+     *   （{@code span / (lineHeight * (1 + (n-1) * spacing))}）；
+     * ② **向下吸附**到 {@code 1/SCALE_STEPS} 的整数倍（让像素字落在整数像素上）；
+     * ③ 整体乘 {@link #SIZE_BOOST}（+25%），最后以 {@link #MAX_SCALE} 封顶。
      *
      * <p>{@link #render} 对**两列各算一次、取较大的那个**当两列共用的字号 —— 也就是字数少的
-     * 那一列的字号。要调字号就改 {@link #SPACING}（字距系数，越大学号越小）或
-     * {@link #MAX_SCALE}（上限），两列会一起变。</p>
+     * 那一列的字号。要调字号就改 {@link #SIZE_BOOST}（整体倍率）、{@link #SPACING}
+     * （字距系数，越大基准字号越小）或 {@link #MAX_SCALE}（封顶），两列会一起变。</p>
      */
     private static float naturalScale(Font font, int span, int n, float spacing) {
         float raw = span / (font.lineHeight * (1.0F + (n - 1) * spacing));
-        float scale = Math.min(MAX_SCALE, snapDown(raw));
-        return scale <= 0.0F ? 1.0F / SCALE_STEPS : scale;
+        float scale = snapDown(raw) * SIZE_BOOST;
+        if (scale <= 0.0F) scale = SIZE_BOOST / SCALE_STEPS;     // 极小窗口的兜底（仍是放大后的最小值）
+        return Math.min(MAX_SCALE, scale);
     }
 
     /**
