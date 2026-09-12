@@ -172,6 +172,8 @@
   "text.autoconfig.brbe.option.showModName.@Tooltip": "顯示物品的來源模組，與 Jade 類似。",
   "text.autoconfig.brbe.option.showModName@Tooltip": "顯示物品的來源模組，與 Jade 類似。",
   "text.autoconfig.brbe.option.usageViewKey": "查詢用途",
+  "text.autoconfig.brbe.option.recipeViewerRowLimit": "配方區行上限",
+  "text.autoconfig.brbe.option.recipeViewerColumnLimit": "配方區列上限",
   "text.autoconfig.brbe.option.usageViewKey.@Tooltip": "查詢該物品作為材料、工作站的配方。",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "查詢該物品作為材料、工作站的配方。",
   "text.autoconfig.brbe.title": "更好的配方書配置"

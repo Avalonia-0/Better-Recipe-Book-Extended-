@@ -161,6 +161,8 @@
   "text.autoconfig.brbe.option.showModName.@Tooltip": "Pokazuje mod, z którego pochodzi przedmiot, podobnie jak Jade.",
   "text.autoconfig.brbe.option.showModName@Tooltip": "Pokazuje mod, z którego pochodzi przedmiot, podobnie jak Jade.",
   "text.autoconfig.brbe.option.usageViewKey": "Wyszukaj zastosowania",
+  "text.autoconfig.brbe.option.recipeViewerRowLimit": "Limit wierszy obszaru receptur",
+  "text.autoconfig.brbe.option.recipeViewerColumnLimit": "Limit kolumn obszaru receptur",
   "text.autoconfig.brbe.option.usageViewKey.@Tooltip": "Pokazuje przepisy, w których ten przedmiot jest materiałem lub stacją.",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "Pokazuje przepisy, w których ten przedmiot jest materiałem lub stacją.",
   "text.autoconfig.brbe.title": "Konfiguracja Better Recipe Book"

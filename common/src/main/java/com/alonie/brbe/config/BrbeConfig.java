@@ -129,6 +129,30 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.Tooltip
     public String usageViewKey = KeybindingCodec.usageViewDefaultRaw();
 
+    /** 查询界面「配方区行上限」：对象区**一页最多显示的行数**，默认 3。
+     *
+     *  <p>行上限同时就是**工作站列的对象数量上限**：查询窗口左侧工作站列的行数
+     *  由框体高度推导（{@code RecipeViewerOverlay.stationViewRows()} =
+     *  {@code (boxH - 8) / 25}），而框体高度 = 本页行数 × 25 + 8，本页行数恒
+     *  ≤ 行上限 —— 所以列里最多只会出现"行上限"个对象，无需额外钳制。
+     *
+     *  <p>GUI：无 tooltip，只接受整型（运行时会夹紧到 1–64）；位置在「查询用途」
+     *  下方、「配方区列上限」上方。 */
+    @ConfigEntry.Category("keybindings")
+    public int recipeViewerRowLimit = 3;
+
+    /** 查询界面「配方区列上限」：对象区**一页最多显示的列数**，默认 7。
+     *
+     *  <p>列上限同时就是**底部标签的数量上限**（标签条一次最多显示
+     *  {@code min(MAX_TABS, 列上限)} 个标签）。唯一的例外是**顶部元素**：标题栏
+     *  整行（标题文字 + 旁边翻页键的占位）的加列优先级高于本上限，放不下时会继续
+     *  创建列把窗口撑宽。
+     *
+     *  <p>GUI：无 tooltip，只接受整型（运行时会夹紧到 1–64）；位置在「配方区行
+     *  上限」下方。 */
+    @ConfigEntry.Category("keybindings")
+    public int recipeViewerColumnLimit = 7;
+
     // -- 「快捷键&数值」页底部的数值项（分节标题「音效与动画」由 ConfigTipsHelper 注入）----
 
     /** 翻页音效音量（0.0–1.0，默认 1.0 = 原生音量），可在「音乐与声音」界面调节。 */
