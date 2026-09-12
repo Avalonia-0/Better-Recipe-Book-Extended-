@@ -156,6 +156,8 @@
   "text.autoconfig.brbe.option.showModName.@Tooltip": "アイテムの出典Modを表示します（Jadeと類似）。",
   "text.autoconfig.brbe.option.showModName@Tooltip": "アイテムの出典Modを表示します（Jadeと類似）。",
   "text.autoconfig.brbe.option.usageViewKey": "用途照会",
+  "text.autoconfig.brbe.option.recipeViewerRowLimit": "レシピエリア行数上限",
+  "text.autoconfig.brbe.option.recipeViewerColumnLimit": "レシピエリア列数上限",
   "text.autoconfig.brbe.option.usageViewKey.@Tooltip": "そのアイテムを材料・作業台として使用するレシピを照会します。",
   "text.autoconfig.brbe.option.previewMode": "プレビューモード",
   "text.autoconfig.brbe.option.previewMode.@Tooltip": "画面を開き直しても照会ウィンドウは復元されず、他の要素と操作するとウィンドウが閉じます。",
