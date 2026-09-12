@@ -77,11 +77,15 @@ public final class ConfigScreenSideText {
 
     // ── 可调参数 ────────────────────────────────────────────────────────────
 
-    /** 竖排文字（左侧）。**字数多的长文案放左边** —— 左侧空白竖条更宽（42px vs 38px，
-     *  且右列还要再右移 {@link #RIGHT_SHIFT_PX}），长文案需要更多横向空间容纳摆动与倾斜。 */
-    private static final String LEFT_TEXT = "Adorable♡Girl aVa Seriously Extended";
+    /** 竖排文字（左侧）。放在**更宽**的左侧竖条（42px vs 38px，右列还要再右移
+     *  {@link #RIGHT_SHIFT_PX}）—— 左列的摆动幅度更大（{@link #LEFT_SWAY_MAX_PX} 12px），
+     *  需要更多横向空间。</p>
+     *
+     *  <p>⚠️ 两列**字数刻意保持相等**（各 27 字）：字数相等 → 两列自然字号相同 →
+     *  步长都正好是「字格高 × {@link #SPACING}」，**谁都不叠排**（见 {@link #naturalScale}）。 */
+    private static final String LEFT_TEXT = "Adorable♡Girl aVa Seriously";
     /** 竖排文字（右侧）。 */
-    private static final String RIGHT_TEXT = "Better Recipe Book";
+    private static final String RIGHT_TEXT = "Better Recipe Book Extended";
     /** 两列的码点数 —— 字号取两列中**较大的那个自然字号**（见 {@link #naturalScale}），与左右无关。 */
     private static final int LEFT_LENGTH = LEFT_TEXT.codePointCount(0, LEFT_TEXT.length());
     private static final int RIGHT_LENGTH = RIGHT_TEXT.codePointCount(0, RIGHT_TEXT.length());
