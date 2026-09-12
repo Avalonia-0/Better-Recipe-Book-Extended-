@@ -3,15 +3,12 @@ package com.alonie.brbe.fabric;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.fabric.PlatformPotionUtilImpl;
 import com.alonie.brbe.cache.RecipeViewerIndex;
-import com.alonie.brbe.compat.OverlayHider;
 import com.alonie.brbe.config.KeybindingCodec;
 import com.alonie.brbe.config.KeybindingGuiRegistrar;
 import com.alonie.brbe.config.PinyinSearchGuiRegistrar;
 import me.shedaniel.clothconfig2.api.ModifierKeyCode;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
-import com.alonie.brbe.impl.hud.JeiHudHider;
-import com.alonie.brbe.impl.hud.ReiHudHider;
 import com.alonie.brbe.loaders.PotionLoader;
 import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import net.fabricmc.api.ClientModInitializer;
@@ -113,14 +110,8 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         KeybindingGuiRegistrar.register();
         PinyinSearchGuiRegistrar.register();
 
-        // Register HUD hiders (JEI + REI overlay control)
-        OverlayHider.register(new JeiHudHider());
-        OverlayHider.register(new ReiHudHider());
-
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             this.registeredScreens.remove(screen);
-            // Apply overlay hide state immediately when screen opens (no flash)
-            OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
         });
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
             if (client.level != null) {
@@ -140,15 +131,6 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             // 首轮 attach 失败；数据就绪后补挂一次，完成即 O(1) 返回）。
             com.alonie.brbe.cache.BrbeJeiBridge.pollSmithingLayoutFallback();
             Screen screen = client.screen;
-            // Only the user's config toggle hides the JEI/REI overlay — BRBE
-            // overlays (query viewer / pins) must co-exist with the real JEI
-            // ingredient list instead of hiding it.
-            if (screen != null) {
-                OverlayHider.setOverlaysHidden(BetterRecipeBook.config.hideReiJeiOverlay);
-                if (BetterRecipeBook.config.hideReiJeiOverlay) {
-                    OverlayHider.ensureJeiOverlayHidden();
-                }
-            }
             if (screen == null || this.registeredScreens.contains(screen) || !TopLayerOverlayRenderer.hasOverlay(screen)) {
                 return;
             }
