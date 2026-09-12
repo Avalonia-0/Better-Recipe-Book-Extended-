@@ -38,12 +38,12 @@ public final class ConfigTipsHelper {
     private static final List<ConfigTipCarousel> CAROUSELS = new ArrayList<>();
 
     static {
-        // 默认："提示：xxx"功能 tips 轮循行 —— **屏幕级**：显示在搜索栏之上，所有类别页都可见
+        // 默认：轮循 tips 行（只显示文案本身，无前缀）—— **屏幕级**：显示在搜索栏之上，
+        // 所有类别页都可见
         // （category(...) 仅作标识；屏幕级由 .screenWide(true) 决定）
         registerCarousel(ConfigTipCarousel.builder()
                 .category(Component.translatable("text.autoconfig.brbe.category.default"))
                 .screenWide(true)
-                .prefix(Component.translatable("brbe.gui.tip.prefix"))
                 // 文案池：序号保留历史编号 —— 原来的 4 / 5 已按用户要求移除、不补位，
                 // 这样 "tip.N" 在译文/文档/对话里始终指同一条（tip.2 与 tip.9 也按用户定稿改过文案）。
                 .tipKeys(List.of("brbe.gui.tip.1", "brbe.gui.tip.2", "brbe.gui.tip.3",
@@ -364,10 +364,7 @@ public final class ConfigTipsHelper {
         for (ConfigTipCarousel carousel : CAROUSELS) {
             if (!carousel.hasTips()) continue;
             int idx = carousel.nextTipIndex();
-            Component line = carousel.prefix() == null
-                    ? carousel.tipAt(idx).copy().withStyle(carousel.style())
-                    : carousel.prefix().copy().withStyle(carousel.style())
-                            .append(carousel.tipAt(idx).copy().withStyle(carousel.style()));
+            Component line = carousel.tipAt(idx).copy().withStyle(carousel.style());
             AbstractConfigListEntry<?> row = builder.entryBuilder().startTextDescription(line).build();
             if (carousel.screenWide()) {
                 screenWide.add(row);
