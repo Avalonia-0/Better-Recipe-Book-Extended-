@@ -8,8 +8,8 @@ import java.util.List;
 /**
  * 一条配置界面轮循提示行。
  *
- * <p>每个轮循行有一个可选前缀（如"提示："）与一个文案池，每次打开配置界面显示一条
- * （随机，且避免相邻重复）。多个轮循行各自独立不重复。</p>
+ * <p>每个轮循行有一个文案池，每次打开配置界面显示一条（随机，且避免相邻重复）。
+ * 多个轮循行各自独立不重复。</p>
  *
  * <p>显示位置有两种（{@link #screenWide()}）：</p>
  * <ul>
@@ -24,17 +24,15 @@ import java.util.List;
 public final class ConfigTipCarousel {
 
     private final Component categoryTitle;
-    private final Component prefix;
     private final List<String> tipKeys;
     private final ChatFormatting style;
     private final boolean screenWide;
 
     private int lastIndex = -1;
 
-    private ConfigTipCarousel(Component categoryTitle, Component prefix,
+    private ConfigTipCarousel(Component categoryTitle,
                               List<String> tipKeys, ChatFormatting style, boolean screenWide) {
         this.categoryTitle = categoryTitle;
-        this.prefix = prefix;
         this.tipKeys = tipKeys;
         this.style = style;
         this.screenWide = screenWide;
@@ -42,10 +40,6 @@ public final class ConfigTipCarousel {
 
     public Component categoryTitle() {
         return categoryTitle;
-    }
-
-    public Component prefix() {
-        return prefix;
     }
 
     public boolean hasTips() {
@@ -89,7 +83,6 @@ public final class ConfigTipCarousel {
 
     public static final class Builder {
         private Component categoryTitle;
-        private Component prefix;
         private List<String> tipKeys = List.of();
         private ChatFormatting style = ChatFormatting.YELLOW;
         private boolean screenWide = false;
@@ -99,11 +92,6 @@ public final class ConfigTipCarousel {
 
         public Builder category(Component categoryTitle) {
             this.categoryTitle = categoryTitle;
-            return this;
-        }
-
-        public Builder prefix(Component prefix) {
-            this.prefix = prefix;
             return this;
         }
 
@@ -127,7 +115,7 @@ public final class ConfigTipCarousel {
             if (categoryTitle == null) {
                 throw new IllegalStateException("category required");
             }
-            return new ConfigTipCarousel(categoryTitle, prefix, tipKeys, style, screenWide);
+            return new ConfigTipCarousel(categoryTitle, tipKeys, style, screenWide);
         }
     }
 }

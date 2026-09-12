@@ -36,7 +36,6 @@
   "brbe.gui.tip.7": "所有代码均由DeepSeek生成！",
   "brbe.gui.tip.8": "按住Ctrl并点击配方区的翻页键，即可快速跳转至首页或尾页。",
   "brbe.gui.tip.9": "在配方区跳转指定页码的方法：在搜索栏输入“……”，再输入页码，最后再输入“……”。（“……”可替换为“^”）",
-  "brbe.gui.tip.prefix": "提示：",
 "brbe.gui.section.recipeBookIsPain": "Recipe Book Is Pain",
 "brbe.gui.section.recipeBook": "配方书",
 "brbe.gui.section.general": "通用",
