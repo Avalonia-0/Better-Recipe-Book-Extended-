@@ -883,16 +883,6 @@ public final class RecipeViewerOverlay {
         drawPageButton(gui, bx + 15, btnY, true, nextActive, mouseX, mouseY);
     }
 
-    /** 画一个翻页按钮：14x13 的箭头贴图**绕按钮自身中心逆时针旋转 90°**
-     *  （2026-09-13 用户要求）。两个按钮**各自独立旋转**（各绕自己的中心），
-     *  所以按按钮逐个 push/translate/rotate，而不是绕两个按钮的中点旋转一次
-     *  （那样会把两个按钮叠成竖排）。
-     *
-     *  <p>贴图以平移后的原点为中心绘制（{@code (-W/2, -H/2)}）——旋转中心即
-     *  贴图自己的中心。14x13 的中心带半个像素，取整后旋转后的图形与原来的
-     *  位置相差 ≤0.5px；**命中区不变**（{@link #drawPageControls} /
-     *  {@link #handlePageButtonClick} 仍测未旋转的矩形），只有画面旋转：
-     *  左箭头朝下、右箭头朝上。</p> */
     private static void drawPageButton(GuiGraphics gui, int x, int y, boolean next,
                                        boolean activeButton, int mouseX, int mouseY) {
         int u = next ? 14 : 0;
@@ -900,13 +890,7 @@ public final class RecipeViewerOverlay {
             u += 28;
         }
         int v = activeButton ? 0 : 13;
-        gui.pose().pushPose();
-        gui.pose().translate(x + PAGE_BTN_WIDTH / 2.0f, y + PAGE_BTN_HEIGHT / 2.0f, 0.0F);
-        // 负 Z 角 = 屏幕上逆时针（GUI 的 y 向下），与底部标签条的 -90° 同一约定。
-        gui.pose().mulPose(com.mojang.math.Axis.ZP.rotation(-(float) Math.PI / 2.0F));
-        gui.blit(RBIP_PAGE_BUTTONS, -PAGE_BTN_WIDTH / 2, -PAGE_BTN_HEIGHT / 2, u, v,
-                PAGE_BTN_WIDTH, PAGE_BTN_HEIGHT, 256, 256);
-        gui.pose().popPose();
+        gui.blit(RBIP_PAGE_BUTTONS, x, y, u, v, PAGE_BTN_WIDTH, PAGE_BTN_HEIGHT, 256, 256);
     }
 
     /** 分类标签条（-90° 旋转 + TAB_CUT 拼贴，1.21.11 同款）。 */
