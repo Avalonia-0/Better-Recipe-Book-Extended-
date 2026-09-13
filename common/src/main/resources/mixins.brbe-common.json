@@ -59,6 +59,7 @@
     "scrollablepages.RecipeBookPageMixin",
     "cyclelock.GhostRecipeCycleLockMixin",
     "cyclelock.RecipeButtonCycleLockMixin",
+    "cyclelock.GhostIngredientCycleLockMixin",
     "scrollablepages.RecipeBookPageAnimationMixin",
     "settings.RecipeBookComponentMixin",
     "toasts.RemoveToasts",

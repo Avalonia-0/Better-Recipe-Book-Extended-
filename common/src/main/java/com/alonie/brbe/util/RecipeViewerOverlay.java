@@ -726,12 +726,15 @@ public final class RecipeViewerOverlay {
         if (com.alonie.brbe.pinoverlay.PinOverlayManager.handleMouseScrolled(mouseX, mouseY, vertical)) {
             return true;
         }
-        // Alt+滚轮：步进轮循变体（最高优先，1.21.11 语义）
-        // 锁定键+滚轮：逐格翻动折叠对象。指针落在 LEI 预览界面上时两者都不触发
-        // （用户 2026-09-13 要求：预览是独立的一层）。
-        if (vertical != 0 && isCycleAltDown() && active && !pointerOnPreview()) {
-            stepCycledVariants(vertical);
-            return true;
+        // 锁定键+滚轮：逐格翻动**指针下那一件**折叠物品（用户 2026-09-13 诉求 2）。
+        // 物品由各前端在绘制时用 CycleLock.claim 登记——查询浮层的对象按钮、
+        // Shift 预览弹窗里的槽位、pin 里的槽位都算；预览/pin 画在浮层之上，所以
+        // 指针在它们上面时登记的自然是它们自己的槽位（诉求 1：指着预览时滚轮
+        // 翻动的就是预览里的那件物品）。没有物品被指着时不消费滚轮。
+        if (vertical != 0 && CycleLock.isDown() && active) {
+            if (CycleLock.step(vertical)) {
+                return true;
+            }
         }
         if (!active) return false;
         // Shift 预览弹窗吞掉滚轮（翻页会重建按钮销毁弹窗）
@@ -2434,48 +2437,11 @@ public final class RecipeViewerOverlay {
 
     // ── 变体轮循（Alt+滚轮手工步进；1.21.11 SlotSelectTime 语义的 1.21.1 版） ──
 
-    /** Alt 按住期间冻结的轮循索引（松开后自动轮循恢复）。 */
-    private static int manualCycleIndex = -1;
-    private static boolean cyclePaused;
-
     private static boolean isCycleAltDown() {
-        return ClientCompat.isCycleLockDown();
-    }
-
-    /** 指针是否落在**打开中的 LEI 预览界面**（Shift 弹窗）上：此时锁定键不
-     *  冻结、滚轮也不翻动查询浮层里的折叠对象（用户 2026-09-13 要求）——预览
-     *  是独立的一层，指着它时锁定键与滚轮只属于它自己。 */
-    public static boolean pointerOnPreview() {
-        if (!popupOpen || popupRect == null) return false;
-        return inRect(mouseXFor(), mouseYFor(), popupRect);
+        return CycleLock.isDown();
     }
 
     // ── 配方书 / 功能方块幽灵物品的折叠锁（1.21.1 的轮换 = 各实例自己的 time 字段）──
-
-    /** 锁定键（配置项「锁定折叠物品」，默认 Alt）是否按住、且指针不在预览界面上。
-     *  解锁时清零累计步进（下一次按下从新的冻结值开始）。 */
-    public static boolean bookCycleLocked() {
-        boolean lock = ClientCompat.isCycleLockDown() && !pointerOnPreview();
-        if (!lock && bookCyclePaused) {
-            bookCyclePaused = false;
-            bookCycleSteps = 0;
-        }
-        return lock;
-    }
-
-    /** 锁定键+滚轮累计的「交换格数」：调用方把它乘以 30 tick 加到冻结的
-     *  {@code time} 上（原版 {@code floor(time / 30) % n} 选变体）。 */
-    public static int bookCycleSteps() {
-        return bookCycleSteps;
-    }
-
-    /** 锁定键+滚轮（配方书网格按钮 / 功能方块幽灵物品）：逐格翻动冻结值。
-     *  {@code step} 符号与 {@code queuedScroll} 一致（上滚 = -1 = 上一个变体）。 */
-    public static void stepBookCycle(int step) {
-        if (step == 0) return;
-        bookCyclePaused = true;
-        bookCycleSteps += step;
-    }
 
     /** 「在配方区使用自然的翻页方向」（默认开）：{@code true} = 鼠标滚轮向前
      *  （上滚）往后翻页；{@code false} = 旧方向（上滚往前翻页）。只作用于
@@ -2483,29 +2449,6 @@ public final class RecipeViewerOverlay {
     private static boolean naturalPageDirection() {
         return BetterRecipeBook.config == null || BetterRecipeBook.config.naturalPageDirection;
     }
-
-    /** The slot-select cycle index used by every BRBE front-end (viewer overlay
-     *  buttons, popup, tooltip preview, pin): while Alt is held the rotation
-     *  freezes on the Alt-press index and Alt+wheel steps it; on release the
-     *  automatic cycle resumes (1.21.11 currentSlotSelectIndex 语义）。 */
-    public static int currentSlotSelectIndex(int autoIndex) {
-        // 指针落在 LEI 预览界面上时锁定键不生效（用户 2026-09-13 要求）。
-        boolean alt = isCycleAltDown() && !pointerOnPreview();
-        if (alt) {
-            if (!cyclePaused) {
-                cyclePaused = true;
-                manualCycleIndex = autoIndex;
-            }
-        } else if (cyclePaused) {
-            cyclePaused = false;
-            manualCycleIndex = -1;
-        }
-        return cyclePaused ? manualCycleIndex : autoIndex;
-    }
-
-    /** 配方书/幽灵物品折叠锁的累计步进与状态（见 {@link #bookCycleLocked()}）。 */
-    private static int bookCycleSteps;
-    private static boolean bookCyclePaused;
 
     /** Shift 弹窗内光标所在槽位的物品（阶段一 #3；经 PopupGeometry.itemAt
      *  命中，selIdx 与按钮轮循同源——游戏时间 /30）。无命中返回空。 */
@@ -2515,20 +2458,9 @@ public final class RecipeViewerOverlay {
         Minecraft mc = Minecraft.getInstance();
         int autoIndex = mc != null && mc.player != null
                 ? Mth.floor(mc.player.tickCount / 30.0f) : 0;
-        int selIdx = currentSlotSelectIndex(autoIndex % Math.max(1, 3));
+        // 指针下那件折叠物品的当前显示下标（冻结时取冻结值，否则自动值）。
+        int selIdx = CycleLock.hoveredOr(autoIndex % Math.max(1, 3));
         return ref.geometry().itemAt(mx, my, selIdx);
     }
 
-    /** Alt+wheel: step the paused slot-select index for the viewer's overlay
-     *  buttons (the overlay .time / 30 % len auto-cycle freezes under Alt). */
-    private static boolean stepCycledVariants(double vertical) {
-        cyclePaused = true;
-        if (manualCycleIndex < 0) {
-            manualCycleIndex = (int) (((OverlayRecipeComponentAccessor) (Object) overlayComponent)
-                    .getTime() / 30);
-        }
-        manualCycleIndex += vertical > 0 ? -1 : 1;
-        if (manualCycleIndex < 0) manualCycleIndex = 0;
-        return true;
-    }
 }

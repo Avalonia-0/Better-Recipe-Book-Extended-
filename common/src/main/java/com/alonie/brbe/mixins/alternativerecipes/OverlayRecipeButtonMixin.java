@@ -4,6 +4,7 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonPosAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeComponentAccessor;
 import com.alonie.brbe.util.BRBTextures;
+import com.alonie.brbe.util.CycleLock;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -76,6 +77,23 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
             ItemStack recipeOutput = this.recipe.value().getResultItem(field_3113.getRecipeCollection().registryAccess());
             gui.renderItem(recipeOutput, getX() + 4, getY() + 4);
         } else { // otherwise display the crafting recipe
+            // 逐物品折叠锁（用户 2026-09-13 诉求 2）：整块按钮当作**一件**折叠物品
+            // ——只有指针下这一个按钮会冻结（首次冻结时 latch 住当时显示的变体），
+            // 锁定键+滚轮也只翻动它；其余按钮照常自动轮换。查询浮层里的按钮直接
+            // 判定，配方书自己的替代配方按钮走屏幕层判定（LEI 浮层挡住指针时不判定）。
+            int autoIndex = Mth.floor(((OverlayRecipeComponentAccessor) field_3113).getTime() / 30.0f);
+            Object cycleKey = this;
+            boolean onViewer = com.alonie.brbe.util.RecipeViewerOverlay.isActive();
+            boolean claimed = onViewer
+                    ? CycleLock.claim(cycleKey, getX(), getY(), width, height)
+                    : CycleLock.claimScreen(cycleKey, getX(), getY(), width, height);
+            final int selIdx;
+            if (claimed) {
+                selIdx = CycleLock.indexFor(cycleKey, autoIndex);
+            } else {
+                CycleLock.release(cycleKey);
+                selIdx = autoIndex;
+            }
             gui.pose().translate(this.getX() + 2, this.getY() + 2, 150.0);
             for (Object rawPos : this.ingredientPos) {
                 OverlayRecipeButtonPosAccessor pos = (OverlayRecipeButtonPosAccessor) rawPos;
@@ -88,9 +106,6 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
                 gui.pose().translate(-8.0, -8.0, 0.0);
                 ItemStack[] ingredients = pos.brbe$getIngredients();
                 if (ingredients.length > 0) {
-                    int autoIndex = Mth.floor(((OverlayRecipeComponentAccessor) field_3113).getTime() / 30.0f);
-                    // Alt 按住时冻结/Alt+滚轮步进轮循（1.21.11 semantic）
-                    int selIdx = com.alonie.brbe.util.RecipeViewerOverlay.currentSlotSelectIndex(autoIndex);
                     gui.renderItem(ingredients[Math.floorMod(selIdx, ingredients.length)], 0, 0);
                 }
                 gui.pose().popPose();

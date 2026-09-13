@@ -1,49 +1,47 @@
 package com.alonie.brbe.mixins.cyclelock;
 
-import com.alonie.brbe.util.RecipeViewerOverlay;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.recipebook.GhostRecipe;
 import org.spongepowered.asm.mixin.Mixin;
-import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
- * 功能方块里的**幽灵物品**轮换的折叠锁（1.21.1 专有挂钩）。
+ * 记录幽灵配方**渲染原点**（容器左上角），供逐物品折叠锁做指针命中判定。
  *
- * <p>1.21.1 没有 1.21.9+ 的 {@code SlotSelectTime}：幽灵物品的变体由
+ * <p>1.21.1 与 1.21.9+ 不同：没有 {@code SlotSelectTime}，幽灵物品的变体由
  * {@code GhostRecipe.time} 驱动（{@code GhostIngredient.getItem()} =
- * {@code items[floor(time / 30) % n]}），而 {@code render} 每帧把
- * {@code time += delta}（Ctrl 按住时原版自己会跳过推进）。这里在 RETURN 把
- * {@code time} 压回「按下锁定键那一刻的值 + 滚轮步进 × 30」——冻结与逐格翻动
- * 都由这一处实现（用户 2026-09-13 诉求 1）。</p>
+ * {@code items[floor(time / 30) % n]}），而且每个 {@code GhostIngredient} 的位置是
+ * **容器相对坐标**（{@code Slot.x/y}）——真正的屏幕坐标 = 渲染原点 + 它。原点只在
+ * {@code GhostRecipe.render(gui, mc, x, y, …)} 的参数里出现，所以这里在 HEAD 记下来
+ * （{@link GhostRecipeOrigin} 暴露给 {@link GhostIngredientCycleLockMixin}）。</p>
  */
 @Mixin(GhostRecipe.class)
-public abstract class GhostRecipeCycleLockMixin {
-
-    @Shadow
-    private float time;
+public abstract class GhostRecipeCycleLockMixin implements GhostRecipeOrigin {
 
     @Unique
-    private float brbe$frozenTime;
+    private int brbe$originX;
 
     @Unique
-    private boolean brbe$frozen;
+    private int brbe$originY;
 
-    @Inject(method = "render", at = @At("RETURN"))
-    private void brbe$holdCycle(GuiGraphics gui, Minecraft minecraft, int x, int y,
-                                boolean isFirst, float delta, CallbackInfo ci) {
-        if (RecipeViewerOverlay.bookCycleLocked()) {
-            if (!brbe$frozen) {
-                brbe$frozen = true;
-                brbe$frozenTime = this.time;
-            }
-            this.time = brbe$frozenTime + RecipeViewerOverlay.bookCycleSteps() * 30.0F;
-        } else if (brbe$frozen) {
-            brbe$frozen = false;
-        }
+    @Inject(method = "render", at = @At("HEAD"))
+    private void brbe$captureOrigin(GuiGraphics gui, Minecraft minecraft, int x, int y,
+                                    boolean isFirst, float delta, CallbackInfo ci) {
+        brbe$originX = x;
+        brbe$originY = y;
+    }
+
+    @Override
+    public int brbe$originX() {
+        return brbe$originX;
+    }
+
+    @Override
+    public int brbe$originY() {
+        return brbe$originY;
     }
 }

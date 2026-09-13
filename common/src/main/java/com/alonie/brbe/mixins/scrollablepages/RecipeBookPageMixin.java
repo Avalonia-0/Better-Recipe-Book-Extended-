@@ -107,10 +107,12 @@ public abstract class RecipeBookPageMixin {
             BetterRecipeBook.setQueuedScroll(0);
             return;
         }
-        // 「锁定折叠物品」键按住时滚轮改为**逐格翻动折叠物品**（配方书网格按钮的
-        // 配方图标 / 功能方块里的幽灵物品），不翻页（用户 2026-09-13 诉求 1）。
-        if (BetterRecipeBook.getQueuedScroll() != 0 && ClientCompat.isCycleLockDown()) {
-            com.alonie.brbe.util.RecipeViewerOverlay.stepBookCycle(BetterRecipeBook.getQueuedScroll());
+        // 「锁定折叠物品」键按住时滚轮改为**逐格翻动指针下那一件折叠物品**（配方书
+        // 网格按钮的配方图标 / 功能方块里的幽灵物品），不翻页（用户 2026-09-13
+        // 诉求 1+2）。没有物品被指着时不消费滚轮，照常翻页。
+        if (BetterRecipeBook.getQueuedScroll() != 0
+                && com.alonie.brbe.util.CycleLock.isDown()
+                && com.alonie.brbe.util.CycleLock.step(BetterRecipeBook.getQueuedScroll())) {
             BetterRecipeBook.setQueuedScroll(0);
             return;
         }
