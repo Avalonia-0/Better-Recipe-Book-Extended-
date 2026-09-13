@@ -177,6 +177,8 @@
   "text.autoconfig.brbe.option.usageViewKey.@Tooltip": "查詢該物品作為材料、工作站的配方。",
   "text.autoconfig.brbe.option.previewMode": "預覽模式",
   "text.autoconfig.brbe.option.previewMode.@Tooltip": "重新開啟介面時查詢視窗不再恢復，與其他元素互動時也會關閉查詢視窗。",
+  "text.autoconfig.brbe.option.naturalPageDirection": "在配方區使用自然的翻頁方向",
+  "text.autoconfig.brbe.option.naturalPageDirection.@Tooltip": "調轉滑鼠滾輪的翻頁方向。",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "查詢該物品作為材料、工作站的配方。",
   "text.autoconfig.brbe.option.recipeViewerEnabled": "啟用LEI",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@PrefixText": "§eLikewise Enough Items（物品管理器）",

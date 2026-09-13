@@ -184,6 +184,8 @@
   "text.autoconfig.brbe.option.usageViewKey.@Tooltip": "查询该物品作为材料、工作站的配方。",
   "text.autoconfig.brbe.option.previewMode": "预览模式",
   "text.autoconfig.brbe.option.previewMode.@Tooltip": "重新开启界面时查询窗口不再恢复，与其他元素交互时也会关闭查询窗口。",
+  "text.autoconfig.brbe.option.naturalPageDirection": "在配方区使用自然的翻页方向",
+  "text.autoconfig.brbe.option.naturalPageDirection.@Tooltip": "调转鼠标滚轮的翻页方向。",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "查询该物品作为材料、工作站的配方。",
   "text.autoconfig.brbe.title": "更好的配方书配置"
 }

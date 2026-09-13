@@ -157,6 +157,8 @@
   "text.autoconfig.brbe.option.usageViewKey.@Tooltip": "そのアイテムを材料・作業台として使用するレシピを照会します。",
   "text.autoconfig.brbe.option.previewMode": "プレビューモード",
   "text.autoconfig.brbe.option.previewMode.@Tooltip": "画面を開き直しても照会ウィンドウは復元されず、他の要素と操作するとウィンドウが閉じます。",
+  "text.autoconfig.brbe.option.naturalPageDirection": "レシピエリアで自然なページ送り方向を使う",
+  "text.autoconfig.brbe.option.naturalPageDirection.@Tooltip": "マウスホイールのページ送り方向を反転します。",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "そのアイテムを材料・作業台として使用するレシピを照会します。",
   "text.autoconfig.brbe.option.recipeViewerEnabled": "LEIを有効にする",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@PrefixText": "§eLikewise Enough Items（アイテムマネージャー）",
