@@ -28,6 +28,18 @@ public final class TopLayerOverlayRenderer {
     }
 
     public static void render(Screen screen, GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        // A BRBE query window is the top-most layer.  This hook runs at the END
+        // of the frame (Fabric's after-render event) and raises the stratum
+        // itself, so an unconditional host-group draw lands ABOVE the window —
+        // which the screen's own RETURN hook drew earlier (2026-09-13 user
+        // report: the alternative-recipe group covered the query window).
+        // While a window is open the group stays where the book page drew it,
+        // one stratum below the window: still visible wherever the window does
+        // not cover it, and the window wins where it does.
+        if (RecipeViewerOverlay.isActive()) {
+            return;
+        }
+
         if (screen instanceof TopLayerOverlayProvider provider) {
             if (provider.brbe$hasTopLayerOverlay()) {
                 guiGraphics.nextStratum();

@@ -3664,20 +3664,6 @@ public final class RecipeViewerOverlay {
         }
     }
 
-    /** Draw one turn-page button: its 14x13 arrow texture rotated 90°
-     *  <b>counter-clockwise about the button's own centre</b> (2026-09-13 user
-     *  request).  The two buttons rotate INDEPENDENTLY — each around its own
-     *  centre — which is why the pose is pushed, translated to that centre and
-     *  rotated per button instead of once around the pair's midpoint (that
-     *  would stack the two buttons vertically).
-     *
-     *  <p>The blit is centred on the translated origin: {@code (-W/2, -H/2)}
-     *  makes the sprite's own centre the rotation centre.  Its rect centre is
-     *  the nearest integer pair to the button rect's centre (14x13 has a
-     *  half-pixel centre), so the turned glyph lands within ±0.5px of where the
-     *  unturned one sat — the HIT BOX is untouched ({@link #drawPageControls} /
-     *  {@link #handlePageButtonClick} still test the unrotated rect), so only
-     *  the art turns: the left arrow now points down, the right one up.</p> */
     private void drawPageButton(GuiGraphics gui, int x, int y, boolean next,
                                       boolean active, int mouseX, int mouseY) {
         int u = next ? 14 : 0;
@@ -3686,15 +3672,8 @@ public final class RecipeViewerOverlay {
             u += 28;
         }
         int v = active ? 0 : 13;
-        gui.pose().pushMatrix();
-        gui.pose().translate(x + PAGE_BTN_WIDTH / 2.0f, y + PAGE_BTN_HEIGHT / 2.0f);
-        // Negative Z angle = counter-clockwise on screen (GUI y grows downward),
-        // the same convention as the bottom tab strip's -90° rotation.
-        gui.pose().rotate(-(float) Math.PI / 2.0F);
-        gui.blit(RenderPipelines.GUI_TEXTURED, RBIP_PAGE_BUTTONS,
-                -PAGE_BTN_WIDTH / 2, -PAGE_BTN_HEIGHT / 2, u, v,
+        gui.blit(RenderPipelines.GUI_TEXTURED, RBIP_PAGE_BUTTONS, x, y, u, v,
                 PAGE_BTN_WIDTH, PAGE_BTN_HEIGHT, 256, 256);
-        gui.pose().popMatrix();
     }
 
     /** Full-screen dim scrim: visually de-activates the desktop under the
