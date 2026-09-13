@@ -9,6 +9,7 @@ import com.alonie.brbe.pinoverlay.PinOverlay;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.util.CycleLock;
 import com.alonie.brbe.util.PartialGhostOverlayUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -68,6 +69,8 @@ public final class PopupRenderer {
                                             boolean hover, float scale,
                                             Map<Item, Integer> counts,
                                             boolean highlighted) {
+        // 逐槽位的折叠锁上下文：面板里的每个槽位各算各的（用户 2026-09-13 诉求 2）。
+        SlotCycle cycle = new SlotCycle(id, x, y, w, h, scale, true);
         // Adapted entries (synthetic, and recipe-book driven entries matched
         // back to their JEI layout): delegate the full JEI UI to the companion
         // renderer, which receives the fitted content rect from the shared
@@ -94,7 +97,7 @@ public final class PopupRenderer {
             }
         }
         renderVanillaPopup(gui, id, entry, mode, craftable, partial, slots, selIdx,
-                x, y, w, h, hover, scale, counts, highlighted);
+                x, y, w, h, hover, scale, counts, highlighted, cycle);
         return false;
     }
 
@@ -124,7 +127,10 @@ public final class PopupRenderer {
         if (partial) {
             gui.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x60FF3333);
         }
-        renderSlotItems(gui, id, entry, mode, slots, selIdx, x, y, w, h, false, null, lockReveal);
+        // 整块按钮就是一件折叠物品（由 OverlayRecipeButtonMixin 登记），
+        // 里面的小槽位不再单独抢占：perSlot = false。
+        renderSlotItems(gui, id, entry, mode, slots, selIdx, x, y, w, h, false, null, lockReveal,
+                new SlotCycle(id, x, y, w, h, 1f, false));
     }
 
     private static void renderVanillaPopup(GuiGraphicsExtractor gui,
@@ -134,7 +140,8 @@ public final class PopupRenderer {
                                            int x, int y, int w, int h,
                                            boolean hover, float scale,
                                            Map<Item, Integer> counts,
-                                           boolean highlighted) {
+                                           boolean highlighted,
+                                           SlotCycle cycle) {
         if (hover) {
             gui.pose().pushMatrix();
             gui.pose().translate(x + w / 2f, y + h / 2f);
@@ -145,7 +152,7 @@ public final class PopupRenderer {
         backdrop.render(gui, x, y, w, h);
         // 残缺/不可合成对象的整块红罩已移除——缺料状态改由逐槽位的工作站幽灵
         // 红罩表达（与原版工作站幽灵物品一致），不再整块盖红。
-        renderSlotItems(gui, id, entry, mode, slots, selIdx, x, y, w, h, hover, counts, false);
+        renderSlotItems(gui, id, entry, mode, slots, selIdx, x, y, w, h, hover, counts, false, cycle);
         if (hover) {
             gui.pose().popMatrix();
         }
@@ -189,17 +196,18 @@ public final class PopupRenderer {
                                         RecipeDisplayId id, RecipeDisplayEntry entry,
                                         int mode, List<?> slots, int selIdx,
                                         int x, int y, int w, int h, boolean hover,
-                                        Map<Item, Integer> counts, boolean lockReveal) {
+                                        Map<Item, Integer> counts, boolean lockReveal,
+                                        SlotCycle cycle) {
         gui.pose().pushMatrix();
         if (RecipeViewerEngine.getLayout(id) != null) {
-            renderSynthetic(gui, id, entry, selIdx, x, y, hover, counts, lockReveal);
+            renderSynthetic(gui, id, entry, selIdx, x, y, hover, counts, lockReveal, cycle);
         } else if (mode == PinOverlay.MODE_STONECUTTING) {
-            renderFixedPair(gui, entry, PinOverlay.MODE_STONECUTTING, selIdx, x, y, hover, counts, lockReveal);
+            renderFixedPair(gui, id, entry, PinOverlay.MODE_STONECUTTING, selIdx, x, y, hover, counts, lockReveal, cycle);
         } else if (mode == PinOverlay.MODE_SMITHING) {
-            renderFixedPair(gui, entry, PinOverlay.MODE_SMITHING, selIdx, x, y, hover, counts, lockReveal);
+            renderFixedPair(gui, id, entry, PinOverlay.MODE_SMITHING, selIdx, x, y, hover, counts, lockReveal, cycle);
         } else if (mode == PinOverlay.MODE_FURNACE) {
             // 烧炼类别一概不用幽灵遮罩（用户要求）。
-            renderFurnace(gui, entry, selIdx, x, y, hover, lockReveal);
+            renderFurnace(gui, id, entry, selIdx, x, y, hover, lockReveal, cycle);
         } else if ((BetterRecipeBook.config.alternativeRecipes.onHover || lockReveal) && !hover) {
             // The product shown on the button cycles through every result
             // variant (like the smithing category), so multi-product recipes
@@ -226,14 +234,17 @@ public final class PopupRenderer {
                 gui.pose().translate(pos.brbe$getX(), pos.brbe$getY());
                 gui.pose().scale(0.375f, 0.375f);
                 gui.pose().translate(-8.0F, -8.0F);
-                ItemStack stack = pos.brbe$selectIngredient(selIdx);
+                // 材料画在 (pos.x, pos.y) 中心、0.375 缩放 → 按钮空间 6x6 的格子。
+                int slotIdx = cycle.index(i, x + 2 + pos.brbe$getX() - 3,
+                        y + 2 + pos.brbe$getY() - 3, 6, 6, selIdx);
+                ItemStack stack = pos.brbe$selectIngredient(slotIdx);
                 drawGhostItem(gui, stack, missing[i]);
                 gui.pose().popMatrix();
             }
         } else {
             // Displays without vanilla button slots (e.g. Farmer's Delight
             // cooking recipes) fall back to the generic entry layout.
-            renderGenericCrafting(gui, entry, selIdx, x, y, hover, counts, lockReveal);
+            renderGenericCrafting(gui, id, entry, selIdx, x, y, hover, counts, lockReveal, cycle);
         }
         gui.pose().popMatrix();
     }
@@ -243,38 +254,44 @@ public final class PopupRenderer {
      *  Entries whose display is not the expected type (e.g. local-cache
      *  fallbacks) render the generic entry layout instead of a blank button.
      *  {@code lockReveal}: 查询界面按钮锁定"悬停揭示"设计（不计 onHover 开关）。 */
-    private static void renderFixedPair(GuiGraphicsExtractor gui, RecipeDisplayEntry entry,
+    private static void renderFixedPair(GuiGraphicsExtractor gui, RecipeDisplayId id,
+                                        RecipeDisplayEntry entry,
                                         int mode, int selIdx, int x, int y, boolean hover,
-                                        Map<Item, Integer> counts, boolean lockReveal) {
+                                        Map<Item, Integer> counts, boolean lockReveal,
+                                        SlotCycle cycle) {
         if (mode == PinOverlay.MODE_STONECUTTING
                 && RecipeViewerIndex.asStonecutter(entry) == null) {
-            renderGenericCrafting(gui, entry, selIdx, x, y, hover, counts, lockReveal);
+            renderGenericCrafting(gui, id, entry, selIdx, x, y, hover, counts, lockReveal, cycle);
             return;
         }
         if (mode == PinOverlay.MODE_SMITHING
                 && RecipeViewerIndex.asSmithing(entry) == null) {
-            renderGenericCrafting(gui, entry, selIdx, x, y, hover, counts, lockReveal);
+            renderGenericCrafting(gui, id, entry, selIdx, x, y, hover, counts, lockReveal, cycle);
             return;
         }
         boolean onHover = BetterRecipeBook.config.alternativeRecipes.onHover;
         ItemStack first;
         ItemStack second;
         List<ItemStack> inputVariants;
+        List<ItemStack> resultVariants;
         if (mode == PinOverlay.MODE_STONECUTTING) {
             var display = RecipeViewerIndex.asStonecutter(entry);
             inputVariants = display == null ? List.of()
                     : RecipeViewerIndex.resolveSlotDisplay(display.input());
-            first = display == null ? ItemStack.EMPTY : select(inputVariants, selIdx);
-            second = display == null ? ItemStack.EMPTY
-                    : select(RecipeViewerIndex.resolveSlotDisplay(display.result()), selIdx);
+            resultVariants = display == null ? List.of()
+                    : RecipeViewerIndex.resolveSlotDisplay(display.result());
         } else {
             var display = RecipeViewerIndex.asSmithing(entry);
             inputVariants = display == null ? List.of()
                     : RecipeViewerIndex.resolveSlotDisplay(display.base());
-            first = display == null ? ItemStack.EMPTY : select(inputVariants, selIdx);
-            second = display == null ? ItemStack.EMPTY
-                    : select(RecipeViewerIndex.resolveSlotDisplay(display.result()), selIdx);
+            resultVariants = display == null ? List.of()
+                    : RecipeViewerIndex.resolveSlotDisplay(display.result());
         }
+        // 输入 / 产物各自解算：0.6 缩放画在 (2,2) 与 (12,7)，各占按钮空间 10x10。
+        first = select(inputVariants,
+                cycle.index(0, x + 2, y + 2, 10, 10, selIdx));
+        second = select(resultVariants,
+                cycle.index(1, x + 12, y + 7, 10, 10, selIdx));
         if ((onHover || lockReveal) && !hover) {
             gui.item(second, x + 4, y + 4);
             return;
@@ -289,14 +306,21 @@ public final class PopupRenderer {
     /** Furnace: ingredient top-left, flame bottom-left, result right half.
      *  烧炼类别一概不用幽灵遮罩（用户要求）：材料槽与产物都完整不透明显示。
      *  {@code lockReveal}: 查询界面按钮锁定"悬停揭示"设计（不计 onHover 开关）。 */
-    private static void renderFurnace(GuiGraphicsExtractor gui, RecipeDisplayEntry entry,
-                                      int selIdx, int x, int y, boolean hover, boolean lockReveal) {
+    private static void renderFurnace(GuiGraphicsExtractor gui, RecipeDisplayId id,
+                                      RecipeDisplayEntry entry,
+                                      int selIdx, int x, int y, boolean hover, boolean lockReveal,
+                                      SlotCycle cycle) {
         boolean onHover = BetterRecipeBook.config.alternativeRecipes.onHover;
         var display = RecipeViewerIndex.asFurnace(entry);
-        ItemStack ingredient = display == null ? ItemStack.EMPTY
-                : select(RecipeViewerIndex.resolveSlotDisplay(display.ingredient()), selIdx);
-        ItemStack result = display == null ? ItemStack.EMPTY
-                : select(RecipeViewerIndex.resolveSlotDisplay(display.result()), selIdx);
+        List<ItemStack> ingredientVariants = display == null ? List.of()
+                : RecipeViewerIndex.resolveSlotDisplay(display.ingredient());
+        List<ItemStack> resultVariants = display == null ? List.of()
+                : RecipeViewerIndex.resolveSlotDisplay(display.result());
+        // 材料 / 产物各自解算（0.6 缩放，(2,2) 与 (12,7)，各占 10x10）。
+        ItemStack ingredient = select(ingredientVariants,
+                cycle.index(0, x + 2, y + 2, 10, 10, selIdx));
+        ItemStack result = select(resultVariants,
+                cycle.index(1, x + 12, y + 7, 10, 10, selIdx));
         if ((onHover || lockReveal) && !hover) {
             gui.item(result, x + 4, y + 4);
             return;
@@ -325,7 +349,8 @@ public final class PopupRenderer {
     private static void renderSynthetic(GuiGraphicsExtractor gui, RecipeDisplayId id,
                                         RecipeDisplayEntry entry, int selIdx,
                                         int x, int y, boolean hover,
-                                        Map<Item, Integer> counts, boolean lockReveal) {
+                                        Map<Item, Integer> counts, boolean lockReveal,
+                                        SlotCycle cycle) {
         if ((BetterRecipeBook.config.alternativeRecipes.onHover || lockReveal) && !hover) {
             ItemStack result = select(resultVariants(entry), selIdx);
             gui.item(result, x + 4, y + 4);
@@ -365,7 +390,12 @@ public final class PopupRenderer {
             gui.pose().translate(x + offX + slot.x() * tscale, y + offY + slot.y() * tscale);
             gui.pose().scale(0.45f, 0.45f);
             gui.pose().translate(-8.0F, -8.0F);
-            ItemStack stack = slot.stacks().get(selIdx % slot.stacks().size());
+            // 槽位画在 (x + offX + slot.x*tscale, y + offY + slot.y*tscale) 中心、
+            // 0.45 缩放 → 按钮空间约 8x8 的格子（逐槽位折叠锁用）。
+            int cxSlot = Math.round(x + offX + slot.x() * tscale);
+            int cySlot = Math.round(y + offY + slot.y() * tscale);
+            int slotIdx = cycle.index(i, cxSlot - 4, cySlot - 4, 8, 8, selIdx);
+            ItemStack stack = slot.stacks().get(slotIdx % slot.stacks().size());
             boolean missingSlot;
             if (slot.role() == 1) {
                 missingSlot = false; // 产物不标记
@@ -456,6 +486,49 @@ public final class PopupRenderer {
         return stacks.isEmpty() ? ItemStack.EMPTY : stacks.get(selIdx % stacks.size());
     }
 
+    /** 逐槽位的循环下标解算（用户 2026-09-13 诉求 2）：锁定键按住、且指针落在
+     *  该槽位的屏幕矩形上时，返回**该槽位自己的**冻结下标（锁定键+滚轮逐格翻动
+     *  它）；没被指着的槽位返回自动下标（照常自动轮换）。
+     *
+     *  <p>矩形用"按钮空间"坐标给出（与绘制调用同一坐标系），这里按弹窗的 hover
+     *  放大变换（以按钮中心为原点缩放 {@code scale} 倍）换算成屏幕矩形。</p>
+     *
+     *  <p>{@code perSlot=false}：查询界面的 24px 对象按钮 / 配方书按钮——整块
+     *  按钮当作**一件**折叠物品，由按钮自己在 {@code OverlayRecipeButtonMixin}
+     *  里登记，这里不再让里面的小槽位抢占。</p> */
+    private static final class SlotCycle {
+
+        private final RecipeDisplayId id;
+        private final float cx;
+        private final float cy;
+        private final float scale;
+        private final boolean perSlot;
+
+        SlotCycle(RecipeDisplayId id, int x, int y, int w, int h, float scale, boolean perSlot) {
+            this.id = id;
+            this.cx = x + w / 2f;
+            this.cy = y + h / 2f;
+            this.scale = scale;
+            this.perSlot = perSlot;
+        }
+
+        /** 第 {@code slot} 号槽位（按钮空间矩形 {@code sx,sy,sw,sh}）当前应显示的
+         *  下标：指针在它上面且锁定键按住 → 冻结下标；否则 {@code autoSelIdx}。 */
+        int index(int slot, int sx, int sy, int sw, int sh, int autoSelIdx) {
+            if (!perSlot) return autoSelIdx;
+            Object key = CycleLock.slotKey(id, slot);
+            int tx = Math.round(cx + (sx - cx) * scale);
+            int ty = Math.round(cy + (sy - cy) * scale);
+            int tw = Math.max(1, Math.round(sw * scale));
+            int th = Math.max(1, Math.round(sh * scale));
+            if (CycleLock.claim(key, tx, ty, tw, th)) {
+                return CycleLock.indexFor(key, Math.max(0, autoSelIdx));
+            }
+            CycleLock.release(key);
+            return autoSelIdx;
+        }
+    }
+
     /** Every possible result item of {@code entry} (its product variants), or
      *  empty when unresolvable. */
     private static List<ItemStack> resultVariants(RecipeDisplayEntry entry) {
@@ -473,9 +546,11 @@ public final class PopupRenderer {
     /** Generic entry layout for displays without vanilla button slots (e.g.
      *  Farmer's Delight cooking recipes): the craftingRequirements inputs on a
      *  3x2 grid plus the result top-right, cycled like ghost ingredients. */
-    private static void renderGenericCrafting(GuiGraphicsExtractor gui, RecipeDisplayEntry entry,
+    private static void renderGenericCrafting(GuiGraphicsExtractor gui, RecipeDisplayId id,
+                                              RecipeDisplayEntry entry,
                                               int selIdx, int x, int y, boolean hover,
-                                              Map<Item, Integer> counts, boolean lockReveal) {
+                                              Map<Item, Integer> counts, boolean lockReveal,
+                                              SlotCycle cycle) {
         boolean onHover = BetterRecipeBook.config.alternativeRecipes.onHover;
         if ((onHover || lockReveal) && !hover) {
             ItemStack result = select(resultVariants(entry), selIdx);
@@ -498,17 +573,22 @@ public final class PopupRenderer {
                 }
                 boolean[] missing = PartialGhostOverlayUtil.computeMissing(samples, counts);
                 for (int i = 0; i < count; i++) {
-                    ItemStack stack = selectIngredient(list.get(i), selIdx);
+                    List<ItemStack> variants = new ArrayList<>();
+                    list.get(i).items().forEach(holder -> variants.add(new ItemStack(holder.value())));
+                    // 每个材料格各自解算（0.6 缩放，5px 间距 → 按钮空间 10x10）。
+                    int sx = x + 2 + (i % 3) * 5;
+                    int sy = y + 2 + (i / 3) * 5;
+                    ItemStack stack = select(variants, cycle.index(i, sx, sy, 10, 10, selIdx));
                     if (!stack.isEmpty()) {
-                        scaledItem(gui, stack, x + 2 + (i % 3) * 5, y + 2 + (i / 3) * 5,
-                                counts != null && missing[i]);
+                        scaledItem(gui, stack, sx, sy, counts != null && missing[i]);
                     }
                 }
             }
         } catch (Exception ignored) {
             // one broken ingredient must not blank the whole popup
         }
-        ItemStack result = select(resultVariants(entry), selIdx);
+        ItemStack result = select(resultVariants(entry),
+                cycle.index(9, x + 17, y + 2, 10, 10, selIdx));
         if (!result.isEmpty()) {
             scaledItem(gui, result, x + 17, y + 2, false); // 产物不标记
         }

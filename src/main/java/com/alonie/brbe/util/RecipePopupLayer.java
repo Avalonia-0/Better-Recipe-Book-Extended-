@@ -86,9 +86,14 @@ public final class RecipePopupLayer {
      *  Shift magnify is gone. */
     public static void render(GuiGraphicsExtractor gui, float delta) {
         if (!active || button == null || id == null) return;
-        OverlayRecipeComponent outer = ((OverlayRecipeButtonAccessor) button).brbe$getOuterComponent();
-        int selIdx = RecipeViewerOverlay.currentSlotSelectIndex(
-                ((OverlayRecipeComponentAccessor) outer).getSlotSelectTime().currentIndex());
+        // 面板里的每个槽位各自做折叠锁判定（PopupRenderer 的 SlotCycle），这里
+        // 只给自动下标（用户 2026-09-13 诉求 1/2：指着预览里的哪件物品，锁定键
+        // 与滚轮就只作用于那一件）。弹窗是**最上层**：指针在它上面时先清掉本帧
+        // 的登记，铺在它下面的界面物品不再抢占滚轮。
+        if (contains(CycleLock.cursorX(), CycleLock.cursorY())) {
+            CycleLock.clearHovered();
+        }
+        int selIdx = autoSlotSelectIndex();
         PopupRenderer.renderRecipePopup(gui, id, entry, mode, craftable, partial,
                 slots, selIdx, button.getX(), button.getY(), button.getWidth(), button.getHeight(),
                 true, PopupGeometry.VANILLA_SCALE,
@@ -118,7 +123,7 @@ public final class RecipePopupLayer {
                 return painted;
             }
         }
-        return geometry.itemAt(mx, my, currentSlotSelectIndex());
+        return geometry.itemAt(mx, my, CycleLock.hoveredOr(autoSlotSelectIndex()));
     }
 
     private static PopupGeometry geometry() {
@@ -126,10 +131,11 @@ public final class RecipePopupLayer {
                 button.getX(), button.getY(), button.getWidth(), button.getHeight());
     }
 
-    private static int currentSlotSelectIndex() {
+    /** 原版 SlotSelectTime 的自动下标（逐物品的冻结下标由 PopupRenderer 的
+     *  SlotCycle / {@link CycleLock} 逐槽位处理）。 */
+    private static int autoSlotSelectIndex() {
         OverlayRecipeComponent outer = ((OverlayRecipeButtonAccessor) button).brbe$getOuterComponent();
-        return RecipeViewerOverlay.currentSlotSelectIndex(
-                ((OverlayRecipeComponentAccessor) outer).getSlotSelectTime().currentIndex());
+        return ((OverlayRecipeComponentAccessor) outer).getSlotSelectTime().currentIndex();
     }
 
     private static boolean computePartial(OverlayRecipeComponent outer, RecipeCollection collection) {

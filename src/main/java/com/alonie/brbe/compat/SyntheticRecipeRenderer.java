@@ -58,15 +58,6 @@ public interface SyntheticRecipeRenderer {
     }
 
     /**
-     * Alt+wheel quick-flip: step every live drawable's slot variants by
-     * {@code delta} (wheel up = -1), re-pinning each multi-variant slot to
-     * {@code current + delta} through its display overrides — the painted
-     * item follows the manual cycle index.  Default: no-op.
-     */
-    default void stepVariants(int delta) {
-    }
-
-    /**
      * Redraw the live slot's candidates badge (JEI's tag/list marker painted
      * at the bottom-right of cycling ingredient slots) on top of a
      * caller-drawn overlay.  The delegated drawable paints the badge together

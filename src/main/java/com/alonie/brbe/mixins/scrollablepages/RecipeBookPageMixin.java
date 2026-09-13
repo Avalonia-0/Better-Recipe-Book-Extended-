@@ -3,6 +3,7 @@ package com.alonie.brbe.mixins.scrollablepages;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.cache.RecipeViewerIndex;
 import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.util.CycleLock;
 import com.alonie.brbe.util.RecipeBookPageAnimBridge;
 import com.alonie.brbe.util.RecipeViewerOverlay;
 import net.minecraft.client.Minecraft;
@@ -177,13 +178,14 @@ public abstract class RecipeBookPageMixin {
             return;
         }
 
-        // 「锁定折叠物品」键按住时滚轮改为**逐格翻动折叠物品**（配方书网格按钮
-        // 的配方图标 / 功能方块里的幽灵物品），不翻页（用户 2026-09-13 诉求 1）。
-        // 判定放在这里而不是 MouseScrollHandler：本方法每帧都跑、又能拿到光标，
-        // 且上面的 modalMaskOwnsCursor 已经把「光标在查询界面/pin/预览上」的情形
-        // 排除掉了（那里由查询窗口自己处理滚轮）。
-        if (BetterRecipeBook.queuedScroll != 0 && ClientCompat.isCycleLockDown()) {
-            RecipeViewerOverlay.stepBookCycle(BetterRecipeBook.queuedScroll);
+        // 「锁定折叠物品」键按住时滚轮改为**逐格翻动指针下那一件折叠物品**（配方书
+        // 网格按钮的配方图标 / 功能方块里的幽灵物品），不翻页（用户 2026-09-13
+        // 诉求 1+2）。判定放在这里而不是 MouseScrollHandler：本方法每帧都跑、又能
+        // 拿到光标，且上面的 modalMaskOwnsCursor 已经把「光标在查询界面/pin/预览上」
+        // 的情形排除掉了（那里由查询窗口自己处理滚轮）。没有物品被指着时不消费
+        // 滚轮，照常翻页。
+        if (BetterRecipeBook.queuedScroll != 0 && CycleLock.isDown()
+                && CycleLock.step(BetterRecipeBook.queuedScroll)) {
             BetterRecipeBook.queuedScroll = 0;
             return;
         }

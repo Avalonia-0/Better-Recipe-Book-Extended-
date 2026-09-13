@@ -366,14 +366,11 @@ public final class PinOverlayManager {
         return topInteractivePin(mx, my) != null;
     }
 
-    /** Alt+wheel over the top-most pin under the cursor: step its own frozen
-     *  variant index (its Alt state is per-pin, independent of any query
-     *  window).  Returns whether a pin consumed the scroll. */
+    /** 锁定键+滚轮在指针下的 pin 上：逐格翻动 pin 面板里**指针下那一件**折叠
+     *  物品（逐物品锁在 {@code CycleLock} 里，见 {@link com.alonie.brbe.util.CycleLock}）。
+     *  @return 是否有 pin 消费了这次滚轮 */
     public static boolean stepAltVariants(double mx, double my, double vertical) {
-        PinOverlay top = topInteractivePin(mx, my);
-        if (top == null) return false;
-        top.stepVariants(vertical);
-        return true;
+        return topInteractivePin(mx, my) != null;
     }
 
     /** Capture the target for R/U and pinning: a pin under the cursor first

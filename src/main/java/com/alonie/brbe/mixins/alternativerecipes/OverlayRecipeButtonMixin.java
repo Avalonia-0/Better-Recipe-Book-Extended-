@@ -9,6 +9,7 @@ import com.alonie.brbe.pinoverlay.PinOverlay;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.render.PopupRenderer;
 import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.util.CycleLock;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.RecipePopupLayer;
 import com.alonie.brbe.util.RecipeViewerOverlay;
@@ -93,8 +94,20 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
             selIdx = PinButtonRenderOverride.selIdx();
         } else {
             mode = viewer ? RecipeViewerOverlay.windowMode(outer) : mode();
-            selIdx = RecipeViewerOverlay.currentSlotSelectIndex(outer,
-                    ((OverlayRecipeComponentAccessor) outer).getSlotSelectTime().currentIndex());
+            // 逐物品折叠锁（用户 2026-09-13 诉求 2）：只有**指针下这一个按钮**
+            // 会冻结，锁定键+滚轮也只翻动它；同一界面上其余按钮照常轮换。按钮
+            // 整块当作一件折叠物品（它就这么大：查询界面 24px 对象按钮 / 配方书
+            // 替代配方按钮），面板里的槽位另有 PopupRenderer 逐槽位处理。配方书
+            // 自己的替代配方按钮走屏幕层判定（LEI 浮层挡住指针时不判定）。
+            int auto = ((OverlayRecipeComponentAccessor) outer).getSlotSelectTime().currentIndex();
+            boolean onViewer = viewer || RecipeViewerIndex.isViewerCollection(collection);
+            if (onViewer ? CycleLock.claim(this, getX(), getY(), width, height)
+                    : CycleLock.claimScreen(this, getX(), getY(), width, height)) {
+                selIdx = CycleLock.indexFor(this, auto);
+            } else {
+                CycleLock.release(this);
+                selIdx = auto;
+            }
         }
         int x = getX();
         int y = getY();
