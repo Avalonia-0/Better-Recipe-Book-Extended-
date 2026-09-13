@@ -425,6 +425,9 @@ public final class ConfigTipsHelper {
 
     private static boolean titleBandWarned;
 
+    /** 标题带移除成功的一次性日志开关（每进程只打一次）。 */
+    private static boolean titleBandLogged;
+
     private static java.lang.reflect.Field clothLayoutField(String name)
             throws NoSuchFieldException {
         java.lang.reflect.Field cached = CLOTH_LAYOUT_FIELDS.get(name);
@@ -469,39 +472,69 @@ public final class ConfigTipsHelper {
         if (tabY == Integer.MAX_VALUE) return;                 // 无标签行：保持 Cloth 原样
         int shift = tabY - TABS_TOP_MARGIN;
         if (shift <= 0) return;                                // 已经贴顶，无需再动
+        // 先把所有反射句柄一次取齐：任何一处失败就**整体放弃**（Cloth 保持原样），绝不半途
+        // 而废 —— 2026-09-13 的 bug（1.21.11 顶部类别栏"消失"）正是半吊子状态：标签按钮被
+        // 上移了，而 bounds 与列表没动（见 shiftWidgetY 的说明）。
+        Object leftButton;
+        Object rightButton;
+        Rectangle tabsBounds;
+        Rectangle tabsLeftBounds;
+        Rectangle tabsRightBounds;
         try {
-            for (Object child : cloth.childrenL()) {
-                if (child instanceof ClothConfigTabButton tab) {
-                    tab.setY(tab.getY() - shift);
-                }
-            }
-            for (String name : new String[] {"buttonLeftTab", "buttonRightTab"}) {
-                shiftWidgetY(clothLayoutField(name).get(cloth), -shift);
-            }
-            for (String name : new String[] {"tabsBounds", "tabsLeftBounds", "tabsRightBounds"}) {
-                if (clothLayoutField(name).get(cloth) instanceof Rectangle rect) {
-                    rect.y -= shift;
-                }
-            }
+            leftButton = clothLayoutField("buttonLeftTab").get(cloth);
+            rightButton = clothLayoutField("buttonRightTab").get(cloth);
+            tabsBounds = (Rectangle) clothLayoutField("tabsBounds").get(cloth);
+            tabsLeftBounds = (Rectangle) clothLayoutField("tabsLeftBounds").get(cloth);
+            tabsRightBounds = (Rectangle) clothLayoutField("tabsRightBounds").get(cloth);
         } catch (ReflectiveOperationException e) {
-            if (!titleBandWarned) {
-                titleBandWarned = true;
-                BetterRecipeBook.LOGGER.warn("[BRBE] 配置界面顶部标题带未能移除（Cloth 布局字段有变？）：{}",
-                        e.toString());
-            }
+            warnTitleBandOnce(e);
             return;
         }
+        for (Object child : cloth.childrenL()) {
+            if (child instanceof ClothConfigTabButton tab) {
+                tab.setY(tab.getY() - shift);
+            }
+        }
+        shiftWidgetY(leftButton, -shift);
+        shiftWidgetY(rightButton, -shift);
+        for (Rectangle rect : new Rectangle[] {tabsBounds, tabsLeftBounds, tabsRightBounds}) {
+            if (rect != null) rect.y -= shift;
+        }
         DynamicEntryListWidget<?> list = (DynamicEntryListWidget<?>) (Object) cloth.listWidget;
+        int listTop = list.top;
         list.updateSize(list.width, list.height, list.top - shift, list.bottom);
+        // 一次性成功日志：布局是否真的搬过、搬到哪，直接从日志核对（不必截图）。
+        if (!titleBandLogged) {
+            titleBandLogged = true;
+            BetterRecipeBook.LOGGER.info("[BRBE] 配置界面顶部标题带已移除：标签 y {} → {}（shift={}），列表 top {} → {}",
+                    tabY, tabY - shift, shift, listTop, listTop - shift);
+        }
     }
 
-    /** 反射调 {@code setY(int)}：滚动按钮的编译期类型在两套映射下不同
-     *  （Mojang 的 AbstractWidget / Yarn 的 ClickableWidget），反射就能写一份代码。 */
-    private static void shiftWidgetY(Object widget, int delta) throws ReflectiveOperationException {
-        if (widget == null) return;
-        java.lang.reflect.Method get = widget.getClass().getMethod("getY");
-        java.lang.reflect.Method set = widget.getClass().getMethod("setY", int.class);
-        set.invoke(widget, ((Integer) get.invoke(widget)) + delta);
+    /** 平移一个控件（标签条两侧的滚动按钮）：**按编译期类型**调 {@code getY/setY}。
+     *
+     *  <p>⚠️ 2026-09-13（1.21.11 实测）：这里原先是字符串反射
+     *  {@code widget.getClass().getMethod("getY")} —— remap 构建（1.21.11、1.21.1-Fabric）的
+     *  运行期 MC 成员是 intermediary 名（{@code method_XXXX}），字符串找不到 → 抛
+     *  {@code NoSuchMethodException: ClothConfigScreen$3.getY()}（滚动按钮是 Cloth 的匿名
+     *  子类，{@code getY} 继承自 MC 的 {@code AbstractWidget}）→ 标题带只搬了一半：标签
+     *  按钮上移了、三个 bounds 矩形与列表 top 没动 → 顶部类别栏错位/看不见。26.2 是
+     *  no-remap（官方名即运行期名）所以一直"看起来正常"，1.21.1-NeoForge 同理（官方名）。
+     *  编译期调用由 Loom 负责重映射，三种运行时都正确 —— <b>不要改回字符串反射</b>。</p> */
+    private static void shiftWidgetY(Object widget, int delta) {
+        if (widget instanceof net.minecraft.client.gui.components.AbstractWidget button) {
+            button.setY(button.getY() + delta);
+        }
+    }
+
+    /** 标题带移除失败的一次性告警（{@link #warnTitleBandOnce}）与成功的一次性日志
+     *  （{@code titleBandLogged}，在 {@link #removeTitleBand} 里）。 */
+    private static void warnTitleBandOnce(ReflectiveOperationException e) {
+        if (!titleBandWarned) {
+            titleBandWarned = true;
+            BetterRecipeBook.LOGGER.warn("[BRBE] 配置界面顶部标题带未能移除（Cloth 布局字段有变？）：{}",
+                    e.toString());
+        }
     }
 
     /** 一次性告警：屏幕级轮循行只认 {@code ClothConfigScreen}（Cloth 的 globalized 变体
