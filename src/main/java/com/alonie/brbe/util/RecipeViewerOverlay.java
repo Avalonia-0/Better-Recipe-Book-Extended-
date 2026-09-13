@@ -65,6 +65,7 @@ import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.FurnaceMenu;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.inventory.SmokerMenu;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.FurnaceRecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
@@ -79,6 +80,7 @@ import net.minecraft.world.item.crafting.display.StonecutterRecipeDisplay;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Locale;
 import java.util.Set;
 
@@ -1862,8 +1864,14 @@ public final class RecipeViewerOverlay {
      *  real object's state, mirroring {@code PopupRenderer.renderBaseButton} —
      *  the three scenarios: craftable → enabled face, partial → enabled face
      *  + the code-composited red overlay (0x60FF3333), uncraftable → disabled
-     *  face.  Grid categories (fuel / compost / info) have no state: the
-     *  plain cell face.  Pure decoration: not clickable, no hover, no tooltip. */
+     *  face.  Grid categories (fuel / compost / info) have no RECIPE state, but
+     *  the FUEL grid does have a per-cell state (present → enabled face,
+     *  missing fuel → disabled face, same as {@link #drawItemGrid}), so the
+     *  placeholder follows the row's rightmost real CELL there too — a row
+     *  ending on a missing fuel keeps its disabled face into the empty columns
+     *  (user 2026-09-13: the placeholders used to be hard-enabled, i.e. the
+     *  "craftable" texture, even when the row's rightmost object was a missing
+     *  fuel).  Pure decoration: not clickable, no hover, no tooltip. */
     private void drawEmptyRowFillers(GuiGraphics gui) {
         int start = viewerPage * pageSize();
         int count;
@@ -1881,16 +1889,24 @@ public final class RecipeViewerOverlay {
         int colsFill = Math.max(columns, (boxW - 8) / 25);
         List<AbstractWidget> buttons = isGridMode() ? List.of()
                 : ((OverlayRecipeComponentAccessor) overlay).getRecipeButtons();
+        // The grid cells' own state source (see drawItemGrid): only the fuel
+        // category distinguishes present/missing objects; compost / info grids
+        // are always "owned" (plain enabled face) exactly like there.
+        Map<Item, Integer> gridFuelCounts = isGridMode() && currentCategory != null
+                && currentCategory.isFuelCategory()
+                ? PartialCraftingUtil.searchSpaceItemCounts() : null;
         for (int r = 0; r < rows; r++) {
             int inRow = Math.min(columns, count - r * columns);
             if (inRow <= 0) continue;
             if (isGridMode()) {
+                int lastIdx = Math.min((r + 1) * columns, count) - 1;
+                boolean owned = gridFuelCounts == null || (lastIdx >= 0 && lastIdx < count
+                        && gridFuelCounts.containsKey(gridItems.get(start + lastIdx).getItem()));
+                Identifier face = BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(owned, false);
                 for (int c = inRow; c < colsFill; c++) {
                     int gx = boxX + 4 + c * 25;
                     int gy = boxY + boxH - 28 - r * 25;
-                    ClientCompat.blitSprite(gui,
-                            BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(true, false),
-                            gx, gy, 24, 24);
+                    ClientCompat.blitSprite(gui, face, gx, gy, 24, 24);
                 }
                 continue;
             }
