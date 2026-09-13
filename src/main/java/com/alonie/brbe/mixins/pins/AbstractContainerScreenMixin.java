@@ -8,6 +8,7 @@ import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor;
 import com.alonie.brbe.pin.TabPinManager;
 import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.util.RecipeViewerOverlay;
 import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import com.alonie.recipebookispain_extended.access.RecipeBookScrollAccess;
 import net.minecraft.client.Minecraft;
@@ -25,6 +26,7 @@ import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.util.Mth;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.crafting.ExtendedRecipeBookCategory;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
@@ -44,6 +46,17 @@ public abstract class AbstractContainerScreenMixin {
 
     @Inject(method = "mouseClicked", at = @At(value = "HEAD"), cancellable = true)
     public void brbe$clickVisibleOverlayFirst(MouseButtonEvent event, boolean doubleClick, CallbackInfoReturnable<Boolean> cir) {
+        // 2026-09-13（用户实测：替代配方组 + LEI 同时打开时 LEI 完全无法操作）：
+        // 这一击若落在 LEI 浮层（查询窗口 / Shift 预览 / pin）上，本注入器必须**不吞**。
+        // 原版 RecipeBookPage.mouseClicked 的语义是「只要替代配方组可见，这一击就归它」
+        // （点到组内按钮选配方，否则关闭组），于是组开着时 book.mouseClicked 对**任意**
+        // 点击都返回 true。本注入器与 recipeviewer.AbstractRecipeBookScreenMixin 是同一个
+        // HEAD 注入点上的两个注入器，而 mixins.brbe-common.json 里 pins 在前 → LEI 的点击
+        // 处理器永远轮不到 → 组开着时 LEI 收不到任何点击。放行后由排在后面的 LEI 处理器
+        // 消费（它自己也只认这些区域）；LEI 不要的点击仍照旧交给配方书。
+        if (RecipeViewerOverlay.modalMaskOwnsCursor(Mth.floor(event.x()), Mth.floor(event.y()))) {
+            return;
+        }
         RecipeBookComponent<?> book = this.recipeBookComponent;
         if (!book.isVisible()) {
             return;
