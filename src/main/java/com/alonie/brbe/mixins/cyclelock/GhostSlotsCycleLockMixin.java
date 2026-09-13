@@ -40,6 +40,10 @@ public abstract class GhostSlotsCycleLockMixin {
         for (Object raw : map.reference2ObjectEntrySet()) {
             if (!(raw instanceof Reference2ObjectMap.Entry entry)) continue;
             Slot slot = (Slot) entry.getKey();
+            if (slot == null) {
+                consumer.accept(null, entry.getValue());
+                continue;
+            }
             CycleLock.pushContext(slot, slot.x, slot.y, 16, 16);
             try {
                 consumer.accept(slot, entry.getValue());
@@ -52,6 +56,13 @@ public abstract class GhostSlotsCycleLockMixin {
     @Inject(method = "extractTooltip", at = @At("HEAD"))
     private void brbe$pushTooltipContext(GuiGraphicsExtractor gui, Minecraft minecraft,
                                          int mouseX, int mouseY, Slot slot, CallbackInfo ci) {
+        // ⚠️ 原版在**没有悬停槽位**时传 slot == null（方法开头就 `if (slot == null) return;`）。
+        // 2026-09-13 卡死/崩：这里直接读 slot.x → NPE → 渲染屏幕时抛 ReportedException。
+        // 空上下文 = 不做逐物品判定（resolveContext 原样透传），返回时照样弹栈。
+        if (slot == null) {
+            CycleLock.pushContext(null, 0, 0, 0, 0);
+            return;
+        }
         CycleLock.pushContext(slot, slot.x, slot.y, 16, 16);
     }
 
