@@ -73,6 +73,7 @@
     "unlockrecipes.RecipeManagerMixin",
     "SmithingScreenMixin",
     "recipeviewer.AbstractContainerScreenMixin",
+    "recipeviewer.RecipeBookComponentMixin",
     "recipeviewer.KeyboardHandlerMixin",
     "recipeviewer.CreativeModeInventoryScreenMixin",
     "recipeviewer.OverlayRecipeComponentMixin",

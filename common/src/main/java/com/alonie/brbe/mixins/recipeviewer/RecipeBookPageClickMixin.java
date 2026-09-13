@@ -22,10 +22,14 @@ import org.spongepowered.asm.mixin.injection.Redirect;
  * 派发的；与滚轮路径用的是同一个 {@link RecipeViewerOverlay#modalMaskOwnsCursor}）。
  * 其余一切保持原版：点到组内按钮、点到配方书其他位置、ESC、翻页、关书都照旧关闭。</p>
  *
- * <p>注意不能改成"吞掉整次点击"：1.21.1 的 LEI 点击处理挂在
- * {@code AbstractContainerScreen.mouseClicked}（在配方书之后才轮到），吞掉点击会让
- * LEI 反而收不到这一击。只拦关闭调用则三个分支行为一致——LEI 照常响应，替代配方组
- * 不陪葬。</p>
+ * <p>2026-09-13 补充（同日第二个 bug：替代配方组开着时 LEI 完全无法操作）：这一击在
+ * **上层**就已经归 LEI 了——三个分支的 LEI 点击判定都挪到了配方书之前（26.2 / 1.21.11：
+ * {@code recipeviewer.AbstractRecipeBookScreenMixin} 的 HEAD 注入器，且
+ * {@code pins.AbstractContainerScreenMixin} 现在会让出落在 LEI 浮层上的点击；1.21.1：
+ * 新增的 {@code recipeviewer.RecipeBookComponentMixin} 把 LEI 判定提前到配方书组件之前）。
+ * 本 redirect 是**兜底**：LEI 没有消费掉、但确实落在 LEI 浮层上的点击（例如只有 pin
+ * 浮层、没有查询窗口时）原版仍会把它当作「点到替代配方组之外」——这里跳过那次关闭，
+ * 于是替代配方组不陪葬。</p>
  */
 @Mixin(RecipeBookPage.class)
 public abstract class RecipeBookPageClickMixin {
