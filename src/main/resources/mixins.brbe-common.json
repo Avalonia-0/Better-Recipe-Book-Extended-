@@ -61,6 +61,7 @@
     "pins.OverlayRecipeButtonMixin",
     "scrollablepages.RecipeBookPageAnimationMixin",
     "scrollablepages.RecipeBookPageMixin",
+    "cyclelock.RecipeBookComponentCycleLockMixin",
     "search.RecipeBookComponentPageJumpMixin",
     "soundoptions.SoundOptionsScreenMixin",
     "settings.RecipeBookComponentMixin",

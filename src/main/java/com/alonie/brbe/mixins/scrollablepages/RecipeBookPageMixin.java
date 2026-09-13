@@ -177,6 +177,17 @@ public abstract class RecipeBookPageMixin {
             return;
         }
 
+        // 「锁定折叠物品」键按住时滚轮改为**逐格翻动折叠物品**（配方书网格按钮
+        // 的配方图标 / 功能方块里的幽灵物品），不翻页（用户 2026-09-13 诉求 1）。
+        // 判定放在这里而不是 MouseScrollHandler：本方法每帧都跑、又能拿到光标，
+        // 且上面的 modalMaskOwnsCursor 已经把「光标在查询界面/pin/预览上」的情形
+        // 排除掉了（那里由查询窗口自己处理滚轮）。
+        if (BetterRecipeBook.queuedScroll != 0 && ClientCompat.isCycleLockDown()) {
+            RecipeViewerOverlay.stepBookCycle(BetterRecipeBook.queuedScroll);
+            BetterRecipeBook.queuedScroll = 0;
+            return;
+        }
+
         if (BetterRecipeBook.queuedScroll != 0 && true) {
             if (isMouseOverRecipeBookPage(k, l, i, j) && totalPages > 1) {
                 RecipeBookPageAnimBridge.markUserFlip();

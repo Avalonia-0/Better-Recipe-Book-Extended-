@@ -255,12 +255,55 @@ public final class RecipeViewerOverlay {
     }
 
 
-    /** Whether the cycle-pause key (Alt) is currently held — shared with the
+    /** Whether the cycle-pause key is currently held — shared with the
      *  JEI-delegated drawable renderer so EVERY delegated UI's variant cycling
      *  (preview popup, pin, embedded tooltip preview) freezes too, without
-     *  relying on JEI's own pause key mapping. */
+     *  relying on JEI's own pause key mapping.  The key is the configurable
+     *  「锁定折叠物品」 binding (default Alt). */
     public static boolean isCycleAltDown() {
-        return ClientCompat.isAltDown();
+        return ClientCompat.isCycleLockDown();
+    }
+
+    /** 指针是否落在**打开中的 LEI 预览界面**（Shift 弹窗）上：此时锁定键不
+     *  冻结、滚轮也不翻动查询窗口里的折叠对象（用户 2026-09-13 要求）——预览
+     *  是独立的一层，指着它时 Alt 与滚轮只属于它自己。 */
+    public static boolean pointerOnPreview() {
+        if (!RecipePopupLayer.isActive()) return false;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc == null || mc.getWindow() == null || mc.mouseHandler == null) return false;
+        return RecipePopupLayer.contains(mc.mouseHandler.getScaledXPos(mc.getWindow()),
+                mc.mouseHandler.getScaledYPos(mc.getWindow()));
+    }
+
+    /** 配方书 / 功能方块幽灵物品的折叠锁（与查询窗口各自的锁状态独立）：
+     *  按住锁定键冻结自动轮换（在按下那一刻的下标上），锁定键+滚轮逐格翻动，
+     *  松开恢复自动轮换。索引恒为非负——原版 {@code SlotSelectTime} 的消费方
+     *  用普通 {@code %} 取模，负值会越界。 */
+    private static boolean bookCyclePaused;
+    private static int bookManualCycleIndex;
+
+    /** 原版 {@code SlotSelectTime#currentIndex()} 的包装入口（配方书按钮与
+     *  幽灵物品共用同一个 SlotSelectTime 实例，见 {@link CycleLockSlotSelectTime}）：
+     *  锁定中返回冻结下标，否则透传自动下标。返回值恒 ≥ 0。 */
+    public static int lockedCycleIndexNonNegative(int autoIndex) {
+        boolean lock = ClientCompat.isCycleLockDown();
+        if (lock) {
+            if (!bookCyclePaused) {
+                bookCyclePaused = true;
+                bookManualCycleIndex = Math.max(0, autoIndex);
+            }
+        } else if (bookCyclePaused) {
+            bookCyclePaused = false;
+        }
+        return bookCyclePaused ? Math.max(0, bookManualCycleIndex) : autoIndex;
+    }
+
+    /** 锁定键+滚轮（配方书/幽灵物品）：逐格翻动冻结下标。{@code step} 的符号与
+     *  {@code BetterRecipeBook.queuedScroll} 一致（上滚 = -1 = 上一个变体）。 */
+    public static void stepBookCycle(int step) {
+        if (step == 0) return;
+        bookCyclePaused = true;
+        bookManualCycleIndex = Math.max(0, bookManualCycleIndex + step);
     }
 
 
@@ -638,7 +681,7 @@ public final class RecipeViewerOverlay {
     public static boolean mouseScrolled(double mouseX, double mouseY, double vertical) {
         ViewerInstance w = underCursor(mouseX, mouseY);
         if (w != null) return w.mouseScrolled(mouseX, mouseY, vertical);
-        if (vertical != 0 && ClientCompat.isAltDown()
+        if (vertical != 0 && ClientCompat.isCycleLockDown()
                 && PinOverlayManager.stepAltVariants(mouseX, mouseY, vertical)) {
             SyntheticRecipeRenderers.get().stepVariants(vertical > 0 ? -1 : 1);
             return true;
@@ -1277,24 +1320,27 @@ public final class RecipeViewerOverlay {
      *  held the rotation freezes on the Alt-press index and Alt+wheel steps
      *  it; on release the automatic cycle resumes. */
     public int currentSlotSelectIndex(int autoIndex) {
-        boolean alt = ClientCompat.isAltDown();
-        if (alt) {
+        // 指针落在 LEI 预览界面上时锁定键不生效（用户 2026-09-13 要求）：预览
+        // 是独立的一层，此时窗口里的折叠对象照常自动轮换。
+        boolean lock = ClientCompat.isCycleLockDown() && !pointerOnPreview();
+        if (lock) {
             if (!cyclePaused) {
                 cyclePaused = true;
-                manualCycleIndex = autoIndex;
+                manualCycleIndex = Math.max(0, autoIndex);
             }
         } else if (cyclePaused) {
             cyclePaused = false;
             setForkManualIndex(-1);
         }
-        return cyclePaused ? manualCycleIndex : autoIndex;
+        return cyclePaused ? Math.max(0, manualCycleIndex) : autoIndex;
     }
 
-    /** Alt+wheel: step the paused variant index (both the BRBE front-end and,
-     *  via reflection, the vendored JEI cyclers). */
+    /** 锁定键+滚轮：逐格翻动冻结下标（既驱动 BRBE 自己的前端，也通过反射
+     *  驱动 vendored JEI 的轮循器）。下标夹在 0 以上——BRBE 的消费方用普通
+     *  {@code %} 取模（如 {@code PopupRenderer.select}），负值会越界。 */
     private boolean stepCycledVariants(double vertical) {
         cyclePaused = true;
-        manualCycleIndex += vertical > 0 ? -1 : 1;
+        manualCycleIndex = Math.max(0, manualCycleIndex + (vertical > 0 ? -1 : 1));
         setForkManualIndex(manualCycleIndex);
         return true;
     }
@@ -1568,20 +1614,19 @@ public final class RecipeViewerOverlay {
 
     /** Scroll over the overlay flips its page.  Returns true when consumed. */
     public boolean mouseScrolled(double mouseX, double mouseY, double vertical) {
-        // Alt+wheel: step the cycled variants (Alt freezes the rotation) —
-        // highest priority.  The trigger is the interface under the pointer
-        // (viewer / preview popup / pin): wheel over plain background keeps
-        // its normal behaviour instead of stepping variants.  A pin under the
-        // cursor steps ITS OWN pinned variants (not this window's state).
-        if (vertical != 0 && ClientCompat.isAltDown()
+        // 锁定键+滚轮：逐格翻动折叠对象（最高优先）。触发面是**指针下的界面**：
+        // 查询窗口本体（标签条/工作站列除外，它们各自处理）与 pin；指针落在
+        // LEI 预览界面上时两者都不触发（用户 2026-09-13 要求：预览是独立的一层，
+        // 指着它时锁定键+滚轮只属于它自己）。pin 在其自身上翻动**它自己的**
+        // 冻结变体，不动本窗口的状态。
+        if (vertical != 0 && ClientCompat.isCycleLockDown()
                 && (isActive() || PinOverlayManager.hasPins())) {
             if (PinOverlayManager.topInteractivePin(mouseX, mouseY) != null) {
                 PinOverlayManager.stepAltVariants(mouseX, mouseY, vertical);
                 SyntheticRecipeRenderers.get().stepVariants(vertical > 0 ? -1 : 1);
                 return true;
             }
-            if (RecipePopupLayer.contains(mouseX, mouseY)
-                    || contains(mouseX, mouseY)) {
+            if (!RecipePopupLayer.contains(mouseX, mouseY) && contains(mouseX, mouseY)) {
                 stepCycledVariants(vertical);
                 // The JEI-delegated drawables (preview popup / pin / embedded
                 // tooltip preview) step through their display overrides — the

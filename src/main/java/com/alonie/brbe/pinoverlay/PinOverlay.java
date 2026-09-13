@@ -243,23 +243,26 @@ public final class PinOverlay {
     public int slotSelectIndex() {
         int autoIndex = ((OverlayRecipeComponentAccessor) component)
                 .getSlotSelectTime().currentIndex();
-        boolean alt = ClientCompat.isAltDown();
-        if (alt) {
+        // 锁定键（配置项「锁定折叠物品」，默认 Alt）按住即冻结；指针落在 LEI
+        // 预览界面上时不冻结（与查询窗口同一规则，见 pointerOnPreview）。
+        boolean lock = ClientCompat.isCycleLockDown() && !RecipeViewerOverlay.pointerOnPreview();
+        if (lock) {
             if (!cyclePaused) {
                 cyclePaused = true;
-                manualCycleIndex = autoIndex;
+                manualCycleIndex = Math.max(0, autoIndex);
             }
         } else if (cyclePaused) {
             cyclePaused = false;
             RecipeViewerOverlay.forkSetManualIndex(-1);
         }
-        return cyclePaused ? manualCycleIndex : autoIndex;
+        return cyclePaused ? Math.max(0, manualCycleIndex) : autoIndex;
     }
 
-    /** Alt+wheel: step the pinned variant (freezes the rotation first). */
+    /** 锁定键+滚轮：逐格翻动被 pin 的变体（先冻结轮换）。下标夹在 0 以上
+     *  ——消费方用普通 {@code %} 取模，负值会越界。 */
     void stepVariants(double vertical) {
         cyclePaused = true;
-        manualCycleIndex += vertical > 0 ? -1 : 1;
+        manualCycleIndex = Math.max(0, manualCycleIndex + (vertical > 0 ? -1 : 1));
         RecipeViewerOverlay.forkSetManualIndex(manualCycleIndex);
     }
 

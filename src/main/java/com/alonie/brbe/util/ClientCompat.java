@@ -96,6 +96,34 @@ public final class ClientCompat {
                 || InputConstants.isKeyDown(minecraft.getWindow(), InputConstants.KEY_RALT);
     }
 
+    /** 「锁定折叠物品」按键是否按住（配置项 {@code cycleLockKey}，默认左 Alt）。
+     *  轮询物理键（不走 {@link KeyMapping} 的事件状态，与既有 Alt/Shift/Ctrl
+     *  判定一致）；绑定的修饰键（ctrl/shift/alt 前缀）也必须按住。
+     *
+     *  <p>配置键是左/右 Alt 之一时**两边 Alt 都认** —— 保留历史上「按住 Alt
+     *  锁定」在左右 Alt 上都生效的手感（用户 2026-09-13 把该键做成可配置项
+     *  之后，默认值仍是 Alt）。 */
+    public static boolean isCycleLockDown() {
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft == null || minecraft.getWindow() == null) return false;
+        String raw = BetterRecipeBook.config == null ? null : BetterRecipeBook.config.cycleLockKey;
+        ModifierKeyCode mkc = KeybindingCodec.decode(raw);
+        if (mkc == null || mkc.isUnknown()) return false;
+        InputConstants.Key bound = mkc.getKeyCode();
+        if (bound.getType() != InputConstants.Type.KEYSYM) return false;
+        int code = bound.getValue();
+        boolean down = InputConstants.isKeyDown(minecraft.getWindow(), code);
+        if (!down && (code == InputConstants.KEY_LALT || code == InputConstants.KEY_RALT)) {
+            down = isAltDown();
+        }
+        if (!down) return false;
+        Modifier modifier = mkc.getModifier();
+        if (modifier.hasControl() && !isControlDown()) return false;
+        if (modifier.hasShift() && !isShiftDown()) return false;
+        if (modifier.hasAlt() && !isAltDown()) return false;
+        return true;
+    }
+
     /** Play the shared page-flip UI click — gated by the "鼠标滚轮翻页音效"
      *  toggle and scaled by the page-flip volume setting (0.25 x volume, the
      *  same scaling the recipe book's scroll flips use).  Every paging surface
