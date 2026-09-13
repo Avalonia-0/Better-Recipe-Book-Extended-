@@ -4,8 +4,11 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.compat.SyntheticRecipeRenderer;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.render.PopupGeometry;
+import com.alonie.brbe.util.CycleLock;
 import com.alonie.brbe.util.RecipeViewerOverlay;
 import mezz.jei.api.gui.IRecipeLayoutDrawable;
+import mezz.jei.api.gui.drawable.IDrawable;
+import mezz.jei.api.gui.inputs.RecipeSlotUnderMouse;
 import mezz.jei.api.gui.ingredient.IRecipeSlotDrawable;
 import mezz.jei.api.gui.ingredient.IRecipeSlotView;
 import mezz.jei.api.ingredients.ITypedIngredient;
@@ -15,6 +18,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.data.AtlasIds;
+import net.minecraft.client.renderer.Rect2i;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 
@@ -65,6 +69,7 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
     public static void invalidate() {
         LAYOUT_CACHE.clear();
         SLOT_COUNTERS.clear();
+        FROZEN_SLOTS.clear();
     }
 
     /** Diagnostics: logged once each for the render-skip cause and a failed
@@ -114,34 +119,26 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
             }
         }
 
-        // Alt (the BRBE cycle-pause key): freeze every JEI-delegated UI's
-        // variant cycling by simply not ticking its drawable — this works
-        // under both the real JEI runtime and the vendored fork, with no
-        // reliance on JEI's own pause key mapping.  On release any overrides
-        // pinned by {@link #stepVariants} are cleared and JEI's native cycle
-        // resumes.
-        boolean altDown = RecipeViewerOverlay.isCycleAltDown();
-        if (altDown != lastAltState) {
-            lastAltState = altDown;
-            if (!altDown) {
-                clearVariants(drawable);
-                SLOT_COUNTERS.clear();
-            }
-        }
-
-        long tick = net.minecraft.util.Util.getMillis() / 50;
-        if (tick != lastTick) {
-            lastTick = tick;
-            if (!altDown) {
-                drawable.tick();
-            }
-        }
-
         // The caller already fitted the category's aspect ratio into the
         // button and scaled it up (PopupGeometry.CONTENT_ZOOM) so the recipe
         // reads clearly; fit the drawable into the given content rect and wrap
         // it in the 9-sliced panel (corners stay at 1:1, the middle stretches).
         float fit = w / (float) layout.width();
+
+        // 逐槽位的折叠锁（用户 2026-09-13 诉求 1/2/3）：锁定键按住时**只冻结
+        // 指针下那个槽位**（用 display override 把它钉在当前变体上），其余槽位
+        // 继续由 JEI 自己的轮循器推进；锁定键+滚轮由 CycleLock 逐格翻动被冻结的
+        // 那一个。旧实现是"按住 Alt 就不 tick 整个 drawable"（整块界面一起冻），
+        // 与用户要求相反。
+        applyCycleLock(drawable, x, y, fit);
+
+        long tick = net.minecraft.util.Util.getMillis() / 50;
+        if (tick != lastTick) {
+            lastTick = tick;
+            // 始终 tick：没被指着的槽位必须继续自动轮换。
+            drawable.tick();
+        }
+
         renderContainer(gui, x, y, w, h);
 
         gui.pose().pushMatrix();
@@ -157,6 +154,13 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
         drawable.drawRecipe(gui, 0, 0);
 
         gui.pose().popMatrix();
+
+        // 被冻结的槽位：JEI 自己的候选角标（右下角 tag/list 标记）是按**当前
+        // 显示分组的可见成员数**画的，而 display override 把分组缩成了 1 个成员
+        // → 翻动折叠物品时角标会消失（用户 2026-09-13 诉求 3）。这里用 BRBE
+        // 自己的角标重画（判定取的是槽位的原始候选列表，与 override 无关），
+        // 位置与 JEI 原画完全一致。
+        drawFrozenBadges(gui, drawable, x, y, fit);
         return true;
     }
 
@@ -183,55 +187,155 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
         }
     }
 
-    /** Last Alt state the renderer saw, so the pause-to-resume transition
-     *  clears the variant overrides exactly once. */
-    private static boolean lastAltState = false;
-
     /**
-     * Per-slot manual step counters for Alt+wheel quick-flip: each slot walks
-     * its own candidate list one step per wheel tick.  No {@code indexOf} on
-     * JEI's internal lists — {@code TypedIngredient} has no value equals (the
-     * displayed instance always differs from the list's instances), so
-     * indexOf always missed and every wheel re-pinned the slot to the same
-     * wrong candidate.  The counter is aligned to the slot's shown variant on
-     * its first step (by item VALUE), then advanced exactly ±1 — every
-     * candidate of every slot is reached exactly once per full cycle.
+     * 逐槽位的 display override 计数器：被冻结的槽位用它在候选表里定位当前变体。
+     *  首次冻结时对齐到**当时正在显示**的那一个（按物品**值**比对——JEI 展示的
+     *  {@code TypedIngredient} 实例与列表里的不是同一个，{@code indexOf} 永远
+     *  失配），之后由锁定键+滚轮 ±1 步进 —— 每个候选都恰好轮到一次。
      */
     private static final Map<IRecipeSlotDrawable, Integer> SLOT_COUNTERS = new HashMap<>();
 
-    @Override
-    public void stepVariants(int delta) {
-        for (IRecipeLayoutDrawable<?> drawable : LAYOUT_CACHE.values()) {
-            try {
-                for (IRecipeSlotView view : drawable.getRecipeSlotsView().getSlotViews()) {
-                    // The live slot impl is the full drawable slot (JEI 27.4 /
-                    // 30.24 both do): the reduced IRecipeSlotView has no
-                    // override API, so cast back when available.
-                    if (!(view instanceof IRecipeSlotDrawable slot)) continue;
-                    List<ITypedIngredient<?>> all = slot.getAllIngredientsList();
-                    if (all == null || all.size() <= 1) continue;
-                    Integer counter = SLOT_COUNTERS.get(slot);
-                    if (counter == null) {
-                        // First step: best-effort alignment to the variant that
-                        // was showing (by item VALUE — the displayed
-                        // TypedIngredient instance differs from the list's).
-                        counter = slot.getDisplayedIngredient()
-                                .flatMap(ITypedIngredient::getItemStack)
-                                .map(shown -> indexOfValue(all, shown))
-                                .orElse(0);
-                    }
-                    counter += delta;
-                    SLOT_COUNTERS.put(slot, counter);
-                    ITypedIngredient<?> target = all.get(Math.floorMod(counter, all.size()));
-                    if (target == null) continue;
-                    target.getItemStack().ifPresent(stack -> {
-                        slot.clearDisplayOverrides();
-                        slot.createDisplayOverrides().addItemStack(stack);
-                    });
+    /** 当前被 display override 钉住的槽位（松开/指针移开时清 override）。 */
+    private static final java.util.Set<IRecipeSlotDrawable> FROZEN_SLOTS =
+            java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+
+    /** 逐槽位的折叠锁：只冻结指针下的那一个槽位。
+     *
+     *  <p>被指着的槽位：每帧把 override 重设到 {@link CycleLock} 记录的变体
+     *  下标（首次冻结时 latched 到当时显示的变体，之后由滚轮步进）；没被指着的
+     *  槽位：清掉 override，交回 JEI 自己的轮循器（drawable 照常 tick）。</p>
+     */
+    private static void applyCycleLock(IRecipeLayoutDrawable<?> drawable, int ox, int oy, float fit) {
+        boolean down = CycleLock.isDown();
+        try {
+            for (IRecipeSlotView view : drawable.getRecipeSlotsView().getSlotViews()) {
+                if (!(view instanceof IRecipeSlotDrawable slot)) continue;
+                List<ITypedIngredient<?>> all = slot.getAllIngredientsList();
+                if (all == null || all.size() <= 1) continue;
+                if (!down) {
+                    unfreeze(slot);
+                    continue;
                 }
-            } catch (Exception | LinkageError ignored) {
-                // one broken drawable must not break the whole quick-flip
+                // 槽位的屏幕矩形：JEI 的布局坐标 × fit + 内容原点（与
+                // itemUnderMouse 的映射同源）。
+                Rect2i area = slot.getAreaIncludingBackground();
+                int sx = Math.round(ox + area.getX() * fit);
+                int sy = Math.round(oy + area.getY() * fit);
+                int sw = Math.max(1, Math.round(area.getWidth() * fit));
+                int sh = Math.max(1, Math.round(area.getHeight() * fit));
+                if (!CycleLock.claim(slot, sx, sy, sw, sh)) {
+                    unfreeze(slot);
+                    continue;
+                }
+                // 首帧：把计数器对齐到当前显示的变体。
+                Integer counter = SLOT_COUNTERS.get(slot);
+                if (counter == null) {
+                    counter = slot.getDisplayedIngredient()
+                            .flatMap(ITypedIngredient::getItemStack)
+                            .map(shown -> indexOfValue(all, shown))
+                            .orElse(0);
+                    SLOT_COUNTERS.put(slot, counter);
+                }
+                int idx = CycleLock.indexFor(slot, counter);
+                ITypedIngredient<?> target = all.get(Math.floorMod(idx, all.size()));
+                if (target == null) continue;
+                target.getItemStack().ifPresent(stack -> {
+                    slot.clearDisplayOverrides();
+                    slot.createDisplayOverrides().addItemStack(stack);
+                    FROZEN_SLOTS.add(slot);
+                });
             }
+        } catch (Exception | LinkageError ignored) {
+            // one broken drawable must not break the whole quick-flip
+        }
+    }
+
+    /** 解除一个槽位的冻结（JEI 原生轮循恢复）。 */
+    private static void unfreeze(IRecipeSlotDrawable slot) {
+        if (FROZEN_SLOTS.remove(slot)) {
+            SLOT_COUNTERS.remove(slot);
+            try {
+                slot.clearDisplayOverrides();
+            } catch (Throwable ignored) {
+            }
+        }
+    }
+
+    /** 重画被冻结槽位的候选角标（JEI 自己的角标在 override 生效时会消失，
+     *  见 {@code render} 末尾的注释）。 */
+    private static void drawFrozenBadges(GuiGraphics gui,
+                                         IRecipeLayoutDrawable<?> drawable,
+                                         int ox, int oy, float fit) {
+        if (FROZEN_SLOTS.isEmpty() || fit <= 0) return;
+        try {
+            for (IRecipeSlotView view : drawable.getRecipeSlotsView().getSlotViews()) {
+                if (!(view instanceof IRecipeSlotDrawable slot)) continue;
+                if (!FROZEN_SLOTS.contains(slot)) continue;
+                Rect2i area = slot.getAreaIncludingBackground();
+                drawBadge(gui, slot,
+                        ox + (area.getX() + area.getWidth() / 2.0) * fit,
+                        oy + (area.getY() + area.getHeight() / 2.0) * fit,
+                        ox, oy, fit);
+            }
+        } catch (Exception | LinkageError ignored) {
+        }
+    }
+
+    /** 画一个槽位的候选角标（tag / list 二选一），位置与 JEI 原画一致。 */
+    private static void drawBadge(GuiGraphics gui, IRecipeSlotDrawable slot,
+                                 double contentX, double contentY, float ox, float oy, float fit) {
+        try {
+            // hasCandidates：只有轮循槽位带角标。判定取自槽位的**原始**候选列表
+            // （display override 不影响它），所以冻结期间同样成立。
+            if (slot.getAllIngredients().limit(2).count() <= 1) return;
+            // getTagKey() 只存在于真实 JEI 运行时（30.24+）的 API，编译期参考的
+            // headless-jei 里没有 → 反射取；缺失即该运行时没有角标功能。
+            boolean isTag;
+            try {
+                isTag = ((Optional<?>) slot.getClass().getMethod("getTagKey").invoke(slot)).isPresent();
+            } catch (NoSuchMethodException e) {
+                return;
+            }
+            Object textures = mezz.jei.common.Internal.getTextures();
+            IDrawable icon = (IDrawable) textures.getClass()
+                    .getMethod(isTag ? "getTagBadgeIcon" : "getListBadgeIcon")
+                    .invoke(textures);
+            Rect2i area = slot.getAreaIncludingBackground();
+            int bx = Math.round(ox + (area.getX() + area.getWidth() - icon.getWidth() + 1) * fit);
+            int by = Math.round(oy + (area.getY() + area.getHeight() - icon.getHeight() + 1) * fit);
+            gui.pose().pushMatrix();
+            gui.pose().translate(bx, by);
+            gui.pose().scale(fit, fit);
+            icon.draw(gui, 0, 0);
+            gui.pose().popMatrix();
+        } catch (ReflectiveOperationException | LinkageError e) {
+            // JEI build without the badge: it painted no badge either.
+        } catch (RuntimeException ignored) {
+            // a broken badge draw must never break the popup
+        }
+    }
+
+    @Override
+    public void drawSlotBadge(RecipeDisplayId id, GuiGraphics gui,
+                              double contentX, double contentY, float ox, float oy, float fit) {
+        // JEI's candidates badge (tag/list marker) is painted by the live
+        // drawable's slot draw — i.e. BEFORE the caller's red ghost mask, so
+        // the mask would cover it.  Redraw it from the live slot: the same
+        // tag-key decision and icon JEI used, the same bottom-right corner
+        // offset.  The tag/list badge API only exists in newer JEI runtimes
+        // (30.24+); older builds draw no badge and this returns silently.
+        IRecipeLayoutDrawable<?> drawable = LAYOUT_CACHE.get(id);
+        if (drawable == null || fit <= 0) {
+            return;
+        }
+        try {
+            double localX = (contentX - ox) / fit;
+            double localY = (contentY - oy) / fit;
+            Optional<RecipeSlotUnderMouse> under = drawable.getSlotUnderMouse(localX, localY);
+            if (under.isEmpty()) return;
+            drawBadge(gui, under.get().slot(), contentX, contentY, ox, oy, fit);
+        } catch (RuntimeException | LinkageError ignored) {
+            // a broken badge draw must never break the popup
         }
     }
 
@@ -245,21 +349,6 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
             }
         }
         return 0;
-    }
-
-    /** Clear every slot's display overrides (Alt released — JEI resumes its
-     *  native variant cycling). */
-    private static void clearVariants(IRecipeLayoutDrawable<?> drawable) {
-        try {
-            for (IRecipeSlotView view : drawable.getRecipeSlotsView().getSlotViews()) {
-                if (!(view instanceof IRecipeSlotDrawable slot)) continue;
-                try {
-                    slot.clearDisplayOverrides();
-                } catch (Throwable ignored) {
-                }
-            }
-        } catch (Exception | LinkageError ignored) {
-        }
     }
 
     @SuppressWarnings({"rawtypes", "unchecked"})

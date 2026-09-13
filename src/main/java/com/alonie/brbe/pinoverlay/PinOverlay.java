@@ -8,6 +8,7 @@ import com.alonie.brbe.mixins.accessors.OverlayRecipeComponentAccessor;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.render.PopupGeometry;
 import com.alonie.brbe.util.BRBTextures;
+import com.alonie.brbe.util.CycleLock;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.RecipeViewerOverlay;
@@ -232,38 +233,13 @@ public final class PinOverlay {
         return entry;
     }
 
-    /** The pin's slot-select cycle index (its clone's own clock), under its
-     *  OWN Alt state: while Alt is held the rotation freezes (locked at the
-     *  Alt-press index), Alt+wheel steps { #manualCycleIndex}, releasing
-     *  Alt resumes the automatic cycle.  Pins own this state independently of
-     *  the query windows — it must keep working with the viewer closed. */
-    private boolean cyclePaused;
-    private int manualCycleIndex;
-
-    /** The pin's slot-select cycle index (its clone's own clock). */
+    /** The pin's slot-select cycle index (its clone's own clock).  The pin's own
+     *  Alt state is gone: the cycle lock is per ITEM now (user 2026-09-13) — the
+     *  pin panel's slots resolve themselves in {@code PopupRenderer}'s per-slot
+     *  pass, so this is the raw automatic index. */
     public int slotSelectIndex() {
-        int autoIndex = ((OverlayRecipeComponentAccessor) component)
+        return ((OverlayRecipeComponentAccessor) component)
                 .getSlotSelectTime().currentIndex();
-        // 锁定键（配置项「锁定折叠物品」，默认 Alt）按住即冻结；指针落在 LEI
-        // 预览界面上时不冻结（与查询窗口同一规则，见 pointerOnPreview）。
-        boolean lock = ClientCompat.isCycleLockDown() && !RecipeViewerOverlay.pointerOnPreview();
-        if (lock) {
-            if (!cyclePaused) {
-                cyclePaused = true;
-                manualCycleIndex = Math.max(0, autoIndex);
-            }
-        } else if (cyclePaused) {
-            cyclePaused = false;
-            RecipeViewerOverlay.forkSetManualIndex(-1);
-        }
-        return cyclePaused ? Math.max(0, manualCycleIndex) : autoIndex;
-    }
-
-    /** Alt+wheel: step the pinned variant (freezes the rotation first). */
-    void stepVariants(double vertical) {
-        cyclePaused = true;
-        manualCycleIndex = Math.max(0, manualCycleIndex + (vertical > 0 ? -1 : 1));
-        RecipeViewerOverlay.forkSetManualIndex(manualCycleIndex);
     }
 
     /** The pinned recipe id. */
@@ -424,6 +400,13 @@ public final class PinOverlay {
         // crafting layout / raw auto-index once the query viewer is closed).
         button.setX(btnX());
         button.setY(btnY());
+        // pin 是最上层浮层：指针在它上面时先清掉本帧的登记，铺在它下面的
+        // 窗口/配方书物品不再抢占锁定键+滚轮（它自己的槽位随后各自登记）。
+        PopupGeometry own = geometry();
+        if (CycleLock.cursorX() >= own.x && CycleLock.cursorX() < own.x + own.w
+                && CycleLock.cursorY() >= own.y && CycleLock.cursorY() < own.y + own.h) {
+            CycleLock.clearHovered();
+        }
         PinButtonRenderOverride.push(PopupGeometry.VANILLA_SCALE, mode, slotSelectIndex());
         try {
             button.render(gui, mouseX, mouseY, delta);
