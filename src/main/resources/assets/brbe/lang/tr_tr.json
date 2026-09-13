@@ -157,7 +157,7 @@
   "text.autoconfig.brbe.option.previewMode": "Önizleme modu",
   "text.autoconfig.brbe.option.previewMode.@Tooltip": "Ekran yeniden açıldığında sorgu pencereleri geri yüklenmez ve diğer öğelerle etkileşim onları kapatır.",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "Bu eşyayı malzeme veya tezgâh olarak kullanan tarifleri gösterir.",
-  "text.autoconfig.brbe.option.recipeViewerEnabled": "BRBE'nin JEI'sini Etkinleştir",
+  "text.autoconfig.brbe.option.recipeViewerEnabled": "LEI'yi Etkinleştir",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@PrefixText": "§eLikewise Enough Items (Eşya Yöneticisi)",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@Tooltip": "Öğenin veya tarif defterindeki tarifin üzerine gelin ve üretim tarifleri ile materyal olarak kullanıldığı tarifleri görüntülemek için R/U (varsayılan) tuşlarına basın.\nÖğe yöneticisinin kendi arama özelliğini kullanmak istiyorsanız bu işlevi kapatın veya tuşları değiştirin.\nBu JEI, o JEI değil. <3",
   "text.autoconfig.brbe.option.recipeViewerEnabled@PrefixText": "§eLikewise Enough Items (Eşya Yöneticisi)",

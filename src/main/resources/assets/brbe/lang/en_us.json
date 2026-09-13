@@ -151,7 +151,7 @@
   "text.autoconfig.brbe.option.recipeViewKey@PrefixText": "§eLikewise Enough Items (Item Manager)",
   "text.autoconfig.brbe.option.recipeViewKey.@Tooltip": "Shows the recipes that produce this item.",
   "text.autoconfig.brbe.option.recipeViewKey@Tooltip": "Shows the recipes that produce this item.",
-  "text.autoconfig.brbe.option.recipeViewerEnabled": "Enable BRBE's JEI",
+  "text.autoconfig.brbe.option.recipeViewerEnabled": "Enable LEI",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@PrefixText": "§eLikewise Enough Items (Item Manager)",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@Tooltip": "Hover over an item or a recipe-book recipe and press R/U (default) to view its crafting recipes and the recipes that use it as a material.\nDisable this or rebind the keys when you want to use the item manager's own view feature.\nThis JEI is not that JEI. <3",
   "text.autoconfig.brbe.option.recipeViewerEnabled@PrefixText": "§eLikewise Enough Items (Item Manager)",
