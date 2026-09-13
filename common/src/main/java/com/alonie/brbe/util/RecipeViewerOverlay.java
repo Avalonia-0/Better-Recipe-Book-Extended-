@@ -163,8 +163,16 @@ public final class RecipeViewerOverlay {
     // ── 常量（1.21.11 同值） ────────────────────────────────────────────────
     private static final ResourceLocation OVERLAY_RECIPE_SPRITE =
             ResourceLocation.withDefaultNamespace("recipe_book/overlay_recipe");
-    private static final ResourceLocation RBIP_PAGE_BUTTONS =
-            ResourceLocation.fromNamespaceAndPath("brbe", "textures/rbip/recipe_book_buttons.png");
+    /** 查询窗口**自己**的翻页按钮贴图（2026-09-13 用户定制图）：256x256 画布，
+     *  格子布局与 RBIP 的 {@code rbip/recipe_book_buttons.png} 完全一致
+     *  （u = 0 上一页 / 14 下一页 / +28 悬停，v = 0 可用 / 13 不可用），
+     *  但箭头是**竖向**的——u=0 是朝下的上一页、u=14 是朝上的下一页。
+     *  只有查询窗口用它；RBIP 标签条自己的翻页按钮仍用原横向贴图。
+     *  用裸 {@code blit} 绘制（非 {@code blitSprite}），所以不涉及 {@code .mcmeta}；
+     *  Unique Dark 包以同路径放一份 PNG 覆盖它（与包内其余贴图同规则）。 */
+    private static final ResourceLocation LEI_PAGE_BUTTONS =
+            ResourceLocation.fromNamespaceAndPath("brbe",
+                    "textures/gui/sprites/recipe_book/lei_page_button.png");
     /** 对象区的行上限 / 列上限（配置项「配方区行上限」「配方区列上限」，默认
      *  3 行 x 7 列）的兜底夹紧区间 —— 见 {@link #pageRows()} / {@link #pageCols()}。 */
     private static final int LIMIT_MIN = 1;
@@ -890,7 +898,7 @@ public final class RecipeViewerOverlay {
             u += 28;
         }
         int v = activeButton ? 0 : 13;
-        gui.blit(RBIP_PAGE_BUTTONS, x, y, u, v, PAGE_BTN_WIDTH, PAGE_BTN_HEIGHT, 256, 256);
+        gui.blit(LEI_PAGE_BUTTONS, x, y, u, v, PAGE_BTN_WIDTH, PAGE_BTN_HEIGHT, 256, 256);
     }
 
     /** 分类标签条（-90° 旋转 + TAB_CUT 拼贴，1.21.11 同款）。 */
