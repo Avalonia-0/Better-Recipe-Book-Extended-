@@ -28,10 +28,10 @@ public final class KeybindingGuiRegistrar {
                     KeybindingCodec.pinDefaultValue(),
                     "text.autoconfig.brbe.option.pinKey.@Tooltip",
                     BetterRecipeBook.PIN_MAPPING),
-            // 「锁定折叠物品」：用户要求**无 tooltip**（tooltipKey = null → 不设 tooltip）。
+            // 「锁定」：标题缩短为「锁定」，用途放进 tooltip（用户 2026-09-13）。
             new KeybindingField("cycleLockKey", "text.autoconfig.brbe.option.cycleLockKey",
                     KeybindingCodec.cycleLockDefaultValue(),
-                    null,
+                    "text.autoconfig.brbe.option.cycleLockKey.@Tooltip",
                     BetterRecipeBook.CYCLE_LOCK_MAPPING),
             new KeybindingField("recipeViewKey", "text.autoconfig.brbe.option.recipeViewKey",
                     KeybindingCodec.recipeViewDefaultValue(),

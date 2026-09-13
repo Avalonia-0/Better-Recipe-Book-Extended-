@@ -134,10 +134,12 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.Tooltip
     public String pinKey = KeybindingCodec.PIN_DEFAULT_RAW;
 
-    /** 「锁定折叠物品」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 Alt。
-     *  按住 = 冻结折叠物品的自动轮换（配方书内的配方、功能方块内的幽灵物品、
-     *  查询界面的对象），配合滚轮逐格翻动；松开恢复自动轮换。
-     *  GUI：**无 tooltip**（用户要求）。位置在「固定」下方。 */
+    /** 「锁定」快捷键（GUI 渲染为键位输入框，存为字符串）。默认 Alt。
+     *  按住 = 冻结**指针下那一个**折叠物品的自动轮换（配方书内的配方、功能方块内的
+     *  幽灵物品、查询界面/预览里的对象），配合滚轮逐格翻动；松开恢复自动轮换。
+     *  GUI 标题「锁定」，tooltip「锁定循环中的折叠物品。」（用户 2026-09-13）；
+     *  位置在「固定」下方。 */
+    @ConfigEntry.Gui.Tooltip
     @ConfigEntry.Category("keybindings")
     public String cycleLockKey = KeybindingCodec.cycleLockDefaultRaw();
 
