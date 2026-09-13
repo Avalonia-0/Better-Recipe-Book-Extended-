@@ -269,6 +269,13 @@ public final class RecipeViewerOverlay {
         return BetterRecipeBook.config.scrolling.scrollAround;
     }
 
+    /** 「在配方区使用自然的翻页方向」（默认开）：{@code true} = 鼠标滚轮向前
+     *  （上滚）往后翻页；{@code false} = 旧方向（上滚往前翻页）。只作用于
+     *  <b>配方区</b>的翻页——标签条翻页与 Alt+滚轮轮循走各自的方向。 */
+    private static boolean naturalPageDirection() {
+        return BetterRecipeBook.config == null || BetterRecipeBook.config.naturalPageDirection;
+    }
+
 
     /** Cached ids of categories whose objects are ALL hidden by the filter
      *  (their tab is hidden too).  Rebuilt when the toggle state changes or
@@ -1609,7 +1616,8 @@ public final class RecipeViewerOverlay {
         if (vertical == 0) return false;
         // Scroll zone: the box plus the turn-page button strip above it.
         if (overScrollZone(mouseX, mouseY)) {
-            int delta = vertical > 0 ? -1 : 1;
+            // 配方区的翻页方向由配置决定（默认「自然方向」＝上滚往后翻页）。
+            int delta = (vertical > 0) == naturalPageDirection() ? 1 : -1;
             int next = viewerPage + delta;
             if (BetterRecipeBook.config.scrolling.scrollAround && viewerPageCount > 1) {
                 // Wrap around: a scroll past the last page returns to the first

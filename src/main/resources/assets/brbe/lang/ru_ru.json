@@ -156,6 +156,8 @@
   "text.autoconfig.brbe.option.usageViewKey.@Tooltip": "Показывает рецепты, где этот предмет используется как материал или станок.",
   "text.autoconfig.brbe.option.previewMode": "Режим предпросмотра",
   "text.autoconfig.brbe.option.previewMode.@Tooltip": "Окна запросов не восстанавливаются при повторном открытии интерфейса, а взаимодействие с другими элементами закрывает их.",
+  "text.autoconfig.brbe.option.naturalPageDirection": "Естественное направление перелистывания в области рецептов",
+  "text.autoconfig.brbe.option.naturalPageDirection.@Tooltip": "Меняет направление перелистывания страниц колёсиком мыши.",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "Показывает рецепты, где этот предмет используется как материал или станок.",
   "text.autoconfig.brbe.option.recipeViewerEnabled": "Включить LEI",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@PrefixText": "§eLikewise Enough Items (менеджер предметов)",

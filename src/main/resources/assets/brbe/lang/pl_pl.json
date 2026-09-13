@@ -156,6 +156,8 @@
   "text.autoconfig.brbe.option.usageViewKey.@Tooltip": "Pokazuje przepisy, w których ten przedmiot jest materiałem lub stacją.",
   "text.autoconfig.brbe.option.previewMode": "Tryb podglądu",
   "text.autoconfig.brbe.option.previewMode.@Tooltip": "Okna zapytań nie są przywracane po ponownym otwarciu interfejsu, a interakcja z innymi elementami je zamyka.",
+  "text.autoconfig.brbe.option.naturalPageDirection": "Naturalny kierunek przewracania stron w obszarze przepisów",
+  "text.autoconfig.brbe.option.naturalPageDirection.@Tooltip": "Odwraca kierunek przewracania stron kółkiem myszy.",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "Pokazuje przepisy, w których ten przedmiot jest materiałem lub stacją.",
   "text.autoconfig.brbe.option.recipeViewerEnabled": "Włącz LEI",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@PrefixText": "§eLikewise Enough Items (menedżer przedmiotów)",

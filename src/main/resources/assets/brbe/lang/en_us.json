@@ -183,6 +183,8 @@
   "text.autoconfig.brbe.option.usageViewKey.@Tooltip": "Shows the recipes that use this item as a material or workstation.",
   "text.autoconfig.brbe.option.previewMode": "Preview Mode",
   "text.autoconfig.brbe.option.previewMode.@Tooltip": "Query windows are no longer restored when reopening a screen, and interacting with other elements closes them.",
+  "text.autoconfig.brbe.option.naturalPageDirection": "Use Natural Page Turn Direction in the Recipe Area",
+  "text.autoconfig.brbe.option.naturalPageDirection.@Tooltip": "Reverses the mouse wheel's page turn direction.",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "Shows the recipes that use this item as a material or workstation.",
   "text.autoconfig.brbe.title": "Better Recipe Book Configuration"
 }
