@@ -41,6 +41,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             applyConfigKey(BetterRecipeBook.PIN_MAPPING, BetterRecipeBook.config.pinKey);
             applyConfigKey(BetterRecipeBook.RECIPE_VIEW_MAPPING, BetterRecipeBook.config.recipeViewKey);
             applyConfigKey(BetterRecipeBook.USAGE_VIEW_MAPPING, BetterRecipeBook.config.usageViewKey);
+            applyConfigKey(BetterRecipeBook.CYCLE_LOCK_MAPPING, BetterRecipeBook.config.cycleLockKey);
             client.options.save();
         } catch (Throwable ignored) {
             // 同步失败不影响启动
@@ -64,6 +65,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.PIN_MAPPING);
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.RECIPE_VIEW_MAPPING);
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.USAGE_VIEW_MAPPING);
+        KeyBindingHelper.registerKeyBinding(BetterRecipeBook.CYCLE_LOCK_MAPPING);
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.DIAGNOSTIC_MAPPING);
 
         // 锻造 fallback：尽早注册同步配方监听（须先于登录的

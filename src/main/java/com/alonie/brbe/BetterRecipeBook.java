@@ -67,6 +67,17 @@ public class BetterRecipeBook {
             KEY_CATEGORY
     );
 
+    /** 「锁定折叠物品」键：按住冻结折叠物品的自动轮换，配合滚轮逐格翻动。
+     *  默认左 Alt（沿用原版「Alt 锁定」的手感）；运行时按配置字符串轮询物理键
+     *  （见 {@code ClientCompat.isCycleLockDown}），不依赖本映射的事件状态——
+     *  注册它只是为了在「按键绑定」界面里有一条可改的键位条目。 */
+    public static final KeyMapping CYCLE_LOCK_MAPPING = new KeyMapping(
+            "key.brbe.cycleLock",
+            InputConstants.Type.KEYSYM,
+            InputConstants.KEY_LALT,
+            KEY_CATEGORY
+    );
+
     /** Diagnostic dump key (F8).  Writes brbe-diagnostic.log to game dir. */
     public static final KeyMapping DIAGNOSTIC_MAPPING = new KeyMapping(
             "key.brbe.diagnostic",

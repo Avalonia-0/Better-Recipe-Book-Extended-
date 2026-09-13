@@ -27,7 +27,8 @@ public abstract class KeyMappingSyncMixin {
         KeyMapping self = (KeyMapping) (Object) this;
         if (self != BetterRecipeBook.RECIPE_VIEW_MAPPING
                 && self != BetterRecipeBook.USAGE_VIEW_MAPPING
-                && self != BetterRecipeBook.PIN_MAPPING) {
+                && self != BetterRecipeBook.PIN_MAPPING
+                && self != BetterRecipeBook.CYCLE_LOCK_MAPPING) {
             return;
         }
         if (BetterRecipeBook.config == null || BetterRecipeBook.configHolder == null) return;
@@ -38,6 +39,8 @@ public abstract class KeyMappingSyncMixin {
                 BetterRecipeBook.config.recipeViewKey = raw;
             } else if (self == BetterRecipeBook.USAGE_VIEW_MAPPING) {
                 BetterRecipeBook.config.usageViewKey = raw;
+            } else if (self == BetterRecipeBook.CYCLE_LOCK_MAPPING) {
+                BetterRecipeBook.config.cycleLockKey = raw;
             } else {
                 BetterRecipeBook.config.pinKey = raw;
             }
