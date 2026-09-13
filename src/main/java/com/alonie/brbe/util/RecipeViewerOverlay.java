@@ -781,6 +781,17 @@ public final class RecipeViewerOverlay {
      *  ghost-preview ingredient → vanilla recipe-book button.  Shared by
      *  every window's anchor capture and the no-window case (first R/U). */
     public static ItemStack captureScreenTarget(AbstractContainerScreen<?> screen) {
+        // The host recipe book's alternative-recipe group (the popup a grouped
+        // recipe button opens) is drawn ABOVE every other screen element, so a
+        // hovered variant wins over whatever sits underneath it: R/U over a
+        // variant queries that recipe's object exactly like a BRBE viewer
+        // object does (2026-09-13 user request).  A cursor over the group's
+        // padding (no button hovered) still falls through to the chain below.
+        if (screen instanceof AbstractRecipeBookScreen<?> rbs) {
+            ItemStack variant = captureAlternateGroupTarget(rbs);
+            if (!variant.isEmpty()) return variant;
+        }
+
         AbstractContainerScreenAccessor acc = (AbstractContainerScreenAccessor) screen;
         Slot slot = acc.brbe$getHoveredSlot();
         if (slot != null && slot.hasItem()) {
@@ -812,6 +823,61 @@ public final class RecipeViewerOverlay {
             }
         }
         return ItemStack.EMPTY;
+    }
+
+    /** Result item of the variant under the cursor inside the HOST recipe
+     *  book's alternative-recipe group, or {@code EMPTY} when the group is
+     *  closed / no variant is hovered / the variant has no result item.
+     *
+     *  <p>The lookup goes through the group's OWN {@link RecipeCollection}:
+     *  {@link #entryFor(RecipeDisplayId)} only knows the recipes BRBE's own
+     *  queries indexed, and a book-only variant need not be among them.
+     *
+     *  <p>Hidden buttons are skipped — their hover flag is stale, because a
+     *  hidden widget's {@code extractRenderState} returns early and never
+     *  refreshes it (the pin path guards exactly the same way). */
+    private static ItemStack captureAlternateGroupTarget(AbstractRecipeBookScreen<?> rbs) {
+        RecipeBookComponent<?> book =
+                ((AbstractRecipeBookScreenAccessor) rbs).brbe$getRecipeBookComponent();
+        if (book == null || !book.isVisible()) return ItemStack.EMPTY;
+        RecipeBookPage page = ((RecipeBookComponentAccessor) book).getRecipeBookPage();
+        if (page == null) return ItemStack.EMPTY;
+        OverlayRecipeComponent group = ((RecipeBookPageAccessor) page).getOverlay();
+        if (group == null || !group.isVisible()) return ItemStack.EMPTY;
+        RecipeCollection collection = group.getRecipeCollection();
+        if (collection == null) return ItemStack.EMPTY;
+        for (AbstractWidget button : ((OverlayRecipeComponentAccessor) group).getRecipeButtons()) {
+            if (!button.visible || !button.isHoveredOrFocused()) continue;
+            if (!(button instanceof OverlayRecipeButtonAccessor oba)) continue;
+            RecipeDisplayId id = oba.brbe$getRecipe();
+            if (id == null) continue;
+            for (RecipeDisplayEntry entry : collection.getRecipes()) {
+                if (entry == null || !id.equals(entry.id())) continue;
+                List<ItemStack> results = resultItemsOf(entry);
+                if (!results.isEmpty()) return results.get(0);
+            }
+        }
+        return ItemStack.EMPTY;
+    }
+
+    /** {@code entry.resultItems(...)} with the level-backed context map, falling
+     *  back to the context-free call when that throws (mod displays may need a
+     *  level).  Never null. */
+    private static List<ItemStack> resultItemsOf(RecipeDisplayEntry entry) {
+        Minecraft mc = Minecraft.getInstance();
+        try {
+            List<ItemStack> results = entry.resultItems(
+                    mc.level == null ? null : SlotDisplayContext.fromLevel(mc.level));
+            if (results != null && !results.isEmpty()) return results;
+        } catch (Exception ignored) {
+            // fall through to the context-free call
+        }
+        try {
+            List<ItemStack> results = entry.resultItems(null);
+            return results == null ? List.of() : results;
+        } catch (Exception ignored) {
+            return List.of();
+        }
     }
 
     public static ItemStack captureTarget(AbstractContainerScreen<?> screen) {
@@ -3603,6 +3669,20 @@ public final class RecipeViewerOverlay {
         }
     }
 
+    /** Draw one turn-page button: its 14x13 arrow texture rotated 90°
+     *  <b>counter-clockwise about the button's own centre</b> (2026-09-13 user
+     *  request).  The two buttons rotate INDEPENDENTLY — each around its own
+     *  centre — which is why the pose is pushed, translated to that centre and
+     *  rotated per button instead of once around the pair's midpoint (that
+     *  would stack the two buttons vertically).
+     *
+     *  <p>The blit is centred on the translated origin: {@code (-W/2, -H/2)}
+     *  makes the sprite's own centre the rotation centre.  Its rect centre is
+     *  the nearest integer pair to the button rect's centre (14x13 has a
+     *  half-pixel centre), so the turned glyph lands within ±0.5px of where the
+     *  unturned one sat — the HIT BOX is untouched ({@link #drawPageControls} /
+     *  {@link #handlePageButtonClick} still test the unrotated rect), so only
+     *  the art turns: the left arrow now points down, the right one up.</p> */
     private void drawPageButton(GuiGraphicsExtractor gui, int x, int y, boolean next,
                                       boolean active, int mouseX, int mouseY) {
         int u = next ? 14 : 0;
@@ -3611,8 +3691,15 @@ public final class RecipeViewerOverlay {
             u += 28;
         }
         int v = active ? 0 : 13;
-        gui.blit(RenderPipelines.GUI_TEXTURED, RBIP_PAGE_BUTTONS, x, y, u, v,
+        gui.pose().pushMatrix();
+        gui.pose().translate(x + PAGE_BTN_WIDTH / 2.0f, y + PAGE_BTN_HEIGHT / 2.0f);
+        // Negative Z angle = counter-clockwise on screen (GUI y grows downward),
+        // the same convention as the bottom tab strip's -90° rotation.
+        gui.pose().rotate(-(float) Math.PI / 2.0F);
+        gui.blit(RenderPipelines.GUI_TEXTURED, RBIP_PAGE_BUTTONS,
+                -PAGE_BTN_WIDTH / 2, -PAGE_BTN_HEIGHT / 2, u, v,
                 PAGE_BTN_WIDTH, PAGE_BTN_HEIGHT, 256, 256);
+        gui.pose().popMatrix();
     }
 
     /** Draw the title bar: the band IS the extended panel background (the
@@ -4954,13 +5041,8 @@ public final class RecipeViewerOverlay {
             RecipeDisplayId id = button.brbe$getRecipe();
             RecipeDisplayEntry entry = entryFor(id);
             if (entry == null) return ItemStack.EMPTY;
-            List<ItemStack> results;
-            try {
-                results = entry.resultItems(SlotDisplayContext.fromLevel(mc.level));
-            } catch (Exception e) {
-                results = entry.resultItems(null);
-            }
-            if (results != null && !results.isEmpty()) return results.get(0);
+            List<ItemStack> results = resultItemsOf(entry);
+            if (!results.isEmpty()) return results.get(0);
         } catch (Exception e) {
             // fall through
         }
