@@ -727,7 +727,9 @@ public final class RecipeViewerOverlay {
             return true;
         }
         // Alt+滚轮：步进轮循变体（最高优先，1.21.11 语义）
-        if (vertical != 0 && isCycleAltDown() && active) {
+        // 锁定键+滚轮：逐格翻动折叠对象。指针落在 LEI 预览界面上时两者都不触发
+        // （用户 2026-09-13 要求：预览是独立的一层）。
+        if (vertical != 0 && isCycleAltDown() && active && !pointerOnPreview()) {
             stepCycledVariants(vertical);
             return true;
         }
@@ -2437,7 +2439,42 @@ public final class RecipeViewerOverlay {
     private static boolean cyclePaused;
 
     private static boolean isCycleAltDown() {
-        return ClientCompat.isAltDown();
+        return ClientCompat.isCycleLockDown();
+    }
+
+    /** 指针是否落在**打开中的 LEI 预览界面**（Shift 弹窗）上：此时锁定键不
+     *  冻结、滚轮也不翻动查询浮层里的折叠对象（用户 2026-09-13 要求）——预览
+     *  是独立的一层，指着它时锁定键与滚轮只属于它自己。 */
+    public static boolean pointerOnPreview() {
+        if (!popupOpen || popupRect == null) return false;
+        return inRect(mouseXFor(), mouseYFor(), popupRect);
+    }
+
+    // ── 配方书 / 功能方块幽灵物品的折叠锁（1.21.1 的轮换 = 各实例自己的 time 字段）──
+
+    /** 锁定键（配置项「锁定折叠物品」，默认 Alt）是否按住、且指针不在预览界面上。
+     *  解锁时清零累计步进（下一次按下从新的冻结值开始）。 */
+    public static boolean bookCycleLocked() {
+        boolean lock = ClientCompat.isCycleLockDown() && !pointerOnPreview();
+        if (!lock && bookCyclePaused) {
+            bookCyclePaused = false;
+            bookCycleSteps = 0;
+        }
+        return lock;
+    }
+
+    /** 锁定键+滚轮累计的「交换格数」：调用方把它乘以 30 tick 加到冻结的
+     *  {@code time} 上（原版 {@code floor(time / 30) % n} 选变体）。 */
+    public static int bookCycleSteps() {
+        return bookCycleSteps;
+    }
+
+    /** 锁定键+滚轮（配方书网格按钮 / 功能方块幽灵物品）：逐格翻动冻结值。
+     *  {@code step} 符号与 {@code queuedScroll} 一致（上滚 = -1 = 上一个变体）。 */
+    public static void stepBookCycle(int step) {
+        if (step == 0) return;
+        bookCyclePaused = true;
+        bookCycleSteps += step;
     }
 
     /** 「在配方区使用自然的翻页方向」（默认开）：{@code true} = 鼠标滚轮向前
@@ -2452,7 +2489,8 @@ public final class RecipeViewerOverlay {
      *  freezes on the Alt-press index and Alt+wheel steps it; on release the
      *  automatic cycle resumes (1.21.11 currentSlotSelectIndex 语义）。 */
     public static int currentSlotSelectIndex(int autoIndex) {
-        boolean alt = isCycleAltDown();
+        // 指针落在 LEI 预览界面上时锁定键不生效（用户 2026-09-13 要求）。
+        boolean alt = isCycleAltDown() && !pointerOnPreview();
         if (alt) {
             if (!cyclePaused) {
                 cyclePaused = true;
@@ -2464,6 +2502,10 @@ public final class RecipeViewerOverlay {
         }
         return cyclePaused ? manualCycleIndex : autoIndex;
     }
+
+    /** 配方书/幽灵物品折叠锁的累计步进与状态（见 {@link #bookCycleLocked()}）。 */
+    private static int bookCycleSteps;
+    private static boolean bookCyclePaused;
 
     /** Shift 弹窗内光标所在槽位的物品（阶段一 #3；经 PopupGeometry.itemAt
      *  命中，selIdx 与按钮轮循同源——游戏时间 /30）。无命中返回空。 */

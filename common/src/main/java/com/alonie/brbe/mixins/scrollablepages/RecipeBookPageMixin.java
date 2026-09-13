@@ -2,6 +2,7 @@ package com.alonie.brbe.mixins.scrollablepages;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.layout.BookLayout;
+import com.alonie.brbe.util.ClientCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.StateSwitchingButton;
@@ -106,6 +107,14 @@ public abstract class RecipeBookPageMixin {
             BetterRecipeBook.setQueuedScroll(0);
             return;
         }
+        // 「锁定折叠物品」键按住时滚轮改为**逐格翻动折叠物品**（配方书网格按钮的
+        // 配方图标 / 功能方块里的幽灵物品），不翻页（用户 2026-09-13 诉求 1）。
+        if (BetterRecipeBook.getQueuedScroll() != 0 && ClientCompat.isCycleLockDown()) {
+            com.alonie.brbe.util.RecipeViewerOverlay.stepBookCycle(BetterRecipeBook.getQueuedScroll());
+            BetterRecipeBook.setQueuedScroll(0);
+            return;
+        }
+
         if (BetterRecipeBook.getQueuedScroll() != 0 && true) {
             if (isMouseOverRecipeBookPage(k, l, i, j) && totalPages > 1) {
                 // 用户翻页标记（滚轮）：动画 mixin 依赖它区分用户翻页与程序恢复

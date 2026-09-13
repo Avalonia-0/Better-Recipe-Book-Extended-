@@ -15,12 +15,22 @@ public final class KeybindingCodec {
     public static final String PIN_DEFAULT_RAW = "key.keyboard.a";
     public static final String RECIPE_VIEW_DEFAULT_RAW = "key.keyboard.r";
     public static final String USAGE_VIEW_DEFAULT_RAW = "key.keyboard.u";
+    /** 「锁定折叠物品」默认键 = 左 Alt（原版 {@code KEY_LALT}）。 */
+    public static final String CYCLE_LOCK_DEFAULT_RAW = "key.keyboard.left.alt";
 
     private KeybindingCodec() {
     }
 
     public static ModifierKeyCode pinDefaultValue() {
         return ModifierKeyCode.of(InputConstants.getKey("key.keyboard.a"), Modifier.none());
+    }
+
+    public static String cycleLockDefaultRaw() {
+        return CYCLE_LOCK_DEFAULT_RAW;
+    }
+
+    public static ModifierKeyCode cycleLockDefaultValue() {
+        return ModifierKeyCode.of(InputConstants.getKey(CYCLE_LOCK_DEFAULT_RAW), Modifier.none());
     }
 
     public static String recipeViewDefaultRaw() {

@@ -41,6 +41,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.DIAGNOSTIC_MAPPING);
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.RECIPE_VIEW_MAPPING);
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.USAGE_VIEW_MAPPING);
+        KeyBindingHelper.registerKeyBinding(BetterRecipeBook.CYCLE_LOCK_MAPPING);
 
         // 拼音搜索：中文语言（zh_*）默认开启（用户仍可手动关闭）；
         // 非中文语言强制关闭（配置界面同时隐藏该选项，见 PinyinSearchGuiRegistrar）。

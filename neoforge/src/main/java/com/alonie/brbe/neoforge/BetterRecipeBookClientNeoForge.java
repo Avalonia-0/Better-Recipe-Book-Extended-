@@ -48,6 +48,7 @@ public class BetterRecipeBookClientNeoForge {
             event.register(BetterRecipeBook.PIN_MAPPING);
             event.register(BetterRecipeBook.RECIPE_VIEW_MAPPING);
             event.register(BetterRecipeBook.USAGE_VIEW_MAPPING);
+            event.register(BetterRecipeBook.CYCLE_LOCK_MAPPING);
             event.register(BetterRecipeBook.DIAGNOSTIC_MAPPING);
         });
         // Register built-in resource pack (Unique Dark filter textures)
