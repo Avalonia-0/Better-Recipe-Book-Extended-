@@ -97,7 +97,14 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     private void rbip$syncLateGroups(CallbackInfo ci) {
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         if ((Object) this instanceof CraftingRecipeBookComponent) {
-            PolymerCompat.refresh();
+            // PolymerCompat.refresh() = 重建命名空间缓存 + 遍历**全部注册物品**重新指派
+            // 创造标签 + 重新登记所有创造标签，只为补 Polymer 把服务端自定义标签异步同步
+            // 过来时的时序差（见 PolymerCompat 类注释）。没装 Polymer 时这一步纯属浪费：
+            // updateTabs 在禁用配方书时曾被每 tick 触发一次（见 DisableBook 注释），每次都要
+            // 扫一遍物品注册表并打一条 [RBIP] Namespace override 日志。
+            if (RecipeBookIsPain.PLATFORM != null && RecipeBookIsPain.PLATFORM.isModLoaded("polymer")) {
+                PolymerCompat.refresh();
+            }
             this.tabInfos = RecipeBookIsPain.withCreativeTabs(this.tabInfos);
         } else if ((Object) this instanceof FurnaceRecipeBookComponent) {
             FurnaceVariant type = RecipeBookIsPain.detectFurnaceType(this.rbip$vanillaTabInfos);
