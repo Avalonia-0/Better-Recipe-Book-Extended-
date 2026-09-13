@@ -1142,8 +1142,18 @@ public final class RecipeViewerOverlay {
     /** The vanilla alternative-group background sprite (also used by the paged box). */
     private final Identifier OVERLAY_RECIPE_SPRITE =
             Identifier.withDefaultNamespace("recipe_book/overlay_recipe");
-    private final Identifier RBIP_PAGE_BUTTONS =
-            Identifier.fromNamespaceAndPath("brbe", "textures/rbip/recipe_book_buttons.png");
+    /** The query window's OWN turn-page sheet (2026-09-13 user art): a 256x256
+     *  canvas holding the same 14x13 cells as RBIP's {@code
+     *  rbip/recipe_book_buttons.png} (u = 0 previous / 14 next / +28 hovered,
+     *  v = 0 enabled / 13 disabled) but with VERTICAL arrows — down for the
+     *  previous page at u=0, up for the next at u=14.  Only this window uses
+     *  it: the RBIP tab strip's own page buttons keep the original horizontal
+     *  sheet.  Drawn with the raw {@code blit} (not {@code blitSprite}), so no
+     *  {@code .mcmeta} is involved — the Unique Dark pack overrides it by
+     *  shipping a PNG of the same path, exactly like the rest of the pack. */
+    private final Identifier LEI_PAGE_BUTTONS =
+            Identifier.fromNamespaceAndPath("brbe",
+                    "textures/gui/sprites/recipe_book/lei_page_button.png");
 
     /** Full ordered recipe list of the open viewer (across all pages). */
     private List<RecipeDisplayEntry> viewerRecipes = List.of();
@@ -3677,7 +3687,7 @@ public final class RecipeViewerOverlay {
             u += 28;
         }
         int v = active ? 0 : 13;
-        gui.blit(RenderPipelines.GUI_TEXTURED, RBIP_PAGE_BUTTONS, x, y, u, v,
+        gui.blit(RenderPipelines.GUI_TEXTURED, LEI_PAGE_BUTTONS, x, y, u, v,
                 PAGE_BTN_WIDTH, PAGE_BTN_HEIGHT, 256, 256);
     }
 
