@@ -83,6 +83,7 @@
     "recipeviewer.OverlayRecipeComponentPositionMixin",
     "recipeviewer.RecipeBookComponentMixin",
     "recipeviewer.RecipeBookPageTooltipMixin",
+    "recipeviewer.RecipeBookPageClickMixin",
     "recipeviewer.ServerGamePacketListenerMixin",
     "recipeviewer.ViewerOverlayTooltipMixin",
     "recipebookposition.RecipeBookComponentMixin",
