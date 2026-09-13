@@ -74,6 +74,7 @@ public final class PartialCraftingUtil {
     public static void invalidateCaches() {
         tagger.clearCheckedGenerations();
         tagger.beginFiltering(false);
+        partialMarkingRevision++;
     }
 
     /**
@@ -89,7 +90,23 @@ public final class PartialCraftingUtil {
 
     public static void beginFilteringUpdate(boolean active) {
         tagger.beginFiltering(active);
+        if (active) partialMarkingRevision++;      // 新一轮整轮重标记 → 修订号 +1
     }
+
+    /** 「残缺标记可能被重算过」的修订号：{@link #beginFilteringUpdate}(true)（每轮整轮
+     *  重标记）、{@link #invalidateCaches()}、{@link #forceReevaluate} 都 +1。
+     *
+     *  <p><b>用途：管线输出缓存的键</b>。管线 Stage 4（残缺排序）只依赖 tagger 的残缺标记，
+     *  而这些标记会在**库存没变**的情况下被重算 —— 配方解锁导致集合重建
+     *  （{@code hasUncheckedCollections}）、配置变化、物品栏界面的 {@code retainIncompatible}
+     *  强制 pass 都会整轮重标记。此时旧缓存里的**顺序**已经过期，但"库存未变"的判据看不出来
+     *  → 排序不刷新（用户 2026-09-13：进入游戏第一次获取某物品、丢掉后排序不即时刷新，
+     *  重开配方书后正常；状态每帧现算所以看着是新的）。 */
+    public static int partialMarkingRevision() {
+        return partialMarkingRevision;
+    }
+
+    private static int partialMarkingRevision;
 
     /** The player's offhand stack, or EMPTY.  The offhand counts as part of the
      *  regular search space (vanilla {@code Inventory.fillStackedContents} only
@@ -199,6 +216,7 @@ public final class PartialCraftingUtil {
     public static void forceReevaluate(RecipeCollection collection) {
         if (collection == null) return;
         tagger.clearAll(collection);
+        partialMarkingRevision++;
     }
 
     public static boolean wasCheckedForPartialMaterials(RecipeCollection collection) {

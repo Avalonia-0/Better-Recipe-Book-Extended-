@@ -92,10 +92,9 @@ public final class RecipePopupLayer {
         PopupRenderer.renderRecipePopup(gui, id, entry, mode, craftable, partial,
                 slots, selIdx, button.getX(), button.getY(), button.getWidth(), button.getHeight(),
                 true, PopupGeometry.VANILLA_SCALE,
-                // 可合成（非残缺）对象不画幽灵遮罩；残缺对象的 isCraftable 为 true
-                // （prepareForViewer 注入），必须用 true 可合成判定。
-                (craftable && !partial) ? null
-                        : PartialCraftingUtil.searchSpaceItemCounts(), false);
+                // 缺料遮罩只由实时库存逐槽判定（见 RecipePreviewTooltipComponent 同款注释）：
+                // 不再用 (craftable && !partial) 决定是否整块跳过遮罩。
+                PartialCraftingUtil.searchSpaceItemCounts(), false);
     }
 
     /** Whether the cursor is inside the popup (its modal area = hit volume). */

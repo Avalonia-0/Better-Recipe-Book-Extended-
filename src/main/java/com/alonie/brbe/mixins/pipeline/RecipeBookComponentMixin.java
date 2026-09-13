@@ -112,6 +112,18 @@ public abstract class RecipeBookComponentMixin {
     @Unique
     private boolean brbe$cacheHasPipelined;
 
+    /** 缓存键：残缺标记修订号（{@link com.alonie.brbe.util.PartialCraftingUtil#partialMarkingRevision()}）。
+     *  Stage 4 排序依赖残缺标记，而标记会在库存没变时被整轮重算（集合重建 / 配置变化 /
+     *  物品栏界面的强制 pass）→ 必须入键，否则排序会用过期顺序（用户 2026-09-13 反馈）。 */
+    @Unique
+    private int brbe$cacheMarkRevision = -1;
+
+    /** 缓存键：{@link com.alonie.brbe.util.RecipeCraftingIndex#currentVersion()} —— 库存内容
+     *  变化或索引重建时自增，比 {@code inventoryUnchanged()} 更可靠（后者是"上一次 beginPass
+     *  的 diff 为空"的全局静态标记，集合重建时会被重置成"没变"的假象）。 */
+    @Unique
+    private int brbe$cacheIndexVersion = -1;
+
     /**
      * 上一次管线输出对应的 {@code isFiltering}（"仅显示可合成"）。
      * <p>
@@ -266,6 +278,8 @@ public abstract class RecipeBookComponentMixin {
         boolean cacheHit = false;
         if (brbe$cacheHasPipelined
                 && com.alonie.brbe.util.RecipeCraftingIndex.inventoryUnchanged()
+                && com.alonie.brbe.util.RecipeCraftingIndex.currentVersion() == brbe$cacheIndexVersion
+                && com.alonie.brbe.util.PartialCraftingUtil.partialMarkingRevision() == brbe$cacheMarkRevision
                 && brbe$cacheGeneration == com.alonie.brbe.util.RecipeCraftingIndex.generation()
                 && brbe$cachePinVersion == BetterRecipeBook.pinnedRecipeManager.version()
                 && java.util.Objects.equals(brbe$cacheSearchText, brbe$currentSearchText())
@@ -310,6 +324,8 @@ public abstract class RecipeBookComponentMixin {
             }
 
             brbe$cachedPipelinedList = new ArrayList<>(list);
+            brbe$cacheIndexVersion = com.alonie.brbe.util.RecipeCraftingIndex.currentVersion();
+            brbe$cacheMarkRevision = com.alonie.brbe.util.PartialCraftingUtil.partialMarkingRevision();
             brbe$cacheGeneration = com.alonie.brbe.util.RecipeCraftingIndex.generation();
             brbe$cachePinVersion = BetterRecipeBook.pinnedRecipeManager.version();
             brbe$cacheSearchText = brbe$currentSearchText();

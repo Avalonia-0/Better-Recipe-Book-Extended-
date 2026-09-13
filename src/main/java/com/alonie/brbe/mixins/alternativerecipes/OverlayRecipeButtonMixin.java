@@ -110,10 +110,8 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
             PopupRenderer.renderRecipePopup(gui, this.recipe, recipeEntry(), mode,
                     collection.isCraftable(this.recipe), partial, this.slots, selIdx, x, y, w, h,
                     true, PinButtonRenderOverride.current(),
-                    // 可合成（非残缺）对象不画幽灵遮罩；残缺对象的 isCraftable 为 true
-                    // （prepareForViewer 注入），必须用 true 可合成判定。
-                    (collection.isCraftable(this.recipe) && !partial)
-                            ? null : PartialCraftingUtil.searchSpaceItemCounts(), false);
+                    // 缺料遮罩只由实时库存逐槽判定（见 RecipePopupLayer 同款注释）。
+                    PartialCraftingUtil.searchSpaceItemCounts(), false);
             ci.cancel();
             return;
         }
