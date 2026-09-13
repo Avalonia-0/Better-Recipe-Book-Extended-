@@ -78,6 +78,7 @@
     "recipeviewer.OverlayRecipeComponentMixin",
     "recipeviewer.OverlayRecipeComponentPositionMixin",
     "recipeviewer.RecipeBookPageTooltipMixin",
+    "recipeviewer.RecipeBookPageClickMixin",
     "recipeviewer.ServerPlaceRecipeMixin"
   ],
   "injectors": {
