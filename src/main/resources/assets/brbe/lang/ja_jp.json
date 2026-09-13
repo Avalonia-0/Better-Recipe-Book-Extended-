@@ -159,8 +159,8 @@
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "そのアイテムを材料・作業台として使用するレシピを照会します。",
   "text.autoconfig.brbe.option.recipeViewerEnabled": "LEIを有効にする",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@PrefixText": "§eLikewise Enough Items（アイテムマネージャー）",
-  "text.autoconfig.brbe.option.recipeViewerEnabled.@Tooltip": "アイテムまたはレシピ帳のレシピにカーソルを合わせ、R/U（デフォルト）を押すと、クラフトレシピと材料として使われるレシピを照会します。\nアイテムマネージャー自体の照会機能を使いたい場合は、この機能を無効にするかキーを変更してください。\nこのJEIはあのJEIではありません。<3",
+  "text.autoconfig.brbe.option.recipeViewerEnabled.@Tooltip": "アイテムまたはレシピ帳のレシピにカーソルを合わせ、R/U（デフォルト）を押すと、クラフトレシピと材料として使われるレシピを照会します。\nアイテムマネージャー自体の照会機能を使いたい場合は、この機能を無効にするかキーを変更してください。",
   "text.autoconfig.brbe.option.recipeViewerEnabled@PrefixText": "§eLikewise Enough Items（アイテムマネージャー）",
-  "text.autoconfig.brbe.option.recipeViewerEnabled@Tooltip": "アイテムまたはレシピ帳のレシピにカーソルを合わせ、R/U（デフォルト）を押すと、クラフトレシピと材料として使われるレシピを照会します。\nアイテムマネージャー自体の照会機能を使いたい場合は、この機能を無効にするかキーを変更してください。\nこのJEIはあのJEIではありません。<3",
+  "text.autoconfig.brbe.option.recipeViewerEnabled@Tooltip": "アイテムまたはレシピ帳のレシピにカーソルを合わせ、R/U（デフォルト）を押すと、クラフトレシピと材料として使われるレシピを照会します。\nアイテムマネージャー自体の照会機能を使いたい場合は、この機能を無効にするかキーを変更してください。",
   "text.autoconfig.brbe.title": "Better Recipe Bookの設定"
 }
