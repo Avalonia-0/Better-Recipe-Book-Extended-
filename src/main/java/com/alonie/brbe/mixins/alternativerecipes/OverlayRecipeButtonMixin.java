@@ -8,7 +8,6 @@ import com.alonie.brbe.pinoverlay.PinButtonRenderOverride;
 import com.alonie.brbe.pinoverlay.PinOverlay;
 import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.render.PopupRenderer;
-import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.CycleLock;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.RecipePopupLayer;
@@ -152,11 +151,13 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
             return;
         }
 
-        // Recipe book: hover magnifies the button as before.
+        // Recipe book（**替代配方组**浮层）：悬停只做普通 2x 放大。Shift 的 4x
+        // 放大已按用户要求移除（2026-09-13）——那是替代配方组的旧特性，与 LEI
+        // 查询界面的 Shift 预览无关（后者是 RecipePopupLayer，走 viewer 分支）。
         if (hover) {
             PopupRenderer.renderRecipePopup(gui, this.recipe, recipeEntry(), mode,
                     this.isCraftable, partial, this.slots, selIdx, x, y, w, h,
-                    true, ClientCompat.isShiftDown() ? 4f : 2f);
+                    true, 2f);
         } else {
             PopupRenderer.renderBaseButton(gui, this.recipe, recipeEntry(), mode,
                     this.isCraftable, partial, this.slots, selIdx, x, y, w, h, false, false);
