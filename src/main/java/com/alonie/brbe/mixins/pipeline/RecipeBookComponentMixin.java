@@ -91,6 +91,18 @@ public abstract class RecipeBookComponentMixin {
     @Unique
     private List<RecipeCollection> brbe$cachedPipelinedList;
 
+    /**
+     * **管线输出缓存的键**（唯一判据）：{@link #brbe$pipelineFingerprint} 的结果。
+     *
+     * <p>键从"手写一串代理量"改成**一个指纹**：指纹里既有"上游生产者是否动过"的纪元
+     * （{@link com.alonie.brbe.util.PipelineEpoch}），也有**输入数据本身**的哈希
+     * （集合身份 + craftable/selected + 残缺标记，见
+     * {@link PartialCraftingUtil#pipelineStateHash(java.util.List)}）。
+     * 于是"漏加一个键"不再会静默返回过期结果 —— 这正是本缓存出过三次 Bug 的根因
+     * （2026-09-08 搜索词 / 2026-09-11 {@code isFiltering} / 2026-09-13 残缺标记重算）。 */
+    @Unique
+    private int brbe$cacheFingerprint;
+
     @Unique
     private int brbe$cacheGeneration = -1;
 
@@ -272,23 +284,24 @@ public abstract class RecipeBookComponentMixin {
                                    boolean resetPageNumber, boolean isFiltering) {
 
         // ---- Pipeline output cache ----
-        // Inventory unchanged → canCraft state identical to last pass →
-        // pins order + partial sort produce the same list.  Reuse it.
+        // 键 = **单一指纹**（见 brbe$cacheFingerprint 的注释）：命中判据从十几个代理量
+        // 收敛成一次 int 比较，而指纹同时覆盖"生产者纪元"与"输入数据实际内容"。
+        // resetPageNumber=true（切标签/重开配方书）一律重算。
+        int brbe$fingerprint = brbe$pipelineFingerprint(list, isFiltering);
         boolean cacheHit = false;
         if (brbe$cacheHasPipelined
-                && com.alonie.brbe.util.RecipeCraftingIndex.inventoryUnchanged()
-                && com.alonie.brbe.util.RecipeCraftingIndex.currentVersion() == brbe$cacheIndexVersion
-                && com.alonie.brbe.util.PartialCraftingUtil.partialMarkingRevision() == brbe$cacheMarkRevision
-                && brbe$cacheGeneration == com.alonie.brbe.util.RecipeCraftingIndex.generation()
-                && brbe$cachePinVersion == BetterRecipeBook.pinnedRecipeManager.version()
-                && java.util.Objects.equals(brbe$cacheSearchText, brbe$currentSearchText())
-                && brbe$cacheIsFiltering == isFiltering
-                && brbe$cacheConfigKey == brbe$configKey()
-                && !resetPageNumber) {
+                && !resetPageNumber
+                && brbe$fingerprint == brbe$cacheFingerprint) {
             // 缓存的是管线输出**原样快照**（浅拷贝）：Stage 6 会原地改写传入列表
             // （移除原组/插入重打包组），若直接复用同一对象，缓存里就只残留重打包
             // 组，下一次命中时原组无处还原。每次取出拷贝后由 Stage 6 重建。
-            list = new ArrayList<>(brbe$cachedPipelinedList);
+            List<RecipeCollection> cachedSnapshot = brbe$cachedPipelinedList;
+            // [诊断] 命中时用当前输入重算一遍，比对"输入来源元素"的顺序 ——
+            // 不一致 = 有输入没进指纹（当场 ERROR，而不是等玩家报"界面不对"）。
+            if (com.alonie.brbe.util.RecipeStateDiagnostic.enabled()) {
+                brbe$verifyCacheHit(list, cachedSnapshot, brbe$fingerprint);
+            }
+            list = new ArrayList<>(cachedSnapshot);
             cacheHit = true;
         }
 
@@ -323,8 +336,10 @@ public abstract class RecipeBookComponentMixin {
             }
 
             brbe$cachedPipelinedList = new ArrayList<>(list);
+            // 指纹算的是**输入列表**（Stage 1 之前那次），命中时用新输入重算即可比对。
+            brbe$cacheFingerprint = brbe$fingerprint;
+            // 以下代理量仅**诊断用**（打印"为什么这一轮是 miss"），不再参与命中判定。
             brbe$cacheIndexVersion = com.alonie.brbe.util.RecipeCraftingIndex.currentVersion();
-            brbe$cacheMarkRevision = com.alonie.brbe.util.PartialCraftingUtil.partialMarkingRevision();
             brbe$cacheGeneration = com.alonie.brbe.util.RecipeCraftingIndex.generation();
             brbe$cachePinVersion = BetterRecipeBook.pinnedRecipeManager.version();
             brbe$cacheSearchText = brbe$currentSearchText();
@@ -345,6 +360,106 @@ public abstract class RecipeBookComponentMixin {
         brbe$reapplyPartialMarking(list);
 
         page.updateCollections(list, resetPageNumber, isFiltering);
+    }
+
+    /**
+     * **管线输出缓存的键**：把"上游纪元"与"输入数据实际内容"混成一个 int。
+     *
+     * <p>分量：{@link com.alonie.brbe.util.PipelineEpoch#current()}（生产者是否动过）、
+     * pin 版本、配置键、搜索词、{@code isFiltering}、
+     * {@link PartialCraftingUtil#pipelineStateHash(java.util.List)}（集合身份 + craftable/
+     * selected + 残缺标记）。
+     *
+     * <p>为什么不是"能证明没变才失效"而是"直接哈希输入"：这是**纯性能**缓存，miss 的代价
+     * 只是一次管线（本来也只在库存变化时跑），而假命中的代价是给玩家看错的东西 ——
+     * 宁可多失效。
+     */
+    @Unique
+    private int brbe$pipelineFingerprint(List<RecipeCollection> list, boolean isFiltering) {
+        int h = com.alonie.brbe.util.PipelineEpoch.current();
+        h = h * 31 + (BetterRecipeBook.pinnedRecipeManager == null
+                ? 0 : BetterRecipeBook.pinnedRecipeManager.version());
+        h = h * 31 + (brbe$configKey() ? 1 : 0);
+        h = h * 31 + brbe$currentSearchText().hashCode();
+        h = h * 31 + (isFiltering ? 1 : 0);
+        h = h * 31 + PartialCraftingUtil.pipelineStateHash(list);
+        return h;
+    }
+
+    /** Stage 1–4（搜索 → 展开 → pin 排序 → 残缺排序）。抽出来是为了让诊断自检能复用。 */
+    @Unique
+    private List<RecipeCollection> brbe$runStages(List<RecipeCollection> list, boolean isFiltering) {
+        // Stage 1: Advanced search filter
+        if (brbe$parsedQuery != null && minecraft.level != null) {
+            list = CollectionPipeline.applySearch(
+                    list, brbe$parsedQuery,
+                    SlotDisplayContext.fromLevel(minecraft.level));
+        }
+
+        // Stage 2: Ungroup split (if noGrouped enabled)
+        list = CollectionPipeline.applyUngroup(list);
+
+        // Stage 3: Pins sort (in-place — moves pinned to front)
+        CollectionPipeline.applyPins(list);
+
+        // Stage 4: Craftable-before-partial sort (pin-aware).
+        //
+        // Two modes (spec §2.10):
+        //   Default mode  (partialCraftingEnabled=false): filter button
+        //     visible — sort only when isFiltering=true.
+        //   Alternative   (partialCraftingEnabled=true):  filter button
+        //     hidden  — always sort (craftable → partial → uncraftable).
+        {
+            boolean filterButtonHidden = BetterRecipeBook.config.partialCraftingEnabled;
+            boolean shouldSort = filterButtonHidden || isFiltering;
+            if (shouldSort) {
+                boolean hasPartialData = BetterRecipeBook.config.partialMarkingEnabled;
+                list = CollectionPipeline.applyPartialSort(list, true, hasPartialData);
+            }
+        }
+        return list;
+    }
+
+    /** [诊断] 命中时用**当前输入**重算 Stage 1–4，比较"来自输入列表的元素"的顺序。
+     *
+     *  <p>只比较输入来源的元素：Stage 2（展开分组）与 Stage 6（pin 重打包）生成的合成组
+     *  每轮都是新对象、身份不稳定，跳过它们这个比较才是稳定的。
+     *  真一致 → 缓存安全；不一致 → 有输入没进指纹，打 ERROR 并列出各分量。
+     *  诊断自身抛异常绝不影响渲染。 */
+    @Unique
+    private void brbe$verifyCacheHit(List<RecipeCollection> input,
+                                     List<RecipeCollection> cached, int fingerprint) {
+        try {
+            java.util.Set<RecipeCollection> inputSet =
+                    java.util.Collections.newSetFromMap(new java.util.IdentityHashMap<>());
+            inputSet.addAll(input);
+            List<RecipeCollection> fresh = brbe$runStages(new ArrayList<>(input), brbe$cacheIsFiltering);
+            String expect = brbe$inputOriginSequence(cached, inputSet);
+            String actual = brbe$inputOriginSequence(fresh, inputSet);
+            if (!expect.equals(actual)) {
+                BetterRecipeBook.LOGGER.error("[BRBE-CACHE] 过期命中（有输入没进指纹）fingerprint={}"
+                                + " pins={} cfg={} search='{}' filtering={} epoch={} stateHash={}"
+                                + "\n  缓存顺序={}\n  实测顺序={}",
+                        fingerprint, brbe$cachePinVersion, brbe$cacheConfigKey, brbe$cacheSearchText,
+                        brbe$cacheIsFiltering, com.alonie.brbe.util.PipelineEpoch.current(),
+                        PartialCraftingUtil.pipelineStateHash(input), expect, actual);
+            }
+        } catch (Throwable ignored) {
+            // 诊断失败绝不影响渲染
+        }
+    }
+
+    /** [诊断] 列表里"来自输入列表"的元素的身份序列（合成组跳过）。 */
+    @Unique
+    private static String brbe$inputOriginSequence(List<RecipeCollection> list,
+                                                   java.util.Set<RecipeCollection> inputSet) {
+        StringBuilder sb = new StringBuilder("[");
+        for (RecipeCollection c : list) {
+            if (!inputSet.contains(c)) continue;
+            if (sb.length() > 1) sb.append(',');
+            sb.append(System.identityHashCode(c));
+        }
+        return sb.append(']').toString();
     }
 
     /**

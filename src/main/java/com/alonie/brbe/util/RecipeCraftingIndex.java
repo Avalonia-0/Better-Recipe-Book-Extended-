@@ -86,6 +86,7 @@ public final class RecipeCraftingIndex {
         changedItems = Set.of();
         GENERATION++;
         VERSION++;
+        PipelineEpoch.bump();          // 集合对象全部重建 = 管线输入变了
         for (RecipeCollection collection : allCollections) {
             for (RecipeDisplayEntry entry : collection.getRecipes()) {
                 entry.craftingRequirements().ifPresent(ingredients -> {
@@ -138,6 +139,7 @@ public final class RecipeCraftingIndex {
         changedItems = changed;
         if (!changed.isEmpty()) {
             VERSION++;
+            PipelineEpoch.bump();      // 库存内容变了 = 管线输入变了
         }
         lastAmounts = current;
     }
