@@ -538,6 +538,12 @@ public final class RecipeViewerOverlay {
                 if (result != null && !result.isEmpty()) return result;
             }
         }
+        // ④' 替代配方组（配方书按钮点开的多变体浮层）：浮层画在所有内容之上，
+        // 悬停的变体按钮优先于其下方的槽位/页码按钮——R/U 查该变体的结果物品，
+        // 与 viewer 内悬停配方对象同一语义（2026-09-13 用户要求）。光标落在
+        // 浮层空白处（没悬停任何变体）时继续走下面的链。
+        ItemStack variant = captureAlternateGroupTarget(screen);
+        if (!variant.isEmpty()) return variant;
         // ④ 槽位
         AbstractContainerScreenAccessor acc = (AbstractContainerScreenAccessor) screen;
         Slot hoveredSlot = acc.brbe$getHoveredSlot();
@@ -571,6 +577,40 @@ public final class RecipeViewerOverlay {
         ItemStack station = stationCellAt(mouseXFor(), mouseYFor());
         if (!station.isEmpty()) {
             return station;
+        }
+        return ItemStack.EMPTY;
+    }
+
+    /** 宿主配方书的**替代配方组**（{@link OverlayRecipeComponent}，点开多变体
+     *  配方按钮后出现的浮层）中悬停变体的结果物品；浮层未开 / 没悬停变体 /
+     *  变体没有结果物品 → EMPTY。
+     *
+     *  <p>隐藏按钮跳过：隐藏时 {@code render} 直接返回、不刷新悬停状态，其
+     *  {@code isHovered} 字段是陈旧的（pin 路径同样守卫）。 */
+    private static ItemStack captureAlternateGroupTarget(AbstractContainerScreen<?> screen) {
+        if (!(screen instanceof RecipeUpdateListener rul)) return ItemStack.EMPTY;
+        try {
+            RecipeBookComponentAccessor bookAcc =
+                    (RecipeBookComponentAccessor) rul.getRecipeBookComponent();
+            if (bookAcc == null) return ItemStack.EMPTY;
+            RecipeBookPageAccessor pageAcc = (RecipeBookPageAccessor) bookAcc.getRecipeBookPage();
+            if (pageAcc == null) return ItemStack.EMPTY;
+            OverlayRecipeComponent group = pageAcc.getOverlay();
+            if (group == null || !group.isVisible()) return ItemStack.EMPTY;
+            int mx = mouseXFor();
+            int my = mouseYFor();
+            for (AbstractWidget button :
+                    ((OverlayRecipeComponentAccessor) (Object) group).getRecipeButtons()) {
+                if (button == null || !button.visible || !button.isMouseOver(mx, my)) continue;
+                if (!(button instanceof OverlayRecipeButtonAccessor oba)) continue;
+                RecipeHolder<?> holder = oba.getRecipe();
+                if (holder == null) continue;
+                ItemStack result = holder.value()
+                        .getResultItem(Minecraft.getInstance().level.registryAccess());
+                if (result != null && !result.isEmpty()) return result;
+            }
+        } catch (Exception e) {
+            return ItemStack.EMPTY;
         }
         return ItemStack.EMPTY;
     }
@@ -843,6 +883,16 @@ public final class RecipeViewerOverlay {
         drawPageButton(gui, bx + 15, btnY, true, nextActive, mouseX, mouseY);
     }
 
+    /** 画一个翻页按钮：14x13 的箭头贴图**绕按钮自身中心逆时针旋转 90°**
+     *  （2026-09-13 用户要求）。两个按钮**各自独立旋转**（各绕自己的中心），
+     *  所以按按钮逐个 push/translate/rotate，而不是绕两个按钮的中点旋转一次
+     *  （那样会把两个按钮叠成竖排）。
+     *
+     *  <p>贴图以平移后的原点为中心绘制（{@code (-W/2, -H/2)}）——旋转中心即
+     *  贴图自己的中心。14x13 的中心带半个像素，取整后旋转后的图形与原来的
+     *  位置相差 ≤0.5px；**命中区不变**（{@link #drawPageControls} /
+     *  {@link #handlePageButtonClick} 仍测未旋转的矩形），只有画面旋转：
+     *  左箭头朝下、右箭头朝上。</p> */
     private static void drawPageButton(GuiGraphics gui, int x, int y, boolean next,
                                        boolean activeButton, int mouseX, int mouseY) {
         int u = next ? 14 : 0;
@@ -850,7 +900,13 @@ public final class RecipeViewerOverlay {
             u += 28;
         }
         int v = activeButton ? 0 : 13;
-        gui.blit(RBIP_PAGE_BUTTONS, x, y, u, v, PAGE_BTN_WIDTH, PAGE_BTN_HEIGHT, 256, 256);
+        gui.pose().pushPose();
+        gui.pose().translate(x + PAGE_BTN_WIDTH / 2.0f, y + PAGE_BTN_HEIGHT / 2.0f, 0.0F);
+        // 负 Z 角 = 屏幕上逆时针（GUI 的 y 向下），与底部标签条的 -90° 同一约定。
+        gui.pose().mulPose(com.mojang.math.Axis.ZP.rotation(-(float) Math.PI / 2.0F));
+        gui.blit(RBIP_PAGE_BUTTONS, -PAGE_BTN_WIDTH / 2, -PAGE_BTN_HEIGHT / 2, u, v,
+                PAGE_BTN_WIDTH, PAGE_BTN_HEIGHT, 256, 256);
+        gui.pose().popPose();
     }
 
     /** 分类标签条（-90° 旋转 + TAB_CUT 拼贴，1.21.11 同款）。 */
