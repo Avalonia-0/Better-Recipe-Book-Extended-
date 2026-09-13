@@ -91,8 +91,14 @@ public final class RecipePreviewTooltipComponent implements ClientTooltipCompone
         int py = y;
         // 不可合成/残缺对象：检索空间物品数量表（可合成对象不画幽灵遮罩）——
         // 与 Shift 预览/pin 同一数据源；无高亮纹理面。
-        java.util.Map<net.minecraft.world.item.Item, Integer> counts = (craftable && !partial)
-                ? null : PartialCraftingUtil.searchSpaceItemCounts();
+        // 缺料遮罩**只由实时库存逐槽判定**（computeMissing 逐槽扣减），不再用
+        // (craftable && !partial) 这对标志去决定"要不要画遮罩"：那两个标志分别由
+        // tagger（残缺标记）与 prepareForViewer（craftable 注入）维护，任何一次失配
+        // 都会让**整块遮罩一起消失**（用户 2026-09-13：pin 里拿到其中一个材料后，
+        // 所有缺料标记全没了）。材料齐全时逐槽判定自然全 false → 不画遮罩，
+        // 与旧行为完全一致。
+        java.util.Map<net.minecraft.world.item.Item, Integer> counts =
+                PartialCraftingUtil.searchSpaceItemCounts();
         if (delegated) {
             RecipeViewerEngine.RecipeLayout layout = RecipeViewerEngine.getLayout(id);
             if (layout == null) return;
