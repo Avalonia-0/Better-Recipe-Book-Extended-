@@ -178,7 +178,7 @@
   "text.autoconfig.brbe.option.previewMode": "預覽模式",
   "text.autoconfig.brbe.option.previewMode.@Tooltip": "重新開啟介面時查詢視窗不再恢復，與其他元素互動時也會關閉查詢視窗。",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "查詢該物品作為材料、工作站的配方。",
-  "text.autoconfig.brbe.option.recipeViewerEnabled": "啟用BRBE的JEI",
+  "text.autoconfig.brbe.option.recipeViewerEnabled": "啟用LEI",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@PrefixText": "§eLikewise Enough Items（物品管理器）",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@Tooltip": "將滑鼠停留在物品或配方書的配方上，按下 R/U（預設）查詢合成配方和作為材料時的配方。\n需要使用物品管理器的查詢功能時需要關閉此功能或調整快捷鍵。\n此JEI非彼JEI。<3",
   "text.autoconfig.brbe.option.recipeViewerEnabled@PrefixText": "§eLikewise Enough Items（物品管理器）",

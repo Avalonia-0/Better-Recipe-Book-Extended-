@@ -152,7 +152,7 @@
   "text.autoconfig.brbe.option.recipeViewKey@PrefixText": "§eLikewise Enough Items（物品管理器）",
   "text.autoconfig.brbe.option.recipeViewKey.@Tooltip": "查询该物品作为产物的配方。",
   "text.autoconfig.brbe.option.recipeViewKey@Tooltip": "查询该物品作为产物的配方。",
-  "text.autoconfig.brbe.option.recipeViewerEnabled": "启用BRBE的JEI",
+  "text.autoconfig.brbe.option.recipeViewerEnabled": "启用LEI",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@PrefixText": "§eLikewise Enough Items（物品管理器）",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@Tooltip": "鼠标悬停在物品或者配方书的配方上，按下 R/U（默认）查询合成配方和作为材料时的配方。\n需要使用物品管理器的查询功能时需要关闭此功能或者调整快捷键。\n此JEI非彼JEI。<3",
   "text.autoconfig.brbe.option.recipeViewerEnabled@PrefixText": "§eLikewise Enough Items（物品管理器）",

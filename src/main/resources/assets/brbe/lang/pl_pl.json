@@ -158,7 +158,7 @@
   "text.autoconfig.brbe.option.previewMode": "Tryb podglądu",
   "text.autoconfig.brbe.option.previewMode.@Tooltip": "Okna zapytań nie są przywracane po ponownym otwarciu interfejsu, a interakcja z innymi elementami je zamyka.",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "Pokazuje przepisy, w których ten przedmiot jest materiałem lub stacją.",
-  "text.autoconfig.brbe.option.recipeViewerEnabled": "Włącz JEI BRBE",
+  "text.autoconfig.brbe.option.recipeViewerEnabled": "Włącz LEI",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@PrefixText": "§eLikewise Enough Items (menedżer przedmiotów)",
   "text.autoconfig.brbe.option.recipeViewerEnabled.@Tooltip": "Najedź na przedmiot lub przepis w księdze przepisów i naciśnij R/U (domyślnie), aby wyświetlić przepisy wytwarzania oraz przepisy, w których przedmiot jest używany jako materiał.\nWyłącz tę opcję lub zmień klawisze, gdy chcesz użyć własnej funkcji wyszukiwania menedżera przedmiotów.\nTo JEI nie jest tamtym JEI. <3",
   "text.autoconfig.brbe.option.recipeViewerEnabled@PrefixText": "§eLikewise Enough Items (menedżer przedmiotów)",
