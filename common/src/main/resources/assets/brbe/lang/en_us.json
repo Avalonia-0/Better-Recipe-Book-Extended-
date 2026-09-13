@@ -104,6 +104,8 @@
   "text.autoconfig.brbe.option.hideConfigTips@Tooltip": "The rotating tip line above the search bar at the top of the config screen, which changes every time it opens.",
   "text.autoconfig.brbe.option.hideIncompatibleMark": "Hide 3x3 Recipe Marks in Survival Recipe Book",
   "text.autoconfig.brbe.option.hideNoRecipeBookStationObjects": "Hide Objects of Workstations Without Recipe Books",
+  "text.autoconfig.brbe.option.naturalPageDirection": "Use Natural Page Turn Direction in the Recipe Area",
+  "text.autoconfig.brbe.option.naturalPageDirection.@Tooltip": "Reverses the mouse wheel's page turn direction.",
   "text.autoconfig.brbe.option.instantCraft.enabled": "Enable Instant Crafting",
   "text.autoconfig.brbe.option.instantCraft.showButton": "Show Instant Craft Button",
   "text.autoconfig.brbe.option.keepCentered": "Keep Crafting Screen Centered",

@@ -104,6 +104,8 @@
   "text.autoconfig.brbe.option.hideConfigTips@Tooltip": "就是配置界面顶部（搜索栏上方）那个每次打开配置界面都会变化的Tips。",
   "text.autoconfig.brbe.option.hideIncompatibleMark": "隐藏生存模式配方书中的3x3配方标记",
   "text.autoconfig.brbe.option.hideNoRecipeBookStationObjects": "隐藏无配方书工作站所属的对象",
+  "text.autoconfig.brbe.option.naturalPageDirection": "在配方区使用自然的翻页方向",
+  "text.autoconfig.brbe.option.naturalPageDirection.@Tooltip": "调转鼠标滚轮的翻页方向。",
   "text.autoconfig.brbe.option.instantCraft.enabled": "启用一键制作",
   "text.autoconfig.brbe.option.instantCraft.showButton": "显示一键制作按钮",
   "text.autoconfig.brbe.option.keepCentered": "保持制作屏幕居中",

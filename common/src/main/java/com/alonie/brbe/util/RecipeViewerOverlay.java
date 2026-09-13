@@ -740,7 +740,8 @@ public final class RecipeViewerOverlay {
         // 左侧工作站列：滑窗口
         if (handleStationColumnScroll(mouseX, mouseY, vertical)) return true;
         if (pageCount > 1 && overScrollZone(mouseX, mouseY)) {
-            int delta = vertical > 0 ? -1 : 1;
+            // 配方区的翻页方向由配置决定（默认「自然方向」＝上滚往后翻页）。
+            int delta = (vertical > 0) == naturalPageDirection() ? 1 : -1;
             int next = page + delta;
             if (BetterRecipeBook.config.scrolling.scrollAround && pageCount > 1) {
                 next = (next % pageCount + pageCount) % pageCount;
@@ -2437,6 +2438,13 @@ public final class RecipeViewerOverlay {
 
     private static boolean isCycleAltDown() {
         return ClientCompat.isAltDown();
+    }
+
+    /** 「在配方区使用自然的翻页方向」（默认开）：{@code true} = 鼠标滚轮向前
+     *  （上滚）往后翻页；{@code false} = 旧方向（上滚往前翻页）。只作用于
+     *  <b>配方区</b>的翻页——标签条翻页与 Alt+滚轮轮循走各自的方向。 */
+    private static boolean naturalPageDirection() {
+        return BetterRecipeBook.config == null || BetterRecipeBook.config.naturalPageDirection;
     }
 
     /** The slot-select cycle index used by every BRBE front-end (viewer overlay

@@ -39,6 +39,13 @@ public class BrbeConfig implements ConfigData {
      *  工作站图标。默认关闭。 */
     public boolean hideNoRecipeBookStationObjects = false;
 
+    /** 「在配方区使用自然的翻页方向」：开启时鼠标滚轮向前（上滚）＝往后翻页；
+     *  关闭时恢复旧方向（上滚＝往前翻页）。只作用于**查询窗口配方区**的翻页——
+     *  标签条翻页、Alt+滚轮轮循、配方书自身的翻页都不受影响。默认开启。
+     *  （1.21.1 没有「预览模式」，本项直接排在查询浮层开关簇末尾。） */
+    @ConfigEntry.Gui.Tooltip
+    public boolean naturalPageDirection = true;
+
     @ConfigEntry.Gui.TransitiveObject
     public RecipeBookIsPain rbip = new RecipeBookIsPain();
 

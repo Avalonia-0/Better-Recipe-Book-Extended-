@@ -96,6 +96,8 @@
   "text.autoconfig.brbe.option.hideConfigTips@Tooltip": "Это строка подсказок над строкой поиска в верхней части экрана настроек, которая меняется при каждом его открытии.",
   "text.autoconfig.brbe.option.hideIncompatibleMark": "Скрыть отметки рецептов 3x3 в книге рецептов режима выживания",
   "text.autoconfig.brbe.option.hideNoRecipeBookStationObjects": "Скрывать объекты станков без книги рецептов",
+  "text.autoconfig.brbe.option.naturalPageDirection": "Естественное направление перелистывания в области рецептов",
+  "text.autoconfig.brbe.option.naturalPageDirection.@Tooltip": "Меняет направление перелистывания страниц колёсиком мыши.",
   "text.autoconfig.brbe.option.instantCraft.enabled": "Включить мгновенное создание",
   "text.autoconfig.brbe.option.instantCraft.showButton": "Показывать кнопку мгновенного создания",
   "text.autoconfig.brbe.option.keepCentered": "Центрировать экран создания",
