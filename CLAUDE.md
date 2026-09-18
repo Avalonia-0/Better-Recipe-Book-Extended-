@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> ⚠️ **本分支已停止维护（2026-08-18 起）**：不再移植新功能或修复，代码保留仅参考。构建/部署/验证跳过此分支。
+
 ## Multi-branch architecture
 
 Each git branch targets a **different Minecraft version** and is built independently:

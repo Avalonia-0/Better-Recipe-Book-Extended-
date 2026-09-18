@@ -155,9 +155,12 @@ public final class PartialCraftingUtil {
             }
 
             // 3×3 配方：2×2 生存网格放不下。
-            // 材料齐全（类型+数量都够）→ 不标 partial（网格问题，由 incompatible 警告处理）。
-            // 材料不足（缺类型或缺数量）→ 标 partial（确实缺材料）。
+            // showAllRecipesInSurvival 关闭时，3×3 配方在生存配方书完全不应出现——
+            // 不标 partial，否则会被注入 craftable 而残留显示（出现空气占位按钮）。
             if (needsLargerGrid(recipe.display())) {
+                if (!BetterRecipeBook.config.showAllRecipesInSurvival) continue;
+                // 材料齐全（类型+数量都够）→ 不标 partial（网格问题，由 incompatible 警告处理）。
+                // 材料不足（缺类型或缺数量）→ 标 partial（确实缺材料）。
                 boolean complete = inventoryCounts != null
                         ? hasAllIngredients(recipe, inventoryItems, inventoryCounts)
                         : hasAllIngredients(recipe, inventoryItems);
@@ -371,6 +374,9 @@ public final class PartialCraftingUtil {
         for (RecipeDisplayEntry entry : collection.getRecipes()) {
             RecipeDisplayId id = entry.id();
             if (collection.isCraftable(id)) continue;
+            // showAllRecipesInSurvival 关闭时 3×3 配方不应显示：拿起物品时也不提升
+            // 到 craftable（2×2 网格放不下，提升只会产生空气占位按钮）。
+            if (!BetterRecipeBook.config.showAllRecipesInSurvival && needsLargerGrid(entry.display())) continue;
             boolean complete = inventoryCounts != null
                     ? hasAllIngredients(entry, inventoryItems, inventoryCounts)
                     : hasAllIngredients(entry, inventoryItems);

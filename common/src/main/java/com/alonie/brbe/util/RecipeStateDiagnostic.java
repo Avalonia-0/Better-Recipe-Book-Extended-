@@ -1,5 +1,6 @@
 package com.alonie.brbe.util;
 
+import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
@@ -126,18 +127,24 @@ public final class RecipeStateDiagnostic {
 
                 if (needsGrid) {
                     // 3×3 配方：2×2 生存网格放不下。
-                    // 材料齐全 → 不标 partial（网格问题，incompatible 警告处理）
-                    // 部分材料在库存 → 应标 partial（确实缺材料）
-                    // 无材料在库存 → 不标 partial（不是"缺部分材料"）
-                    ok = switch (predicted) {
-                        case PARTIAL -> isPartial;
-                        default -> !isPartial;
-                    };
-                    label = switch (predicted) {
-                        case CRAFTABLE -> "3×3配方(网格决定, 材料齐全)";
-                        case PARTIAL -> "3×3配方(材料不足, " + (isPartial ? "已标partial" : "未标partial") + ")";
-                        default -> "3×3配方(无材料在库存)";
-                    };
+                    if (!BetterRecipeBook.config.showAllRecipesInSurvival) {
+                        // showAll 关闭：3×3 完全不应出现在配方书（不在 craftable、不标 partial）
+                        ok = !inCraftable && !isPartial;
+                        label = "3×3配方(showAll关闭, 不应出现)";
+                    } else {
+                        // 材料齐全 → 不标 partial（网格问题，incompatible 警告处理）
+                        // 部分材料在库存 → 应标 partial（确实缺材料）
+                        // 无材料在库存 → 不标 partial（不是"缺部分材料"）
+                        ok = switch (predicted) {
+                            case PARTIAL -> isPartial;
+                            default -> !isPartial;
+                        };
+                        label = switch (predicted) {
+                            case CRAFTABLE -> "3×3配方(网格决定, 材料齐全)";
+                            case PARTIAL -> "3×3配方(材料不足, " + (isPartial ? "已标partial" : "未标partial") + ")";
+                            default -> "3×3配方(无材料在库存)";
+                        };
+                    }
                 } else {
                     // 2×2 网格可容纳配方：预测必须与标记一致
                     switch (predicted) {
