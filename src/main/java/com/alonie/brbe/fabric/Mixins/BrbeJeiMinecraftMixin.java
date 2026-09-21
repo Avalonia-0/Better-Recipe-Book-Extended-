@@ -23,6 +23,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * <p>When the real JEI is present it registers its own atlas via its own mixin
  * (and loads first on the classpath), so this mixin no-ops through the
  * {@code isModLoaded("jei")} guard.</p>
+ *
+ * <p><b>26.3：本 mixin 已成为空操作</b> —— 26.3 的 Minecraft 自带
+ * {@code AtlasManager}（{@code Minecraft.getAtlasManager()}），JEI 一侧的
+ * {@code JeiAtlasManager} 与 {@code Textures.getAtlasManager()} 全被删除，JEI
+ * 现在直接从 MC 的 GUI atlas 取 sprite（{@code Internal} 里
+ * {@code minecraft.getAtlasManager().getAtlasOrThrow(AtlasIds.GUI)}），GUI atlas
+ * 由 MC 自己按命名空间拼贴，无需外部注册 reload listener。保留空的注入点只为
+ * 不动 mixin 注册表；如需清理，可连同 {@code mixins.brbe.json} 的条目一起删除。</p>
  */
 @Mixin(Minecraft.class)
 public class BrbeJeiMinecraftMixin {
@@ -44,20 +52,10 @@ public class BrbeJeiMinecraftMixin {
             )
     )
     public void brbe$beforeInitialResourceReload(GameConfig gameConfig, CallbackInfo ci) {
-        if (FabricLoader.getInstance().isModLoaded("jei")) {
-            return;
-        }
-        try {
-            // 独立化后（headless-jei jar-in-jar / 真实 JEI）反射取 atlas 管理器：
-            // Internal.getTextures().getAtlasManager() → registerReloadListener。
-            Class<?> internalClass = Class.forName("mezz.jei.common.Internal");
-            Object textures = internalClass.getMethod("getTextures").invoke(null);
-            Object atlasManager = textures.getClass().getMethod("getAtlasManager").invoke(textures);
-            resourceManager.registerReloadListener(
-                    (net.minecraft.server.packs.resources.PreparableReloadListener) atlasManager);
-            BetterRecipeBook.LOGGER.info("[BRBE-JEI-PLUGINS] JEI core atlas registered before initial resource reload");
-        } catch (Exception | LinkageError e) {
-            BetterRecipeBook.LOGGER.warn("[BRBE-JEI-PLUGINS] failed to register JEI atlas: {}", e.toString());
+        // 26.3: 无需注册（见类 javadoc）。真实 JEI 场景本就走它自己的注册路径。
+        if (!FabricLoader.getInstance().isModLoaded("jei")) {
+            BetterRecipeBook.LOGGER.debug(
+                    "[BRBE-JEI-PLUGINS] 26.3: MC 自带 GUI AtlasManager，跳过 JEI atlas 注册");
         }
     }
 }

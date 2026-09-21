@@ -65,16 +65,26 @@ dependencies {
     // Cloth Config — installed as separate mod in test instance
     implementation "me.shedaniel.cloth:cloth-config-fabric:${cloth_config_version}"
     // ============================================================
-    //  26.3：JEI 编译参考改为真实 JEI 26.3 产物
+    //  无头 JEI（阶段 B，26.3）
     // ============================================================
-    // 26.2 编译参考的是 headless-jei 26.2 独立产物（自带 26.2 签名的
-    // mezz.jei.api fork）；26.3 尚无该产物，因此阶段 A 先用**真实 JEI
-    // 31.3.0.17（fabric, 26.3）** 作为 mezz.jei.api 的编译参考——API 与
-    // fork 同源，且 BRBE 侧对 headless 专有类（JeiRecipeRegistry /
-    // BrbeJeiPlugins / PluginRecipeIndexer）全部走反射，缺席时静默跳过。
-    // 阶段 B（headless-jei/26.3 就绪后）改回：
-    //   compileOnly files(rootProject.file("libs/headless-jei-fabric-26.3-1.0.0.jar"))
-    compileOnly files(rootProject.file("libs/jei-26.3-fabric-31.3.0.17.jar"))
+    // 编译参考 = headless-jei 26.3 独立产物（内含官方 JEI 26.3 源码 fork 的
+    // mezz.jei.api）。运行时由 jar-in-jar 内嵌的 headless-jei mod 提供；玩家
+    // 若装了真实 JEI（31.3.0.17，同样自带 mezz.jei.api），BrbeJeiHeadlessCore
+    // 检测到 "jei" 已加载会直接跳过，二者共存。
+    //
+    // 注：26.3 起 JEI 的配置系统由独立 mod mezz_config 提供，headless-jei 自身
+    // 已内嵌它；BRBE 主 jar 也再内嵌一份（fabric.mod.json 的 jars），避免依赖
+    // 嵌套 jar 的递归解析。
+    compileOnly files(rootProject.file("libs/headless-jei-fabric-26.3-1.0.0.jar"))
+
+    // 开发环境（runClient）：Fabric Loader **不会**在 dev 下展开 jar-in-jar
+    // （nested jar 只在成品 jar 运行时生效，dev 的 mod 集合来自 classpath 扫描：
+    //  任何带 fabric.mod.json 的 classpath 条目都会被当成 mod）——若不挂上来，
+    // `BrbeJeiPluginsClientFabric` 这个来自内嵌 jar 的入口点会 ClassNotFoundException
+    // 崩溃。成品 jar 只走上面的 fabric.mod.json `jars`。
+    // （本工程用 fabric-loom，没有 architectury 的 modRuntimeOnly 配置，故用 runtimeOnly。）
+    runtimeOnly files(rootProject.file("libs/headless-jei-fabric-26.3-1.0.0.jar"))
+    runtimeOnly files(rootProject.file("libs/mezz_config-26.3-fabric-0.6.3.jar"))
 }
 
 tasks.withType(JavaCompile) {
