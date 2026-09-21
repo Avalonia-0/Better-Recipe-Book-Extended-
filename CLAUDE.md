@@ -11,6 +11,43 @@ Each git branch targets a **different Minecraft version** and is built independe
 | `1.21.1`  | 1.21.1    | 21   | Architectury Loom                 | Fabric + NeoForge |
 | `1.21.11` | 1.21.11   | 21   | fabric-loom-remap (`net.fabricmc.fabric-loom-remap` 1.14.6, 单模块) | Fabric |
 | `26.2`    | 26.2      | 25   | fabric-loom (`net.fabricmc.fabric-loom`, no-remap) | Fabric |
+| `26.3` ← 本分支 | 26.3 | 25 | fabric-loom (`net.fabricmc.fabric-loom` 1.17.18, no-remap) | Fabric |
+
+## 26.3 升级要点（本分支，2026-09-22）
+
+从 26.2 分支完整复制后升级；**实测 API 差异见 [`docs/26.3-api-changes.md`](docs/26.3-api-changes.md)**，
+迁移过程记录见 [`docs/26.3-migration-plan.md`](docs/26.3-migration-plan.md)。
+
+**版本基线**：MC 26.3（release 2026-09-15，Java 25）· Fabric Loader 0.19.5 ·
+Fabric API 0.161.0+26.3 · Cloth Config 26.3.158 · Fabric Loom 1.17.18（**无需升级**）·
+mod_version 2.3 · 真实 JEI 参考版本 31.3.0.17。
+
+**26.3 是大改动版本**，移植时必须注意：
+- **GLFW → SDL3**：`org.lwjgl.glfw` 整包消失（改用 `org.lwjgl:lwjgl-sdl`）；
+  `InputConstants.isKeyDown(int)` 单参、`Type.KEYSYM`→`KEYBOARD`、`KeyEvent.scancode()`→`keycode()`；
+  **MC 不再提供图像光标 API**（只有 `CursorTypes` 标准光标），`ViewerCursor` 的"抓取拳头"
+  光标因此失效（回退 `CursorTypes.RESIZE_ALL`）。
+- **渲染管线搬进 `renderpearl`**：`RenderPipeline` 在 `com.mojang.renderpearl.api.pipeline`，
+  `brbe.common.accesswidener` 里 3 条 blit 描述已同步。
+- **`tooltip(...)` 末尾多一个 `boolean`**。
+- **`PotionBrewing` 被删除**：酿造改成常规配方 `RecipeType.BREWING`；
+  `Level.getRecipeManager()` → `Level.recipeAccess()`。
+- **燃料/堆肥从表改成数据组件 + `context_int_provider` 数据包注册表**：
+  `util/LootIntResolver` 在客户端求结构化期望值，复现旧的燃烧时长与堆肥概率数字。
+- **JEI 26.3 把配置系统抽成独立 mod `mezz_config`**（官方 JEI 也是 jar-in-jar 内嵌它）。
+
+**JEI 集成（26.3）**：无头 fork 位于**独立工程 `headless-jei/26.3`**（`headless-jei` 分支），
+基线是**官方 JEI 26.3 源码**（不是 26.2 fork 逐文件打补丁），产物内嵌进主 jar。
+⚠️ **dev 运行注意**：Fabric Loader **不在 dev 下展开 jar-in-jar**，因此 `build.gradle` 用
+`runtimeOnly` 把 headless-jei 与 mezz_config 挂到 dev 运行时；它们同时也在
+`src/main/resources/META-INF/jars/` 里供成品 jar 内嵌。
+
+**已知降级（26.3）**：
+1. `ViewerCursor` 自造光标失效（原因见上，需 `java.lang.foreign` downcall SDL 才能恢复）；
+2. `BrbeJeiMinecraftMixin` 已成空操作（26.3 的 MC 自带 `AtlasManager`，JEI 侧
+   `JeiAtlasManager`/`Textures.getAtlasManager()` 已删除），注入点保留仅为不动 mixin 注册表，
+   可随时连同 `mixins.brbe.json` 条目一起清理；
+3. 26.3 无 REI（同 26.2）。
 
 **The root `build.gradle` validates `minecraft_version` against the branch name at configure time** — it will fail with a clear error if they differ. After switching branches, always run `git checkout -- gradle.properties` to restore the correct version.
 
@@ -114,7 +151,7 @@ Potion brewing is platform-dependent (`PotionBrewing.Mix` is package-private). F
 ### 常规构建
 
 ```bash
-./gradlew build                       # full build (single module)
+JAVA_HOME=/usr/lib/jvm/java-25-openjdk sh gradlew build   # full build (single module)
 ./gradlew compileJava                 # compile-only check
 ./gradlew runClient                   # launch Fabric dev client
 ./gradlew clean build                 # full clean rebuild
@@ -123,7 +160,7 @@ Potion brewing is platform-dependent (`PotionBrewing.Mix` is package-private). F
 ./gradlew cleanLoomCache && rm -rf .gradle && ./gradlew build
 
 # Deploy (build JAR → copy to test instance)
-cp build/libs/brbe-ava-fabric-26.2-2.3-beta.3.jar /home/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/
+cp build/libs/brbe-ava-fabric-26.3-2.3.jar /home/avalonia/data/MinecraftLib/versions/26.3-Fabric/mods/
 ```
 
 Test instance path rule: `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSION}-{MOD_LOADER}/mods/` (`MOD_LOADER` capitalized: `Fabric`). 构建完必须部署；部署前将实例内同版本 JAR 备份为 `*.jar.bak.YYYYMMDD`。
@@ -132,7 +169,7 @@ Test instance path rule: `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSIO
 
 ```bash
 # 原子替换部署（实例运行中也安全）
-cp build/libs/brbe-ava-fabric-26.2-*.jar /home/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/.brbe-deploy.tmp && mv /home/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/.brbe-deploy.tmp /home/avalonia/data/MinecraftLib/versions/26.2-Fabric/mods/brbe-ava-fabric-26.2-*.jar
+cp build/libs/brbe-ava-fabric-26.3-2.3.jar /home/avalonia/data/MinecraftLib/versions/26.3-Fabric/mods/.brbe-deploy.tmp && mv /home/avalonia/data/MinecraftLib/versions/26.3-Fabric/mods/.brbe-deploy.tmp /home/avalonia/data/MinecraftLib/versions/26.3-Fabric/mods/brbe-ava-fabric-26.3-2.3.jar
 ```
 
 ## Config features and their gates
@@ -178,8 +215,8 @@ Each hider owns its own state (snapshot, guard flags). Adding a new HUD mod only
 ## Important gotchas
 
 - **26.1+ is unobfuscated** — Mojang official mappings are the final names, no remap needed. The build uses `net.fabricmc.fabric-loom` 1.17.18 (`LoomNoRemapGradlePlugin`). Intermediary-based mods (like ModMenu) cannot be directly included as compile dependencies. ModMenuFabric integration is done reflectively via `ModMenuReflectiveBridge`.
-- **JEI 已可用（vendored fork）**：主 jar 内嵌 `mezz.jei.api` fork（无 `breaks: jei`，与真实 JEI 共存），运行时若真实 JEI 存在则直接依赖它（只维护默认构建，jeiJar 变体已移除）。`libs/jei-26.2-fabric-30.24.0.165.jar` 仍作编译期依赖。**REI 仍不可用**（26.2 无 REI jar，`mixins.brbe-rei-common.json` 注册但无运行时实现）。
-- **Cloth Config for 26.2 is bundled as a separate mod** (not jar-in-jar). The config registration is wrapped in try-catch; if Cloth Config is absent, the mod still runs with default values.
+- **JEI 已可用（headless fork，26.3 重建）**：编译参考 `libs/headless-jei-fabric-26.3-1.0.0.jar`（独立工程 `headless-jei/26.3`，基线为官方 JEI 26.3 源码），jar-in-jar 内嵌 headless-jei + mezz_config；与真实 JEI 31.3.0.17 共存（检测到 `jei` 已加载即跳过内嵌核心）。`libs/jei-26.3-fabric-31.3.0.17.jar` 保留作为 API 对照。**REI 仍不可用**。
+- **Cloth Config for 26.3 is bundled as a separate mod** (not jar-in-jar). The config registration is wrapped in try-catch; if Cloth Config is absent, the mod still runs with default values.
 - **No test suite.** Validation is manual via `runClient` tasks or deploying to a test instance.
 - **Pinned recipes are stored in a JSON file** (`brbe.pins` in the game directory), not in NBT or config.
 - **BrewingRecipeBookComponent and SmithingRecipeBookComponent** are concrete implementations that sit alongside (not as subclasses of) GenericRecipeBookComponent — they share some interfaces but have their own rendering and event handling.

@@ -1,14 +1,21 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-Single-module Fabric project (no Architectury). All sources under `src/main/java/com/alonie/brbe/...` and resources under `src/main/resources/`. Uses official `net.fabricmc.fabric-loom` (Minecraft 26.1+ is unobfuscated — no remap needed). Build outputs are generated in `build/` and should not be committed.
+Single-module Fabric project (no Architectury) targeting **Minecraft 26.3** (Java 25). All sources under `src/main/java/com/alonie/brbe/...` and resources under `src/main/resources/`. Uses official `net.fabricmc.fabric-loom` 1.17.18 (Minecraft 26.1+ is unobfuscated — no remap needed). Build outputs are generated in `build/` and should not be committed.
+
+The embedded headless JEI runtime is a **separate project**: `headless-jei/26.3` on the `headless-jei` git branch. Its jar is committed here under `libs/` (compile reference), embedded into the mod jar via `fabric.mod.json` `jars`, and additionally wired as a dev-runtime dependency because Fabric Loader does **not** expand nested jars in dev runs.
+
+## Version Baseline (26.3)
+Minecraft 26.3 · Fabric Loader 0.19.5 · Fabric API 0.161.0+26.3 · Cloth Config 26.3.158 · Fabric Loom 1.17.18 · mod_version 2.3. See `docs/26.3-api-changes.md` for the 26.2 → 26.3 API deltas (GLFW→SDL3, renderpearl render pipelines, the removal of `PotionBrewing`/`FuelValues`/`ComposterBlock.COMPOSTABLES`, and more).
 
 ## Build, Test, and Development Commands
 Use the Gradle wrapper from the repository root:
 
-- `./gradlew build` compiles and produces the distributable jar.
-- `./gradlew runClient` starts a Fabric dev client.
-- `./gradlew clean build` removes old outputs and rebuilds from scratch.
+- `JAVA_HOME=/usr/lib/jvm/java-25-openjdk sh gradlew build` compiles and produces `build/libs/brbe-ava-fabric-26.3-2.3.jar`.
+- `JAVA_HOME=/usr/lib/jvm/java-25-openjdk sh gradlew runClient` starts a Fabric dev client.
+- `sh gradlew clean build` removes old outputs and rebuilds from scratch.
+
+Note: `gradlew` is tracked without the executable bit in this repository — invoke it as `sh gradlew ...`, and always set `JAVA_HOME` to a JDK 25.
 
 There is no dedicated automated test suite in this repository. Use the client run tasks to verify behavior after code changes.
 
