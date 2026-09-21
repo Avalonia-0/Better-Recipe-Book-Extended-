@@ -22,7 +22,6 @@ import net.minecraft.world.item.crafting.RecipeBookCategories;
 import net.minecraft.world.item.crafting.RecipeBookCategory;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.util.context.ContextMap;
-import net.minecraft.util.context.ContextKeySet;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
@@ -45,7 +44,7 @@ public class ClientRecipeBookMixin {
     @Shadow private Map<ExtendedRecipeBookCategory, List<RecipeCollection>> collectionsByTab;
 
     @Unique
-    private static final ContextMap RBIP_EMPTY_CONTEXT = new ContextMap.Builder().create(new ContextKeySet.Builder().build());
+    private static final ContextMap RBIP_EMPTY_CONTEXT = ContextMap.EMPTY;
 
     /**
      * Returns true if the given crafting display would be rejected by

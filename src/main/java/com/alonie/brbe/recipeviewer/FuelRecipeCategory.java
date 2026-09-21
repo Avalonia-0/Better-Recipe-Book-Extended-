@@ -1,12 +1,14 @@
 package com.alonie.brbe.recipeviewer;
 
 import com.alonie.brbe.cache.RecipeViewerIndex;
-import net.minecraft.client.Minecraft;
+import com.alonie.brbe.util.LootIntResolver;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.CookingFuel;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
-import net.minecraft.world.level.block.entity.FuelValues;
 
 import java.util.List;
 
@@ -105,8 +107,7 @@ public final class FuelRecipeCategory implements RecipeViewerCategory {
 
     /** Burn time (ticks) of {@code fuel}, or 0 when unresolvable. */
     public int burnDuration(ItemStack fuel) {
-        FuelValues values = fuelValues();
-        return values == null || fuel == null || fuel.isEmpty() ? 0 : values.burnDuration(fuel);
+        return fuel == null || fuel.isEmpty() ? 0 : burnTimeOf(fuel);
     }
 
     /** Whether {@code stack} is a registered fuel in the current level. */
@@ -116,26 +117,27 @@ public final class FuelRecipeCategory implements RecipeViewerCategory {
 
     /** Every fuel item registered in the current level, sorted by burn time
      *  ascending — mirroring JEI's {@code FuelRecipeMaker}, which only collects
-     *  items whose {@code getBurnTime > 0} and orders them by burn time. */
+     *  items whose burn time is &gt; 0 and orders them by burn time. */
     public List<ItemStack> allFuelItems() {
-        FuelValues values = fuelValues();
-        if (values == null) return List.of();
-        return values.fuelItems().stream()
-                .filter(item -> values.burnDuration(item.getDefaultInstance()) > 0)
-                .sorted(java.util.Comparator.comparingInt(
-                        item -> values.burnDuration(item.getDefaultInstance())))
+        return BuiltInRegistries.ITEM.stream()
                 .map(ItemStack::new)
+                .filter(stack -> burnTimeOf(stack) > 0)
+                .sorted(java.util.Comparator.comparingInt(FuelRecipeCategory::burnTimeOf))
                 .toList();
     }
 
     private boolean isFuel(ItemStack target) {
-        if (target == null || target.isEmpty()) return false;
-        FuelValues values = fuelValues();
-        return values != null && values.isFuel(target);
+        return target != null && !target.isEmpty() && target.has(DataComponents.COOKING_FUEL);
     }
 
-    private FuelValues fuelValues() {
-        Minecraft mc = Minecraft.getInstance();
-        return mc.level == null ? null : mc.level.fuelValues();
+    /** 26.3: 燃料从 {@code FuelValues} 表改为数据组件 {@code minecraft:cooking_fuel}，
+     *  燃烧时长是 loot 上下文 provider（{@code ResolvableInt}）。客户端按
+     *  {@link LootIntResolver} 的结构化期望值求近似（例如煤炭 1600 ticks）。 */
+    private static int burnTimeOf(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return 0;
+        CookingFuel fuel = stack.get(DataComponents.COOKING_FUEL);
+        if (fuel == null) return 0;
+        int ticks = (int) Math.round(LootIntResolver.expected(fuel.burnTime()));
+        return Math.max(ticks, 0);
     }
 }

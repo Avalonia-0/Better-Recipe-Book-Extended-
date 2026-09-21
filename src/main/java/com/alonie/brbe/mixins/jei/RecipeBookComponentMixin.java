@@ -58,7 +58,7 @@ public abstract class RecipeBookComponentMixin {
         }
 
         int keyCode = event.key();
-        int scanCode = event.scancode();
+        int scanCode = event.keycode();
 
         RecipeBookPage page = ((RecipeBookComponentAccessor) this).getRecipeBookPage();
         if (page == null) {

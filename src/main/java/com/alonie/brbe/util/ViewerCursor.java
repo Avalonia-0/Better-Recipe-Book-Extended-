@@ -1,9 +1,6 @@
 package com.alonie.brbe.util;
 
 import com.mojang.blaze3d.platform.cursor.CursorType;
-import org.lwjgl.glfw.GLFW;
-import org.lwjgl.glfw.GLFWImage;
-import org.lwjgl.system.MemoryUtil;
 
 import javax.imageio.ImageIO;
 import java.awt.image.BufferedImage;
@@ -83,18 +80,17 @@ public final class ViewerCursor {
         //    e.g. Breeze's solid closed fist), rasterised at the desktop size.
         Image svg = rasterizeScalable(theme, size);
         if (svg != null) {
-            long handle = createGlfwCursor(svg);
+            long handle = createNativeCursor(svg);
             if (handle != 0L) {
                 CursorType t = wrap(handle);
                 if (t != null) return t;
-                GLFW.glfwDestroyCursor(handle);
             }
         }
         // 2) Classic raster Xcursor fallback.
         Path file = findGrabbing(theme);
         Image img = file == null ? null : decodeXcursor(file, size);
         if (img == null) return null;
-        long handle = createGlfwCursor(img);
+        long handle = createNativeCursor(img);
         if (handle == 0L) return null;
         return wrap(handle);
     }
@@ -367,26 +363,26 @@ public final class ViewerCursor {
         return best;
     }
 
-    private static long createGlfwCursor(Image img) {
-        ByteBuffer pixels = MemoryUtil.memAlloc(img.width() * img.height() * 4);
-        try {
-            for (int argb : img.argb()) {
-                pixels.put((byte) ((argb >> 16) & 0xFF));  // R
-                pixels.put((byte) ((argb >> 8) & 0xFF));   // G
-                pixels.put((byte) (argb & 0xFF));          // B
-                pixels.put((byte) ((argb >> 24) & 0xFF));  // A
-            }
-            pixels.flip();
-            GLFWImage image = GLFWImage.malloc();
-            try {
-                image.set(img.width(), img.height(), pixels);
-                return GLFW.glfwCreateCursor(image, img.xhot(), img.yhot());
-            } finally {
-                image.free();
-            }
-        } finally {
-            MemoryUtil.memFree(pixels);
-        }
+    /**
+     * 26.3: Minecraft moved from GLFW to SDL3 — {@code org.lwjgl.glfw} is no
+     * longer on the classpath at all (the 26.3 libraries ship
+     * {@code org.lwjgl:lwjgl-sdl} instead), and neither Minecraft's
+     * {@code Window.selectCursor(CursorType)} nor LWJGL's SDL bindings expose
+     * any image-based cursor factory (only {@code CursorType.createStandardCursor}
+     * for the standard shapes).
+     *
+     * <p>Until this is re-implemented on top of SDL (a
+     * {@code SDL_CreateColorCursor} downcall would need {@code java.lang.foreign}
+     * because the LWJGL SDL binding does not declare it), the BRBE "grabbing
+     * fist" cursor is unavailable and every caller falls back to
+     * {@code CursorTypes.RESIZE_ALL} — the same degradation the class already
+     * documents for non-Linux systems.
+     *
+     * <p>The theme discovery / SVG rasterisation / Xcursor decoding below is
+     * kept intact so the SDL implementation only has to replace this method.
+     */
+    private static long createNativeCursor(Image img) {
+        return 0L;
     }
 
     private ViewerCursor() {

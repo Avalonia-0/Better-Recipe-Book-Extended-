@@ -47,21 +47,21 @@ public class BetterRecipeBook {
 
     public static final KeyMapping PIN_MAPPING = new KeyMapping(
             "key.brbe.pin",
-            InputConstants.Type.KEYSYM,
+            InputConstants.Type.KEYBOARD,
             InputConstants.KEY_A,
             KEY_CATEGORY
     );
 
     public static final KeyMapping RECIPE_VIEW_MAPPING = new KeyMapping(
             "key.brbe.recipeView",
-            InputConstants.Type.KEYSYM,
+            InputConstants.Type.KEYBOARD,
             InputConstants.KEY_R,
             KEY_CATEGORY
     );
 
     public static final KeyMapping USAGE_VIEW_MAPPING = new KeyMapping(
             "key.brbe.usageView",
-            InputConstants.Type.KEYSYM,
+            InputConstants.Type.KEYBOARD,
             InputConstants.KEY_U,
             KEY_CATEGORY
     );
@@ -72,7 +72,7 @@ public class BetterRecipeBook {
      *  注册它只是为了在「按键绑定」界面里有一条可改的键位条目。 */
     public static final KeyMapping CYCLE_LOCK_MAPPING = new KeyMapping(
             "key.brbe.cycleLock",
-            InputConstants.Type.KEYSYM,
+            InputConstants.Type.KEYBOARD,
             InputConstants.KEY_LALT,
             KEY_CATEGORY
     );

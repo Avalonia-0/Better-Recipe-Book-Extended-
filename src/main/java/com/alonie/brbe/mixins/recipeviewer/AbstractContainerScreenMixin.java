@@ -95,7 +95,7 @@ public abstract class AbstractContainerScreenMixin {
                             WorkstationTitleTrigger.tooltip().getVisualOrderText())),
                     mouseX, mouseY,
                     net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner.INSTANCE,
-                    null);
+                    null, false);
             gui.requestCursor(com.mojang.blaze3d.platform.cursor.CursorTypes.POINTING_HAND);
         }
     }

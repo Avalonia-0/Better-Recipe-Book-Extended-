@@ -45,7 +45,7 @@ public abstract class KeyboardHandlerMixin {
             return;
         }
         int keyCode = event.key();
-        if (!InputConstants.isKeyDown(mc.getWindow(), keyCode)) {
+        if (!InputConstants.isKeyDown(keyCode)) {
             // Release of a consumed key ends the hold.
             if (keyCode == brbe$activeKeyCode) {
                 brbe$activeKeyCode = -1;

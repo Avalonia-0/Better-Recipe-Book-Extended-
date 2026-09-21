@@ -102,7 +102,7 @@ public abstract class AbstractContainerScreenMixin {
         EditBox searchBox = ((RecipeBookComponentAccessor) book).getSearchBox();
 
         // when the pin (固定) key is pressed, handle pinning/unpinning of recipes except when searchBox is consuming input
-        if (ClientCompat.matchesPinKey(event.key(), event.scancode(), event.modifiers()) && (searchBox == null || !searchBox.canConsumeInput())) {
+        if (ClientCompat.matchesPinKey(event.key(), event.keycode(), event.modifiers()) && (searchBox == null || !searchBox.canConsumeInput())) {
             if (alternatesWidget.isVisible()) {
                 // 替代配方组不能直接 pin：固定键只作用于悬停的具体变体按钮
                 // （打开组后逐个 pin 组内配方）。未悬停变体时吞掉按键，防止
@@ -200,7 +200,7 @@ public abstract class AbstractContainerScreenMixin {
 
         // when <chat key> is pressed, focus recipes component for searchBox
         // this also works for BrewingRecipeBookComponent as the super's searchBox is set to the same object
-        if (ClientCompat.matches(minecraft.options.keyChat, event.key(), event.scancode(), event.modifiers())) {
+        if (ClientCompat.matches(minecraft.options.keyChat, event.key(), event.keycode(), event.modifiers())) {
             minecraft.gui.screen().setFocused(book);
         }
     }

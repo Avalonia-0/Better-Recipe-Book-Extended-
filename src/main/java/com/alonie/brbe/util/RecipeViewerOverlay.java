@@ -577,9 +577,9 @@ public final class RecipeViewerOverlay {
     public static boolean keyPressed(KeyEvent event, AbstractContainerScreen<?> screen) {
         initViewerPersistence();
         boolean viewRecipe = ClientCompat.matches(BetterRecipeBook.RECIPE_VIEW_MAPPING,
-                event.key(), event.scancode(), event.modifiers());
+                event.key(), event.keycode(), event.modifiers());
         boolean viewUsage = ClientCompat.matches(BetterRecipeBook.USAGE_VIEW_MAPPING,
-                event.key(), event.scancode(), event.modifiers());
+                event.key(), event.keycode(), event.modifiers());
         if (viewRecipe || viewUsage) {
             // Every R/U opens a NEW query window (multi-window).
             return openNewViewer(screen, viewUsage);
@@ -1342,9 +1342,9 @@ public final class RecipeViewerOverlay {
         if (!BetterRecipeBook.config.recipeViewerEnabled) return false;
 
         boolean viewRecipe = ClientCompat.matches(BetterRecipeBook.RECIPE_VIEW_MAPPING,
-                event.key(), event.scancode(), event.modifiers());
+                event.key(), event.keycode(), event.modifiers());
         boolean viewUsage = ClientCompat.matches(BetterRecipeBook.USAGE_VIEW_MAPPING,
-                event.key(), event.scancode(), event.modifiers());
+                event.key(), event.keycode(), event.modifiers());
         if (viewRecipe || viewUsage) {
             return open(screen, viewUsage);
         }
@@ -2700,7 +2700,7 @@ public final class RecipeViewerOverlay {
                 .brbe$setDeferredTooltip(() -> gui.tooltip(
                         Minecraft.getInstance().font, components, mx, my,
                         net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner.INSTANCE,
-                        ClientCompat.VIEWER_TOOLTIP_STYLE));
+                        ClientCompat.VIEWER_TOOLTIP_STYLE, false));
     }
 
     /** Clicking a left-column workstation object queries its recipes (re-opens

@@ -2,7 +2,7 @@ package com.alonie.brbe.util;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.config.KeybindingCodec;
-import com.mojang.blaze3d.pipeline.RenderPipeline;
+import com.mojang.renderpearl.api.pipeline.RenderPipeline;
 import com.mojang.blaze3d.platform.InputConstants;
 import me.shedaniel.clothconfig2.api.Modifier;
 import me.shedaniel.clothconfig2.api.ModifierKeyCode;
@@ -74,26 +74,23 @@ public final class ClientCompat {
     }
 
     public static boolean isControlDown() {
-        Minecraft minecraft = Minecraft.getInstance();
-        return InputConstants.isKeyDown(minecraft.getWindow(), InputConstants.KEY_LCONTROL)
-                || InputConstants.isKeyDown(minecraft.getWindow(), InputConstants.KEY_RCONTROL);
+        return InputConstants.isKeyDown(InputConstants.KEY_LCONTROL)
+                || InputConstants.isKeyDown(InputConstants.KEY_RCONTROL);
     }
 
     /** Whether EITHER Shift is held (BRBE's preview hotkey): both the left and
      *  the right Shift expand the preview UI, and the items keep cycling while
      *  it is held (pausing recipe cycling moved to Alt). */
     public static boolean isShiftDown() {
-        Minecraft minecraft = Minecraft.getInstance();
-        return InputConstants.isKeyDown(minecraft.getWindow(), InputConstants.KEY_LSHIFT)
-                || InputConstants.isKeyDown(minecraft.getWindow(), InputConstants.KEY_RSHIFT);
+        return InputConstants.isKeyDown(InputConstants.KEY_LSHIFT)
+                || InputConstants.isKeyDown(InputConstants.KEY_RSHIFT);
     }
 
     /** Whether EITHER Alt is held: the pause-recipe-cycling key — while held,
      *  cycled variants freeze, and Alt+wheel steps through them manually. */
     public static boolean isAltDown() {
-        Minecraft minecraft = Minecraft.getInstance();
-        return InputConstants.isKeyDown(minecraft.getWindow(), InputConstants.KEY_LALT)
-                || InputConstants.isKeyDown(minecraft.getWindow(), InputConstants.KEY_RALT);
+        return InputConstants.isKeyDown(InputConstants.KEY_LALT)
+                || InputConstants.isKeyDown(InputConstants.KEY_RALT);
     }
 
     /** 「锁定折叠物品」按键是否按住（配置项 {@code cycleLockKey}，默认左 Alt）。
@@ -110,9 +107,9 @@ public final class ClientCompat {
         ModifierKeyCode mkc = KeybindingCodec.decode(raw);
         if (mkc == null || mkc.isUnknown()) return false;
         InputConstants.Key bound = mkc.getKeyCode();
-        if (bound.getType() != InputConstants.Type.KEYSYM) return false;
+        if (bound.getType() != InputConstants.Type.KEYBOARD) return false;
         int code = bound.getValue();
-        boolean down = InputConstants.isKeyDown(minecraft.getWindow(), code);
+        boolean down = InputConstants.isKeyDown(code);
         if (!down && (code == InputConstants.KEY_LALT || code == InputConstants.KEY_RALT)) {
             down = isAltDown();
         }
@@ -150,7 +147,7 @@ public final class ClientCompat {
 
     private static boolean matchesBinding(ModifierKeyCode binding, int keyCode, int modifiers) {
         if (binding == null || binding.isUnknown()) return false;
-        if (binding.getKeyCode().getType() != InputConstants.Type.KEYSYM) return false;
+        if (binding.getKeyCode().getType() != InputConstants.Type.KEYBOARD) return false;
         if (binding.getKeyCode().getValue() != keyCode) return false;
         Modifier modifier = binding.getModifier();
         boolean needCtrl = modifier.hasControl();

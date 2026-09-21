@@ -282,7 +282,7 @@ public final class PinOverlayManager {
      *  open pin closes it, otherwise it pins the hovered query-viewer recipe.
      *  Returns true when consumed. */
     public static boolean handleKeyPressed(KeyEvent event, AbstractContainerScreen<?> screen) {
-        if (!ClientCompat.matchesPinKey(event.key(), event.scancode(), event.modifiers())) return false;
+        if (!ClientCompat.matchesPinKey(event.key(), event.keycode(), event.modifiers())) return false;
         Minecraft mc = Minecraft.getInstance();
         double mx = mc.mouseHandler.getScaledXPos(mc.getWindow());
         double my = mc.mouseHandler.getScaledYPos(mc.getWindow());
@@ -566,12 +566,12 @@ public final class PinOverlayManager {
                 net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner.INSTANCE;
         if (RecipeViewerOverlay.isActive()) {
             // The viewer cancels the end-of-frame tooltip pass, so draw now.
-            gui.tooltip(mc.font, components, mx, my, positioner, style);
+            gui.tooltip(mc.font, components, mx, my, positioner, style, false);
         } else {
             // Pins alone: replace the container's deferred tooltip with ours
             // (rendered at the end of the frame).
             ((GuiGraphicsExtractorAccessor) gui).brbe$setDeferredTooltip(() ->
-                    gui.tooltip(mc.font, components, mx, my, positioner, style));
+                    gui.tooltip(mc.font, components, mx, my, positioner, style, false));
         }
     }
 }

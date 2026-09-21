@@ -213,7 +213,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
     @Override
     public boolean keyPressed(KeyEvent event) {
-        return this.keyPressed(event.key(), event.scancode(), event.modifiers());
+        return this.keyPressed(event.key(), event.keycode(), event.modifiers());
     }
 
     public boolean keyPressed(int i, int j, int k) {
@@ -291,7 +291,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
     @Override
     public boolean keyReleased(KeyEvent event) {
-        return this.keyReleased(event.key(), event.scancode(), event.modifiers());
+        return this.keyReleased(event.key(), event.keycode(), event.modifiers());
     }
 
     public boolean keyReleased(int i, int j, int k) {

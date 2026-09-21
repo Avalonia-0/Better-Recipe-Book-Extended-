@@ -14,6 +14,7 @@ plugins {
 //   1.21.11  → 1.21.11
 //   26.1.2   → 26.1.2
 //   26.2     → 26.2
+//   26.3     → 26.3
 // ============================================================
 def currentBranch = providers.exec(execSpec -> {
     execSpec.commandLine("git", "rev-parse", "--abbrev-ref", "HEAD")
@@ -63,10 +64,17 @@ dependencies {
     }
     // Cloth Config — installed as separate mod in test instance
     implementation "me.shedaniel.cloth:cloth-config-fabric:${cloth_config_version}"
-    // 无头 JEI 独立化：mezz.jei.api 编译参考 = headless-jei 独立产物 jar
-    // （26.2 官方映射/Extractor 签名，与 no-remap 编译一致）；运行时由
-    // jar-in-jar 内嵌的 headless-jei mod / 真实 JEI 提供。
-    compileOnly files(rootProject.file("libs/headless-jei-fabric-26.2-1.0.0.jar"))
+    // ============================================================
+    //  26.3：JEI 编译参考改为真实 JEI 26.3 产物
+    // ============================================================
+    // 26.2 编译参考的是 headless-jei 26.2 独立产物（自带 26.2 签名的
+    // mezz.jei.api fork）；26.3 尚无该产物，因此阶段 A 先用**真实 JEI
+    // 31.3.0.17（fabric, 26.3）** 作为 mezz.jei.api 的编译参考——API 与
+    // fork 同源，且 BRBE 侧对 headless 专有类（JeiRecipeRegistry /
+    // BrbeJeiPlugins / PluginRecipeIndexer）全部走反射，缺席时静默跳过。
+    // 阶段 B（headless-jei/26.3 就绪后）改回：
+    //   compileOnly files(rootProject.file("libs/headless-jei-fabric-26.3-1.0.0.jar"))
+    compileOnly files(rootProject.file("libs/jei-26.3-fabric-31.3.0.17.jar"))
 }
 
 tasks.withType(JavaCompile) {

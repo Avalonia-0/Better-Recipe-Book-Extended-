@@ -280,7 +280,11 @@ public final class CacheableRecipeDisplayEntry {
                     ? Identifier.fromNamespaceAndPath(parts[0], parts[1])
                     : Identifier.fromNamespaceAndPath("minecraft", parts[0]);
             TagKey<Item> tagKey = TagKey.create(BuiltInRegistries.ITEM.key(), id);
-            return new SlotDisplay.TagSlotDisplay(tagKey);
+            // 26.3: TagSlotDisplay 收 HolderSet<Item>（不再收 TagKey）；从物品注册表
+            // 取标签对应的 holder 集合，标签不存在时退化为空显示（不崩）。
+            return BuiltInRegistries.ITEM.get(tagKey)
+                    .<SlotDisplay>map(SlotDisplay.TagSlotDisplay::new)
+                    .orElse(SlotDisplay.Empty.INSTANCE);
         }
 
         String[] parts = itemId.split(":", 2);

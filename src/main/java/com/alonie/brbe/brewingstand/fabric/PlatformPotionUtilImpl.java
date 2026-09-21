@@ -1,39 +1,42 @@
 package com.alonie.brbe.brewingstand.fabric;
 
 import com.alonie.brbe.brewingstand.PlatformPotionUtil;
-import com.alonie.brbe.fabric.Mixins.Accessors.FabricPotionBrewingAccessor;
-import net.minecraft.world.level.Level;
+import net.minecraft.core.Holder;
+import net.minecraft.core.component.DataComponents;
+import net.minecraft.core.component.predicates.PotionsPredicate;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.alchemy.Potion;
-import net.minecraft.world.item.alchemy.PotionBrewing;
+import net.minecraft.world.item.alchemy.PotionContents;
+import net.minecraft.world.item.crafting.BrewingRecipe;
 import net.minecraft.world.item.crafting.Ingredient;
+import net.minecraft.world.item.crafting.RecipeHolder;
+import net.minecraft.world.item.crafting.RecipeManager;
+import net.minecraft.world.level.Level;
 
-import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Optional;
 
 /**
- * Fabric implementation of PotionUtilProvider.
+ * Fabric implementation of the potion-brewing provider — 26.3 rewrite.
  *
- * In 26.1.2, PotionBrewing.Mix is a package-private record, so its
- * accessor methods (ingredient(), from(), to()) must be called via
- * reflection from outside the net.minecraft package.
+ * <p>26.2 read the hard-coded {@code PotionBrewing} registry and reflected into
+ * its package-private {@code Mix} record.  26.3 deletes both: brewing is now a
+ * regular data-driven recipe type ({@code minecraft:brewing}), so a recipe is a
+ * {@link BrewingRecipe} carrying
+ * <ul>
+ *   <li>{@code input} — an input potion ({@code PotionIngredient}, usually
+ *       "potion item + potion predicate"),</li>
+ *   <li>{@code reagent} — the brewing ingredient,</li>
+ *   <li>{@code output} — the resulting potion item, whose
+ *       {@code minecraft:potion_contents} component names the produced
+ *       potion.</li>
+ * </ul>
+ * The provider therefore surfaces the recipe manager's brewing recipes instead
+ * of reflecting into a registry, and resolves {@code from}/{@code to} from the
+ * recipe's potion predicate / output component.  No reflection is needed any
+ * more, so there is no {@code FabricPotionBrewingAccessor} counterpart.
  */
 public class PlatformPotionUtilImpl implements PlatformPotionUtil.PotionUtilProvider {
-
-    private static Method METHOD_ingredient;
-    private static Method METHOD_from;
-    private static Method METHOD_to;
-
-    static {
-        try {
-            // PotionBrewing$Mix is package-private; its record components are exposed reflectively.
-            Class<?> mixClass = Class.forName("net.minecraft.world.item.alchemy.PotionBrewing$Mix");
-            METHOD_ingredient = mixClass.getMethod("ingredient");
-            METHOD_from = mixClass.getMethod("from");
-            METHOD_to = mixClass.getMethod("to");
-        } catch (ReflectiveOperationException e) {
-            throw new RuntimeException("Failed to initialize PotionBrewing$Mix reflection", e);
-        }
-    }
 
     public static void init() {
         PlatformPotionUtil.setProvider(new PlatformPotionUtilImpl());
@@ -41,36 +44,39 @@ public class PlatformPotionUtilImpl implements PlatformPotionUtil.PotionUtilProv
 
     @Override
     public Ingredient getIngredient(Object recipe) {
-        try {
-            return (Ingredient) METHOD_ingredient.invoke(recipe);
-        } catch (ReflectiveOperationException e) {
-            return null;
-        }
+        return recipe instanceof BrewingRecipe brewing ? brewing.getReagent().ingredient() : null;
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public Potion getTo(Object recipe) {
-        try {
-            return ((net.minecraft.core.Holder<Potion>) METHOD_to.invoke(recipe)).value();
-        } catch (ReflectiveOperationException e) {
-            return null;
-        }
+        if (!(recipe instanceof BrewingRecipe brewing)) return null;
+        ItemStack output = brewing.getOutput().create();
+        PotionContents contents = output.get(DataComponents.POTION_CONTENTS);
+        return contents == null ? null : contents.potion().map(Holder::value).orElse(null);
     }
 
-    @SuppressWarnings("unchecked")
     @Override
     public Potion getFrom(Object recipe) {
-        try {
-            return ((net.minecraft.core.Holder<Potion>) METHOD_from.invoke(recipe)).value();
-        } catch (ReflectiveOperationException e) {
-            return null;
-        }
+        if (!(recipe instanceof BrewingRecipe brewing)) return null;
+        // input.potions() 是 PotionsPredicate（"物品 + 药水谓词"），药水集合在
+        // 谓词里面再取一层。
+        return brewing.getInput().potions()
+                .flatMap(PotionsPredicate::potions)
+                .flatMap(set -> set.stream().findFirst())
+                .map(Holder::value)
+                .orElse(null);
     }
 
     @Override
     public List<?> getPotionMixes(Level level) {
-        PotionBrewing brewing = level.potionBrewing();
-        return ((FabricPotionBrewingAccessor) brewing).getPotionMixes();
+        // 26.3: Level 不再有 getRecipeManager()，改为 recipeAccess()
+        // （RecipeManager implements RecipeAccess；fabric-api 的 FabricRecipeAccess
+        //  同样挂在这个接口上）。
+        if (!(level.recipeAccess() instanceof RecipeManager recipeManager)) return List.of();
+        return recipeManager.getRecipes().stream()
+                .map(RecipeHolder::value)
+                .filter(BrewingRecipe.class::isInstance)
+                .map(BrewingRecipe.class::cast)
+                .toList();
     }
 }
