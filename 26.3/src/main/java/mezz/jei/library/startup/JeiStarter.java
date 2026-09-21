@@ -1,0 +1,286 @@
+package mezz.jei.library.startup;
+
+import com.google.common.collect.ImmutableSetMultimap;
+import mezz.jei.api.IModPlugin;
+import mezz.jei.api.helpers.IColorHelper;
+import mezz.jei.api.recipe.transfer.IRecipeTransferManager;
+import mezz.jei.api.runtime.IScreenHelper;
+import mezz.jei.api.search.ISearchStorageBuilderFactory;
+import mezz.jei.common.Internal;
+import mezz.jei.common.config.ClientConfigs;
+import mezz.jei.api.runtime.config.IJeiConfigManager;
+import mezz.jei.common.config.ConfigManagerAdapter;
+import mezz.jei.common.network.ClientConnectionHelper;
+import mezz.jei.common.network.IConnectionToServer;
+import mezz.jei.common.network.packets.PacketRecipeTransferResult;
+import mezz.jei.common.platform.Services;
+import mezz.jei.common.recipes.VanillaClientRecipeLoader;
+import mezz.jei.common.util.ChatUtil;
+import mezz.jei.common.util.ErrorUtil;
+import mezz.jei.common.util.LoggedTimer;
+import mezz.jei.common.util.RegistryUtil;
+import mezz.jei.common.util.Translator;
+import mezz.jei.library.color.ColorHelper;
+import mezz.jei.library.config.ColorNameConfig;
+import mezz.jei.library.config.EditModeConfig;
+import mezz.jei.library.config.JeiConfigData;
+import mezz.jei.library.config.ModIdFormatConfig;
+import mezz.jei.library.config.RecipeCategorySortingConfig;
+import mezz.jei.library.focus.FocusFactory;
+import mezz.jei.library.helpers.CodecHelper;
+import mezz.jei.library.ingredients.IngredientManager;
+import mezz.jei.library.ingredients.subtypes.SubtypeManager;
+import mezz.jei.library.load.PluginCaller;
+import mezz.jei.library.load.PluginHelper;
+import mezz.jei.library.load.PluginLoader;
+import mezz.jei.library.load.registration.RuntimeRegistration;
+import mezz.jei.library.plugins.jei.JeiInternalPlugin;
+import mezz.jei.library.plugins.vanilla.VanillaPlugin;
+import mezz.jei.library.recipes.RecipeManager;
+import mezz.jei.library.runtime.JeiHelpers;
+import mezz.jei.library.runtime.JeiRuntime;
+import net.minecraft.ChatFormatting;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.context.ContextMap;
+import net.minecraft.world.item.crafting.RecipeMap;
+import net.minecraft.world.item.crafting.display.SlotDisplayContext;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
+import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.List;
+
+@SuppressWarnings({"deprecation", "removal"})
+public final class JeiStarter {
+	private static final Logger LOGGER = LogManager.getLogger();
+	private static final String VANILLA_SERVER_BRAND = "vanilla";
+
+	private final StartData data;
+	private final List<IModPlugin> plugins;
+	private final VanillaPlugin vanillaPlugin;
+	private final ModIdFormatConfig modIdFormatConfig;
+	private final ColorNameConfig colorNameConfig;
+	private final RecipeCategorySortingConfig recipeCategorySortingConfig;
+	private final IJeiConfigManager configManagerForPlugins;
+	private final ClientConfigs jeiClientConfigs;
+	private final List<IStopCallback> stopCallbacks = new ArrayList<>();
+	private boolean running = false;
+
+	public JeiStarter(StartData data) {
+		ErrorUtil.checkNotEmpty(data.plugins(), "plugins");
+		this.data = data;
+		this.plugins = data.plugins();
+		PluginHelper.removePluginsWithCrashingUids(plugins);
+		this.vanillaPlugin = PluginHelper.getPluginWithClass(VanillaPlugin.class, plugins)
+			.orElseThrow(() -> new IllegalStateException("vanilla plugin not found"));
+		JeiInternalPlugin jeiInternalPlugin = PluginHelper.getPluginWithClass(JeiInternalPlugin.class, plugins)
+			.orElse(null);
+		PluginHelper.sortPlugins(plugins, vanillaPlugin, jeiInternalPlugin);
+
+		JeiConfigData configData = data.configData();
+		this.jeiClientConfigs = configData.clientConfigs();
+		this.configManagerForPlugins = ConfigManagerAdapter.create(
+			jeiClientConfigs::registerRuntimeListenerRemoval
+		);
+		this.modIdFormatConfig = configData.modIdFormatConfig();
+		this.colorNameConfig = configData.colorNameConfig();
+		this.recipeCategorySortingConfig = new RecipeCategorySortingConfig(jeiClientConfigs);
+
+		PluginCaller.callOnPlugins("Sending ConfigManager", plugins, p -> p.onConfigManagerAvailable(configManagerForPlugins));
+	}
+
+	public void start() {
+		if (running) {
+			LOGGER.error("Failed to start JEI, it is already running.");
+			return;
+		}
+
+		Minecraft minecraft = Minecraft.getInstance();
+		ClientLevel level = minecraft.level;
+		if (level == null) {
+			LOGGER.error("Failed to start JEI, there is no Minecraft client level.");
+			return;
+		}
+		RegistryAccess registryAccess = level.registryAccess();
+		RegistryUtil.setRegistryAccess(registryAccess);
+		ContextMap contextMap = SlotDisplayContext.fromLevel(level);
+
+		if (!Internal.hasClientRecipes()) {
+			RecipeMap vanillaRecipes = VanillaClientRecipeLoader.getVanillaRecipes(registryAccess);
+			if (!vanillaRecipes.values().isEmpty()) {
+				Internal.setClientFallbackRecipes(vanillaRecipes);
+			}
+		}
+
+		LoggedTimer totalTime = new LoggedTimer();
+		totalTime.start("Starting JEI");
+
+		PluginCaller.callOnPlugins("Configuring JEI", plugins, p -> p.configureJei(new PluginAwareJeiFeatures(Internal.getJeiFeatures(), p)));
+
+		IColorHelper colorHelper = new ColorHelper(colorNameConfig);
+		SubtypeManager subtypeManager = PluginLoader.registerSubtypes(data);
+		IngredientManager ingredientManager = PluginLoader.registerIngredients(
+			data,
+			subtypeManager,
+			colorHelper,
+			contextMap
+		);
+		stopCallbacks.add(ingredientManager::onRuntimeStopped);
+
+		FocusFactory focusFactory = new FocusFactory(ingredientManager);
+		CodecHelper codecHelper = new CodecHelper(ingredientManager, focusFactory);
+
+		Path configDir = Services.PLATFORM.getConfigHelper().createJeiConfigDir();
+		EditModeConfig.FileSerializer editModeSerializer = new EditModeConfig.FileSerializer(
+			configDir.resolve("blacklist.json"),
+			registryAccess,
+			codecHelper
+		);
+		EditModeConfig editModeConfig = new EditModeConfig(editModeSerializer, ingredientManager);
+
+		ImmutableSetMultimap<String, String> modAliases = PluginLoader.registerModAliases(data);
+
+		JeiHelpers jeiHelpers = PluginLoader.createJeiHelpers(
+			modAliases,
+			modIdFormatConfig,
+			colorHelper,
+			editModeConfig,
+			focusFactory,
+			codecHelper,
+			ingredientManager,
+			subtypeManager,
+			contextMap
+		);
+		stopCallbacks.add(jeiHelpers::onRuntimeStopped);
+
+		ISearchStorageBuilderFactory searchStorageBuilderFactory = PluginLoader.createSearchStorageFactory(plugins);
+
+		RecipeManager recipeManager = PluginLoader.createRecipeManager(
+			plugins,
+			vanillaPlugin,
+			recipeCategorySortingConfig,
+			jeiHelpers,
+			ingredientManager,
+			contextMap
+		);
+		stopCallbacks.add(recipeManager::onRuntimeStopped);
+		IRecipeTransferManager recipeTransferManager = PluginLoader.createRecipeTransferManager(
+			vanillaPlugin,
+			plugins,
+			jeiHelpers,
+			data.serverConnection()
+		);
+
+		LoggedTimer timer = new LoggedTimer();
+		timer.start("Building runtime");
+		IScreenHelper screenHelper = PluginLoader.createGuiScreenHelper(plugins, jeiHelpers, ingredientManager);
+
+		RuntimeRegistration runtimeRegistration = new RuntimeRegistration(
+			recipeManager,
+			jeiHelpers,
+			editModeConfig,
+			ingredientManager,
+			recipeTransferManager,
+			screenHelper,
+			searchStorageBuilderFactory
+		);
+		PluginCaller.callOnPlugins("Registering Runtime", plugins, p -> p.registerRuntime(runtimeRegistration));
+
+		JeiRuntime jeiRuntime = new JeiRuntime(
+			recipeManager,
+			ingredientManager,
+			Internal.getKeyMappings(),
+			jeiHelpers,
+			screenHelper,
+			recipeTransferManager,
+			editModeConfig,
+			runtimeRegistration.getIngredientListOverlay(),
+			runtimeRegistration.getBookmarkOverlay(),
+			runtimeRegistration.getBookmarkManager(),
+			runtimeRegistration.getRecipesGui(),
+			runtimeRegistration.getIngredientFilter(),
+			configManagerForPlugins
+		);
+		timer.stop();
+
+		PluginCaller.callOnPlugins("Sending Runtime", plugins, p -> p.onRuntimeAvailable(jeiRuntime));
+		Internal.setRuntime(jeiRuntime);
+		this.running = true;
+
+		totalTime.stop();
+
+		verifyClientRecipes(minecraft);
+	}
+
+	private void verifyClientRecipes(Minecraft minecraft) {
+		IConnectionToServer serverConnection = data.serverConnection();
+		RecipeMap clientRecipes = Internal.getClientSyncedRecipes();
+		boolean showWarning = jeiClientConfigs.getClientConfig().recipeSyncWarningEnabled().get();
+
+		if (Internal.hasClientSyncedRecipes() && clientRecipes.values().isEmpty()) {
+			String key = "jei.message.server.recipe.sync.error";
+			if (showWarning) {
+				writeChatMessage(minecraft, Component.translatable(key).withStyle(ChatFormatting.RED));
+			}
+			LOGGER.error(Translator.translateToLocal(key));
+		} else if (Internal.hasClientFallbackRecipes()) {
+			if (!serverConnection.isJeiOnServer() &&
+				serverConnection.isSameModLoader()
+			) {
+				String key = "jei.message.server.recipe.sync.jei.missing";
+				String serverBrand = ClientConnectionHelper.getServerBrand();
+				if (showWarning) {
+					writeChatMessage(minecraft, Component.translatable(key, serverBrand).withStyle(ChatFormatting.RED));
+				}
+				LOGGER.warn(Translator.translateToLocalFormatted(key, serverBrand));
+			} else if (ClientConnectionHelper.hasServerBrand(VANILLA_SERVER_BRAND)) {
+				String key = "jei.message.server.recipe.sync.vanilla";
+				if (showWarning) {
+					writeChatMessage(minecraft, Component.translatable(key).withStyle(ChatFormatting.YELLOW));
+				}
+				LOGGER.warn(Translator.translateToLocal(key));
+			} else {
+				String key = "jei.message.server.recipe.sync.unavailable";
+				String serverBrand = ClientConnectionHelper.getServerBrand();
+				if (showWarning) {
+					writeChatMessage(minecraft, Component.translatable(key, serverBrand).withStyle(ChatFormatting.RED));
+				}
+				LOGGER.warn(Translator.translateToLocalFormatted(key, serverBrand));
+			}
+		}
+	}
+
+	private static void writeChatMessage(Minecraft minecraft, Component component) {
+		LocalPlayer player = minecraft.player;
+		if (player != null) {
+			ChatUtil.writeChatMessage(player, component);
+		}
+	}
+
+	public void stop() {
+		if (!running) {
+			return;
+		}
+		this.running = false;
+
+		LOGGER.info("Stopping JEI");
+
+		List<IModPlugin> plugins = data.plugins();
+		PluginCaller.callOnPlugins("Sending Runtime Unavailable", plugins, IModPlugin::onRuntimeUnavailable);
+		PacketRecipeTransferResult.clearPendingRecipeTransfers();
+
+		Internal.onRuntimeStopped();
+
+		for (IStopCallback stopCallback : stopCallbacks) {
+			stopCallback.onRuntimeStopped();
+		}
+		stopCallbacks.clear();
+
+		RegistryUtil.setRegistryAccess(null);
+	}
+}

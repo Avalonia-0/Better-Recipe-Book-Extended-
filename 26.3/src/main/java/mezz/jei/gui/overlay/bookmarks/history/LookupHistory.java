@@ -1,0 +1,103 @@
+package mezz.jei.gui.overlay.bookmarks.history;
+
+import com.mojang.serialization.Codec;
+import mezz.jei.api.helpers.ICodecHelper;
+import mezz.jei.api.recipe.IRecipeManager;
+import mezz.jei.api.runtime.IIngredientManager;
+import mezz.jei.common.Internal;
+import net.mezzdev.config.api.value.IConfigValue;
+import mezz.jei.gui.bookmarks.IBookmark;
+import mezz.jei.gui.config.ILookupHistoryConfig;
+import mezz.jei.gui.overlay.ingredients.IIngredientGridSource;
+import mezz.jei.gui.overlay.elements.IElement;
+import net.minecraft.core.RegistryAccess;
+import org.jetbrains.annotations.Unmodifiable;
+
+import java.util.ArrayList;
+import java.util.LinkedList;
+import java.util.List;
+
+public class LookupHistory implements IIngredientGridSource {
+	private final List<IBookmark> elements = new LinkedList<>();
+	private final List<SourceListChangedListener> listeners = new ArrayList<>();
+	private final IRecipeManager recipeManager;
+	private final IIngredientManager ingredientManager;
+	private final RegistryAccess registryAccess;
+	private final ICodecHelper codecHelper;
+	private final IConfigValue<Integer> maxElements;
+	private final ILookupHistoryConfig lookupHistoryConfig;
+	private final Codec<IBookmark> bookmarkCodec;
+
+	public LookupHistory(
+		IRecipeManager recipeManager,
+		IIngredientManager ingredientManager,
+		RegistryAccess registryAccess,
+		ICodecHelper codecHelper,
+		IConfigValue<Integer> maxElements,
+		ILookupHistoryConfig lookupHistoryConfig,
+		Codec<IBookmark> bookmarkCodec
+	) {
+		this.recipeManager = recipeManager;
+		this.ingredientManager = ingredientManager;
+		this.registryAccess = registryAccess;
+		this.codecHelper = codecHelper;
+		this.maxElements = maxElements;
+		this.lookupHistoryConfig = lookupHistoryConfig;
+		this.bookmarkCodec = bookmarkCodec;
+
+		List<IBookmark> loaded = lookupHistoryConfig.load(recipeManager, ingredientManager, registryAccess, codecHelper, bookmarkCodec);
+		this.elements.addAll(loaded);
+		Internal.registerRuntimeListenerRemoval(maxElements.addListener(v -> trimToMaxElements()));
+		trimToMaxElements();
+	}
+
+	public void add(IBookmark element) {
+		elements.remove(element);
+		elements.addFirst(element);
+		if (elements.size() > maxElements.get()) {
+			elements.removeLast();
+		}
+		notifyListeners();
+		save();
+	}
+
+	@Override
+	public @Unmodifiable List<IElement<?>> getElements() {
+		return elements.stream()
+			.<IElement<?>>map(IBookmark::getElement)
+			.toList();
+	}
+
+	@Override
+	public boolean containsElement(IElement<?> element) {
+		return elements.stream()
+			.anyMatch(bookmark -> bookmark.getElement() == element);
+	}
+
+	@Override
+	public void addSourceListChangedListener(SourceListChangedListener listener) {
+		listeners.add(listener);
+	}
+
+	private void notifyListeners() {
+		for (SourceListChangedListener listener : listeners) {
+			listener.onSourceListChanged();
+		}
+	}
+
+	private void trimToMaxElements() {
+		boolean changed = false;
+		while (elements.size() > maxElements.get()) {
+			elements.removeLast();
+			changed = true;
+		}
+		if (changed) {
+			notifyListeners();
+			save();
+		}
+	}
+
+	private void save() {
+		lookupHistoryConfig.save(recipeManager, ingredientManager, registryAccess, codecHelper, elements, bookmarkCodec);
+	}
+}

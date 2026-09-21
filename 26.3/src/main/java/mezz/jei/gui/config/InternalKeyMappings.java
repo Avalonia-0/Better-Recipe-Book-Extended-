@@ -1,0 +1,563 @@
+package mezz.jei.gui.config;
+
+import com.mojang.blaze3d.platform.InputConstants;
+import mezz.jei.api.constants.ModIds;
+import mezz.jei.api.runtime.IJeiKeyMapping;
+import mezz.jei.common.input.IInternalKeyMappings;
+import mezz.jei.common.input.keys.IJeiKeyMappingCategoryBuilder;
+import mezz.jei.common.input.keys.IJeiKeyMappingInternal;
+import mezz.jei.common.input.keys.IJeiKeyMappingWithExtraModifiers;
+import mezz.jei.common.input.keys.JeiKeyConflictContext;
+import mezz.jei.common.input.keys.JeiKeyModifier;
+import mezz.jei.common.input.keys.JeiMultiKeyMapping;
+import mezz.jei.common.platform.IPlatformInputHelper;
+import mezz.jei.common.platform.Services;
+import net.minecraft.client.KeyMapping;
+import net.minecraft.resources.Identifier;
+
+import java.util.List;
+import java.util.function.Consumer;
+import java.util.function.Function;
+import java.util.stream.Stream;
+
+public final class InternalKeyMappings implements IInternalKeyMappings {
+	private final IJeiKeyMappingInternal toggleOverlay;
+	private final IJeiKeyMappingInternal focusSearch;
+	private final IJeiKeyMappingInternal toggleCheatMode;
+	private final IJeiKeyMappingInternal toggleEditMode;
+
+	private final IJeiKeyMappingInternal toggleCheatModeConfigButton;
+
+	private final IJeiKeyMappingInternal recipeBack;
+	private final IJeiKeyMappingInternal recipeForward;
+	private final IJeiKeyMappingInternal previousCategory;
+	private final IJeiKeyMappingInternal nextCategory;
+	private final IJeiKeyMappingInternal previousRecipePage;
+	private final IJeiKeyMappingInternal nextRecipePage;
+	private final IJeiKeyMappingInternal pauseRecipeCycling;
+
+	private final IJeiKeyMappingInternal previousPage;
+	private final IJeiKeyMappingInternal nextPage;
+
+	private final IJeiKeyMappingInternal bookmark;
+	private final IJeiKeyMappingInternal toggleBookmarkOverlay;
+	private final IJeiKeyMappingInternal transferRecipeBookmark;
+	private final IJeiKeyMappingInternal maxTransferRecipeBookmark;
+	private final IJeiKeyMappingInternal quickMove;
+	private final IJeiKeyMappingInternal shareToChat;
+
+	private final IJeiKeyMappingWithExtraModifiers showRecipe;
+	private final IJeiKeyMappingWithExtraModifiers showUses;
+
+	private final IJeiKeyMapping cheatOneItem;
+	private final IJeiKeyMapping cheatItemStack;
+
+	private final IJeiKeyMappingInternal toggleHideIngredient;
+	private final IJeiKeyMappingInternal toggleWildcardHideIngredient;
+
+	private final IJeiKeyMappingInternal hoveredClearSearchBar;
+	private final IJeiKeyMappingInternal previousSearch;
+	private final IJeiKeyMappingInternal nextSearch;
+
+	private final IJeiKeyMappingInternal copyRecipeId;
+
+	private final IJeiKeyMappingInternal closeRecipeGui;
+
+	// internal only, unregistered and can't be changed because they match vanilla Minecraft hard-coded keys:
+	private final IJeiKeyMapping escapeKey;
+	private final IJeiKeyMapping leftClick;
+	private final IJeiKeyMapping rightClick;
+	private final IJeiKeyMapping enterKey;
+
+	private final List<KeyMapping> configKeyMappings;
+
+	private static KeyMapping.Category createUnregisteredCategory(String name) {
+		Identifier id = Identifier.fromNamespaceAndPath(ModIds.JEI_ID, name);
+		return new KeyMapping.Category(id);
+	}
+
+	private record CategoryBuilderFactory(
+		IPlatformInputHelper inputHelper,
+		Function<Identifier, KeyMapping.Category> createCategoryMethod
+	) {
+		public IJeiKeyMappingCategoryBuilder create(String name) {
+			Identifier id = Identifier.fromNamespaceAndPath(ModIds.JEI_ID, name);
+			KeyMapping.Category category = createCategoryMethod.apply(id);
+			return inputHelper.createKeyMappingCategoryBuilder(category);
+		}
+	}
+
+	public InternalKeyMappings(Consumer<KeyMapping> registerMethod, Function<Identifier, KeyMapping.Category> createCategoryMethod) {
+		IPlatformInputHelper inputHelper = Services.PLATFORM.getInputHelper();
+		CategoryBuilderFactory categoryBuilderFactory = new CategoryBuilderFactory(inputHelper, createCategoryMethod);
+
+		IJeiKeyMappingInternal showRecipe1;
+		IJeiKeyMappingInternal showRecipe2;
+		IJeiKeyMappingInternal showUses1;
+		IJeiKeyMappingInternal showUses2;
+		IJeiKeyMappingInternal cheatOneItem1;
+		IJeiKeyMappingInternal cheatOneItem2;
+		IJeiKeyMappingInternal cheatItemStack1;
+		IJeiKeyMappingInternal cheatItemStack2;
+
+		IJeiKeyMappingCategoryBuilder overlay = categoryBuilderFactory.create("overlays");
+
+		IJeiKeyMappingCategoryBuilder mouseHover = categoryBuilderFactory.create("mouse.hover");
+
+		IJeiKeyMappingCategoryBuilder search = categoryBuilderFactory.create("search");
+
+		IJeiKeyMappingCategoryBuilder cheat = categoryBuilderFactory.create("cheat.mode");
+
+		IJeiKeyMappingCategoryBuilder hoverConfig = categoryBuilderFactory.create("hover.config.button");
+
+		IJeiKeyMappingCategoryBuilder editMode = categoryBuilderFactory.create("edit.mode");
+
+		IJeiKeyMappingCategoryBuilder recipeGui = categoryBuilderFactory.create("recipe.gui");
+
+		IJeiKeyMappingCategoryBuilder devTools = categoryBuilderFactory.create("dev.tools");
+
+		// Overlay
+		toggleOverlay = overlay.createMapping("key.jei.toggleOverlay")
+			.setContext(JeiKeyConflictContext.GUI)
+			.setModifier(JeiKeyModifier.CONTROL_OR_COMMAND)
+			.buildKeyboardKey(InputConstants.KEY_O)
+			.register(registerMethod);
+
+		focusSearch = overlay.createMapping("key.jei.focusSearch")
+			.setContext(JeiKeyConflictContext.GUI)
+			.setModifier(JeiKeyModifier.CONTROL_OR_COMMAND)
+			.buildKeyboardKey(InputConstants.KEY_F)
+			.register(registerMethod);
+
+		previousPage = overlay.createMapping("key.jei.previousPage")
+			.setContext(JeiKeyConflictContext.GUI)
+			.buildUnbound()
+			.register(registerMethod);
+
+		nextPage = overlay.createMapping("key.jei.nextPage")
+			.setContext(JeiKeyConflictContext.GUI)
+			.buildUnbound()
+			.register(registerMethod);
+
+		toggleBookmarkOverlay = overlay.createMapping("key.jei.toggleBookmarkOverlay")
+			.setContext(JeiKeyConflictContext.GUI)
+			.buildUnbound()
+			.register(registerMethod);
+
+		// Mouse Hover
+		bookmark = mouseHover.createMapping("key.jei.bookmark")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER)
+			.buildKeyboardKey(InputConstants.KEY_A)
+			.register(registerMethod);
+
+		showRecipe1 = mouseHover.createMapping("key.jei.showRecipe")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER)
+			.buildKeyboardKey(InputConstants.KEY_R)
+			.register(registerMethod);
+
+		showRecipe2 = mouseHover.createMapping("key.jei.showRecipe2")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER)
+			.buildMouseLeft()
+			.register(registerMethod);
+
+		showUses1 = mouseHover.createMapping("key.jei.showUses")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER)
+			.buildKeyboardKey(InputConstants.KEY_U)
+			.register(registerMethod);
+
+		showUses2 = mouseHover.createMapping("key.jei.showUses2")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER)
+			.buildMouseRight()
+			.register(registerMethod);
+
+		transferRecipeBookmark = mouseHover.createMapping("key.jei.transferRecipeBookmark")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER_BOOKMARK)
+			.setModifier(JeiKeyModifier.SHIFT)
+			.buildMouseLeft()
+			.register(registerMethod);
+
+		maxTransferRecipeBookmark = mouseHover.createMapping("key.jei.maxTransferRecipeBookmark")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER_BOOKMARK)
+			.setModifier(JeiKeyModifier.CONTROL_OR_COMMAND)
+			.buildMouseLeft()
+			.register(registerMethod);
+
+		quickMove = mouseHover.createMapping("key.jei.quickMove")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER)
+			.setModifier(JeiKeyModifier.SHIFT)
+			.buildMouseLeft()
+			.register(registerMethod);
+
+		shareToChat = mouseHover.createMapping("key.jei.shareToChat")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER)
+			.buildUnbound()
+			.register(registerMethod);
+
+		// Search Bar
+		hoveredClearSearchBar = search.createMapping("key.jei.clearSearchBar")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER_SEARCH)
+			.buildMouseRight()
+			.register(registerMethod);
+
+		previousSearch = search.createMapping("key.jei.previousSearch")
+			.setContext(JeiKeyConflictContext.JEI_GUI_FOCUSED_SEARCH)
+			.buildKeyboardKey(InputConstants.KEY_UP)
+			.register(registerMethod);
+
+		nextSearch = search.createMapping("key.jei.nextSearch")
+			.setContext(JeiKeyConflictContext.JEI_GUI_FOCUSED_SEARCH)
+			.buildKeyboardKey(InputConstants.KEY_DOWN)
+			.register(registerMethod);
+
+		// Cheat Mode
+		toggleCheatMode = cheat.createMapping("key.jei.toggleCheatMode")
+			.setContext(JeiKeyConflictContext.GUI)
+			.buildUnbound()
+			.register(registerMethod);
+
+		cheatOneItem1 = cheat.createMapping("key.jei.cheatOneItem")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER_CHEAT_MODE)
+			.buildMouseLeft()
+			.register(registerMethod);
+
+		cheatOneItem2 = cheat.createMapping("key.jei.cheatOneItem2")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER_CHEAT_MODE)
+			.buildMouseRight()
+			.register(registerMethod);
+
+		cheatItemStack1 = cheat.createMapping("key.jei.cheatItemStack")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER_CHEAT_MODE)
+			.setModifier(JeiKeyModifier.SHIFT)
+			.buildMouseLeft()
+			.register(registerMethod);
+
+		cheatItemStack2 = cheat.createMapping("key.jei.cheatItemStack2")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER_CHEAT_MODE)
+			.buildMouseMiddle()
+			.register(registerMethod);
+
+		// Hovering over config button
+		toggleCheatModeConfigButton = hoverConfig.createMapping("key.jei.toggleCheatModeConfigButton")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER_CONFIG_BUTTON)
+			.setModifier(JeiKeyModifier.CONTROL_OR_COMMAND)
+			.buildMouseLeft()
+			.register(registerMethod);
+
+		// Edit Mode
+		toggleEditMode = editMode.createMapping("key.jei.toggleEditMode")
+			.setContext(JeiKeyConflictContext.GUI)
+			.buildUnbound()
+			.register(registerMethod);
+
+		toggleHideIngredient = editMode.createMapping("key.jei.toggleHideIngredient")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER_INGREDIENT)
+			.setModifier(JeiKeyModifier.CONTROL_OR_COMMAND)
+			.buildMouseLeft()
+			.register(registerMethod);
+
+		toggleWildcardHideIngredient = editMode.createMapping("key.jei.toggleWildcardHideIngredient")
+			.setContext(JeiKeyConflictContext.JEI_GUI_HOVER_INGREDIENT)
+			.setModifier(JeiKeyModifier.CONTROL_OR_COMMAND)
+			.buildMouseRight()
+			.register(registerMethod);
+
+		// Recipes
+		recipeBack = recipeGui.createMapping("key.jei.recipeBack")
+			.setContext(JeiKeyConflictContext.GUI)
+			.buildKeyboardKey(InputConstants.KEY_BACKSPACE)
+			.register(registerMethod);
+
+		recipeForward = recipeGui.createMapping("key.jei.recipeForward")
+			.setContext(JeiKeyConflictContext.GUI)
+			.buildUnbound()
+			.register(registerMethod);
+
+		previousRecipePage = recipeGui.createMapping("key.jei.previousRecipePage")
+			.setContext(JeiKeyConflictContext.GUI)
+			.buildKeyboardKey(InputConstants.KEY_PAGEUP)
+			.register(registerMethod);
+
+		nextRecipePage = recipeGui.createMapping("key.jei.nextRecipePage")
+			.setContext(JeiKeyConflictContext.GUI)
+			.buildKeyboardKey(InputConstants.KEY_PAGEDOWN)
+			.register(registerMethod);
+
+		pauseRecipeCycling = recipeGui.createMapping("key.jei.pauseRecipeCycling")
+			.setContext(JeiKeyConflictContext.GUI)
+			.buildKeyboardKey(InputConstants.KEY_LSHIFT)
+			.register(registerMethod);
+
+		previousCategory = recipeGui.createMapping("key.jei.previousCategory")
+			.setContext(JeiKeyConflictContext.GUI)
+			.setModifier(JeiKeyModifier.SHIFT)
+			.buildKeyboardKey(InputConstants.KEY_PAGEUP)
+			.register(registerMethod);
+
+		nextCategory = recipeGui.createMapping("key.jei.nextCategory")
+			.setContext(JeiKeyConflictContext.GUI)
+			.setModifier(JeiKeyModifier.SHIFT)
+			.buildKeyboardKey(InputConstants.KEY_PAGEDOWN)
+			.register(registerMethod);
+
+		closeRecipeGui = recipeGui.createMapping("key.jei.closeRecipeGui")
+			.setContext(JeiKeyConflictContext.GUI)
+			.buildKeyboardKey(InputConstants.KEY_ESCAPE)
+			.register(registerMethod);
+
+		// Dev Tools
+		copyRecipeId = devTools.createMapping("key.jei.copy.recipe.id")
+			.setContext(JeiKeyConflictContext.GUI)
+			.buildUnbound()
+			.register(registerMethod);
+
+		configKeyMappings = Stream.of(
+				focusSearch,
+				hoveredClearSearchBar,
+				previousSearch,
+				nextSearch,
+				showRecipe1,
+				showRecipe2,
+				showUses1,
+				showUses2,
+				bookmark,
+				transferRecipeBookmark,
+				maxTransferRecipeBookmark,
+				quickMove,
+				shareToChat,
+				toggleOverlay,
+				toggleBookmarkOverlay,
+				previousPage,
+				nextPage,
+				recipeBack,
+				recipeForward,
+				previousRecipePage,
+				nextRecipePage,
+				pauseRecipeCycling,
+				previousCategory,
+				nextCategory,
+				closeRecipeGui,
+				toggleCheatMode,
+				toggleCheatModeConfigButton,
+				cheatOneItem1,
+				cheatOneItem2,
+				cheatItemStack1,
+				cheatItemStack2,
+				toggleEditMode,
+				toggleHideIngredient,
+				toggleWildcardHideIngredient,
+				copyRecipeId
+			)
+			.map(IJeiKeyMappingInternal::getKeyMapping)
+			.toList();
+
+		showRecipe = new JeiMultiKeyMapping(showRecipe1, showRecipe2);
+		showUses = new JeiMultiKeyMapping(showUses1, showUses2);
+		cheatOneItem = new JeiMultiKeyMapping(cheatOneItem1, cheatOneItem2);
+		cheatItemStack = new JeiMultiKeyMapping(cheatItemStack1, cheatItemStack2);
+
+		var jeiHiddenInternalCategory = createUnregisteredCategory("hidden.internal");
+		IJeiKeyMappingCategoryBuilder jeiHidden = inputHelper.createKeyMappingCategoryBuilder(jeiHiddenInternalCategory);
+
+		escapeKey = jeiHidden.createMapping("key.jei.internal.escape.key")
+			.setContext(JeiKeyConflictContext.GUI)
+			.buildKeyboardKey(InputConstants.KEY_ESCAPE);
+
+		leftClick = jeiHidden.createMapping("key.jei.internal.left.click")
+			.setContext(JeiKeyConflictContext.GUI)
+			.buildMouseLeft();
+
+		rightClick = jeiHidden.createMapping("key.jei.internal.right.click")
+			.setContext(JeiKeyConflictContext.GUI)
+			.buildMouseRight();
+
+		enterKey = new JeiMultiKeyMapping(
+			jeiHidden.createMapping("key.jei.internal.enter.key")
+				.setContext(JeiKeyConflictContext.GUI)
+				.buildKeyboardKey(InputConstants.KEY_RETURN),
+
+			jeiHidden.createMapping("key.jei.internal.enter.key2")
+				.setContext(JeiKeyConflictContext.GUI)
+				.buildKeyboardKey(InputConstants.KEY_NUMPADENTER)
+		);
+	}
+
+	@Override
+	public IJeiKeyMapping getToggleOverlay() {
+		return toggleOverlay;
+	}
+
+	@Override
+	public IJeiKeyMapping getFocusSearch() {
+		return focusSearch;
+	}
+
+	@Override
+	public IJeiKeyMapping getToggleCheatMode() {
+		return toggleCheatMode;
+	}
+
+	@Override
+	public IJeiKeyMapping getToggleEditMode() {
+		return toggleEditMode;
+	}
+
+	@Override
+	public IJeiKeyMapping getToggleCheatModeConfigButton() {
+		return toggleCheatModeConfigButton;
+	}
+
+	@Override
+	public IJeiKeyMapping getRecipeBack() {
+		return recipeBack;
+	}
+
+	@Override
+	public IJeiKeyMapping getRecipeForward() {
+		return recipeForward;
+	}
+
+	@Override
+	public IJeiKeyMapping getPreviousCategory() {
+		return previousCategory;
+	}
+
+	@Override
+	public IJeiKeyMapping getNextCategory() {
+		return nextCategory;
+	}
+
+	@Override
+	public IJeiKeyMapping getPreviousRecipePage() {
+		return previousRecipePage;
+	}
+
+	@Override
+	public IJeiKeyMapping getNextRecipePage() {
+		return nextRecipePage;
+	}
+
+	@Override
+	public IJeiKeyMappingInternal getPauseRecipeCycling() {
+		return pauseRecipeCycling;
+	}
+
+	@Override
+	public IJeiKeyMapping getPreviousPage() {
+		return previousPage;
+	}
+
+	@Override
+	public IJeiKeyMapping getNextPage() {
+		return nextPage;
+	}
+
+	@Override
+	public IJeiKeyMapping getCloseRecipeGui() {
+		return closeRecipeGui;
+	}
+
+	@Override
+	public IJeiKeyMappingWithExtraModifiers getBookmark() {
+		return bookmark;
+	}
+
+	@Override
+	public IJeiKeyMapping getToggleBookmarkOverlay() {
+		return toggleBookmarkOverlay;
+	}
+
+	@Override
+	public IJeiKeyMappingWithExtraModifiers getShowRecipe() {
+		return showRecipe;
+	}
+
+	@Override
+	public IJeiKeyMappingWithExtraModifiers getShowUses() {
+		return showUses;
+	}
+
+	@Override
+	public IJeiKeyMapping getTransferRecipeBookmark() {
+		return transferRecipeBookmark;
+	}
+
+	@Override
+	public IJeiKeyMapping getMaxTransferRecipeBookmark() {
+		return maxTransferRecipeBookmark;
+	}
+
+	@Override
+	public IJeiKeyMapping getQuickMove() {
+		return quickMove;
+	}
+
+	@Override
+	public IJeiKeyMapping getShareToChat() {
+		return shareToChat;
+	}
+
+	@Override
+	public IJeiKeyMapping getCheatOneItem() {
+		return cheatOneItem;
+	}
+
+	@Override
+	public IJeiKeyMapping getCheatItemStack() {
+		return cheatItemStack;
+	}
+
+	@Override
+	public IJeiKeyMapping getToggleHideIngredient() {
+		return toggleHideIngredient;
+	}
+
+	@Override
+	public IJeiKeyMapping getToggleWildcardHideIngredient() {
+		return toggleWildcardHideIngredient;
+	}
+
+	@Override
+	public IJeiKeyMapping getHoveredClearSearchBar() {
+		return hoveredClearSearchBar;
+	}
+
+	@Override
+	public IJeiKeyMapping getPreviousSearch() {
+		return previousSearch;
+	}
+
+	@Override
+	public IJeiKeyMapping getNextSearch() {
+		return nextSearch;
+	}
+
+	@Override
+	public IJeiKeyMapping getCopyRecipeId() {
+		return copyRecipeId;
+	}
+
+	@Override
+	public List<KeyMapping> getConfigKeyMappings() {
+		return configKeyMappings;
+	}
+
+	@Override
+	public IJeiKeyMapping getEscapeKey() {
+		return escapeKey;
+	}
+
+	@Override
+	public IJeiKeyMapping getLeftClick() {
+		return leftClick;
+	}
+
+	@Override
+	public IJeiKeyMapping getRightClick() {
+		return rightClick;
+	}
+
+	@Override
+	public IJeiKeyMapping getEnterKey() {
+		return enterKey;
+	}
+}
