@@ -2,6 +2,7 @@ package com.alonie.brbe.mixins.pausescreen;
 
 import com.alonie.brbe.config.BrbeConfig;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.SpriteIconButton;
 import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.layouts.LinearLayout;
@@ -10,6 +11,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
@@ -44,7 +46,7 @@ public abstract class PauseScreenConfigButtonMixin extends Screen {
         Component message = Component.translatable("text.autoconfig.brbe.title");
         SpriteIconButton button = SpriteIconButton.builder(
                         message,
-                        b -> Minecraft.getInstance().gui.setScreen(createConfigScreen(PauseScreenConfigButtonMixin.this)),
+                        this::brbe$openConfigFromPauseMenu,
                         true)
                 .size(20, 20)
                 .sprite(Identifier.fromNamespaceAndPath("brbe", "pause_menu/brbe"), 20, 18)
@@ -53,6 +55,20 @@ public abstract class PauseScreenConfigButtonMixin extends Screen {
         button.setTooltip(Tooltip.create(message));
         row.addChild(button);
         return row;
+    }
+
+    /**
+     * 暂停菜单配置按钮回调。
+     *
+     * <p><b>为什么拆成方法 + 方法引用</b>：mixin 类里的 lambda 会被编译成合成方法，
+     * Mixin 必须重命名它们（否则与目标类同名合成方法冲突）并在 latest.log 打一行
+     * {@code Renaming synthetic method ...}；方法引用走 invokedynamic 的
+     * {@code MethodHandle}，与直接调用走同一套重映射（{@code transformMethodRef}），
+     * 不产生合成方法、不刷日志。</p>
+     */
+    @Unique
+    private void brbe$openConfigFromPauseMenu(Button button) {
+        Minecraft.getInstance().gui.setScreen(createConfigScreen(this));
     }
 
     /** 构建 Cloth Config 配置屏 —— **必须走 ConfigTipsHelper**（与书内设置按钮、ModMenu 同源）：

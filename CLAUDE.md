@@ -1177,3 +1177,54 @@ ESC 退出界面。"（详见 `docs/1.21.11-26.2-查询窗口ESC退出问题.md`
   旧 jar 已备份为 `*.jar.bak.<时间戳>`。
 - 验证：26.3 冒烟跑通 → `latest.log` 里 `- brbe 2.3.1`、调试标签 0 行；
   `brbe-debug.log` 照常恒写（126 行，含会话头）。
+
+## 2026-09-22（四）：`latest.log` 里 BRBE 噪声清零（mixin 内 lambda / static 字段的实例 accessor）
+
+用户要求：查 26.3 测试实例 `latest.log` 还有没有 BRBE 的冗余日志。审计出的残留共两类，
+每个会话都会重复出现（不影响功能），已全部消除：
+
+| 噪声行 | 数量 | 根因 | 修法 |
+|---|---|---|---|
+| `Renaming synthetic method lambda$… to … in … from mod brbe` | 9（另有 8 个同类尚未触发） | Mixin 必须给 mixin 类里所有非 public 方法改名防冲突（`MixinPreProcessorStandard.attachUniqueMethod`）；lambda 体会被编译成**合成方法** → 每个 lambda 一行 INFO | 全部改成 **`@Unique` 方法 + 方法引用**；通用谓词挪进普通工具类 |
+| `should be static as its target is` | 4 | `RecipeButtonAccessor` 用**实例** `@Accessor` 读原版 `static final` 的 `SLOT_*_SPRITE` | 删掉这 4 个 accessor，改在 `RecipeBookPageAnimationMixin` 里直接构造 `Identifier`（字面量经 javap 核对原版 static 初始化器，逐字一致） |
+
+**为什么方法引用安全**：方法引用不产生合成方法；它的 `MethodHandle` 是 invokedynamic 的
+bootstrap 参数，Mixin 用 `MixinTargetContext.transformConstant → transformHandle →
+transformMethodRef` 处理——与普通 `INVOKEVIRTUAL/INVOKESTATIC` 指令**同一套重映射**
+（owner 从 mixin 类改写到目标类），所以合并进目标类的 `@Unique`/`@Shadow` 成员都能解析。
+
+**改动清单**（三分支同步）：
+- RBIP `groups/ClientRecipeBookMixin`：2× `computeIfAbsent` + 4× `forEach` → `rbip$bucketFor`（get+put）
+  + 显式 `entrySet()` 循环；`EntryBucket.toCollections()` 去 stream（共 6 行）
+- RBIP `widget/RecipeBookTooltipMixin`：`stream().filter().forEach()` + `Optional.map().ifPresent()`
+  → 显式 `for` 循环（3 行）
+- `accessors/RecipeButtonAccessor`：删 4 个贴图 accessor；`scrollablepages/RecipeBookPageAnimationMixin`
+  新增 4 个 `SLOT_*_SPRITE` 常量
+- `BrewingStandScreenMixin` / `SmithingScreenMixin` / `settings/RecipeBookComponentMixin` /
+  `pausescreen/PauseScreenConfigButtonMixin`：按钮回调 → `@Unique` 方法 + `this::`
+- `unlockrecipes/MultiPlayerGameModeMixin`：`storeItem` 的谓词 → 普通类
+  `RecipeMenuUtil.notCraftingMenuSlot`（普通类里的 lambda 不经 Mixin）
+- `soundoptions/SoundOptionsScreenMixin`：`xmap` 两个换算 + 值回调 → 3 个 `private static` 方法 + 方法引用
+  （1.21.11 的滑块是自建 `AbstractSliderButton`，本就没有 lambda，未改）
+
+**本轮新增的离线审计**（可复用）：扫 `*.mixins.json` → `javap -p` 每个 mixin 类查 `lambda$`
+合成方法；扫全部 `@Accessor/@Invoker` → `javap` 目标成员比对 static 修饰。
+结果：三分支 **mixin 类 0 个 lambda**；accessor 条目（26.3/26.2/1.21.11 = 49/50/48 条）static 全部匹配。
+
+**验证**：
+- 真实实例跑探针 `world + book` 阶段 → `latest.log` 224 行里 `Renaming`=0、`should be static`=0、
+  BRBE 调试标签=0；`Mixing … ClientRecipeBookMixin / RecipeBookTooltipMixin …` 行仍在
+  （mixin 确实生效，只是不再改名）；`brbe-debug.log` 照常追加会话头。
+- 临时自测 mod（`tools/brbe-screen-selftest/BrbeScreenCallbackTest.java` + `run-cbtest.sh`，
+  跑完自动卸载）在真实实例里依次打开并操作：暂停菜单 BRBE 按钮 → `ClothConfigScreen` ✓；
+  `SoundOptionsScreen` 混入且翻页滑块在列表里 ✓；酿造台/锻造台按钮按下后配方书组件挂上 ✓；
+  物品栏配方书（设置按钮所在）正常构造 ✓。
+- `-Dmixin.debug.export=true` 导出转换后的目标类做**字节码级核对**：invokedynamic 的
+  bootstrap `MethodHandle` owner 已从 mixin 类改写成目标类——
+  `PauseScreen.brbe$openConfigFromPauseMenu`、`BrewingStandScreen`/`SmithingScreen.brbe$onRecipeBookButton`、
+  `RecipeBookComponent.brbe$openConfigFromSettings`、
+  `SoundOptionsScreen.brbe$toSliderValue`/`fromSliderValue`/`applyPageFlipVolume`；
+  转换后的目标类里 0 个 `brbe$lambda$` 合成方法；`ClientRecipeBook.rbip$bucketFor` 已合并进去。
+
+**部署**：26.3 `371cb7eb…`、26.2 `876df8d0…`、1.21.11 `e99411a2…`（备份 20260922-230047，原子替换）。
+**规则已写入根 `CLAUDE.md`**：mixin 类内不要写 lambda；`@Accessor` 读 static 字段必须声明 `static`。

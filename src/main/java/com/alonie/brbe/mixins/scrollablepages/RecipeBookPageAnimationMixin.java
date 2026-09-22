@@ -53,6 +53,21 @@ public abstract class RecipeBookPageAnimationMixin {
 
     private static final float TICKS_PER_SECOND = 20.0F;
     private static final int PAGE_SLIDE_DISTANCE = 125;
+    /**
+     * 原版 {@code RecipeButton} 的格子贴图 id（javap 核出的字面量）。
+     *
+     * <p>原版把它们放在 <b>static final</b> 字段里，用实例 {@code @Accessor} 去读会让
+     * Mixin 在 latest.log 刷 4 行 {@code should be static as its target is}；它们本就是
+     * 固定值，直接构造更干净（贴图由原版资源包提供，id 不变）。</p>
+     */
+    private static final Identifier SLOT_CRAFTABLE_SPRITE =
+            Identifier.withDefaultNamespace("recipe_book/slot_craftable");
+    private static final Identifier SLOT_UNCRAFTABLE_SPRITE =
+            Identifier.withDefaultNamespace("recipe_book/slot_uncraftable");
+    private static final Identifier SLOT_MANY_CRAFTABLE_SPRITE =
+            Identifier.withDefaultNamespace("recipe_book/slot_many_craftable");
+    private static final Identifier SLOT_MANY_UNCRAFTABLE_SPRITE =
+            Identifier.withDefaultNamespace("recipe_book/slot_many_uncraftable");
     /** 连续翻页判定窗口：距上次翻页不足该帧数视为连点（进入追逐延展）。 */
     private static final int CHASE_WINDOW_FRAMES = 10;
     /** 追逐模式下每页响应时长（秒），独立于配置时长，保证连点滑动连贯。 */
@@ -307,9 +322,9 @@ public abstract class RecipeBookPageAnimationMixin {
         RecipeCollection c = snap.getCollection();
         Identifier sprite;
         if (c.hasCraftable()) {
-            sprite = acc.brbe$hasMultipleRecipes() ? acc.brbe$getManyCraftableSprite() : acc.brbe$getCraftableSprite();
+            sprite = acc.brbe$hasMultipleRecipes() ? SLOT_MANY_CRAFTABLE_SPRITE : SLOT_CRAFTABLE_SPRITE;
         } else {
-            sprite = acc.brbe$hasMultipleRecipes() ? acc.brbe$getManyUncraftableSprite() : acc.brbe$getUncraftableSprite();
+            sprite = acc.brbe$hasMultipleRecipes() ? SLOT_MANY_UNCRAFTABLE_SPRITE : SLOT_UNCRAFTABLE_SPRITE;
         }
         int edgeRight = effX + effW;
         RecipeDisplayId currentRecipe;

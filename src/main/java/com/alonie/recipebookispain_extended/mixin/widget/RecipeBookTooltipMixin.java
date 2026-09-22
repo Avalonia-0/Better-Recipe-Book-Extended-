@@ -31,15 +31,21 @@ public class RecipeBookTooltipMixin {
             // The BRBE query UI (viewer box / preview / pin) owns the cursor:
             // the tab under it must not show its tooltip (no leak-through).
             boolean masked = com.alonie.brbe.util.RecipeViewerOverlay.modalMaskOwnsCursor(mouseX, mouseY);
-            this.tabButtons.stream().filter(widget -> widget.visible && widget.isHovered() && !masked).forEach(widget -> {
+            // 显式循环而不是 stream+lambda：mixin 内每个 lambda 都会让 Mixin 在 latest.log
+            // 打一行 "Renaming synthetic method ... from mod brbe"（本方法原先 3 行）。
+            for (RecipeBookTabButton widget : this.tabButtons) {
+                if (!widget.visible || !widget.isHovered() || masked) continue;
                 if (widget.getCategory() instanceof SearchRecipeBookCategory) {
-                    context.setTooltipForNextFrame(minecraft.font, CreativeModeTabs.searchTab().getDisplayName(), mouseX, mouseY);
+                    context.setTooltipForNextFrame(minecraft.font,
+                            CreativeModeTabs.searchTab().getDisplayName(), mouseX, mouseY);
                 } else {
-                    Optional.ofNullable(toItemGroup(widget.getCategory()))
-                            .map(CreativeModeTab::getDisplayName)
-                            .ifPresent(text -> context.setTooltipForNextFrame(minecraft.font, text, mouseX, mouseY));
+                    CreativeModeTab group = toItemGroup(widget.getCategory());
+                    if (group != null) {
+                        context.setTooltipForNextFrame(minecraft.font,
+                                group.getDisplayName(), mouseX, mouseY);
+                    }
                 }
-            });
+            }
         }
     }
 }
