@@ -42,6 +42,16 @@ mod_version 2.3 · 真实 JEI 参考版本 31.3.0.17。
 `runtimeOnly` 把 headless-jei 与 mezz_config 挂到 dev 运行时；它们同时也在
 `src/main/resources/META-INF/jars/` 里供成品 jar 内嵌。
 
+**⚠️ 26.3 移植必查：mixin `@At` 的调用点描述符**（2026-09-22 踩坑）
+`@Inject/@Redirect` 的 `at = @At(value="INVOKE", target="Lowner;name(desc)ret")` 里的
+描述符是**字符串**，编译期不校验；26.3 换了包/改了名（如 `RenderPipeline` 搬进
+`com.mojang.renderpearl.api.pipeline`、`RecipeButton.extractWidgetRenderState` 等）时，
+一个都匹配不上 → **该类 class load 时崩**（`Scanned 0 target(s)`），冒烟测试停在标题界面
+根本碰不到。移植后用 `tools/verify_mixin_targets.py <src> <mc jar>` 过一遍
+（描述符级 + 字节码级，当前 26.3 = 0 问题）；要验某个界面能否构造，用
+`tools/brbe-screen-selftest/`（进世界自动开物品栏）。详见
+`docs/26.3-mixin-at-descriptor-crash.md`。
+
 **已知降级（26.3）**：
 1. `ViewerCursor` 自造光标失效（原因见上，需 `java.lang.foreign` downcall SDL 才能恢复）；
 2. `BrbeJeiMinecraftMixin` 已成空操作（26.3 的 MC 自带 `AtlasManager`，JEI 侧
