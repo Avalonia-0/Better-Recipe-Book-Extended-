@@ -1569,3 +1569,22 @@ jar 内两张贴图 md5 与源文件一致，包内 `recipe_book` 覆盖贴图 2
 **编译**：`JAVA_HOME=/usr/lib/jvm/java-21-openjdk sh gradlew :common:compileJava :fabric:compileJava
 :neoforge:compileJava` 三模块通过（并 `rm -rf */build/classes` 强制全量重编复核）；
 `build -x test -x check` 亦通过。**按用户要求未部署任何 1.21.1 实例。**
+
+## 2026-09-22：调试日志写入冲突修复（与 26.3 / 1.21.11 / 1.21.1 同步）
+
+**现象**：`-Dbrbe.debug=true` 时内嵌的无头 JEI（mod `zheadlessjei`）在 `logs/brbe-debug.log`
+里**一行都没有**，连它写的会话头 `--- headless-jei attached ---` 都不见。
+
+**根因**：`BrbeLogger.init()` 用 `Files.newBufferedWriter(p, UTF_8)`（无 open option =
+`CREATE+TRUNCATE_EXISTING+WRITE`，**没有 O_APPEND**）打开共写文件，写入走**自己的文件位置**；
+无头 JEI 侧是 `CREATE+APPEND`（O_APPEND，写到真实末尾）。两者并存时，后者的每次写入都会把
+前者追加在末尾的字节整段覆盖。最小复现：A(非追加) 写 2 行、B(追加) 写 1 行 → B 的行彻底消失。
+
+**修复**：`BrbeLogger.init()` 改为**恒以 `CREATE+APPEND` 打开**；>4 MB 轮转改为**就地 truncate**
+（`FileChannel.open(file, WRITE, TRUNCATE_EXISTING)`）——NIO 不允许 `APPEND+TRUNCATE_EXISTING`
+同时给（`IllegalArgumentException`），而"删除再建"会让对方句柄悬在 unlink 的 inode 上。
+
+**验证**：`tools/brbe-perf-probe/` 先删除日志文件（复现 fresh 场景）再跑——开启开关时
+`brbe-debug.log` 含 fork 会话头与 fork 的收集/索引行；关闭开关时无该文件、`latest.log`
+调试标签 0 行。完整诊断见根目录 `docs/brbe-debug-log-写入冲突诊断.md`。
+
