@@ -170,7 +170,7 @@ JAVA_HOME=/usr/lib/jvm/java-25-openjdk sh gradlew build   # full build (single m
 ./gradlew cleanLoomCache && rm -rf .gradle && ./gradlew build
 
 # Deploy (build JAR → copy to test instance)
-cp build/libs/brbe-ava-fabric-26.3-2.3.jar /home/avalonia/data/MinecraftLib/versions/26.3-Fabric/mods/
+cp build/libs/brbe-ava-fabric-26.3-2.3.1.jar /home/avalonia/data/MinecraftLib/versions/26.3-Fabric/mods/
 ```
 
 Test instance path rule: `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSION}-{MOD_LOADER}/mods/` (`MOD_LOADER` capitalized: `Fabric`). 构建完必须部署；部署前将实例内同版本 JAR 备份为 `*.jar.bak.YYYYMMDD`。
@@ -179,7 +179,7 @@ Test instance path rule: `/home/avalonia/data/MinecraftLib/versions/{GAME_VERSIO
 
 ```bash
 # 原子替换部署（实例运行中也安全）
-cp build/libs/brbe-ava-fabric-26.3-2.3.jar /home/avalonia/data/MinecraftLib/versions/26.3-Fabric/mods/.brbe-deploy.tmp && mv /home/avalonia/data/MinecraftLib/versions/26.3-Fabric/mods/.brbe-deploy.tmp /home/avalonia/data/MinecraftLib/versions/26.3-Fabric/mods/brbe-ava-fabric-26.3-2.3.jar
+cp build/libs/brbe-ava-fabric-26.3-2.3.1.jar /home/avalonia/data/MinecraftLib/versions/26.3-Fabric/mods/.brbe-deploy.tmp && mv /home/avalonia/data/MinecraftLib/versions/26.3-Fabric/mods/.brbe-deploy.tmp /home/avalonia/data/MinecraftLib/versions/26.3-Fabric/mods/brbe-ava-fabric-26.3-2.3.1.jar
 ```
 
 ## Config features and their gates
@@ -1237,7 +1237,7 @@ HMCL 日志重建（`~/.hmcl/logs/*.log` 里 `Launched process:` 那行），并
 从 ~40 降到 1、无 `brbe-debug.log`；带 `-Dbrbe.debug=true` → `brbe-debug.log` 生成，且其中出现
 fork 自己写的 `[BRBE-JEI-PLUGINS]` 行。
 改动需重建 fork 并覆盖内嵌产物才生效（`libs/` + `META-INF/jars/`），本轮已重建部署
-（备份 `brbe-ava-fabric-26.3-2.3.jar.bak.20260922-2118`，md5 `8c65bb35b41c5afde8127644b77835f6`）。
+（备份 `brbe-ava-fabric-26.3-2.3.1.jar.bak.20260922-2118`，md5 `8c65bb35b41c5afde8127644b77835f6`）。
 
 ### 追加（同日）：fork 的日志"整体消失"根因 = 非追加句柄互相覆盖（提交 `7b438f8c`）
 
@@ -1330,3 +1330,16 @@ latest.log 调试标签 0 行。26.2 → 106 行含 fork 会话头 + `collecting
 **部署**：26.3 `8f97e426…`（备份 20260922-2229）、26.2 `4dc7122a…`、1.21.11 `bde411d7…`
 （备份同日 2230）；1.21.1 按用户要求只构建不部署（BRBE 双端 + fork 双端 jar 均已构建）。
 
+
+## 2026-09-22（三）：版本号 2.3 → 2.3.1
+
+用户要求：1.21.11 / 26.2 / 26.3 三个分支的版本号改为 **2.3.1**（1.21.1 保持 2.3 不动）。
+
+- 每分支两处：`gradle.properties` 的 `mod_version=2.3` → `2.3.1`；
+  `src/main/resources/fabric.mod.json` 的 `"version": "2.3"` → `"2.3.1"`
+  （该字段是**硬编码**，`processResources` 只做文件排除、不做占位符替换）。
+- 产物名随之变为 `brbe-ava-fabric-<mc>-2.3.1.jar`；游戏内 mod 列表显示 `brbe 2.3.1`。
+- 部署：新 jar 原子替换入实例后**删除旧的 2.3 jar**（同 mod id 并存会让 Loader 报重复），
+  旧 jar 已备份为 `*.jar.bak.<时间戳>`。
+- 验证：26.3 冒烟跑通 → `latest.log` 里 `- brbe 2.3.1`、调试标签 0 行；
+  `brbe-debug.log` 照常恒写（126 行，含会话头）。
