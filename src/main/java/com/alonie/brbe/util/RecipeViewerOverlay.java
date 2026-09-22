@@ -360,7 +360,7 @@ public final class RecipeViewerOverlay {
                 }
             }
         } catch (Exception e) {
-            System.err.println("[BRBE] Failed to read query viewers: " + e.getMessage());
+            BetterRecipeBook.LOGGER.warn("[BRBE] 读取查询窗口文件失败: {}", e.getMessage());
         }
     }
 
@@ -374,7 +374,7 @@ public final class RecipeViewerOverlay {
                 Files.writeString(viewerSpecFile,
                         PV_GSON.toJson(snapshot), StandardCharsets.UTF_8);
             } catch (Exception e) {
-                System.err.println("[BRBE] Failed to write query viewers: " + e.getMessage());
+                BetterRecipeBook.LOGGER.warn("[BRBE] 写入查询窗口文件失败: {}", e.getMessage());
             }
         });
     }
@@ -1684,7 +1684,6 @@ public final class RecipeViewerOverlay {
                 btns0.get(i).setY(boxY + boxH - 28 - row * 25);
             }
         }
-        long now = net.minecraft.util.Util.getMillis();
         // Desktop-window semantics: the window renders on top of a fully
         // interactive desktop (no scrim, no dead cursor) — the box's
         // background blits below stay untouched (its top border line remains
@@ -1926,7 +1925,7 @@ public final class RecipeViewerOverlay {
                     RecipeDisplayId pid = oba.brbe$getRecipe();
                     String key = "btn-partial " + pid;
                     if (BTN_DIAG_ONCE.add(key)) {
-                        BetterRecipeBook.LOGGER.warn("[BRBE-DIAG-PARTIAL] " + key
+                        BrbeLogger.log("BRBE-DIAG-PARTIAL", "{}", key
                                 + " craftable=" + craftable
                                 + " colCraftable=" + col.isCraftable(pid)
                                 + " snap=" + RecipeViewerIndex.isViewerPartial(col, pid)
@@ -4217,7 +4216,7 @@ public final class RecipeViewerOverlay {
                 boolean synth = com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.isSynthetic(h.id());
                 sb.append(h.id()).append(synth ? ":S" : ":B").append(' ');
             }
-            BetterRecipeBook.LOGGER.warn("[BRBE-DIAG-PARTIAL] hits n=" + hits.size()
+            BrbeLogger.log("BRBE-DIAG-PARTIAL", "hits n=" + hits.size()
                     + " synth=" + hits.stream().filter(h -> com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.isSynthetic(h.id())).count()
                     + " ids=" + sb.append(']'));
         }

@@ -14,6 +14,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.Map;
+import com.alonie.brbe.util.BrbeLogger;
 
 /**
  * Injects locally-cached vanilla recipe entries into ClientRecipeBook at
@@ -52,8 +53,7 @@ public abstract class ClientRecipeBookMixin {
 
     @Inject(method = "rebuildCollections", at = @At("RETURN"))
     private void brbe$postRebuildEndCycle(CallbackInfo ci) {
-        com.alonie.brbe.BetterRecipeBook.LOGGER.info(
-                "[BRBE-CACHE] rebuild RETURN — known={}", known.size());
+        BrbeLogger.log("BRBE-CACHE", "rebuild RETURN — known={}", known.size());
         RecipeBookState.endCycle();
         RecipeViewerIndex.rebuildEngine();
         // Collection objects were recreated: rebuild the incremental-canCraft

@@ -504,7 +504,7 @@ public final class ConfigTipsHelper {
         // 一次性成功日志：布局是否真的搬过、搬到哪，直接从日志核对（不必截图）。
         if (!titleBandLogged) {
             titleBandLogged = true;
-            BetterRecipeBook.LOGGER.info("[BRBE] 配置界面顶部标题带已移除：标签 y {} → {}（shift={}），列表 top {} → {}",
+            BrbeLogger.log("BRBE", "配置界面顶部标题带已移除：标签 y {} → {}（shift={}），列表 top {} → {}",
                     tabY, tabY - shift, shift, listTop, listTop - shift);
         }
     }

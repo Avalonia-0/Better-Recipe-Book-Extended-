@@ -1175,3 +1175,44 @@ RBIP RecipeBookWidgetMixin）。**原样透传 `event.button()` 给原版控件�
   `PartialGhostOverlayUtil.shouldShowRedMask` 调用**）。`[BRBE-DIAG-PARTIAL]` 保留（26.2/1.21.11 同款）。
 - 同期仍存在的 **26.2 / 1.21.11 分支**没有这两个 26.3 专属 bug（键号与图集都是 26.3 才变的）；
   上面清理掉的调试日志在这两个分支同样存在，需要时再清。
+
+## 2026-09-22（二）：调试日志统一到 `-Dbrbe.debug` 开关
+
+**用户需求**：日志输出改由一个 JVM 参数启用，并精简日志相关的调试工具；目标 1.21.1 / 1.21.11 /
+26.2 / 26.3 四个分支（1.21.1 暂不部署）。本分支为参照实现，其余分支照此同步。
+
+**统一后的形态**（四分支同源）：
+- **唯一开关** `-Dbrbe.debug=true`；**唯一出口** `com.alonie.brbe.util.BrbeLogger`
+  （类加载时求值一次，未开时全部调用是空操作，JIT 直接消除）；
+- 输出写 `<gameDir>/logs/brbe-debug.log`，**不再写 latest.log**；格式
+  `[HH:mm:ss.SSS] [TAG] msg`，`{}` 顺序占位（**不是** `String.format`——全仓库既有日志都是
+  log4j 风格，`%` 不转义对中文文案更安全）；
+- 入口接线：`fabric/BetterRecipeBookClientFabric#onInitializeClient` 调一次
+  `BrbeLogger.init(Minecraft.getInstance().gameDirectory.toPath())`。
+
+**分级规则**：
+- **门控**：所有 `LOGGER.info/debug`；纯诊断的 `LOGGER.warn`（`BRBE-DIAG`、`BRBE-DIAG-PARTIAL`、
+  `BRBE-CACHE` 的状态报告、`BRBE-DUMP`、`BRBE-RECIPE-PROGRESS`、`BRBE-JEI-BRIDGE` 的成功路径、
+  `BRBE-POPUP`、`BRBE-EDGE`、`RBIP` 的 info、`DEBUG-*`、`VIEWER-DBG`）；
+- **保持默认可见**：真正的故障——配置/pins/queryviewers/pinoverlays/tabpins 文件读写失败、
+  `brbe_workstations.json` 项非法、mixin/兼容注册失败、进度包写入失败、REI 打开失败等，
+  继续走 `LOGGER.warn/error`，用户默认看得到；
+- **旧开关合并**：`RecipeStateDiagnostic` 的 `brbe.diagnostics` → `BrbeLogger.isEnabled()`；
+- `System.err/out.println` 全部消除（故障 → `LOGGER.warn`，调试 → `BrbeLogger`）；
+- 移除前几轮遗留的临时埋点：`[DEBUG-fb]`（BrbeJeiBridge，含其 5s 限频字段）、
+  `[BRBE-DIAG-PARTIAL]` 的裸 warn 形态等。
+
+**落地数字（26.3）**：门控 74 处、保留 warn/error 45 处、`LOGGER.info/debug` 残留 0、
+裸 `System.out/err` 残留 0、遗留临时标签 0；涉及 26 个文件 + 新增 `util/BrbeLogger.java`。
+
+**实测验证**（`tools/brbe-perf-probe/run.sh perf world`，两次运行）：
+- 不带参数：`latest.log` 里调试标签行数 **0**，`logs/brbe-debug.log` 不存在；
+- `JAVA_TOOL_OPTIONS=-Dbrbe.debug=true`：生成 `logs/brbe-debug.log`（74 行；标签分布
+  `BRBE` 28 / `BRBE-RECIPE-PROGRESS` 26 / `BRBE-CACHE` 12 / `BRBE-JEI-BRIDGE` 2 / 其余 6）。
+
+**顺带修好探针工具**：`/tmp/brbe-launch.sh` 会被 tmp 清理，`run.sh` 现在缺文件时自动从
+HMCL 日志重建（`~/.hmcl/logs/*.log` 里 `Launched process:` 那行），并把 HMCL 隐去的
+`--accessToken <access token>` 换成离线 `--accessToken 0`（否则 bash 把 `<` 当重定向而启动失败）。
+
+**未纳入本轮**：headless-jei fork 自己的 `[BRBE-JEI-Plugins]` 启动 INFO 行（独立工程
+`headless-jei/26.3`，不在本次四个目标分支内）仍在 latest.log，约 20 行/次；需要的话另开一轮。

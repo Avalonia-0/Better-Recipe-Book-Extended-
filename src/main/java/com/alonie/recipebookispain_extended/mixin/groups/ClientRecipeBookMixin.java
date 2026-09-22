@@ -36,6 +36,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.OptionalInt;
+import com.alonie.brbe.util.BrbeLogger;
 
 @Mixin(value = ClientRecipeBook.class, priority = 999)
 public class ClientRecipeBookMixin {
@@ -180,7 +181,7 @@ public class ClientRecipeBookMixin {
                 if (group != null) return group;
             }
         } catch (Exception e) {
-            RecipeBookIsPain.LOGGER.debug("[RBIP] Could not resolve output stack for recipe display {}", entry.id(), e);
+            BrbeLogger.log("RBIP", "Could not resolve output stack for recipe display {}", entry.id(), e);
         }
         return null;
     }
@@ -209,7 +210,7 @@ public class ClientRecipeBookMixin {
                 }
             }
         } catch (Exception e) {
-            RecipeBookIsPain.LOGGER.debug("[RBIP] Could not resolve furnace output for {}", entry.id(), e);
+            BrbeLogger.log("RBIP", "Could not resolve furnace output for {}", entry.id(), e);
         }
         return null;
     }

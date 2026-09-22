@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import com.alonie.brbe.util.BrbeLogger;
 
 /**
  * Registers the embedded JEI core's GUI atlas before Minecraft's initial
@@ -54,8 +55,7 @@ public class BrbeJeiMinecraftMixin {
     public void brbe$beforeInitialResourceReload(GameConfig gameConfig, CallbackInfo ci) {
         // 26.3: 无需注册（见类 javadoc）。真实 JEI 场景本就走它自己的注册路径。
         if (!FabricLoader.getInstance().isModLoaded("jei")) {
-            BetterRecipeBook.LOGGER.debug(
-                    "[BRBE-JEI-PLUGINS] 26.3: MC 自带 GUI AtlasManager，跳过 JEI atlas 注册");
+            BrbeLogger.log("BRBE-JEI-PLUGINS", "26.3: MC 自带 GUI AtlasManager，跳过 JEI atlas 注册");
         }
     }
 }

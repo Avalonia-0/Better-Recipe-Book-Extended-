@@ -839,7 +839,7 @@ public final class PartialCraftingUtil {
         try {
             String head = msg.substring(0, Math.min(80, msg.length()));
             if (!DIAG_ONCE.add(head)) return;
-            com.alonie.brbe.BetterRecipeBook.LOGGER.warn("[BRBE-DIAG-PARTIAL] " + msg);
+            BrbeLogger.log("BRBE-DIAG-PARTIAL", "{}", msg);
         } catch (Exception ignored) {
         }
     }

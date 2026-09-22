@@ -7,6 +7,7 @@ import net.minecraft.client.gui.screens.Screen;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import com.alonie.brbe.util.BrbeLogger;
 
 /**
  * Bridges BRBE's Cloth Config screen into ModMenu using reflection.
@@ -66,10 +67,10 @@ public final class ModMenuReflectiveBridge {
             java.util.Map<String, Object> factories = (java.util.Map<String, Object>) factoriesField.get(null);
             factories.put(BetterRecipeBook.MOD_ID, factory);
 
-            BetterRecipeBook.LOGGER.info("[ModMenu] Registered config screen via reflection bridge");
+            BrbeLogger.log("BRBE-MODMENU", "Registered config screen via reflection bridge");
         } catch (ClassNotFoundException e) {
             // ModMenu not installed — nothing to do
-            BetterRecipeBook.LOGGER.debug("[ModMenu] Not detected, skipping bridge");
+            BrbeLogger.log("BRBE-MODMENU", "Not detected, skipping bridge");
         } catch (ReflectiveOperationException e) {
             BetterRecipeBook.LOGGER.warn("[ModMenu] Failed to register config screen", e);
         }

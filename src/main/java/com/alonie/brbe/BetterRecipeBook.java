@@ -21,6 +21,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.resources.Identifier;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+import com.alonie.brbe.util.BrbeLogger;
 
 public class BetterRecipeBook {
 
@@ -148,7 +149,7 @@ public class BetterRecipeBook {
             // explicitly and diff against that.
             appContext.events().subscribe(ConfigEventBus.ConfigChanged.class, event -> {
                 boolean unlockChanged = lastUnlockAllValue != event.config().unlockAll;
-                BetterRecipeBook.LOGGER.info("[BRBE] ConfigChanged: unlockChanged={} old={} new={}",
+                BrbeLogger.log("BRBE", "ConfigChanged: unlockChanged={} old={} new={}",
                         unlockChanged, lastUnlockAllValue, event.config().unlockAll);
                 lastUnlockAllValue = event.config().unlockAll;
                 config = event.config();
