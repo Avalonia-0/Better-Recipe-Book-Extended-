@@ -21,18 +21,20 @@ public final class BrbeJeiPluginsClientNeoForge {
     private BrbeJeiPluginsClientNeoForge() {}
 
     public static void init(IEventBus modEventBus) {
-        // 日志总闸门：与 BRBE 主 mod 共用 -Dbrbe.debug=true。
-        // 关闭时还会把官方 mezz.jei 的 log4j 级别抬到 WARN（那些 INFO 不再刷 latest.log）。
+        // 日志恒写 <gameDir>/logs/brbe-debug.log（无开关）；没有真实 JEI 时顺带把官方
+        // mezz.jei 的 log4j 输出也路由到该文件（INFO 不再刷 latest.log，WARN+ 仍进）。
         // 时机：本方法由 mod 主类的构造器调用（@Mod 入口尚未在本工程落地——见 BRBE
         // BrbeJeiBridge 的说明）；NeoForge 21.1.21 的 ClientModLoader.begin 被 patch 在
         // Minecraft.<init> 内（javap 核实：instance 静态字段在 offset 154 赋值、
         // gameDirectory 在 offset 172 赋值、ClientModLoader.begin 在 offset 945 调用）
         // ——构造期 getInstance() 已非 null 且 gameDirectory 已就绪。
-        HeadlessJeiLog.init(net.minecraft.client.Minecraft.getInstance().gameDirectory.toPath());
+        boolean realJei = com.alonie.brbe.jei.plugins.BrbeJeiPlatform.realJeiLoaded();
+        HeadlessJeiLog.init(net.minecraft.client.Minecraft.getInstance().gameDirectory.toPath(),
+                !realJei);
 
         // 真实 JEI 存在：跳过图集双注册（真实 JEI 自己注册）；start() 自带
         // real 守卫（BrbeJeiPlatform.realJeiLoaded），收集照常（数据搬运）。
-        if (!com.alonie.brbe.jei.plugins.BrbeJeiPlatform.realJeiLoaded()) {
+        if (!realJei) {
             // JEI GUI 图集（assets/jei 内嵌）：注册为客户端资源重载监听器，
             // 让弹窗渲染完整 JEI 界面（等价官方 RegisterClientReloadListenersEvent 接线）。
             modEventBus.addListener(net.neoforged.neoforge.client.event.RegisterClientReloadListenersEvent.class, event -> {

@@ -37,18 +37,20 @@ public final class BrbeJeiPluginsClientFabric implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        // 日志总闸门：与 BRBE 主 mod 共用 -Dbrbe.debug=true。
-        // 关闭时还会把官方 mezz.jei 的 log4j 级别抬到 WARN（那些 INFO 不再刷 latest.log）。
+        boolean realJei = net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("jei");
+        // 日志恒写 <gameDir>/logs/brbe-debug.log（无开关）；没有真实 JEI 时顺带把官方
+        // mezz.jei 的 log4j 输出也路由到该文件（INFO 不再刷 latest.log，WARN+ 仍进）。
         // 时机：fabric-loader 0.15.11 的 EntrypointPatch 把 Hooks.startClient 注入在
         // Minecraft.<init> 内（javap 核实：instance 静态字段在 offset 154 赋值、
         // gameDirectory 在 offset 172 赋值，注入点在 window/GL 初始化之后）——
         // 此处 getInstance() 非 null 且 gameDirectory 已就绪。
-        HeadlessJeiLog.init(net.minecraft.client.Minecraft.getInstance().gameDirectory.toPath());
+        HeadlessJeiLog.init(net.minecraft.client.Minecraft.getInstance().gameDirectory.toPath(),
+                !realJei);
 
         // 真实 JEI 存在：无头不启动 runtime（真实 JEI 自己运行），只做数据
         // 搬运——插件收集读入 JeiRecipeRegistry（BRBE 桥走同一 registry
         // 数据流）；不注册图集监听器（真实 JEI 自己注册）。
-        if (net.fabricmc.loader.api.FabricLoader.getInstance().isModLoaded("jei")) {
+        if (realJei) {
             ClientTickEvents.END_CLIENT_TICK.register(client -> {
                 if (client.level == null) {
                     // 离开世界/重进：重置，下一 join 重新收集。
