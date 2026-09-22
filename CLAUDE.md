@@ -33,7 +33,10 @@ mod_version 2.3 · 真实 JEI 参考版本 31.3.0.17。
 - **`PotionBrewing` 被删除**：酿造改成常规配方 `RecipeType.BREWING`；
   `Level.getRecipeManager()` → `Level.recipeAccess()`。
 - **燃料/堆肥从表改成数据组件 + `context_int_provider` 数据包注册表**：
-  `util/LootIntResolver` 在客户端求结构化期望值，复现旧的燃烧时长与堆肥概率数字。
+  `util/LootIntResolver` 求结构化期望值，复现旧的燃烧时长与堆肥概率数字。
+  ⚠️ 该注册表只在 `RegistryDataLoader.RELOADABLE_REGISTRIES`、**不在 SYNCHRONIZED_REGISTRIES**
+  → 客户端/集成服务端都拿不到，实际数值来自生成的内置兜底表 `util/ContextIntProviderFallbacks`
+  （详见 2026-09-22（五））。
 - **JEI 26.3 把配置系统抽成独立 mod `mezz_config`**（官方 JEI 也是 jar-in-jar 内嵌它）。
 
 **JEI 集成（26.3）**：无头 fork 位于**独立工程 `headless-jei/26.3`**（`headless-jei` 分支），
@@ -1394,3 +1397,70 @@ transformMethodRef` 处理——与普通 `INVOKEVIRTUAL/INVOKESTATIC` 指令**�
 
 **部署**：26.3 `371cb7eb…`、26.2 `876df8d0…`、1.21.11 `e99411a2…`（备份 20260922-230047，原子替换）。
 **规则已写入根 `CLAUDE.md`**：mixin 类内不要写 lambda；`@Accessor` 读 static 字段必须声明 `static`。
+
+## 2026-09-22（五）：26.3 移植后两处 bug 修复（堆肥概率全 0% / 锻造详细界面缺料红罩不显示）
+
+用户反馈（均为 26.3，26.2 / 1.21.11 无此问题）：① LEI 查询 → 锻造台类别的详细界面里，物品
+不显示"缺料"红色遮罩（其他类别暂未见）；② 堆肥类别里每个对象都是"概率：0%"。
+
+### ① 堆肥概率全 0% —— 根因：`context_int_provider` 注册表**不同步到客户端**
+
+反编译核对 `net.minecraft.resources.RegistryDataLoader` 静态初始化：
+`Registries.CONTEXT_INT_PROVIDER` 只出现在 `RELOADABLE_REGISTRIES`（putstatic #774），
+而 `SYNCHRONIZED_REGISTRIES`（putstatic #792）是**显式 `List.of(...)`**、里面没有它。
+→ `LootIntResolver.lookup()` 查客户端注册表失败 → 返回 null → `expected()` 恒 0。
+（燃料同一处：`FuelRecipeCategory.allItems()` 过滤 `burnTimeOf > 0` → 修复前燃料类别应当是**空的**，
+一并解决。）
+
+**运行时实测**（探针 mod，26.3 真实实例）：
+`client level registry: UNAVAILABLE (IllegalStateException)`、
+`integrated server registry: UNAVAILABLE (IllegalStateException)`（集成服务端也拿不到）——
+所以数值实际必须由**内置兜底表**提供。
+
+**修复**：
+- 新增 **生成物** `util/ContextIntProviderFallbacks`（26 条），由
+  `tools/context-int-provider-fallback/gen.py` 从客户端 jar 的
+  `data/minecraft/context_int_provider/**.json` 按展示口径求结构化期望值生成
+  （weighted_list→加权均值、number_dispatcher→default、conditional→on_false、div→左/右、
+  字符串→引用递归）：`compostable/low=0.3`、`low_medium=0.5`、`medium=0.65`、`medium_high=0.85`、
+  `always_add_one=1.0`、`cooking/time_coal=1600`、`time_bamboo=50`、`time_dried_kelp_block=4001` …
+  **升级 MC 后重跑该脚本**。
+- `LootIntResolver`：解析顺序 = 客户端 level 注册表 → 单人集成服务端注册表 → 内置兜底表；
+  新增 `resolvable(...)`；`CompostRecipeCategory.chanceKnown(...)`；
+  `RecipeViewerOverlay.compostTooltipComponents` 解析不出来时**不显示该行**（而不是"概率：0%"）。
+- 探针实测（修复后）：wheat 0.65 / kelp 0.3 / oak_sapling 0.3 / dried_kelp_block 0.5，
+  `resolvable=true`；coal 1600 ticks、oak_planks 300、dried_kelp_block 4001。
+
+### ② 锻造详细界面缺料红罩不显示 —— 根因：兜底 layout 的槽位 `stacks` 为空
+
+`BrbeJeiBridge.attachSmithingFallbackLayouts` 给"JEI 侧收集不到 layout"的锻造条目
+（原版 18 个纹饰 + 部分 mod 配方）挂的是**固定几何常量 `SMITHING_LAYOUT`，四个槽位的
+`stacks` 全是 `List.of()`**（原注释："委托渲染时由真实 JEI drawable 自绘槽位内容"）。
+而委托渲染（完整 JEI UI）的逐槽红罩由 `PopupRenderer.drawDelegatedGhostMasksAt` 计算，
+它对 `stacks` 为空的槽位**一律 `continue`** → 这些条目**永远不画缺料红罩**；
+transform 类条目有 headless 给的原生 layout + stacks，所以只有"**部分**对象"出问题
+——与用户描述完全一致（桥日志 `attached vanilla JEI layout to 30 ... (12+18)`：
+12 条原生有 stacks、18 条兜底为空 → 0 红罩）。
+
+**修复（`BrbeJeiBridge`）**：
+- `smithingLayoutFor(holder)`：固定几何 + 该条目三件输入的候选物品
+  （`SmithingRecipe.templateIngredient/baseIngredient/additionIngredient` → `Ingredient.items()`；
+  tag 类材料展开成整个 tag，配合既有"拥有任意一个即不缺料"判定）；
+- `fillSmithingLayoutStacks(all)`：对"已有几何但输入槽 stacks 全空"的条目按 x 升序补
+  template/base/addition（覆盖 headless 只给几何的原生 layout），并打
+  `filled empty smithing layout slot stacks on N entries`；
+- 删除旧的空 stacks 常量。
+
+**探针实测**（修复后）：`smithing entries=30 layoutWithInputStacks=30
+layoutWithoutInputStacks=0 noLayout=0 delegatedRenderable=30
+masksWithEmptyInventory=90 masksWithLiveInventory=90`
+（30 条全走委托渲染，每条 3 个输入槽都能算出缺料 → 每条最多 3 个红罩）。
+
+### 落地
+
+- 26.3 构建并原子替换部署：md5 `90c66f20…`（备份 `20260922-235408`）。
+- 26.2 / 1.21.11 **不改**：两者燃料/堆肥仍是旧表（`ComposterBlock.COMPOSTABLES` / `FuelValues`）、
+  锻造 layout 由 JEI 插件原生收集（自带 stacks），无此二问题。
+- 复现/验证工具：`tools/brbe-screen-selftest/BrbeCompostProbe.java`（探针 mod）+
+  `run-cbtest.sh`（`TEST_SRC=... TEST_ENTRY=... TEST_ID=... TEST_JAR=... GREP_TAG=BRBE-CPROBE`），
+  跑完自动卸载 mod。

@@ -112,6 +112,20 @@ public final class CompostRecipeCategory implements RecipeViewerCategory {
         return (float) Math.max(0.0, LootIntResolver.expected(compostable.layers()));
     }
 
+    /**
+     * Whether the compost chance of {@code stack} is <b>known</b> (the provider
+     * could actually be resolved — see {@link LootIntResolver#resolvable}).
+     *
+     * <p>26.3 的 provider 注册表不同步到客户端：LAN/多机 + 非原版（数据包/mod
+     * 新增）provider 解析不出来，此时 {@link #chanceFor} 会返回 0——tooltip 应当
+     * <b>不显示</b>这一行，而不是显示误导性的"概率：0%"。</p>
+     */
+    public boolean chanceKnown(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return false;
+        Compostable compostable = stack.get(DataComponents.COMPOSTABLE);
+        return compostable != null && LootIntResolver.resolvable(compostable.layers());
+    }
+
     /** Every registered compostable item, sorted by chance ascending (JEI
      *  {@code CompostingRecipeMaker} order). */
     public List<ItemStack> allCompostables() {

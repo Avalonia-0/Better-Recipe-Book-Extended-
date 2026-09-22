@@ -484,16 +484,6 @@ public final class BrbeJeiBridge {
         }
     }
 
-    /** 原版锻造类别固定几何（vendored mezz {@code SmithingRecipeCategory}：
-     *  template (1,6) / base (19,6) / addition (37,6) / output (91,6)，
-     *  108x28——transform 与 trim 共用同一类别与 layout）。fallback 挂接用
-     *  （槽位 stacks 留空：委托渲染时由真实 JEI drawable 自绘槽位内容）。 */
-    private static final RecipeViewerEngine.RecipeLayout SMITHING_LAYOUT =
-            new RecipeViewerEngine.RecipeLayout(108, 28, List.of(
-                    new RecipeViewerEngine.RecipeSlotLayout(1, 6, 0, List.of()),
-                    new RecipeViewerEngine.RecipeSlotLayout(19, 6, 0, List.of()),
-                    new RecipeViewerEngine.RecipeSlotLayout(37, 6, 0, List.of()),
-                    new RecipeViewerEngine.RecipeSlotLayout(91, 6, 1, List.of())), null);
 
     /** 客户端同步配方（fabric {@code ClientRecipeSynchronizedEvent} 回调给的
      *  {@code SynchronizedRecipes}）：引擎仅存 RecipeDisplayEntry（display 数据），
@@ -554,12 +544,17 @@ public final class BrbeJeiBridge {
     /** 引擎里所有没挂上 layout 的锻造条目（trim/mod 配方）：挂固定几何 layout +
      *  display 等价的 RecipeHolder（缺失 holder 的条目跳过，保持 vanilla
      *  兜底渲染）。优先按 display id 从集成服务器配方管理器 1:1 反查，再按
-     *  display 值等价匹配。返回挂接数。 */
+     *  display 值等价匹配。返回挂接数。
+     *
+     *  <p>同时补全"已有几何但输入槽 stacks 为空"的锻造 layout（见
+     *  {@link #fillSmithingLayoutStacks}）——否则弹窗委托渲染时逐槽缺料红罩
+     *  无法判定（26.3 用户反馈：锻造 trim 条目的详细界面从不显示红色遮罩）。</p> */
     private static int attachSmithingFallbackLayouts(
             List<net.minecraft.world.item.crafting.display.RecipeDisplayEntry> all) {
         registerSyncedRecipesListener();
         resolveSyncedRecipes();
         if (all.isEmpty()) return 0;
+        int filled = fillSmithingLayoutStacks(all);
         int pending = 0;
         for (net.minecraft.world.item.crafting.display.RecipeDisplayEntry entry : all) {
             if (RecipeViewerEngine.getLayout(entry.id()) == null) pending++;
@@ -571,7 +566,7 @@ public final class BrbeJeiBridge {
                 Object holder = findSmithingHolderById(entry);
                 if (holder == null) holder = findSmithingHolder(entry);
                 if (holder == null) continue;
-                RecipeViewerEngine.registerLayout(entry.id(), SMITHING_LAYOUT);
+                RecipeViewerEngine.registerLayout(entry.id(), smithingLayoutFor(holder));
                 UID_BY_ID.put(entry.id(), Identifier.parse("minecraft:smithing"));
                 RECIPE_BY_ID.put(entry.id(), holder);
                 out++;
@@ -591,13 +586,119 @@ public final class BrbeJeiBridge {
                                 .append("(byId=").append(findSmithingHolderById(entry) != null).append("),");
                     }
                     BrbeLogger.log("BRBE-JEI-BRIDGE",
-                            "smithing fallback: entries={} pending={} synced={} smithingHolders={} serverSmithingHolders={} sample=[{}]",
-                            all.size(), pending, clientSyncedRecipes != null,
+                            "smithing fallback: entries={} pending={} stacksFilled={} synced={} smithingHolders={} serverSmithingHolders={} sample=[{}]",
+                            all.size(), pending, filled, clientSyncedRecipes != null,
                             smithingHolders().size(), serverSmithingHolders().size(), sample);
                 }
             }
         }
+        if (filled > 0) {
+            BrbeLogger.log("BRBE-JEI-BRIDGE",
+                    "filled empty smithing layout slot stacks on {} entries (ghost masks)", filled);
+        }
         return out;
+    }
+
+    /**
+     * 给"已有 layout、但输入槽 {@code stacks} 为空"的锻造条目补上三件输入
+     * （template / base / addition）。
+     *
+     * <p>为什么需要：委托渲染（完整 JEI UI）的逐槽缺料红罩由
+     * {@code PopupRenderer.drawDelegatedGhostMasksAt} 按 layout 槽位的候选物品
+     * 判定，而它对 {@code stacks} 为空的槽位一律跳过——兜底挂接的 fixed
+     * geometry 与（headless 只给几何、不给物品的）原生 layout 都会让锻造条目
+     * <b>永远不显示"缺料"红罩</b>。这里按 x 升序把 role=0 的槽位对应到
+     * template/base/addition（与 {@code SmithingRecipeCategory} 的 (1,6)(19,6)
+     * (37,6) 同序）。返回补全的条目数。</p>
+     */
+    private static int fillSmithingLayoutStacks(
+            List<net.minecraft.world.item.crafting.display.RecipeDisplayEntry> all) {
+        int filled = 0;
+        for (net.minecraft.world.item.crafting.display.RecipeDisplayEntry entry : all) {
+            RecipeViewerEngine.RecipeLayout layout = RecipeViewerEngine.getLayout(entry.id());
+            if (layout == null || layout.slots().isEmpty()) continue;
+            boolean anyInputStack = false;
+            for (RecipeViewerEngine.RecipeSlotLayout slot : layout.slots()) {
+                if (slot.role() == 0 && !slot.stacks().isEmpty()) {
+                    anyInputStack = true;
+                    break;
+                }
+            }
+            if (anyInputStack) continue;   // 原生 layout 已带物品：保持原样
+            Object holder = findSmithingHolderById(entry);
+            if (holder == null) holder = findSmithingHolder(entry);
+            if (holder == null) continue;
+            List<RecipeViewerEngine.RecipeSlotLayout> patched =
+                    withSmithingInputStacks(layout.slots(), holder);
+            if (patched == null) continue;
+            RecipeViewerEngine.registerLayout(entry.id(),
+                    new RecipeViewerEngine.RecipeLayout(layout.width(), layout.height(), patched,
+                            layout.background()));
+            filled++;
+        }
+        return filled;
+    }
+
+    /** 复制 {@code slots}，把 role=0 的槽位按 x 升序填上 template/base/addition
+     *  的候选物品；取不到三件输入（非 SmithingRecipe 的 holder）时返回 null。 */
+    private static List<RecipeViewerEngine.RecipeSlotLayout> withSmithingInputStacks(
+            List<RecipeViewerEngine.RecipeSlotLayout> slots, Object holder) {
+        List<List<ItemStack>> inputs = smithingInputStacks(holder);
+        if (inputs == null) return null;
+        List<Integer> inputOrder = new ArrayList<>();
+        for (int i = 0; i < slots.size(); i++) {
+            if (slots.get(i).role() == 0) inputOrder.add(i);
+        }
+        inputOrder.sort(java.util.Comparator.comparingInt(i -> slots.get(i).x()));
+        List<RecipeViewerEngine.RecipeSlotLayout> out = new ArrayList<>(slots.size());
+        for (int i = 0; i < slots.size(); i++) {
+            RecipeViewerEngine.RecipeSlotLayout slot = slots.get(i);
+            int inputIdx = inputOrder.indexOf(i);
+            List<ItemStack> stacks = slot.stacks();
+            if (inputIdx >= 0) {
+                if (inputIdx < inputs.size()) stacks = inputs.get(inputIdx);
+                else stacks = List.of();
+            }
+            out.add(new RecipeViewerEngine.RecipeSlotLayout(slot.x(), slot.y(), slot.role(), stacks));
+        }
+        return out;
+    }
+
+    /** 原版锻造类别固定几何 + 该条目的三件输入（template (1,6) / base (19,6) /
+     *  addition (37,6) / output (91,6)，108x28——transform 与 trim 共用同一
+     *  类别与 layout）。 */
+    private static RecipeViewerEngine.RecipeLayout smithingLayoutFor(Object holder) {
+        List<List<ItemStack>> inputs = smithingInputStacks(holder);
+        List<ItemStack> template = inputs == null || inputs.size() < 3 ? List.of() : inputs.get(0);
+        List<ItemStack> base = inputs == null || inputs.size() < 3 ? List.of() : inputs.get(1);
+        List<ItemStack> addition = inputs == null || inputs.size() < 3 ? List.of() : inputs.get(2);
+        return new RecipeViewerEngine.RecipeLayout(108, 28, List.of(
+                new RecipeViewerEngine.RecipeSlotLayout(1, 6, 0, template),
+                new RecipeViewerEngine.RecipeSlotLayout(19, 6, 0, base),
+                new RecipeViewerEngine.RecipeSlotLayout(37, 6, 0, addition),
+                new RecipeViewerEngine.RecipeSlotLayout(91, 6, 1, List.of())), null);
+    }
+
+    /** {@code [template, base, addition]} 三件输入的候选物品（Ingredient 展开），
+     *  holder 不是锻造配方时返回 null。 */
+    private static List<List<ItemStack>> smithingInputStacks(Object holder) {
+        if (!(holder instanceof net.minecraft.world.item.crafting.RecipeHolder<?> recipeHolder)
+                || !(recipeHolder.value() instanceof net.minecraft.world.item.crafting.SmithingRecipe recipe)) {
+            return null;
+        }
+        return List.of(
+                ingredientStacks(recipe.templateIngredient().orElse(null)),
+                ingredientStacks(recipe.baseIngredient()),
+                ingredientStacks(recipe.additionIngredient().orElse(null)));
+    }
+
+    /** {@code Ingredient} 的全部候选物品（tag 类材料会展开成整个 tag，配合
+     *  {@code PartialGhostOverlayUtil} 的"拥有任意一个即不缺料"判定）。 */
+    private static List<ItemStack> ingredientStacks(net.minecraft.world.item.crafting.Ingredient ingredient) {
+        if (ingredient == null || ingredient.isEmpty()) return List.of();
+        List<ItemStack> out = new ArrayList<>();
+        ingredient.items().forEach(item -> out.add(new ItemStack(item.value())));
+        return List.copyOf(out);
     }
 
     /** fallback 日志限频（轮询每 tick 调用，避免刷屏）。 */

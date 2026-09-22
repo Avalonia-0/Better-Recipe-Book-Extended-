@@ -1,8 +1,10 @@
 package com.alonie.brbe.util;
 
 import net.minecraft.client.Minecraft;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.util.random.Weighted;
@@ -61,13 +63,41 @@ public final class LootIntResolver {
     }
 
     /** Expected value of a resolvable reference ({@code Constant} → itself,
-     *  {@code Reference} → provider tree from the client's registry). */
+     *  {@code Reference} → provider tree from the client's / integrated
+     *  server's registry, or the built-in vanilla table as a last resort). */
     public static double expected(ResolvableInt value) {
         if (value instanceof ResolvableInt.Constant constant) return constant.value();
         if (value instanceof ResolvableInt.Reference reference) {
-            return expected(lookup(reference.key()));
+            ContextIntProvider provider = lookup(reference.key());
+            if (provider != null) return expected(provider);
+            Double fallback = fallback(reference.key());
+            return fallback == null ? 0.0 : fallback;
         }
         return 0.0;
+    }
+
+    /**
+     * Whether {@link #expected(ResolvableInt)} yields a <b>known</b> value.
+     *
+     * <p>26.3 的 provider 注册表不参与网络同步：多人/局域网下客户端与集成服务端
+     * 都拿不到，只有内置兜底表里有的（原版）provider 才算已知。调用方据此
+     * "未知就不显示"——而不是显示一个误导性的 0（用户 2026-09-22 反馈的
+     * "概率清一色 0%"）。</p>
+     */
+    public static boolean resolvable(ResolvableInt value) {
+        if (value instanceof ResolvableInt.Constant) return true;
+        if (value instanceof ResolvableInt.Reference reference) {
+            return lookup(reference.key()) != null || fallback(reference.key()) != null;
+        }
+        return false;
+    }
+
+    /** Built-in vanilla expected value for a provider key, or null when the key
+     *  is unknown (datapack/mod providers are not in the table). */
+    private static Double fallback(ResourceKey<ContextIntProvider> key) {
+        return key == null || key.identifier() == null
+                ? null
+                : ContextIntProviderFallbacks.expected(key.identifier().toString());
     }
 
     public static double expected(Holder<ContextIntProvider> holder) {
@@ -121,17 +151,37 @@ public final class LootIntResolver {
         };
     }
 
-    /** The provider behind a data-pack key, from the current client level's
-     *  registries (the {@code context_int_provider} registry is synced to the
-     *  client with the rest of the dynamic registries). */
+    /**
+     * The provider behind a data-pack key.
+     *
+     * <p>⚠️ 26.3 的 {@code minecraft:context_int_provider} 在
+     * {@code RegistryDataLoader.RELOADABLE_REGISTRIES} 里，<b>不在</b>
+     * {@code SYNCHRONIZED_REGISTRIES} 里 → 客户端注册表没有它。所以先看客户端
+     * level 的注册表（若将来同步/在服务端上下文里调用），再回落到<b>单人集成
+     * 服务端</b>的注册表（RELOADABLE 层都在）；LAN/多机两个都拿不到，调用方走
+     * 内置兜底表 {@link ContextIntProviderFallbacks}。</p>
+     */
     private static ContextIntProvider lookup(ResourceKey<ContextIntProvider> key) {
+        if (key == null) return null;
         Minecraft minecraft = Minecraft.getInstance();
-        if (minecraft == null || minecraft.level == null || key == null) return null;
+        if (minecraft == null) return null;
+        ContextIntProvider provider = lookup(minecraft.level == null ? null : minecraft.level.registryAccess(), key);
+        if (provider != null) return provider;
         try {
-            Registry<ContextIntProvider> registry = minecraft.level.registryAccess()
-                    .lookupOrThrow(Registries.CONTEXT_INT_PROVIDER);
-            return registry.getValue(key);
+            MinecraftServer server = minecraft.getSingleplayerServer();
+            return server == null ? null : lookup(server.registryAccess(), key);
         } catch (Throwable t) {
+            return null;
+        }
+    }
+
+    private static ContextIntProvider lookup(RegistryAccess access, ResourceKey<ContextIntProvider> key) {
+        if (access == null || key == null) return null;
+        try {
+            Registry<ContextIntProvider> registry = access.lookupOrThrow(Registries.CONTEXT_INT_PROVIDER);
+            return registry == null ? null : registry.getValue(key);
+        } catch (Throwable t) {
+            // 注册表不存在（客户端未同步）→ 交给调用方兜底
             return null;
         }
     }

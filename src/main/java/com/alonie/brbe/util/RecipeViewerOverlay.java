@@ -3529,9 +3529,11 @@ public final class RecipeViewerOverlay {
     }
 
     /** Compost chance rows: one "概率：25%" line (JEI's own percentage —
-     *  {@code floor(chance * 100)}). */
+     *  {@code floor(chance * 100)}).  解析不出概率的对象（26.3 的 provider 注册表
+     *  不在客户端同步集里、且内置表没有该 key）不显示这一行——显示 0% 会误导。 */
     private List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent>
             compostTooltipComponents(CompostRecipeCategory category, ItemStack hovered) {
+        if (!category.chanceKnown(hovered)) return List.of();
         int percent = (int) Math.floor(category.chanceFor(hovered) * 100);
         List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
                 new ArrayList<>();
