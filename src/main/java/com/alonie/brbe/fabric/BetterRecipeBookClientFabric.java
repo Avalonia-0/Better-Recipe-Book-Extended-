@@ -59,6 +59,10 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        // 调试日志总闸门：只有 -Dbrbe.debug=true 时才创建 logs/brbe-debug.log；
+        // 未开启时 BrbeLogger 的所有调用都是空操作（latest.log 不再被调试输出刷屏）。
+        com.alonie.brbe.util.BrbeLogger.init(Minecraft.getInstance().gameDirectory.toPath());
+
         // Register key mappings (previously in common via Architectury).
         // 固定键与查询键的原版绑定与 Cloth Config 键位条目双向同步
         // （KeyMapping.setKey 写回配置，Cloth 保存时写回 KeyMapping）。

@@ -6,6 +6,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
+import com.alonie.brbe.BetterRecipeBook;
 
 /**
  * Push-based configuration change notification — replaces the
@@ -80,7 +81,7 @@ public final class ConfigEventBus {
             } catch (Exception e) {
                 // Swallow per-listener errors so one broken subscriber
                 // doesn't prevent others from receiving the event.
-                e.printStackTrace();
+                BetterRecipeBook.LOGGER.warn("[BRBE] 事件订阅者处理异常（事件 {}）", event.getClass().getSimpleName(), e);
             }
         }
     }

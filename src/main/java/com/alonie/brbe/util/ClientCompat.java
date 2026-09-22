@@ -8,8 +8,6 @@ import me.shedaniel.clothconfig2.api.Modifier;
 import me.shedaniel.clothconfig2.api.ModifierKeyCode;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.server.packs.resources.Resource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -39,7 +37,6 @@ public final class ClientCompat {
     public static final Identifier VIEWER_TOOLTIP_STYLE =
             Identifier.fromNamespaceAndPath("brbe", "viewer");
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(ClientCompat.class);
     private static boolean spriteDiagLogged = false;
 
     private ClientCompat() {
@@ -194,14 +191,14 @@ public final class ClientCompat {
             spriteDiagLogged = true;
             java.util.List<String> packs = new java.util.ArrayList<>();
             for (Resource r : stack) packs.add(r.sourcePackId());
-            LOGGER.warn("[BRBE-DIAG] hasSpriteResource: sprite={} fileId={} stackSize={} packs={}",
+            BrbeLogger.log("BRBE-DIAG", "hasSpriteResource: sprite={} fileId={} stackSize={} packs={}",
                     spriteId, fileId, stack.size(), packs);
             // Control: a sprite shipped in the mod's OWN assets (not the built-in pack)
             Identifier pinFile = Identifier.fromNamespaceAndPath("brbe", "textures/gui/sprites/recipe_book/pin.png");
             java.util.List<Resource> pinStack = minecraft.getResourceManager().getResourceStack(pinFile);
             java.util.List<String> pinPacks = new java.util.ArrayList<>();
             for (Resource r : pinStack) pinPacks.add(r.sourcePackId());
-            LOGGER.warn("[BRBE-DIAG] hasSpriteResource: control pin fileId={} stackSize={} packs={}",
+            BrbeLogger.log("BRBE-DIAG", "hasSpriteResource: control pin fileId={} stackSize={} packs={}",
                     pinFile, pinStack.size(), pinPacks);
         }
         return !stack.isEmpty();

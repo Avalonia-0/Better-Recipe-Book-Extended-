@@ -12,6 +12,7 @@ import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import com.alonie.brbe.util.BrbeLogger;
 
 /**
  * Registers the embedded JEI core's GUI atlas before Minecraft's initial
@@ -55,7 +56,7 @@ public class BrbeJeiMinecraftMixin {
             Object atlasManager = textures.getClass().getMethod("getAtlasManager").invoke(textures);
             resourceManager.registerReloadListener(
                     (net.minecraft.server.packs.resources.PreparableReloadListener) atlasManager);
-            BetterRecipeBook.LOGGER.info("[BRBE-JEI-PLUGINS] JEI core atlas registered before initial resource reload");
+            BrbeLogger.log("BRBE-JEI-PLUGINS", "JEI core atlas registered before initial resource reload");
         } catch (Exception | LinkageError e) {
             BetterRecipeBook.LOGGER.warn("[BRBE-JEI-PLUGINS] failed to register JEI atlas: {}", e.toString());
         }

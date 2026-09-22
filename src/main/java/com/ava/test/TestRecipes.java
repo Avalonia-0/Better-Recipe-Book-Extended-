@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.OptionalInt;
+import com.alonie.brbe.util.BrbeLogger;
 
 /**
  * 测试用占位配方（JVM 参数启用）。
@@ -105,6 +106,6 @@ public final class TestRecipes {
         }
         entries = Collections.unmodifiableList(list);
         byId = Collections.unmodifiableMap(map);
-        LOG.info("[AVA-TEST] built {} placeholder recipes (-D{}={})", n, JVM_RECIPES, n);
+        BrbeLogger.log("AVA-TEST", "built {} placeholder recipes (-D{}={})", n, JVM_RECIPES, n);
     }
 }

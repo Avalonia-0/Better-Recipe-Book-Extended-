@@ -363,7 +363,7 @@ public abstract class RecipeBookComponentMixin {
         return false;
     }
 
-    /** 诊断（默认关闭，-Dbrbe.diagnostics=true 开启）：每次物品栏刷新后检查配方状态一致性。 */
+    /** 诊断（默认关闭，-Dbrbe.debug=true 开启）：每次物品栏刷新后检查配方状态一致性。 */
     @Inject(method = "updateCollections", at = @At("TAIL"))
     private void brbe$diagnostic(boolean resetPageNumber, boolean isFiltering, CallbackInfo ci) {
         if (!RecipeStateDiagnostic.enabled()) return;

@@ -1054,3 +1054,26 @@ ESC 退出界面。"（详见 `docs/1.21.11-26.2-查询窗口ESC退出问题.md`
   `column_panel.png.mcmeta`（`nine_slice width/height=32 border=4`）继续生效；包内其余覆盖贴图同样只放 PNG。
 - `column_panel_top` 未动（代码侧已不再使用该变体）。
 - 已构建、原子替换部署（备份 20260911-174055，md5 一致）。
+## 2026-09-22：调试日志统一到 `-Dbrbe.debug` 开关（四分支同步）
+
+用户需求：日志输出改由一个 JVM 参数启用并精简日志工具。26.3 为参照实现（见其 CLAUDE.md 同名轮次），
+本分支照做并已构建部署。
+
+- **唯一开关** `-Dbrbe.debug=true`；**唯一出口** `com.alonie.brbe.util.BrbeLogger`
+  （类加载时求值一次，未开时全部调用空操作）；输出写 `<gameDir>/logs/brbe-debug.log`，
+  **不再写 latest.log**；`{}` 顺序占位（不是 String.format）。
+- 入口接线：`fabric/BetterRecipeBookClientFabric#onInitializeClient` 开头调
+  `BrbeLogger.init(Minecraft.getInstance().gameDirectory.toPath())`（已核实 fabric-loader 的
+  `EntrypointPatch` 在此刻已给 `Minecraft.gameDirectory` 赋值，不会 NPE）。
+- 分级：所有 `LOGGER.info/debug` 与纯诊断 warn（`BRBE-DIAG`/`DEBUG-fb`/`VIEWER-DBG`）门控；
+  真故障（文件读写失败、工作站 JSON 非法、注册/反射失败、进度包写入失败）保持默认可见。
+- 数字：门控 **77**（info/debug 64 + 诊断 warn 13），保留 `LOGGER.warn` 45 / `LOGGER.error` 6，
+  残留 `LOGGER.info/debug` 0、裸 `System.out/err` 0（仅 BrbeLogger 内部兜底）、旧属性 0；
+  `[DEBUG-bug1]` 整块连同脚手架变量删除，`[DEBUG-fb]` 去标记后门控（保留 5s 限频）。
+- 与 26.3 的差异（本分支主动补齐，26.3 随后也已同步）：`ConfigEventBus` 裸
+  `e.printStackTrace()` → `LOGGER.warn`；删掉因门控而变成死字段的 `ClientCompat.LOGGER`
+  （含 slf4j import）；`-Dbrbe.diagnostics` 过时 javadoc 改为 `brbe.debug`；标签大小写统一
+  （`BRBE-JEI-Plugins` → `BRBE-JEI-PLUGINS`）。
+- 编译：`JAVA_HOME=/usr/lib/jvm/java-21-openjdk sh gradlew build` 通过；
+  **已原子替换部署**（备份 `brbe-ava-fabric-1.21.11-2.3.jar.bak.20260922-2115`，
+  md5 `55f0aa52e67ea64fcda723997ac099da` 与产物一致）。

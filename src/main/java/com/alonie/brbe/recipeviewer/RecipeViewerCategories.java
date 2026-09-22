@@ -179,19 +179,6 @@ public final class RecipeViewerCategories {
      */
     public static RecipeViewerCategory defaultFor(ItemStack target, boolean usage,
                                                   AbstractContainerMenu menu) {
-        // [DEBUG-bug1] Temporary: capture the actual default-category decision
-        // (menu / usage / station-usage / workstation-menu / bestByPriority) so
-        // the "workstation not in any category always opens second category"
-        // report can be diagnosed from a real run.
-        boolean dbgIsWsm = isWorkstationMenu(menu);
-        RecipeViewerCategory dbgStation = usage ? stationUsageCategory(target) : null;
-        RecipeViewerCategory dbgWsCat = dbgIsWsm ? stationCategoryFor(menu) : null;
-        BetterRecipeBook.LOGGER.warn("[DEBUG-bug1] defaultFor target={} usage={} menu={} isWsm={} stationCat={} wsCat={} first={}",
-                target == null ? "null" : target.getItem(), usage,
-                menu == null ? "null" : menu.getClass().getSimpleName(), dbgIsWsm,
-                dbgStation == null ? "null" : dbgStation.id(),
-                dbgWsCat == null ? "null" : dbgWsCat.id(),
-                all().isEmpty() ? "null" : all().get(0).id());
         // 1) Usage query of a workstation block: THAT station's category wins
         //    (JEI semantics), regardless of which container the player is in.
         //    Must run BEFORE the container menu-jump below — a U-query on a

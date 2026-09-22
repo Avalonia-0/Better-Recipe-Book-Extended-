@@ -30,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import com.alonie.brbe.util.BrbeLogger;
 
 /**
  * Recipe-viewer index backed by the <b>vanilla recipe book's known set</b>
@@ -200,7 +201,7 @@ public final class RecipeViewerIndex {
             }
             if (!matched) unmatched++;
         }
-        BetterRecipeBook.LOGGER.info("[BRBE] rebuildEngine known-by-category: {} unmatched={}",
+        BrbeLogger.log("BRBE", "rebuildEngine known-by-category: {} unmatched={}",
                 categoryCounts, unmatched);
         for (Map.Entry<String, List<RecipeViewerEngine.IndexedRecipe>> e : grouped.entrySet()) {
             // 切石：条目与 layout 由 headless-jei（JEI 运行时）提供
@@ -221,7 +222,7 @@ public final class RecipeViewerIndex {
             }
             RecipeViewerEngine.registerType(e.getKey(), e.getValue(), stationItems.get(e.getKey()));
         }
-        BetterRecipeBook.LOGGER.info("[BRBE] rebuildEngine: {} types, {} entries",
+        BrbeLogger.log("BRBE", "rebuildEngine: {} types, {} entries",
                 grouped.size(), grouped.values().stream().mapToInt(List::size).sum());
         // 通用"数据源自动定向至配方书"：配方书供给的类型源（酿造等）统一重注册。
         rebuildBookTypeSources();
@@ -543,7 +544,7 @@ public final class RecipeViewerIndex {
         List<Workstation> builtin = BUILTIN_WORKSTATIONS;
         List<Workstation> config = loadConfigWorkstations();
         List<Workstation> external = loadExternalWorkstations();
-        BetterRecipeBook.LOGGER.info("[BRBE] buildWorkstations: builtin={} config={} external={}",
+        BrbeLogger.log("BRBE", "buildWorkstations: builtin={} config={} external={}",
                 builtin.size(), config.size(), external.size());
         List<Workstation> out = new ArrayList<>(builtin);
         out.addAll(config);
@@ -663,7 +664,7 @@ public final class RecipeViewerIndex {
                     added++;
                 }
             }
-            BetterRecipeBook.LOGGER.info("[BRBE] registerExternalWorkstations: +{} total={} builtAlready={}",
+            BrbeLogger.log("BRBE", "registerExternalWorkstations: +{} total={} builtAlready={}",
                     added, EXTERNAL_SPECS.size(), WORKSTATIONS != null);
             if (WORKSTATIONS != null) {
                 WORKSTATIONS = buildWorkstations();

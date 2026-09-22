@@ -66,12 +66,12 @@ public final class BrbeDiagnostic {
                     .resolve("brbe-diagnostic.log");
             Files.writeString(logFile, sb.toString(),
                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-            BetterRecipeBook.LOGGER.info("[BRBE] Diagnostic written to {}", logFile);
+            BrbeLogger.log("BRBE", "Diagnostic written to {}", logFile);
         } catch (IOException e) {
             BetterRecipeBook.LOGGER.error("[BRBE] Failed to write diagnostic", e);
         }
 
-        BetterRecipeBook.LOGGER.info(sb.toString());
+        BrbeLogger.log("BRBE", sb.toString());
     }
 
     // ── Individual checks ──────────────────────────────────────────

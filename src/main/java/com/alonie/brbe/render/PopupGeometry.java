@@ -18,6 +18,7 @@ import net.minecraft.world.item.crafting.display.StonecutterRecipeDisplay;
 
 import java.util.ArrayList;
 import java.util.List;
+import com.alonie.brbe.util.BrbeLogger;
 
 /**
  * Shared popup geometry for the hover UI and the pin UI.  Both front-ends —
@@ -278,7 +279,7 @@ public final class PopupGeometry {
             int bx = Math.round(x + (w - bw) / 2f);
             int by = Math.round(y + (h - bh) / 2f);
             if (diagIds.add(id)) {
-                com.alonie.brbe.BetterRecipeBook.LOGGER.info("[BRBE-DIAG-GEOM] id={} layout={}x{} bg={} tscale={} fit={} panel=({},{},{},{}) btn=({},{},{},{})",
+                BrbeLogger.log("BRBE-DIAG-GEOM", "id={} layout={}x{} bg={} tscale={} fit={} panel=({},{},{},{}) btn=({},{},{},{})",
                         id, layout.width(), layout.height(),
                         layout.background() == null ? "null" : layout.background().width() + "x" + layout.background().height(),
                         tscale, fit, bx, by, bw, bh, x, y, w, h);

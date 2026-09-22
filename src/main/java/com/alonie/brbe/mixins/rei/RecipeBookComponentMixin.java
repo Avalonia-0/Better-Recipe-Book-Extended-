@@ -30,6 +30,7 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import com.alonie.brbe.util.BrbeLogger;
 
 /**
  * Adds REI/JEI recipe/usage view shortcuts to the vanilla crafting recipe book,
@@ -103,18 +104,18 @@ public abstract class RecipeBookComponentMixin {
 
         Object ghostSlot = ingredients.get(slot);
         if (ghostSlot == null) {
-            BetterRecipeBook.LOGGER.info("[BRBE] Ghost path: no ghost in ingredients for slot#{} (map size={})",
+            BrbeLogger.log("BRBE", "Ghost path: no ghost in ingredients for slot#{} (map size={})",
                     slot.index, ingredients.size());
             return;
         }
 
         ItemStack ghostStack = getGhostItemStack(ghostSlot);
         if (ghostStack == null || ghostStack.isEmpty()) {
-            BetterRecipeBook.LOGGER.info("[BRBE] Ghost path: getGhostItemStack returned empty for slot#{}", slot.index);
+            BrbeLogger.log("BRBE", "Ghost path: getGhostItemStack returned empty for slot#{}", slot.index);
             return;
         }
 
-        BetterRecipeBook.LOGGER.info("[BRBE] Ghost path: querying {} for slot#{}",
+        BrbeLogger.log("BRBE", "Ghost path: querying {} for slot#{}",
                 ghostStack.getHoverName().getString(), slot.index);
         if (ItemViewCompat.matchesShowRecipe(keyCode, scanCode)) {
             cir.setReturnValue(ItemViewCompat.openRecipeView(ghostStack));

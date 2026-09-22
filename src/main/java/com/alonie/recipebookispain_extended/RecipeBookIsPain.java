@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import com.alonie.brbe.util.BrbeLogger;
 
 public class RecipeBookIsPain {
 
@@ -81,7 +82,7 @@ public class RecipeBookIsPain {
 
         Minecraft client = Minecraft.getInstance();
         if (client == null || client.level == null) {
-            LOGGER.debug("[RBIP] Delaying recipe book init until a client world is available");
+            BrbeLogger.log("RBIP", "Delaying recipe book init until a client world is available");
             return;
         }
 
@@ -133,7 +134,7 @@ public class RecipeBookIsPain {
         buildNamespaceCache();
         applyNamespaceOverrides();
 
-        LOGGER.info("[RBIP] recipe book init complete; mirrored {} creative groups", MIRRORED_ITEM_GROUPS.size());
+        BrbeLogger.log("RBIP", "recipe book init complete; mirrored {} creative groups", MIRRORED_ITEM_GROUPS.size());
     }
 
     // ------------------------------------------------
@@ -177,7 +178,7 @@ public class RecipeBookIsPain {
             overridden++;
         }
         if (overridden > 0) {
-            LOGGER.info("[RBIP] Namespace override: {} items rerouted to their own creative tabs", overridden);
+            BrbeLogger.log("RBIP", "Namespace override: {} items rerouted to their own creative tabs", overridden);
         }
     }
 
@@ -207,7 +208,7 @@ public class RecipeBookIsPain {
         MIRRORED_ITEM_GROUPS.add(group);
         CRAFTING_LIST.add(rg);
         CRAFTING_SEARCH_LIST.add(rg);
-        LOGGER.info("[RBIP] Late-registered group: {}", group.getDisplayName().getString());
+        BrbeLogger.log("RBIP", "Late-registered group: {}", group.getDisplayName().getString());
     }
 
     public static int getMirroredGroupCount() {

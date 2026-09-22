@@ -353,7 +353,7 @@ public final class RecipeViewerOverlay {
                 }
             }
         } catch (Exception e) {
-            System.err.println("[BRBE] Failed to read query viewers: " + e.getMessage());
+            BetterRecipeBook.LOGGER.warn("[BRBE] Failed to read query viewers: {}", e.getMessage());
         }
     }
 
@@ -367,7 +367,7 @@ public final class RecipeViewerOverlay {
                 Files.writeString(viewerSpecFile,
                         PV_GSON.toJson(snapshot), StandardCharsets.UTF_8);
             } catch (Exception e) {
-                System.err.println("[BRBE] Failed to write query viewers: " + e.getMessage());
+                BetterRecipeBook.LOGGER.warn("[BRBE] Failed to write query viewers: {}", e.getMessage());
             }
         });
     }
@@ -4129,7 +4129,7 @@ public final class RecipeViewerOverlay {
         viewerZ = PinOverlayManager.nextZ();
         RecipeViewerIndex.setViewerActive(true);
         RecipeViewerIndex.setViewerOpenedFromBook(anchorBookButton != null);
-        BetterRecipeBook.LOGGER.warn("[VIEWER-DBG] open target={} usage={} cat={} "
+        BrbeLogger.log("BRBE-VIEWER", "open target={} usage={} cat={} "
                         + "window#{} box=({},{},{}x{}) anchor=({},{}) bottomA={} "
                         + "stationCol={} grid={} gui={}x{} screen={}",
                 target.getHoverName().getString(), viewUsage,

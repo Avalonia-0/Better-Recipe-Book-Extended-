@@ -24,6 +24,7 @@ import net.minecraft.world.item.crafting.display.SlotDisplayContext;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import com.alonie.brbe.util.BrbeLogger;
 
 /**
  * Renders a recipe's enlarged popup UI.  An adapted synthetic (mod) recipe
@@ -146,7 +147,7 @@ public final class PopupRenderer {
                                            SlotCycle cycle) {
         if (diagIds.add(id)) {
             RecipeViewerEngine.RecipeLayout dl = RecipeViewerEngine.getLayout(id);
-            BetterRecipeBook.LOGGER.info("[BRBE-DIAG-POPUP] id={} mode={} hover={} scale={} btn=({},{},{},{}) layout={} layoutSlots={} slots={}",
+            BrbeLogger.log("BRBE-DIAG-POPUP", "id={} mode={} hover={} scale={} btn=({},{},{},{}) layout={} layoutSlots={} slots={}",
                     id, mode, hover, scale, x, y, w, h,
                     dl == null ? "null" : dl.width() + "x" + dl.height() + " bg=" + (dl.background() == null ? "null" : dl.background().width() + "x" + dl.background().height()),
                     dl == null ? "null" : dl.slots().size(),

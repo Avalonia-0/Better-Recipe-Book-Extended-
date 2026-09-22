@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static com.alonie.brbe.brewingstand.PlatformPotionUtil.getPotionMixes;
+import com.alonie.brbe.util.BrbeLogger;
 
 public class PotionLoader {
     public static List<BrewableResult> POTIONS = new ArrayList<>();
@@ -28,7 +29,7 @@ public class PotionLoader {
             POTIONS.add(new BrewableResult(potionRecipe));
         }
 
-        BetterRecipeBook.LOGGER.info("Loaded %d potions.".formatted(POTIONS.size()));
+        BrbeLogger.log("BRBE", "Loaded %d potions.".formatted(POTIONS.size()));
         // 酿造/锻造进度（运行时推导）：重建"材料 → 产物"映射。
         com.alonie.brbe.brewingstand.RecipeUnlockTracker.refreshIngredients();
         // 注：酿造查询引擎数据 = headless-JEI 直接注册（条目自带 native layout，
@@ -39,7 +40,7 @@ public class PotionLoader {
     }
 
     public static void clear() {
-        BetterRecipeBook.LOGGER.info("Clearing potions...");
+        BrbeLogger.log("BRBE", "Clearing potions...");
         clearNoLog();
     }
 
