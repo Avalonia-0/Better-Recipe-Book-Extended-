@@ -1267,3 +1267,37 @@ latest.log 调试标签 0 行。26.2 → 106 行含 fork 会话头 + `collecting
 **部署**：26.3 md5 `517efb955aeedf7172b0d15b8ef6429b`（备份 20260922-2147）、
 26.2 md5 `a6d4eccd9d94998f1cbf46c34727f781`、1.21.11 md5 `07977bb5bd0a976626d2bd70c2644e19`
 （备份 20260922-2148）。
+
+### 追加（同日）：`advancement poll failed` 每秒刷屏修复（进度回填重新可用）
+
+**现象**：26.3 进世界后 `brbe-debug.log` 每秒一条
+`[BRBE-RECIPE-PROGRESS] advancement poll failed: NoSuchMethodException: ClientAdvancements.getTree()`。
+
+**根因**：`RecipeUnlockTracker.applyCompletedProgress` 用**字符串反射**走
+`getTree()/nodes()/holder()/id()/isDone()`。26.3 把 `ClientAdvancements.getTree()` 改名
+**`tree()`**（同时把私有 `progress` 字段提升为公共 `progress()`）→ 全链路失败。
+⚠️ 更要紧的是：字符串反射在 **1.21.x 的 intermediary 运行时一个也匹配不上**
+（字段/方法名是 `field_XXXX`/`method_XXXX`）——那里 `findProgressField` 直接返回 null，
+整段逻辑**从未生效**（进度回填静默失效，只因为默认不开调试日志而无人发现）。
+
+**修复**（26.3 / 26.2 / 1.21.11 同步）：
+- **只反射解析"进度表"这一个入口**，按类缓存，三级回退：
+  ① 公共 `progress()`（26.3）→ ② 私有字段 `progress`（26.2/26.3）→
+  ③ 声明里唯一的 `Map` 字段（intermediary 兜底）。
+- 拿到 `Map` 后**全部走编译期类型化调用**：直接遍历 `entrySet()`（键就是
+  `AdvancementHolder`，不再需要 advancement 树），`AdvancementProgress#isDone()` /
+  `AdvancementHolder#id()` 都是普通引用，loom 会正确 remap → 1.21.11 也恢复可用。
+- 失败日志**每会话最多 3 条**（原为每秒一条）+ 成功时一次性输出
+  `advancement table: N entries (M brbe) via <accessor>` 便于确认绑定。
+
+**验证**：
+- 26.3 实机（probe 进世界，`-Dbrbe.debug=true`）：`advancement poll failed` **0 行**
+  （修复前约每秒 1 行），并出现
+  `advancement table: 73 entries (2 brbe) via public java.util.Map
+  net.minecraft.client.multiplayer.ClientAdvancements.progress()`。
+- 离线对**真实 MC 类**跑同一解析算法（`/tmp/accprobe/AccessorProbe.java`）：
+  26.3 → ① `public progress()`；26.2 → ② `field named progress`；
+  混淆名模拟类（单 `Map` 字段 + 无 `progress()`）→ ③ 命中唯一 `Map` 字段。
+- 三个分支 `compileJava` + `build` 通过、已部署（26.3 md5 `16d748ac`，
+  备份 20260922-2211；26.2 md5 `ef019aac`、1.21.11 md5 `f27e051b`，备份同日 2212）。
+
