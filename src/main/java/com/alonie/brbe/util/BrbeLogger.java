@@ -2,6 +2,7 @@ package com.alonie.brbe.util;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -66,13 +67,25 @@ public final class BrbeLogger {
         try {
             Files.createDirectories(logsDir);
             Path file = logsDir.resolve("brbe-debug.log");
-            // 追加而不是截断：无头 JEI（独立 mod）也写这个文件，谁先谁后不确定；
-            // 截断会把先写的一方抹掉。文件过大时（>4MB）才重新开始，避免无限增长。
+            // ⚠️ 必须**始终**以 APPEND 打开：无头 JEI（内嵌的独立 mod）也写这个文件，
+            // 它的句柄是 O_APPEND（写到文件真实末尾），而**非追加**句柄的写入走自己的
+            // 文件位置——两个句柄并存时，后者的每次写入都会把对方追加在末尾的字节整段
+            // 盖掉（实测：A 非追加写 2 行，B 追加的整行消失）。
+            // 文件过大时（>4MB）才重新开始：NIO 不允许 APPEND + TRUNCATE_EXISTING 同时
+            // 使用（IllegalArgumentException），所以先删除再以 APPEND 打开。
             boolean fresh = !Files.exists(file) || Files.size(file) > 4L * 1024 * 1024;
-            writer = new PrintWriter(fresh
-                    ? Files.newBufferedWriter(file, StandardCharsets.UTF_8)
-                    : Files.newBufferedWriter(file, StandardCharsets.UTF_8,
-                            StandardOpenOption.CREATE, StandardOpenOption.APPEND), true /* autoFlush */);
+            if (fresh) {
+                // 就地清空（不是删除再建）：其他写者（无头 JEI）的 O_APPEND 句柄仍指向同一
+                // inode，清空后继续追加到新末尾；删除再建会让它们的句柄悬在已 unlink 的
+                // inode 上，之后的输出全部写进"看不见的文件"。
+                try (FileChannel ignored = FileChannel.open(file,
+                        StandardOpenOption.CREATE, StandardOpenOption.WRITE,
+                        StandardOpenOption.TRUNCATE_EXISTING)) {
+                    // 只为清空
+                }
+            }
+            writer = new PrintWriter(Files.newBufferedWriter(file, StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE, StandardOpenOption.APPEND), true /* autoFlush */);
             writer.println("=== BRBE Debug Log ===");
             writer.println("Session: " + java.time.Instant.now());
             writer.println();
