@@ -2,9 +2,11 @@ package com.alonie.brbe.util;
 
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.channels.FileChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
@@ -64,8 +66,25 @@ public final class BrbeLogger {
         Path logsDir = gameDir.resolve("logs");
         try {
             Files.createDirectories(logsDir);
-            writer = new PrintWriter(Files.newBufferedWriter(
-                    logsDir.resolve("brbe-debug.log"), StandardCharsets.UTF_8), true /* autoFlush */);
+            // ⚠️ 必须**始终**以 APPEND 打开：无头 JEI（独立 mod，两个加载器都装）也写这个
+            // 文件，它的句柄是 O_APPEND（写到文件真实末尾），而**非追加**句柄的写入走自己
+            // 的文件位置——两个句柄并存时，后者的每次写入都会把对方追加在末尾的字节整段
+            // 盖掉（实测：A 非追加写 2 行，B 追加的整行消失）。
+            // 文件过大时（>4MB）才重新开始：NIO 不允许 APPEND + TRUNCATE_EXISTING 同时
+            // 使用（IllegalArgumentException），所以先删除再以 APPEND 打开。
+            Path file = logsDir.resolve("brbe-debug.log");
+            if (!Files.exists(file) || Files.size(file) > 4L * 1024 * 1024) {
+                // 就地清空（不是删除再建）：其他写者（无头 JEI）的 O_APPEND 句柄仍指向同一
+                // inode，清空后继续追加到新末尾；删除再建会让它们的句柄悬在已 unlink 的
+                // inode 上，之后的输出全部写进"看不见的文件"。
+                try (FileChannel ignored = FileChannel.open(file,
+                        StandardOpenOption.CREATE, StandardOpenOption.WRITE,
+                        StandardOpenOption.TRUNCATE_EXISTING)) {
+                    // 只为清空
+                }
+            }
+            writer = new PrintWriter(Files.newBufferedWriter(file, StandardCharsets.UTF_8,
+                    StandardOpenOption.CREATE, StandardOpenOption.APPEND), true /* autoFlush */);
             writer.println("=== BRBE Debug Log ===");
             writer.println("Session: " + java.time.Instant.now());
             writer.println();
