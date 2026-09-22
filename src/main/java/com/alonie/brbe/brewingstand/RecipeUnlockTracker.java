@@ -7,6 +7,8 @@ import com.alonie.brbe.util.ClientCompat;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.components.toasts.RecipeToast;
 import net.minecraft.client.gui.components.toasts.ToastManager;
+import net.minecraft.advancements.AdvancementHolder;
+import net.minecraft.advancements.AdvancementProgress;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
 
@@ -161,6 +163,8 @@ public final class RecipeUnlockTracker {
         KNOWN_MATERIALS.clear();
         INJECTED_RECIPES.clear();
         tickCounter = 0;
+        progressTableLogged = false;
+        pollFailuresReported = 0;
     }
 
     /** 主循环（ClientTick 调用）：物品栏观察（即时解锁 + 弹窗；首局引导）
@@ -463,22 +467,31 @@ public final class RecipeUnlockTracker {
 
     private static void applyCompletedProgress(Minecraft mc) {
         try {
+            if (mc.getConnection() == null) return;
             Object clientAdvancements = mc.getConnection().getAdvancements();
             if (clientAdvancements == null) return;
-            java.lang.reflect.Field progressField = findProgressField(clientAdvancements);
-            if (progressField == null) return;
-            Object progressMap = progressField.get(clientAdvancements);
-            if (!(progressMap instanceof Map<?, ?> map)) return;
-            Object tree = clientAdvancements.getClass()
-                    .getMethod("getTree").invoke(clientAdvancements);
-            for (Object node : (Iterable<?>) tree.getClass().getMethod("nodes").invoke(tree)) {
-                Object holder = node.getClass().getMethod("holder").invoke(node);
-                Object id = holder.getClass().getMethod("id").invoke(holder);
-                if (!(id instanceof Identifier advancementId)) continue;
-                String text = advancementId.toString();
-                Object progress = map.get(holder);
-                if (progress == null) continue;
-                if (!(Boolean) progress.getClass().getMethod("isDone").invoke(progress)) continue;
+            Object raw = readProgressTable(clientAdvancements);
+            if (raw == null) {
+                reportPollFailure("advancement progress table not found on "
+                        + clientAdvancements.getClass().getName());
+                return;
+            }
+            if (!(raw instanceof Map<?, ?> table)) return;
+            int entries = 0;
+            int brbeEntries = 0;
+            // 直接遍历进度表：键就是 AdvancementHolder，旧实现绕 advancement 树只为
+            // 枚举 holder（树的 nodes()/holder() 全是字符串反射，26.3 把
+            // ClientAdvancements.getTree() 改名 tree() 后整段每秒抛一次）。
+            for (Map.Entry<?, ?> entry : table.entrySet()) {
+                if (!(entry.getKey() instanceof AdvancementHolder holder)) continue;
+                entries++;
+                String text = holder.id().toString();
+                if (!text.startsWith("brbe:")) continue;
+                brbeEntries++;
+                if (!(entry.getValue() instanceof AdvancementProgress progress)
+                        || !progress.isDone()) {
+                    continue;
+                }
                 if (text.startsWith(BREW_ADVANCEMENT_PREFIX)) {
                     applyBrewUnlock(mc, text.substring(BREW_ADVANCEMENT_PREFIX.length()));
                 } else if (text.startsWith(RECIPE_ADVANCEMENT_PREFIX)) {
@@ -488,10 +501,23 @@ public final class RecipeUnlockTracker {
                     }
                 }
             }
+            if (!progressTableLogged && entries > 0) {
+                progressTableLogged = true;
+                BrbeLogger.log("BRBE-RECIPE-PROGRESS",
+                        "advancement table: {} entries ({} brbe) via {}",
+                        entries, brbeEntries, progressAccessorName);
+            }
         } catch (Exception | LinkageError e) {
-            BrbeLogger.log("BRBE-RECIPE-PROGRESS", "advancement poll failed: {}",
-                    e.toString());
+            reportPollFailure(e.toString());
         }
+    }
+
+    /** 轮询失败：**每条会话最多报 3 次**（旧实现每秒一条，把调试日志刷满）。 */
+    private static void reportPollFailure(String message) {
+        if (pollFailuresReported >= MAX_POLL_FAILURE_LOGS) return;
+        pollFailuresReported++;
+        BrbeLogger.log("BRBE-RECIPE-PROGRESS", "advancement poll failed: {}{}", message,
+                pollFailuresReported == MAX_POLL_FAILURE_LOGS ? " (后续不再重复)" : "");
     }
 
     /** advancement 后的部分 = {@code <ns>-<path>}（生成时路径压平）。 */
@@ -539,25 +565,75 @@ public final class RecipeUnlockTracker {
         }
     }
 
-    private static java.lang.reflect.Field progressFieldCache;
-    private static Class<?> progressFieldOwner;
+    // ------------------------------------------------------------------
+    // 进度表访问器解析（本文件唯一一处反射）
+    // ------------------------------------------------------------------
+    // 进度表没有跨版本稳定的公开入口：26.2 是私有字段 progress（无 getter），26.3 改成
+    // 公共 progress()。旧实现用字符串反射一路调 getTree()/nodes()/holder()/id()/isDone()，
+    // 26.3 把 ClientAdvancements.getTree() 改名为 tree() → 每秒一条 NoSuchMethodException
+    // 刷屏；而在本分支（1.21.x，运行时是 intermediary 名）字符串反射本来一个也匹配不上，
+    // 那段逻辑在这里从未生效（进度回填静默失效）。现在：**只反射解析这一个入口**，按类
+    // 缓存；拿到 Map 之后全部走编译期类型化调用（AdvancementProgress#isDone /
+    // AdvancementHolder#id），loom 会把这些引用正确 remap，因此三个分支同一份代码都能工作。
 
-    private static java.lang.reflect.Field findProgressField(Object clientAdvancements) {
-        if (progressFieldCache != null && progressFieldOwner == clientAdvancements.getClass()) {
-            return progressFieldCache;
-        }
-        synchronized (RecipeUnlockTracker.class) {
-            if (progressFieldCache == null || progressFieldOwner != clientAdvancements.getClass()) {
-                try {
-                    progressFieldCache = clientAdvancements.getClass()
-                            .getDeclaredField("progress");
-                    progressFieldCache.setAccessible(true);
-                    progressFieldOwner = clientAdvancements.getClass();
-                } catch (Exception | LinkageError e) {
-                    progressFieldCache = null;
+    private static final int MAX_POLL_FAILURE_LOGS = 3;
+
+    private static java.lang.reflect.Member progressAccessor;
+    private static Class<?> progressAccessorOwner;
+    private static String progressAccessorName = "none";
+    private static boolean progressTableLogged;
+    private static int pollFailuresReported;
+
+    private static Object readProgressTable(Object clientAdvancements) throws Exception {
+        Class<?> type = clientAdvancements.getClass();
+        if (progressAccessorOwner != type) {
+            synchronized (RecipeUnlockTracker.class) {
+                if (progressAccessorOwner != type) {
+                    progressAccessor = resolveProgressAccessor(type);
+                    progressAccessorName = progressAccessor == null ? "none"
+                            : progressAccessor.toString();
+                    progressAccessorOwner = type;
                 }
             }
         }
-        return progressFieldCache;
+        java.lang.reflect.Member accessor = progressAccessor;
+        if (accessor == null) return null;
+        return accessor instanceof java.lang.reflect.Method method
+                ? method.invoke(clientAdvancements)
+                : ((java.lang.reflect.Field) accessor).get(clientAdvancements);
+    }
+
+    /** ① 公共 {@code progress()}（26.3）→ ② 私有字段 {@code progress}（26.2 / 26.3）
+     *  → ③ 声明里唯一的 {@code Map} 字段（intermediary 运行时字段名不可知时的兜底：
+     *  ClientAdvancements 只有 progress 一个 Map 字段，本分支靠这一步生效）。 */
+    private static java.lang.reflect.Member resolveProgressAccessor(Class<?> type) {
+        try {
+            java.lang.reflect.Method method = type.getMethod("progress");
+            if (Map.class.isAssignableFrom(method.getReturnType())) {
+                method.setAccessible(true);
+                return method;
+            }
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // 退回字段
+        }
+        try {
+            java.lang.reflect.Field field = type.getDeclaredField("progress");
+            if (Map.class.isAssignableFrom(field.getType())) {
+                field.setAccessible(true);
+                return field;
+            }
+        } catch (ReflectiveOperationException | RuntimeException ignored) {
+            // 退回类型兜底
+        }
+        for (java.lang.reflect.Field field : type.getDeclaredFields()) {
+            if (!Map.class.isAssignableFrom(field.getType())) continue;
+            try {
+                field.setAccessible(true);
+                return field;
+            } catch (RuntimeException ignored) {
+                // 试下一个
+            }
+        }
+        return null;
     }
 }
