@@ -17,7 +17,7 @@ package com.alonie.brbe.util;
  * <p>本类只是**快路径**：真正的兜底是
  * {@link PartialCraftingUtil#pipelineStateHash(java.util.List)}（直接哈希输入数据的实际内容）。
  * 漏 bump 时它仍会发现状态不一致；两者都漏才会错，而那种情况已由
- * {@code -Dbrbe.debug=true} 的自检日志当场抓出来。
+ * {@code -Dbrbe.diag=true} 的自检日志当场抓出来。
  */
 public final class PipelineEpoch {
 
