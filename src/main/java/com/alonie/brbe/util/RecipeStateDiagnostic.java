@@ -51,14 +51,16 @@ public final class RecipeStateDiagnostic {
 
     /** 诊断默认关闭：这是开发期 QA 工具，每次物品栏刷新会对全部配方做一遍
      *  独立状态预测，生产路径开启会显著拖慢配方书刷新。
-     *  与其它调试日志共用同一个开关：{@code -Dbrbe.debug=true}。 */
+     *  自带闸门 {@code -Dbrbe.diag=true}（默认关）——日志恒写文件，但本诊断每次刷新都要
+     *  对全部配方做一遍独立预测，不能跟着日志常开。 */
     private static long lastDiagnosticSlotHash;
 
     private RecipeStateDiagnostic() {}
 
-    /** 诊断开关（跟随 {@link BrbeLogger}：系统属性 {@code brbe.debug}，默认关）。 */
+    /** 诊断开关：{@code -Dbrbe.diag=true}（默认关）。**不跟随日志**——日志恒写文件，
+     *  而本诊断每次刷新都要对全部配方做一遍独立预测，常开会显著拖慢配方书刷新。 */
     public static boolean enabled() {
-        return BrbeLogger.isEnabled();
+        return BrbeLogger.diagnosticsEnabled();
     }
 
     /** 独立预测的状态 */
