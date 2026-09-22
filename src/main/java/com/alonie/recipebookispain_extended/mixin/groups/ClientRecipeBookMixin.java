@@ -124,7 +124,7 @@ public class ClientRecipeBookMixin {
                 };
                 String outputKey = BuiltInRegistries.ITEM.getKey(
                     entry.resultItems(RBIP_EMPTY_CONTEXT).iterator().next().getItem()).toString();
-                targetBuckets.computeIfAbsent(group, ignored -> new EntryBucket()).add(entry, outputKey);
+                rbip$bucketFor(targetBuckets, group).add(entry, outputKey);
             } else {
                 // Only include recipes belonging to the vanilla crafting recipe book.
                 // Mod-added recipe books (e.g. Farmer's Delight cooking pot) have custom
@@ -138,7 +138,7 @@ public class ClientRecipeBookMixin {
 
                 ExtendedRecipeBookCategory group = rbip$getGroupForEntry(entry);
                 if (group == null) continue;
-                buckets.computeIfAbsent(group, ignored -> new EntryBucket()).add(entry);
+                rbip$bucketFor(buckets, group).add(entry);
             }
         }
 
@@ -153,11 +153,37 @@ public class ClientRecipeBookMixin {
         updatedResults.remove(RecipeBookCategories.BLAST_FURNACE_BLOCKS);
         updatedResults.remove(RecipeBookCategories.BLAST_FURNACE_MISC);
 
-        buckets.forEach((group, bucket) -> updatedResults.put(group, bucket.toCollections()));
-        furnaceBuckets.forEach((group, bucket) -> updatedResults.put(group, bucket.toCollections()));
-        smokerBuckets.forEach((group, bucket) -> updatedResults.put(group, bucket.toCollections()));
-        blastFurnaceBuckets.forEach((group, bucket) -> updatedResults.put(group, bucket.toCollections()));
+        for (Map.Entry<ExtendedRecipeBookCategory, EntryBucket> e : buckets.entrySet()) {
+            updatedResults.put(e.getKey(), e.getValue().toCollections());
+        }
+        for (Map.Entry<ExtendedRecipeBookCategory, EntryBucket> e : furnaceBuckets.entrySet()) {
+            updatedResults.put(e.getKey(), e.getValue().toCollections());
+        }
+        for (Map.Entry<ExtendedRecipeBookCategory, EntryBucket> e : smokerBuckets.entrySet()) {
+            updatedResults.put(e.getKey(), e.getValue().toCollections());
+        }
+        for (Map.Entry<ExtendedRecipeBookCategory, EntryBucket> e : blastFurnaceBuckets.entrySet()) {
+            updatedResults.put(e.getKey(), e.getValue().toCollections());
+        }
         this.collectionsByTab = Map.copyOf(updatedResults);
+    }
+
+    /**
+     * {@code get} + 按需 {@code put}（不用 {@code computeIfAbsent}）。
+     *
+     * <p>Mixin 类里**不要写 lambda**：Mixin 会把 mixin 内的合成 lambda 方法重命名并在
+     * latest.log 打一行 INFO（{@code Renaming synthetic method ... from mod brbe}），
+     * 每个 lambda 一行——本类原先 6 个 lambda 就是 6 行噪声。</p>
+     */
+    @Unique
+    private static EntryBucket rbip$bucketFor(Map<ExtendedRecipeBookCategory, EntryBucket> map,
+                                              ExtendedRecipeBookCategory group) {
+        EntryBucket bucket = map.get(group);
+        if (bucket == null) {
+            bucket = new EntryBucket();
+            map.put(group, bucket);
+        }
+        return bucket;
     }
 
     @Unique
@@ -256,9 +282,13 @@ public class ClientRecipeBookMixin {
         }
 
         private List<RecipeCollection> toCollections() {
-            return this.entries.stream()
-                    .map(entries -> new RecipeCollection(List.copyOf(entries)))
-                    .toList();
+            // 用显式循环而不是 stream+lambda：mixin 内的 lambda 会被 Mixin 重命名并刷
+            // 一行 INFO（见 rbip$bucketFor 的说明）。
+            List<RecipeCollection> out = new ArrayList<>(this.entries.size());
+            for (List<RecipeDisplayEntry> group : this.entries) {
+                out.add(new RecipeCollection(List.copyOf(group)));
+            }
+            return List.copyOf(out);
         }
     }
 }

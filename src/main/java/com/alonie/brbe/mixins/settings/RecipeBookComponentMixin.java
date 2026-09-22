@@ -8,6 +8,7 @@ import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.ConfigTipsHelper;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
@@ -53,9 +54,22 @@ public abstract class RecipeBookComponentMixin {
             int j = (this.height - BookLayout.TEXTURE_HEIGHT) / 2 + BookLayout.settingsY();
             this._$settingsButton = new ImageButton(i + BookLayout.SETTINGS_X_OFFSET, j,
                     BookLayout.settingsSize(), BookLayout.settingsSize(),
-                    BRBTextures.SETTINGS_BUTTON_SPRITES, button ->
-                    ConfigTipsHelper.openConfigScreen(BrbeConfig.class, Minecraft.getInstance().screen));
+                    BRBTextures.SETTINGS_BUTTON_SPRITES, this::brbe$openConfigFromSettings);
         }
+    }
+
+    /**
+     * 设置按钮回调。
+     *
+     * <p><b>为什么拆成方法 + 方法引用</b>：mixin 类里的 lambda 会被编译成合成方法，
+     * Mixin 必须重命名它们（否则与目标类同名合成方法冲突）并在 latest.log 打一行
+     * {@code Renaming synthetic method ...}；方法引用走 invokedynamic 的
+     * {@code MethodHandle}，与直接调用走同一套重映射（{@code transformMethodRef}），
+     * 不产生合成方法、不刷日志。</p>
+     */
+    @Unique
+    private void brbe$openConfigFromSettings(Button button) {
+        ConfigTipsHelper.openConfigScreen(BrbeConfig.class, Minecraft.getInstance().screen);
     }
 
     @Inject(method = "mouseClicked", at = @At("RETURN"), cancellable = true)

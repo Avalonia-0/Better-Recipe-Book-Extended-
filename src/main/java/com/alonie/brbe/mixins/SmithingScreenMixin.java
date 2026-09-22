@@ -10,6 +10,7 @@ import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.RecipeViewerOverlay;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.input.CharacterEvent;
@@ -59,16 +60,28 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
             }
 
             // NOTE : width and height are both 0
-            this.addRenderableWidget(new ImageButton(this.leftPos + 147, this.height / 2 - 75, 20, 18, BRBTextures.RECIPE_BOOK_BUTTON_SPRITES, (button) -> {
-                this._$recipeBookComponent.toggleVisibility();
-                if (!BetterRecipeBook.config.keepCentered) {
-                    this.leftPos = this._$recipeBookComponent.findLeftEdge(this.width, this.imageWidth);
-                }
-                button.setPosition(this.leftPos + 147, this.height / 2 - 75);
-            }));
+            this.addRenderableWidget(new ImageButton(this.leftPos + 147, this.height / 2 - 75, 20, 18, BRBTextures.RECIPE_BOOK_BUTTON_SPRITES, this::brbe$onRecipeBookButton));
 
             this.addWidget(this._$recipeBookComponent);
         }
+    }
+
+    /**
+     * 配方书开关按钮的回调。
+     *
+     * <p><b>为什么拆成方法 + 方法引用</b>：mixin 类里的 lambda 会被编译成合成方法，
+     * Mixin 必须重命名它们（否则与目标类同名合成方法冲突）并在 latest.log 打一行
+     * {@code Renaming synthetic method ...}；方法引用走 invokedynamic 的
+     * {@code MethodHandle}，与直接调用走同一套重映射（{@code transformMethodRef}），
+     * 不产生合成方法、不刷日志。</p>
+     */
+    @Unique
+    private void brbe$onRecipeBookButton(Button button) {
+        this._$recipeBookComponent.toggleVisibility();
+        if (!BetterRecipeBook.config.keepCentered) {
+            this.leftPos = this._$recipeBookComponent.findLeftEdge(this.width, this.imageWidth);
+        }
+        button.setPosition(this.leftPos + 147, this.height / 2 - 75);
     }
 
     @Override
