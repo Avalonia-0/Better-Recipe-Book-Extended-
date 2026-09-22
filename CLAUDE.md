@@ -1538,3 +1538,34 @@ scissor 绘制——保留悬出（与静态一致）且滑出时仍被裁（iss
 1.21.1-NeoForge（md5 `d45fcb195f37cec66642318b8bb29fb2`），备份 `20260911-174439`；
 jar 内两张贴图 md5 与源文件一致，包内 `recipe_book` 覆盖贴图 25→27 张。
 **待用户实测**：有查询窗口时一次 ESC 关闭窗口且界面照常退出；深色主题下工作站列（含顶到框顶的变体）为深绿。
+
+## 2026-09-22：调试日志统一到 `-Dbrbe.debug` 开关 + 四个日志工具精简为一个
+
+用户需求：日志输出改由一个 JVM 参数启用并精简日志工具，目标四分支（本分支**暂不部署**）。
+26.3 为参照实现（见其 CLAUDE.md 同名轮次）。本分支代码已改并编译通过，**未部署**。
+
+**四个日志类 → 一个出口**：
+- `BrbeLogger`：用 26.3 版逐字节覆盖（md5 `57a1708a4829b52c991e4ff329c6bf16`）。
+  API 变为 `isEnabled()` / `init(Path)` / `log(tag, "{}…", args)` / `log(tag, msg, Throwable)`；
+  **删掉 `Category` 枚举**（原调用点改自由标签）、不再用 `String.format`。
+- `RecipeBookDebugLogger`：保留类（6 个 RBIP 调用点），但 `enabled` 字段 → `enabled()`
+  （= `BrbeLogger.isEnabled()`），18 处输出全部走 `BrbeLogger.log("BRBE-DEBUG", …)`，
+  不再有自己的 logger；`verboseCollections` 子开关保留。
+- `RecipeStateDiagnostic`：保留，`enabled()` = `BrbeLogger.isEnabled()`（本分支原本无属性、无条件跑），
+  输出走 `BrbeLogger.log("BRBE-DIAG", …)`，删自带 logger。**调用点补了 `enabled()` 守卫**
+  （原先每次物品栏刷新都对全部配方做一遍 QA 预测——这是本轮唯一的行为/性能改动）。
+- `BrbeDiagnostic`：保留（显式 dump 工具，仍写 `brbe-diagnostic.log`），2 处 `LOGGER.info` 门控，
+  3 个调用点未动。
+
+**数字**：`BrbeLogger.log` **87** 处；保留 `LOGGER.warn/error` **28**；
+残留 `LOGGER.info/debug` 0、裸 `System.out/err.print` 0、`brbe.diagnostics` 0、`%s/%d` 残留 0。
+
+**其它**：`ConfigEventBus` 裸 `e.printStackTrace()` → `LOGGER.warn`；`JsonPinStore` 两处
+`System.err` → `LOGGER.warn`；`PerfTimer` 整体跟随开关（此前每轮管线都往 latest.log 打分段时间——
+若日后要"不开 debug 也测性能"需回退这一行 guard）；`MultiPlayerGameModeMixin` 里注释掉的
+`//System.out.println` 删除；**`RecipeViewerFeatureFlag`（`brbe.disableRecipeViewer`）未动**——
+它是行为开关不是日志埋点。
+
+**编译**：`JAVA_HOME=/usr/lib/jvm/java-21-openjdk sh gradlew :common:compileJava :fabric:compileJava
+:neoforge:compileJava` 三模块通过（并 `rm -rf */build/classes` 强制全量重编复核）；
+`build -x test -x check` 亦通过。**按用户要求未部署任何 1.21.1 实例。**

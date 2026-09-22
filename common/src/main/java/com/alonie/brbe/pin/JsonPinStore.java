@@ -39,7 +39,8 @@ public final class JsonPinStore implements PinStore {
             Set<ResourceLocation> result = GSON.fromJson(json, SET_TYPE);
             return result != null ? result : new HashSet<>();
         } catch (IOException e) {
-            System.err.println("[BRBE] Failed to read pins file: " + e.getMessage());
+            com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
+                    "[BRBE] Failed to read pins file: {}", e.getMessage());
             return new HashSet<>();
         }
     }
@@ -53,7 +54,8 @@ public final class JsonPinStore implements PinStore {
                 Files.createDirectories(path.getParent());
                 Files.writeString(path, json, StandardCharsets.UTF_8);
             } catch (IOException e) {
-                System.err.println("[BRBE] Failed to write pins file: " + e.getMessage());
+                com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
+                        "[BRBE] Failed to write pins file: {}", e.getMessage());
             }
         });
     }

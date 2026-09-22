@@ -332,7 +332,7 @@ public final class RecipeViewerOverlay {
         RecipeViewerCategory cat = RecipeViewerCategories.defaultFor(
                 target, usage, screen == null ? null : screen.getMenu());
         if (cat == null) {
-            BetterRecipeBook.LOGGER.info("[BRBE-VIEWER] open refused: no category item={} usage={}",
+            BrbeLogger.log("BRBE-VIEWER", "open refused: no category item={} usage={}",
                     target.getHoverName().getString(), usage);
             // 1.21.11 语义：BRBE 引擎无命中 → 回退外部 viewer（JEI/REI）；
             // hide 开启时抑制回退（BRBE 无法判定的对象不泄漏给外部 viewer）。
@@ -353,7 +353,7 @@ public final class RecipeViewerOverlay {
         if (!hasActualContent(cat)) {
             RecipeViewerCategory alt = bestContentCategory(target, usage, cat);
             if (alt == null) {
-                BetterRecipeBook.LOGGER.info("[BRBE-VIEWER] open refused: empty content cat={} item={} usage={}",
+                BrbeLogger.log("BRBE-VIEWER", "open refused: empty content cat={} item={} usage={}",
                         cat.id(), target.getHoverName().getString(), usage);
                 if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
                     return false;
@@ -381,7 +381,7 @@ public final class RecipeViewerOverlay {
         viewerZ = com.alonie.brbe.pinoverlay.PinOverlayManager.nextZ();
         com.alonie.brbe.cache.RecipeViewerIndex.setViewerActive(true);
         com.alonie.brbe.cache.RecipeViewerIndex.setViewerOpenedFromBook(anchorBookButton != null);
-        BetterRecipeBook.LOGGER.info("[BRBE-VIEWER] opened cat={} entries={} pages={} item={} usage={}",
+        BrbeLogger.log("BRBE-VIEWER", "opened cat={} entries={} pages={} item={} usage={}",
                 cat.id(), entries.size(), pageCount, target.getHoverName().getString(), usage);
         return true;
     }

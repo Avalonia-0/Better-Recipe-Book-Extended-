@@ -60,7 +60,8 @@ public final class EmiCompat {
                     .invoke(null, emiStack);
             return true;
         } catch (ReflectiveOperationException e) {
-            BetterRecipeBook.LOGGER.debug("[BRBE] EMI view failed via {}: {}", methodName, e.getMessage());
+            com.alonie.brbe.util.BrbeLogger.log("BRBE",
+                    "EMI view failed via {}: {}", methodName, e.getMessage());
             return false;
         }
     }

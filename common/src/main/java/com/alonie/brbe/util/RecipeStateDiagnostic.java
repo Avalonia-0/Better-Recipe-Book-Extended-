@@ -16,8 +16,6 @@ import net.minecraft.world.item.crafting.Recipe;
 import net.minecraft.world.item.crafting.RecipeHolder;
 import net.minecraft.world.item.crafting.ShapedRecipe;
 import net.minecraft.world.item.crafting.ShapelessRecipe;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.*;
 
@@ -46,13 +44,24 @@ import java.util.*;
  * {@code isCraftable()} 与 {@code isPartiallyCraftable()} 绝不都为真。
  * 残缺配方带 partial 标签、不进语义 craftable 集合；真正可合成配方仅
  * 由原版 {@code canCraft} 决定。本诊断的"互斥破坏"分支硬性检查该不变量。</p>
+ *
+ * <p><b>开关</b>：{@link #enabled()} 跟随 {@link BrbeLogger}（{@code -Dbrbe.debug=true}），
+ * 输出经 {@link BrbeLogger#log} 写入 {@code logs/brbe-debug.log}，不再占用
+ * {@code latest.log}（关闭时调用点空操作）。</p>
  */
 public final class RecipeStateDiagnostic {
 
-    private static final Logger LOG = LogManager.getLogger("brbe-diag");
+    /** 诊断默认关闭：这是开发期 QA 工具，每次物品栏刷新会对全部配方做一遍
+     *  独立状态预测，生产路径开启会显著拖慢配方书刷新。
+     *  与其它调试日志共用同一个开关：{@code -Dbrbe.debug=true}。 */
     private static long lastDiagnosticSlotHash;
 
     private RecipeStateDiagnostic() {}
+
+    /** 诊断开关（跟随 {@link BrbeLogger}：系统属性 {@code brbe.debug}，默认关）。 */
+    public static boolean enabled() {
+        return BrbeLogger.isEnabled();
+    }
 
     /** 独立预测的状态 */
     enum PredictedState { CRAFTABLE, PARTIAL, UNCRAFTABLE, UNKNOWN }
@@ -84,9 +93,9 @@ public final class RecipeStateDiagnostic {
             }
         }
 
-        LOG.warn("══════════════════════════════════════════════");
-        LOG.warn("[BRBE-DIAG] 物品栏刷新 — 配方状态合格性检测开始");
-        LOG.warn("[BRBE-DIAG] slotHash=0x{} 集合数={} 库存物品={}",
+        BrbeLogger.log("BRBE-DIAG", "══════════════════════════════════════════════");
+        BrbeLogger.log("BRBE-DIAG", "物品栏刷新 — 配方状态合格性检测开始");
+        BrbeLogger.log("BRBE-DIAG", "slotHash=0x{} 集合数={} 库存物品={}",
                 Long.toHexString(hash), processedCollections.size(), inventoryCounts.size());
 
         int total = 0, valid = 0, invalid = 0, skipped = 0;
@@ -177,19 +186,19 @@ public final class RecipeStateDiagnostic {
             }
         }
 
-        LOG.warn("[BRBE-DIAG] 检测完成: 总计={} 合格={} 不合格={} 无法推测={}",
+        BrbeLogger.log("BRBE-DIAG", "检测完成: 总计={} 合格={} 不合格={} 无法推测={}",
                 total, valid, invalid, skipped);
 
         if (!invalidByCollection.isEmpty()) {
-            LOG.warn("[BRBE-DIAG] ── 不合格配方详情 ──");
+            BrbeLogger.log("BRBE-DIAG", "── 不合格配方详情 ──");
             for (var e : invalidByCollection.entrySet()) {
-                LOG.warn("[BRBE-DIAG] {}", e.getKey());
-                e.getValue().forEach(line -> LOG.warn("[BRBE-DIAG]   {}", line));
+                BrbeLogger.log("BRBE-DIAG", "{}", e.getKey());
+                e.getValue().forEach(line -> BrbeLogger.log("BRBE-DIAG", "  {}", line));
             }
         }
 
-        LOG.warn("[BRBE-DIAG] 库存: {}", snapshot(menuSlots));
-        LOG.warn("══════════════════════════════════════════════");
+        BrbeLogger.log("BRBE-DIAG", "库存: {}", snapshot(menuSlots));
+        BrbeLogger.log("BRBE-DIAG", "══════════════════════════════════════════════");
     }
 
     // ═══════════ 调查 1：独立材料预测（旧式 Recipe 模型） ═══════════

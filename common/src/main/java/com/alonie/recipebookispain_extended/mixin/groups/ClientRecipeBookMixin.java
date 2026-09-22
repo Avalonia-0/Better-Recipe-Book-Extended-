@@ -52,7 +52,7 @@ public abstract class ClientRecipeBookMixin {
         if (!RecipeBookIsPainExtendedConfig.enabled()
                 || RecipeBookIsPain.activeCreativeTab == null
                 || category != RecipeBookCategories.UNKNOWN) {
-            if (RecipeBookDebugLogger.enabled && category == RecipeBookCategories.UNKNOWN) {
+            if (RecipeBookDebugLogger.enabled() && category == RecipeBookCategories.UNKNOWN) {
                 RecipeBookDebugLogger.onRbipFilterCollections(
                         category.name(), 0, 0, RecipeBookIsPain.activeCreativeTab != null);
             }

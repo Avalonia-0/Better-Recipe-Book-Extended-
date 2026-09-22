@@ -4,6 +4,7 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.mixins.accessors.CreativeModeTabsAccessor;
 import com.alonie.brbe.config.AppContext;
 import com.alonie.brbe.config.ConfigEventBus;
+import com.alonie.brbe.util.BrbeLogger;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
@@ -134,11 +135,11 @@ public class RecipeBookIsPain {
     // ── Initialization ────────────────────────────────────────────
 
     public static synchronized void ensureInitialized() {
-        LOGGER.info("[RBIP] ensureInitialized() — init={}, attempted={}, enabled={}",
+        BrbeLogger.log("RBIP", "ensureInitialized() — init={}, attempted={}, enabled={}",
                 initialized, initAttempted, RecipeBookIsPainExtendedConfig.enabled());
 
         if (!RecipeBookIsPainExtendedConfig.enabled()) {
-            LOGGER.info("[RBIP] DISABLED — skipping init");
+            BrbeLogger.log("RBIP", "DISABLED — skipping init");
             if (initialized) {
                 initialized = false;
                 recipeGeneration++;
@@ -155,9 +156,9 @@ public class RecipeBookIsPain {
 
         Minecraft client = Minecraft.getInstance();
         if (client == null) { LOGGER.warn("[RBIP] client is null"); return; }
-        if (client.level == null) { LOGGER.info("[RBIP] no level yet — defer"); return; }
+        if (client.level == null) { BrbeLogger.log("RBIP", "no level yet — defer"); return; }
 
-        LOGGER.info("[RBIP] Initializing...");
+        BrbeLogger.log("RBIP", "Initializing...");
 
         try {
             CRAFTING_LIST.clear();
@@ -212,7 +213,8 @@ public class RecipeBookIsPain {
             // inventory has not been opened yet.  NeoForge does not have this
             // issue because it uses Mojang names directly.
             if (tabCount == 0) {
-                LOGGER.info("[RBIP] getDisplayItems() returned empty — falling back to BuiltInRegistries.ITEM scan");
+                BrbeLogger.log("RBIP",
+                        "getDisplayItems() returned empty — falling back to BuiltInRegistries.ITEM scan");
                 for (Item item : net.minecraft.core.registries.BuiltInRegistries.ITEM) {
                     ItemStack stack = new ItemStack(item);
                     if (stack.isEmpty()) continue;
@@ -263,7 +265,7 @@ public class RecipeBookIsPain {
             // 这确保红石火把等物品也能在红石方块标签页中显示。
             applyTabOverrides();
 
-            LOGGER.info("[RBIP] OK — {} tabs, {} items mapped (strategy: {})",
+            BrbeLogger.log("RBIP", "OK — {} tabs, {} items mapped (strategy: {})",
                     CRAFTING_LIST.size(), ITEM_TO_TAB.size(),
                     tabCount > 0 ? "getDisplayItems" : "registry scan");
         } catch (Exception e) {
@@ -285,14 +287,14 @@ public class RecipeBookIsPain {
      */
     public static void init(ConfigEventBus events) {
         events.subscribe(ConfigEventBus.ConfigChanged.class, event -> {
-            LOGGER.info("[RBIP] ConfigChanged event received");
+            BrbeLogger.log("RBIP", "ConfigChanged event received");
             onConfigChanged();
         });
-        LOGGER.info("[RBIP] Subscribed to ConfigEventBus");
+        BrbeLogger.log("RBIP", "Subscribed to ConfigEventBus");
     }
 
     public static void onConfigChanged() {
-        LOGGER.info("[RBIP] onConfigChanged()");
+        BrbeLogger.log("RBIP", "onConfigChanged()");
         initialized = false;
         initAttempted = false;
         recipeGeneration++;
@@ -384,7 +386,7 @@ public class RecipeBookIsPain {
             // 覆盖主映射
             ITEM_TO_TAB.put(item, targetTab);
 
-            LOGGER.info("[RBIP] Tab override: moved '{}' exclusively to '{}'",
+            BrbeLogger.log("RBIP", "Tab override: moved '{}' exclusively to '{}'",
                     entry.getKey(), tabId.getPath());
         }
     }

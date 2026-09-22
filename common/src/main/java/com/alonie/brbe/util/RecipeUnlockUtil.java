@@ -10,14 +10,9 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.crafting.RecipeManager;
 import net.minecraft.world.item.crafting.RecipeHolder;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import java.util.Set;
 
 public class RecipeUnlockUtil {
-
-    private static final Logger LOG = LogManager.getLogger("brbe-diag");
 
     /** 上次生效的 unlockAll 状态，用于检测配置切换。 */
     private static Boolean lastUnlockAll;
@@ -110,7 +105,7 @@ public class RecipeUnlockUtil {
             coll.updateKnownRecipes(recipeBook);
             if (coll.hasKnownRecipes()) knownColls++;
         }
-        LOG.warn("[BRBE-DIAG] unlockRecipes DONE: collections={} knownColls={}",
+        BrbeLogger.log("BRBE-DIAG", "unlockRecipes DONE: collections={} knownColls={}",
                 recipeBook.getCollections().size(), knownColls);
         if (minecraft.screen instanceof RecipeUpdateListener rul) {
             rul.recipesUpdated();

@@ -12,7 +12,7 @@ public class BRBBookSettings {
 
     public static void registerBook(BRBHelper.Book book) {
         if (book == null) return;
-        BetterRecipeBook.LOGGER.info("Registering book {}", book.resourceLocation);
+        com.alonie.brbe.util.BrbeLogger.log("BRBE", "Registering book {}", book.resourceLocation);
         states.put(book.resourceLocation, new TypeSettings(false, false));
     }
 

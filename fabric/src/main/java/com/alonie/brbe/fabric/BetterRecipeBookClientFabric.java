@@ -36,6 +36,11 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        // 调试日志总闸门：只有 -Dbrbe.debug=true 时才创建 logs/brbe-debug.log；
+        // 未开启时 BrbeLogger 的所有调用都是空操作（latest.log 不再被调试输出刷屏）。
+        // 幂等：common 的 BetterRecipeBook.init() 已调用过时内部直接返回（writer != null）。
+        com.alonie.brbe.util.BrbeLogger.init(Minecraft.getInstance().gameDirectory.toPath());
+
         // Register key mappings (previously in common via Architectury KeyMappingRegistry)
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.PIN_MAPPING);
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.DIAGNOSTIC_MAPPING);
@@ -79,10 +84,10 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         // Initialize RBIP platform (Fabric)
         RecipeBookIsPain.PLATFORM = new FabricPlatform();
         RecipeBookIsPain.isOwOLoaded = RecipeBookIsPain.PLATFORM.isModLoaded("owo");
-        RecipeBookIsPain.LOGGER.info("[RBIP] Fabric platform initialized");
-        RecipeBookIsPain.LOGGER.info(RecipeBookIsPain.diagnostic());
+        com.alonie.brbe.util.BrbeLogger.log("RBIP", "Fabric platform initialized");
+        com.alonie.brbe.util.BrbeLogger.log("RBIP", "{}", RecipeBookIsPain.diagnostic());
         RecipeBookIsPain.ensureInitialized();
-        RecipeBookIsPain.LOGGER.info(RecipeBookIsPain.diagnostic());
+        com.alonie.brbe.util.BrbeLogger.log("RBIP", "{}", RecipeBookIsPain.diagnostic());
 
         // Register optional compat handlers
         ReiCompat.register();

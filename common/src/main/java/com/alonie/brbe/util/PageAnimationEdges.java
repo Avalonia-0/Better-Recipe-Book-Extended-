@@ -69,7 +69,7 @@ public final class PageAnimationEdges {
         lastLoggedLeft = l;
         lastLoggedRight = r;
         lastLoggedSource = source;
-        BetterRecipeBook.LOGGER.info("[BRBE-EDGE] {} left={} right={} source={}", EDGE_WIDTH_ID, l, r, source);
+        BrbeLogger.log("BRBE-EDGE", "{} left={} right={} source={}", EDGE_WIDTH_ID, l, r, source);
     }
 
     private record Edges(int left, int right) {

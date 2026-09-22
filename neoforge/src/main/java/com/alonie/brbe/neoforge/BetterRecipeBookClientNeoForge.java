@@ -41,6 +41,11 @@ public class BetterRecipeBookClientNeoForge {
 
     public static void init(IEventBus modEventBus) {
 
+        // 调试日志总闸门：只有 -Dbrbe.debug=true 时才创建 logs/brbe-debug.log；
+        // 未开启时 BrbeLogger 的所有调用都是空操作（latest.log 不再被调试输出刷屏）。
+        // 幂等：common 的 BetterRecipeBook.init() 已调用过时内部直接返回（writer != null）。
+        com.alonie.brbe.util.BrbeLogger.init(Minecraft.getInstance().gameDirectory.toPath());
+
         // Register key mappings (A = pin recipe, R = view recipe, U = view usage,
         // F8 = diagnostic dump).  R/U 此前在 neoforge 端漏注册（fabric 对称注册）——
         // 未注册的 KeyMapping 不进入 options.keyMappings，控制界面不可见且无法重绑。
@@ -107,13 +112,13 @@ public class BetterRecipeBookClientNeoForge {
         // Initialize RBIP platform (NeoForge)
         RecipeBookIsPain.PLATFORM = new NeoForgePlatform();
         RecipeBookIsPain.isOwOLoaded = RecipeBookIsPain.PLATFORM.isModLoaded("owo");
-        RecipeBookIsPain.LOGGER.info("[RBIP] NeoForge platform initialized");
+        com.alonie.brbe.util.BrbeLogger.log("RBIP", "NeoForge platform initialized");
 
         // Defer REI compat + RBIP init until first screen load
         ReiCompat.register();
         EmiCompat.register();
         RecipeBookIsPain.ensureInitialized();
-        RecipeBookIsPain.LOGGER.info(RecipeBookIsPain.diagnostic());
+        com.alonie.brbe.util.BrbeLogger.log("RBIP", "{}", RecipeBookIsPain.diagnostic());
 
         NeoForge.EVENT_BUS.addListener(ScreenEvent.Init.Post.class, event -> {
             Screen screen = event.getScreen();

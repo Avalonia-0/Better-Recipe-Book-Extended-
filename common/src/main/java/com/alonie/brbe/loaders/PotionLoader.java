@@ -27,11 +27,11 @@ public class PotionLoader {
             POTIONS.add(new BrewableResult(potionRecipe));
         }
 
-        BetterRecipeBook.LOGGER.info("Loaded %d potions.".formatted(POTIONS.size()));
+        com.alonie.brbe.util.BrbeLogger.log("BRBE", "Loaded {} potions.", POTIONS.size());
     }
 
     public static void clear() {
-        BetterRecipeBook.LOGGER.info("Clearing potions...");
+        com.alonie.brbe.util.BrbeLogger.log("BRBE", "Clearing potions...");
         clearNoLog();
     }
 

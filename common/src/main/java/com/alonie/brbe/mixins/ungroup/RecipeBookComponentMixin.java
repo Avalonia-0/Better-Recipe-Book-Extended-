@@ -73,8 +73,8 @@ public class RecipeBookComponentMixin {
             return;
         }
 
-        BrbeLogger.log(BrbeLogger.Category.PIPELINE,
-                "ungroup ENTER — n=%d pCE=%s isFiltering=%s",
+        BrbeLogger.log("PIPELINE",
+                "ungroup ENTER — n={} pCE={} isFiltering={}",
                 list2.size(),
                 BetterRecipeBook.ctx().config().partialCraftingEnabled,
                 book.isFiltering(menu));
@@ -130,8 +130,8 @@ public class RecipeBookComponentMixin {
             CollectionPipeline.applyPins(list2);
         }
 
-        BrbeLogger.log(BrbeLogger.Category.PIPELINE,
-                "ungroup EXIT — final n=%d calling page.updateCollections", list2.size());
+        BrbeLogger.log("PIPELINE",
+                "ungroup EXIT — final n={} calling page.updateCollections", list2.size());
 
         recipeBookPage.updateCollections(list2, bl);
         ci.cancel();

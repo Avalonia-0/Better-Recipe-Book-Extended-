@@ -157,8 +157,8 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
                 && minecraft.screen instanceof EffectRenderingInventoryScreen;
 
         if (forceRefresh) {
-            BrbeLogger.log(BrbeLogger.Category.PIPELINE,
-                    "forceRefresh consumed, hashChanged=%s",
+            BrbeLogger.log("PIPELINE",
+                    "forceRefresh consumed, hashChanged={}",
                     slotHash != brbe$lastSlotHash);
         }
 
@@ -195,16 +195,19 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
             brbe$lastFirstCollIdHash = firstCollHash;
         }
 
-        // Diagnostic: count craftable state before pipeline
+        // Diagnostic: count craftable state before pipeline.
+        // 仅 -Dbrbe.debug=true 时统计（O(n) 计数只为调试日志服务）。
         int diagCraftableBefore = 0;
         int diagKnown = 0;
-        for (RecipeCollection c : collections) {
-            if (c.hasCraftable()) diagCraftableBefore++;
-            if (c.hasKnownRecipes()) diagKnown++;
+        if (BrbeLogger.isEnabled()) {
+            for (RecipeCollection c : collections) {
+                if (c.hasCraftable()) diagCraftableBefore++;
+                if (c.hasKnownRecipes()) diagKnown++;
+            }
+            BrbeLogger.log("BRBE-DIAG",
+                    "forEach: total={} known={} craftable={}",
+                    collections.size(), diagKnown, diagCraftableBefore);
         }
-        com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
-                "[BRBE-DIAG] forEach: total={} known={} craftable={}",
-                collections.size(), diagKnown, diagCraftableBefore);
 
         Set<Item> inventoryItems = PartialCraftingUtil.hashInventory(
                 menu.slots, menu.getResultSlotIndex(), carried);
@@ -250,26 +253,28 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
             }
         }
 
-        // Diagnostic: count craftable state after pipeline
+        // Diagnostic: count craftable state after pipeline（仅调试开关开启时统计）。
         int diagCraftableAfter = 0;
         int diagPartialAfter = 0;
-        for (RecipeCollection c : collections) {
-            if (c.hasCraftable()) diagCraftableAfter++;
-            if (PartialCraftingUtil.hasPartialMaterials(c)) diagPartialAfter++;
-        }
-        com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
-                "[BRBE-DIAG] forEachRedirect: invChanged={} onInv={} "
-                + "totalColls={} craftableBefore={} craftableAfter={} partialAfter={}",
-                inventoryChanged, onInventory, collections.size(),
-                diagCraftableBefore, diagCraftableAfter, diagPartialAfter);
+        if (BrbeLogger.isEnabled()) {
+            for (RecipeCollection c : collections) {
+                if (c.hasCraftable()) diagCraftableAfter++;
+                if (PartialCraftingUtil.hasPartialMaterials(c)) diagPartialAfter++;
+            }
+            BrbeLogger.log("BRBE-DIAG",
+                    "forEachRedirect: invChanged={} onInv={} "
+                    + "totalColls={} craftableBefore={} craftableAfter={} partialAfter={}",
+                    inventoryChanged, onInventory, collections.size(),
+                    diagCraftableBefore, diagCraftableAfter, diagPartialAfter);
 
-        // Diagnostic: log when entering forEach with snapshot of list size.
-        // Paired with pageUpdateRedirect to detect if vanilla empties list2.
-        if (collections != null && collections.size() < 50) {
-            com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
-                    "[BRBE-DIAG] forEachRedirect: small list size={} "
-                    + "onInventory={} invChanged={}",
-                    collections.size(), onInventory, inventoryChanged);
+            // Diagnostic: log when entering forEach with snapshot of list size.
+            // Paired with pageUpdateRedirect to detect if vanilla empties list2.
+            if (collections != null && collections.size() < 50) {
+                BrbeLogger.log("BRBE-DIAG",
+                        "forEachRedirect: small list size={} "
+                        + "onInventory={} invChanged={}",
+                        collections.size(), onInventory, inventoryChanged);
+            }
         }
 
         PerfTimer.logAndReset("updateCollections");
@@ -292,19 +297,22 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         boolean partialMarking = BetterRecipeBook.ctx().config().partialMarkingEnabled;
 
         // Diagnostic: category + known count of the list after vanilla removeIf
-        int knownAfter = 0;
-        if (list != null) {
-            for (RecipeCollection c : list) if (c.hasKnownRecipes()) knownAfter++;
+        // （仅调试开关开启时统计）。
+        if (BrbeLogger.isEnabled()) {
+            int knownAfter = 0;
+            if (list != null) {
+                for (RecipeCollection c : list) if (c.hasKnownRecipes()) knownAfter++;
+            }
+            BrbeLogger.log("BRBE-DIAG",
+                    "pageUpdateRedirect: listSize={} known={} onInv={} tab={}",
+                    list == null ? -1 : list.size(), knownAfter, onInventory,
+                    this.getSelectedTab() != null
+                            ? this.getSelectedTab().getCategory() : "null");
         }
-        com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
-                "[BRBE-DIAG] pageUpdateRedirect: listSize={} known={} onInv={} tab={}",
-                list == null ? -1 : list.size(), knownAfter, onInventory,
-                this.getSelectedTab() != null
-                        ? this.getSelectedTab().getCategory() : "null");
 
         if (list == null || list.isEmpty()) {
-            com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
-                    "[BRBE-DIAG] pageUpdateRedirect: vanilla passed EMPTY list! "
+            BrbeLogger.log("BRBE-DIAG",
+                    "pageUpdateRedirect: vanilla passed EMPTY list! "
                     + "onInventory={} pCE={} pME={} isFiltering={} lastSearch='{}'",
                     onInventory, partialCrafting, partialMarking,
                     minecraft != null && minecraft.player != null
@@ -372,8 +380,8 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         }
 
         if (result.isEmpty()) {
-            BetterRecipeBook.LOGGER.warn(
-                    "[BRBE-DIAG] pageUpdateRedirect: prepareDisplay returned EMPTY! "
+            BrbeLogger.log("BRBE-DIAG",
+                    "pageUpdateRedirect: prepareDisplay returned EMPTY! "
                     + "inputSize={} onInventory={} isFiltering={} noGrouped={}",
                     list.size(), onInventory, isFiltering,
                     BetterRecipeBook.ctx().config().alternativeRecipes.noGrouped);
@@ -384,8 +392,8 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         var pageAccessor = (com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor) page;
         List<RecipeCollection> stored = pageAccessor.getCollections();
         if (stored != null && stored.isEmpty() && !result.isEmpty()) {
-            BetterRecipeBook.LOGGER.warn(
-                    "[BRBE-DIAG] pageUpdateRedirect: vanilla page.updateCollections "
+            BrbeLogger.log("BRBE-DIAG",
+                    "pageUpdateRedirect: vanilla page.updateCollections "
                     + "EMPTIED our list! input={} stored=0", result.size());
         }
     }
@@ -403,7 +411,7 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         if (!AppContext.instance().events().consumeConfigChange()) return;
         if (!this.getVisible()) return;
 
-        BrbeLogger.log(BrbeLogger.Category.RENDER, "configChanged — tick rebuild");
+        BrbeLogger.log("RENDER", "configChanged — tick rebuild");
 
         if (minecraft != null && minecraft.player != null) {
             minecraft.player.getRecipeBook().setFiltering(
@@ -489,8 +497,8 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
                 .pinnedManager(BetterRecipeBook.pinnedRecipeManager)
                 .build();
 
-        BrbeLogger.log(BrbeLogger.Category.STATE,
-                "initVisuals TAIL — %d collections", collections.size());
+        BrbeLogger.log("STATE",
+                "initVisuals TAIL — {} collections", collections.size());
 
         // State already updated by updateRecipeState via @Redirect
         // List.forEach in updateCollections().  Only prepare display here.

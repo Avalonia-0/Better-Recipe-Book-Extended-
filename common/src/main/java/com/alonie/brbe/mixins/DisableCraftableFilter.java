@@ -32,8 +32,8 @@ public abstract class DisableCraftableFilter {
     @Inject(method = "initVisuals", at = @At("TAIL"))
     private void brbe$hideFilterButton(CallbackInfo ci) {
         boolean shouldHide = BetterRecipeBook.ctx().config().partialCraftingEnabled;
-        BrbeLogger.log(BrbeLogger.Category.FILTER,
-                "DisableCraftableFilter — pCE=%s hiding=%s", shouldHide, shouldHide);
+        BrbeLogger.log("FILTER",
+                "DisableCraftableFilter — pCE={} hiding={}", shouldHide, shouldHide);
         if (!shouldHide) return;
         this.filterButton.visible = false;
         this.filterButton.active = false;

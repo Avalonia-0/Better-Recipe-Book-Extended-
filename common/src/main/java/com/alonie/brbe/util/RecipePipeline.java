@@ -80,8 +80,8 @@ public final class RecipePipeline {
         // -- One-shot diagnostic: log conditions on first onInventory call -
         if (!brbe$diagnosticLogged && ctx.onInventoryScreen) {
             brbe$diagnosticLogged = true;
-            com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
-                    "[BRBE-DIAG] updateRecipeState on inventory screen: "
+            com.alonie.brbe.util.BrbeLogger.log("BRBE-DIAG",
+                    "updateRecipeState on inventory screen: "
                     + "showAll={}, partialMarking={}, inventoryChanged={}, "
                     + "menuSlots={}, collectionCount={}",
                     ctx.showAllRecipesInSurvival,
@@ -175,7 +175,9 @@ public final class RecipePipeline {
         }
 
         // ── 诊断：每次物品栏刷新后检查配方状态 ──
-        if (ctx.menuSlots != null) {
+        // 默认关闭（-Dbrbe.debug=true 开启）：这是开发期 QA 工具，生产路径开启
+        // 会对全部配方做一遍独立状态预测，显著拖慢配方书刷新。
+        if (ctx.menuSlots != null && RecipeStateDiagnostic.enabled()) {
             RecipeStateDiagnostic.run(collections, ctx.menuSlots, ctx.carried);
         }
     }
@@ -219,8 +221,8 @@ public final class RecipePipeline {
                 }
             }
         }
-        com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
-                "[BRBE-DIAG] pre-check: total3x3={} skippedCraftable={} elevated={} carriedHeld={}",
+        com.alonie.brbe.util.BrbeLogger.log("BRBE-DIAG",
+                "pre-check: total3x3={} skippedCraftable={} elevated={} carriedHeld={}",
                 total3x3, skippedCraftable, elevated, carriedHeld);
     }
 
@@ -245,8 +247,8 @@ public final class RecipePipeline {
             PipelineContext ctx) {
 
         if (collections == null || collections.isEmpty()) {
-            com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
-                    "[BRBE-DIAG] prepareDisplay: input collections is null or empty");
+            com.alonie.brbe.util.BrbeLogger.log("BRBE-DIAG",
+                    "prepareDisplay: input collections is null or empty");
             return collections;
         }
 
@@ -254,8 +256,8 @@ public final class RecipePipeline {
         List<RecipeCollection> visible = applyVisibility(collections, ctx);
 
         if (visible.isEmpty()) {
-            com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
-                    "[BRBE-DIAG] prepareDisplay: applyVisibility returned EMPTY! "
+            com.alonie.brbe.util.BrbeLogger.log("BRBE-DIAG",
+                    "prepareDisplay: applyVisibility returned EMPTY! "
                     + "input={} onInventory={} showAll={}",
                     collections.size(), ctx.onInventoryScreen,
                     ctx.showAllRecipesInSurvival);
@@ -265,8 +267,8 @@ public final class RecipePipeline {
         List<RecipeCollection> result = applySorting(visible, ctx);
 
         if (result.isEmpty() && !visible.isEmpty()) {
-            com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
-                    "[BRBE-DIAG] prepareDisplay: applySorting emptied the list! "
+            com.alonie.brbe.util.BrbeLogger.log("BRBE-DIAG",
+                    "prepareDisplay: applySorting emptied the list! "
                     + "visible={} isFiltering={} partialMarking={}",
                     visible.size(), ctx.isFiltering, ctx.partialMarkingEnabled);
         }
@@ -341,8 +343,8 @@ public final class RecipePipeline {
                 ca.getFitsDimensions().addAll(c.getRecipes());
                 repopulated += ca.getFitsDimensions().size();
             }
-            com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
-                    "[BRBE-DIAG] applyVisibility crafting-table: "
+            com.alonie.brbe.util.BrbeLogger.log("BRBE-DIAG",
+                    "applyVisibility crafting-table: "
                     + "collections={} totalRecipes={} hadEmptyFit={} "
                     + "finalFitEntries={} invChanged={} sortEnabled={}",
                     working.size(), totalRecipes, emptyFit,
@@ -423,8 +425,8 @@ public final class RecipePipeline {
         // uncraftable recipes.  applyPartialSort internally puts pinned
         // recipes first, so no explicit applyPins needed here.
         if (ctx.isFiltering) {
-            com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
-                    "[BRBE-DIAG] applySorting: isFiltering=true — "
+            com.alonie.brbe.util.BrbeLogger.log("BRBE-DIAG",
+                    "applySorting: isFiltering=true — "
                     + "sort craftable→partial + filter uncraftable");
             working = CollectionPipeline.applyPartialSort(
                     working, ctx.partialMarkingEnabled);
@@ -434,8 +436,8 @@ public final class RecipePipeline {
 
         // -- BRBE managed sort -----------------------------------------
         if (ctx.brbeSortEnabled) {
-            com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
-                    "[BRBE-DIAG] applySorting: RUNNING (brbeSortEnabled=true,"
+            com.alonie.brbe.util.BrbeLogger.log("BRBE-DIAG",
+                    "applySorting: RUNNING (brbeSortEnabled=true,"
                     + " partialMarking={})", ctx.partialMarkingEnabled);
             // When partialMarkingEnabled=true: three-way sort
             // (TRULY_CRAFTABLE → PARTIAL → UNASSIGNED).
@@ -449,8 +451,8 @@ public final class RecipePipeline {
         }
 
         // -- Vanilla order — but pins ALWAYS go first ------------------
-        com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
-                "[BRBE-DIAG] applySorting: pins only (vanilla order)");
+        com.alonie.brbe.util.BrbeLogger.log("BRBE-DIAG",
+                "applySorting: pins only (vanilla order)");
         CollectionPipeline.applyPins(working);
         return working;
     }

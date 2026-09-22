@@ -417,8 +417,8 @@ public final class CollectionPipeline {
             PIN_COPIES.add(pinPack);
             restPacks.put(collection, restPack);
             pinPacks.add(pinPack);
-            BetterRecipeBook.LOGGER.info(
-                    "[BRBE-PINS] pin-extract: {} recipes, {} pinned variants -> rest {} + pin-group {}",
+            BrbeLogger.log("BRBE-PINS",
+                    "pin-extract: {} recipes, {} pinned variants -> rest {} + pin-group {}",
                     collection.getRecipes().size(), pinned.size(), rest.size(), pinned.size());
         }
         if (restPacks.isEmpty()) return;

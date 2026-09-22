@@ -6,22 +6,24 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.RecipeHolder;
 
 import java.util.List;
-import java.util.Locale;
 
 /**
  * Structured debug logger for recipe book diagnostics.
  *
  * <p>Logs complete recipe loading state at every {@code updateCollections}
  * cycle, RBIP creative-tab filtering, pipeline stages, and cache operations.
- * All output is tagged with {@code [BRBE-DEBUG]} so it can be filtered in logs.
+ * All output is tagged with {@code [BRBE-DEBUG]} so it can be filtered.
  *
- * <p>Toggle via {@link #enabled}.  Defaults to {@code true} for diagnostic
- * builds; set to {@code false} before release.
+ * <p><b>开关</b>：跟随 {@link BrbeLogger}（JVM 属性 {@code -Dbrbe.debug=true}）——
+ * 关闭时（默认）所有调用都是空操作，输出写 {@code <gameDir>/logs/brbe-debug.log}，
+ * 不再污染 {@code latest.log}。
  */
 public final class RecipeBookDebugLogger {
 
-    /** Master toggle — set to {@code false} to silence all debug output. */
-    public static boolean enabled = true;
+    /** 总开关（跟随 {@link BrbeLogger}：{@code -Dbrbe.debug=true} 才输出）。 */
+    public static boolean enabled() {
+        return BrbeLogger.isEnabled();
+    }
 
     /** Log collection contents details (can be very noisy). */
     public static boolean verboseCollections = false;
@@ -42,9 +44,9 @@ public final class RecipeBookDebugLogger {
     public static void onUpdateCollectionsStart(
             String screenName, boolean resetPageNumber, int tabOrdinal,
             String tabName, Object rbipVariant, String searchText) {
-        if (!enabled) return;
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-DEBUG] ══ updateCollections START ══ screen={} reset={} tab=[{}]{} " +
+        if (!enabled()) return;
+        BrbeLogger.log("BRBE-DEBUG",
+                "══ updateCollections START ══ screen={} reset={} tab=[{}]{} " +
                 "rbip={} search=\"{}\"",
                 screenName, resetPageNumber, tabOrdinal,
                 (tabName != null ? " " + tabName : ""),
@@ -55,18 +57,18 @@ public final class RecipeBookDebugLogger {
     /** Called when RBIP creative tab filtering intercepts getCollection. */
     public static void onRbipFilterCollections(
             String searchCategory, int totalBase, int matched, boolean activeTabNonNull) {
-        if (!enabled) return;
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-DEBUG] RBIP filter: searchCat={} base={} → matched={} activeTab={}",
+        if (!enabled()) return;
+        BrbeLogger.log("BRBE-DEBUG",
+                "RBIP filter: searchCat={} base={} → matched={} activeTab={}",
                 searchCategory, totalBase, matched, activeTabNonNull);
     }
 
     /** Called before data marking (forEach redirect). */
     public static void onDataMarkingStart(
             int collectionCount, long slotHash, boolean cacheHit, boolean inventoryChanged) {
-        if (!enabled) return;
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-DEBUG] Data marking: collections={} slotHash={} cacheHit={} invChanged={}",
+        if (!enabled()) return;
+        BrbeLogger.log("BRBE-DEBUG",
+                "Data marking: collections={} slotHash={} cacheHit={} invChanged={}",
                 collectionCount, slotHash, cacheHit, inventoryChanged);
     }
 
@@ -74,9 +76,9 @@ public final class RecipeBookDebugLogger {
     public static void onPartialMarkingDone(
             int totalCollections, int partialCollections, int partialRecipes,
             int incompatibleCollections, int incompatibleRecipes) {
-        if (!enabled) return;
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-DEBUG] Partial marking done: {} collections, {} have partials ({} recipes), " +
+        if (!enabled()) return;
+        BrbeLogger.log("BRBE-DEBUG",
+                "Partial marking done: {} collections, {} have partials ({} recipes), " +
                 "{} incompatible ({} recipes)",
                 totalCollections, partialCollections, partialRecipes,
                 incompatibleCollections, incompatibleRecipes);
@@ -84,26 +86,23 @@ public final class RecipeBookDebugLogger {
 
     /** Called at each pipeline stage. */
     public static void onPipelineStage(String stage, int inputCount, int outputCount) {
-        if (!enabled) return;
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-DEBUG] Pipeline [{}]: {} → {} collections",
+        if (!enabled()) return;
+        BrbeLogger.log("BRBE-DEBUG", "Pipeline [{}]: {} → {} collections",
                 stage, inputCount, outputCount);
     }
 
     /** Called when pipeline finishes. */
     public static void onPipelineDone(int finalCount, int pageNumber, boolean cached) {
-        if (!enabled) return;
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-DEBUG] Pipeline DONE: {} collections → page {}, cached={}",
+        if (!enabled()) return;
+        BrbeLogger.log("BRBE-DEBUG", "Pipeline DONE: {} collections → page {}, cached={}",
                 finalCount, pageNumber, cached);
     }
 
     /** Called when BookStateCache is hit or miss. */
     public static void onCacheAccess(boolean hit, Class<?> screenClass, long slotHash,
                                       Object variant, int resultCount) {
-        if (!enabled) return;
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-DEBUG] Cache {}: screen={} slotHash={} variant={} resultCount={}",
+        if (!enabled()) return;
+        BrbeLogger.log("BRBE-DEBUG", "Cache {}: screen={} slotHash={} variant={} resultCount={}",
                 hit ? "HIT" : "MISS", screenClass.getSimpleName(), slotHash,
                 (variant != null ? variant.hashCode() : "none"), resultCount);
     }
@@ -115,7 +114,7 @@ public final class RecipeBookDebugLogger {
     /** Dump a summary of recipe collections (counts by category + craftable status). */
     public static void dumpCollectionSummary(
             String label, List<RecipeCollection> collections, boolean isFiltering) {
-        if (!enabled) return;
+        if (!enabled()) return;
 
         int craftable = 0;
         int partial = 0;
@@ -139,8 +138,8 @@ public final class RecipeBookDebugLogger {
             }
         }
 
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-DEBUG] {}: {} total | craftable={} partial={} uncraftable={} " +
+        BrbeLogger.log("BRBE-DEBUG",
+                "{}: {} total | craftable={} partial={} uncraftable={} " +
                 "emptyRecipeColls={} totalRecipes={} pinned={} filtering={}",
                 label, collections.size(), craftable, partial, uncraftable,
                 emptyRecipes, totalRecipes, pinned, isFiltering);
@@ -149,7 +148,7 @@ public final class RecipeBookDebugLogger {
     /** Dump detailed collection info (only when verboseCollections is true). */
     public static void dumpCollectionDetails(
             String label, List<RecipeCollection> collections) {
-        if (!enabled || !verboseCollections || collections.isEmpty()) return;
+        if (!enabled() || !verboseCollections || collections.isEmpty()) return;
 
         // Rate-limit detailed dumps to avoid log spam
         long now = System.nanoTime();
@@ -159,10 +158,8 @@ public final class RecipeBookDebugLogger {
         lastDumpNanos = now;
         dumpCount++;
 
-        StringBuilder sb = new StringBuilder();
-        sb.append(String.format(Locale.ROOT,
-                "[BRBE-DEBUG] %s detail (%d collections, dump #%d):\n",
-                label, collections.size(), dumpCount));
+        BrbeLogger.log("BRBE-DEBUG", "{} detail ({} collections, dump #{}):",
+                label, collections.size(), dumpCount);
 
         int limit = Math.min(collections.size(), verboseCollections ? 40 : 10);
         for (int i = 0; i < limit; i++) {
@@ -175,17 +172,15 @@ public final class RecipeBookDebugLogger {
                         net.minecraft.client.Minecraft.getInstance().level.registryAccess());
                 result = stack.isEmpty() ? "(air)" : stack.getHoverName().getString();
             }
-            sb.append(String.format(Locale.ROOT,
-                    "  [%d] recipes=%d result=%s craftable=%s partial=%s\n",
+            BrbeLogger.log("BRBE-DEBUG", "  [{}] recipes={} result={} craftable={} partial={}",
                     i, recipes.size(), result,
                     c.hasCraftable(),
-                    PartialCraftingUtil.hasPartialMaterials(c)));
+                    PartialCraftingUtil.hasPartialMaterials(c));
         }
         if (collections.size() > limit) {
-            sb.append(String.format(Locale.ROOT, "  ... and %d more\n",
-                    collections.size() - limit));
+            BrbeLogger.log("BRBE-DEBUG", "  ... and {} more",
+                    collections.size() - limit);
         }
-        BetterRecipeBook.LOGGER.info(sb.toString());
     }
 
     // ══════════════════════════════════════════════════════════
@@ -194,33 +189,29 @@ public final class RecipeBookDebugLogger {
 
     /** Called when RBIP creative tabs are built. */
     public static void onRbipTabsBuilt(int tabCount, int craftingCount) {
-        if (!enabled) return;
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-DEBUG] RBIP tabs built: {} creative tabs, {} in CRAFTING_LIST",
+        if (!enabled()) return;
+        BrbeLogger.log("BRBE-DEBUG", "RBIP tabs built: {} creative tabs, {} in CRAFTING_LIST",
                 tabCount, craftingCount);
     }
 
     /** Called during RBIP incremental filtering. */
     public static void onRbipFilterProgress(int processed, int total, int removed) {
-        if (!enabled) return;
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-DEBUG] RBIP incremental filter: {}/{} processed, {} removed so far",
+        if (!enabled()) return;
+        BrbeLogger.log("BRBE-DEBUG", "RBIP incremental filter: {}/{} processed, {} removed so far",
                 processed, total, removed);
     }
 
     /** Called when RBIP creative tab is selected. */
     public static void onRbipTabSelected(String tabName, String furnaceType) {
-        if (!enabled) return;
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-DEBUG] RBIP tab selected: \"{}\" furnace={}",
+        if (!enabled()) return;
+        BrbeLogger.log("BRBE-DEBUG", "RBIP tab selected: \"{}\" furnace={}",
                 tabName, (furnaceType != null ? furnaceType : "none"));
     }
 
     /** Called when RBIP init completes. */
     public static void onRbipInitComplete(int tabCount, int itemMappingCount, boolean success) {
-        if (!enabled) return;
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-DEBUG] RBIP init: {} tabs, {} item mappings, success={}",
+        if (!enabled()) return;
+        BrbeLogger.log("BRBE-DEBUG", "RBIP init: {} tabs, {} item mappings, success={}",
                 tabCount, itemMappingCount, success);
     }
 
@@ -231,17 +222,16 @@ public final class RecipeBookDebugLogger {
     /** Called when search text is processed. */
     public static void onSearchProcessed(
             String rawText, boolean isAdvanced, String parsedSummary) {
-        if (!enabled) return;
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-DEBUG] Search: raw=\"{}\" advanced={} parsed={}",
+        if (!enabled()) return;
+        BrbeLogger.log("BRBE-DEBUG", "Search: raw=\"{}\" advanced={} parsed={}",
                 rawText, isAdvanced, parsedSummary);
     }
 
     /** Called when the filter toggle changes state. */
     public static void onFilterToggle(boolean isFiltering) {
-        if (!enabled) return;
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-DEBUG] Filter toggle: {}", isFiltering ? "ON (show craftable only)" : "OFF (show all)");
+        if (!enabled()) return;
+        BrbeLogger.log("BRBE-DEBUG", "Filter toggle: {}",
+                isFiltering ? "ON (show craftable only)" : "OFF (show all)");
     }
 
     // ══════════════════════════════════════════════════════════
@@ -252,11 +242,11 @@ public final class RecipeBookDebugLogger {
     private static boolean configDumped;
 
     public static void dumpConfigOnce() {
-        if (!enabled || configDumped) return;
+        if (!enabled() || configDumped) return;
         configDumped = true;
 
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-DEBUG] ══ Config ══ " +
+        BrbeLogger.log("BRBE-DEBUG",
+                "══ Config ══ " +
                 "partialCrafting={} partialMarking={} noGrouped={} onHover={} " +
                 "enablePinning={} instantCraft={} showAllSurvival={} keepCentered={} " +
                 "scrolling={} rbip={}",

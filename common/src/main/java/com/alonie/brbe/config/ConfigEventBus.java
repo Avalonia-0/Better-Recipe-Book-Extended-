@@ -71,7 +71,9 @@ public final class ConfigEventBus {
             } catch (Exception e) {
                 // Swallow per-listener errors so one broken subscriber
                 // doesn't prevent others from receiving the event.
-                e.printStackTrace();
+                com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
+                        "[BRBE] event subscriber failed for {}",
+                        event.getClass().getSimpleName(), e);
             }
         }
     }

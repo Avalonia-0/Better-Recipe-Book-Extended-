@@ -186,9 +186,11 @@ public final class BrbeJeiBridge {
                     .getMethod("registerReloadListener",
                             Class.forName("net.minecraft.server.packs.resources.PreparableReloadListener"))
                     .invoke(registerClientReloadListeners, spriteManager);
-            BetterRecipeBook.LOGGER.info("[BRBE-JEI-BRIDGE] registered headless-jei GUI atlas reload listener");
+            com.alonie.brbe.util.BrbeLogger.log("BRBE-JEI-BRIDGE",
+                    "registered headless-jei GUI atlas reload listener");
         } catch (ReflectiveOperationException | LinkageError e) {
-            BetterRecipeBook.LOGGER.debug("[BRBE-JEI-BRIDGE] atlas listener registration skipped: {}", e.toString());
+            com.alonie.brbe.util.BrbeLogger.log("BRBE-JEI-BRIDGE",
+                    "atlas listener registration skipped: {}", e.toString());
         }
     }
 
@@ -305,7 +307,8 @@ public final class BrbeJeiBridge {
                 total += entries.size();
             }
             if (total > 0) {
-                BetterRecipeBook.LOGGER.info("[BRBE-JEI-BRIDGE] imported {} JEI entries from headless-jei ({} types)",
+                com.alonie.brbe.util.BrbeLogger.log("BRBE-JEI-BRIDGE",
+                        "imported {} JEI entries from headless-jei ({} types)",
                         total, typeIds.size());
             }
         } catch (Exception | LinkageError e) {
@@ -373,7 +376,8 @@ public final class BrbeJeiBridge {
                 attached++;
             }
             if (attached > 0) {
-                BetterRecipeBook.LOGGER.info("[BRBE-JEI-BRIDGE] attached vanilla JEI layout to {} {} entries",
+                com.alonie.brbe.util.BrbeLogger.log("BRBE-JEI-BRIDGE",
+                        "attached vanilla JEI layout to {} {} entries",
                         attached, uid);
             }
         } catch (Exception | LinkageError e) {

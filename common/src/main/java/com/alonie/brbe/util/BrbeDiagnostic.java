@@ -82,13 +82,13 @@ public final class BrbeDiagnostic {
                     .resolve("brbe-diagnostic.log");
             Files.writeString(logFile, sb.toString(),
                     StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
-            BetterRecipeBook.LOGGER.info("[BRBE] Diagnostic written to {}", logFile);
+            BrbeLogger.log("BRBE", "Diagnostic written to {}", logFile);
         } catch (IOException e) {
             BetterRecipeBook.LOGGER.error("[BRBE] Failed to write diagnostic", e);
         }
 
-        // Also print to game log
-        BetterRecipeBook.LOGGER.info(sb.toString());
+        // Also print to game log (调试开关开启时；报告本体已写入独立文件)
+        BrbeLogger.log("BRBE", "{}", sb.toString());
     }
 
     // ── Individual checks ──────────────────────────────────────────

@@ -273,7 +273,7 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess, R
         }
 
         if (!RecipeBookIsPainExtendedConfig.reloadIfChanged()) return;
-        RecipeBookIsPain.LOGGER.info("[RBIP] Config changed — reload");
+        com.alonie.brbe.util.BrbeLogger.log("RBIP", "Config changed — reload");
 
         // 1) Wipe old state
         rbip$creativeButtons.clear();
@@ -324,7 +324,8 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess, R
             rbip$buttonToTab.put(btn, tab);
         }
         this.rbip$rebuildTabList();
-        RecipeBookIsPain.LOGGER.info("[RBIP] {} creative tabs (deferred build)", rbip$creativeButtons.size());
+        com.alonie.brbe.util.BrbeLogger.log("RBIP", "{} creative tabs (deferred build)",
+                rbip$creativeButtons.size());
         RecipeBookDebugLogger.onRbipTabsBuilt(rbip$creativeButtons.size(), creativeTabs.size());
     }
 
@@ -362,7 +363,8 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess, R
             CreativeModeTab tab = rbip$buttonToTab.get(b);
             if (tab == null) continue;
 
-            RecipeBookIsPain.LOGGER.info("[RBIP] Selected: {}", tab.getDisplayName().getString());
+            com.alonie.brbe.util.BrbeLogger.log("RBIP", "Selected: {}",
+                    tab.getDisplayName().getString());
             if (this.selectedTab != null && this.selectedTab != b) {
                 this.selectedTab.setStateTriggered(false);
             }

@@ -2,8 +2,6 @@ package com.alonie.brbe.util;
 
 import com.alonie.brbe.BetterRecipeBook;
 import it.unimi.dsi.fastutil.objects.Object2LongOpenHashMap;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 /**
  * Minimal per-section timer for diagnosing recipe-book opening lag.
@@ -19,7 +17,6 @@ import org.apache.logging.log4j.Logger;
  * </pre>
  */
 public final class PerfTimer {
-    private static final Logger LOGGER = LogManager.getLogger("BRBE-Perf");
     private static final Object2LongOpenHashMap<String> accumNanos = new Object2LongOpenHashMap<>();
     private static final Object2LongOpenHashMap<String> counts = new Object2LongOpenHashMap<>();
     private static final ThreadLocal<Object2LongOpenHashMap<String>> active =
@@ -33,7 +30,8 @@ public final class PerfTimer {
 
     /** Call at the top of updateCollections to arm. */
     public static void begin() {
-        enabled = BetterRecipeBook.ctx().config() != null;
+        // 纯诊断计时：只在调试日志开启时收集，否则整个计数链都是空操作。
+        enabled = BetterRecipeBook.ctx().config() != null && BrbeLogger.isEnabled();
         if (!enabled) return;
         active.get().clear();
     }
@@ -58,7 +56,7 @@ public final class PerfTimer {
         long total = 0;
         for (var entry : accumNanos.object2LongEntrySet()) total += entry.getLongValue();
 
-        LOGGER.info("--- BRBE-Perf [{}] total={}ms ---", context, total / 1_000_000);
+        BrbeLogger.log("BRBE", "--- BRBE-Perf [{}] total={}ms ---", context, total / 1_000_000);
         accumNanos.object2LongEntrySet().stream()
                 .sorted((a, b) -> Long.compare(b.getLongValue(), a.getLongValue()))
                 .forEach(e -> {
@@ -66,7 +64,7 @@ public final class PerfTimer {
                     long nanos = e.getLongValue();
                     long cnt = counts.getLong(section);
                     long avg = cnt > 0 ? nanos / cnt : nanos;
-                    LOGGER.info("  {} : {}ms ({}x, avg {}µs)",
+                    BrbeLogger.log("BRBE", "  {} : {}ms ({}x, avg {}µs)",
                             section, nanos / 1_000_000, cnt, avg / 1_000);
                 });
         accumNanos.clear();

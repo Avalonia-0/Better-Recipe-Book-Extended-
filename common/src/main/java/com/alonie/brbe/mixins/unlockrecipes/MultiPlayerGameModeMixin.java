@@ -83,7 +83,6 @@ public abstract class MultiPlayerGameModeMixin {
 
                 // get the recipe placement to use to filter items and place them in the crafting grid
                 var placement = RecipePlacement.create(recipe, menu.getGridWidth(), menu.getGridHeight());
-                //System.out.println("placement: " + Joiner.on(", ").join(placement.stream().map(s -> s.stream().map(i -> i.toJson(true)).toList()).toList()));
 
                 for (Slot craftingSlot : menu.slots) {
                     if (RecipeMenuUtil.isRecipeSlot(menu, craftingSlot.index)) {

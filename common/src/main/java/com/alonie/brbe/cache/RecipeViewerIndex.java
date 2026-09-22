@@ -370,7 +370,7 @@ public final class RecipeViewerIndex {
         }
         // 配方书工作站物品集（engine 权威判定用）
         RecipeViewerEngine.setRecipeBookStationItems(vanillaWorkstationItems());
-        BetterRecipeBook.LOGGER.info("[BRBE] rebuildEngine known={} types={}",
+        com.alonie.brbe.util.BrbeLogger.log("BRBE", "rebuildEngine known={} types={}",
                 knownEntries.size(), grouped.size());
         RecipeViewerEngine.notifyRebuiltPublic();
     }
