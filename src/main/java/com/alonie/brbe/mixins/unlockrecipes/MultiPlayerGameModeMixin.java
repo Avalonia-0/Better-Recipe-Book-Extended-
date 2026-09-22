@@ -27,6 +27,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
+import java.util.function.Predicate;
+
 @Mixin(MultiPlayerGameMode.class)
 public abstract class MultiPlayerGameModeMixin {
 
@@ -59,9 +61,11 @@ public abstract class MultiPlayerGameModeMixin {
             // Cache-only recipes are always placed as ghost recipes since the server doesn't know about them
             if (isCacheRecipe || !lastRecipe.isCraftable(recipe)) {
                 // remove items from the crafting grid: not all backends do this for us if we haven't unlocked the recipe
+                // 谓词由 RecipeMenuUtil（普通类）构造：mixin 内的 lambda 会被 Mixin 重命名并刷 latest.log
+                Predicate<Integer> notCraftingSlot = RecipeMenuUtil.notCraftingMenuSlot(menu);
                 for (int i = 0; i < menu.slots.size(); i++) {
                     if (!RecipeMenuUtil.isCraftingMenuSlot(menu, i)) continue;
-                    ClientInventoryUtil.storeItem(i, idx -> !RecipeMenuUtil.isCraftingMenuSlot(menu, idx));
+                    ClientInventoryUtil.storeItem(i, notCraftingSlot);
                 }
 
                 // place the ghost recipe

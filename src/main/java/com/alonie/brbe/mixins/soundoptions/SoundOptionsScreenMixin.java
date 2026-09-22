@@ -40,17 +40,40 @@ public abstract class SoundOptionsScreenMixin {
                 "soundCategory.brbe_page_flip",
                 OptionInstance.noTooltip(),
                 SoundOptionsScreenMixin::brbe$percentValueOrOffLabel,
-                OptionInstance.UnitDouble.INSTANCE.xmap(v -> v * 1.5, v -> v / 1.5),
+                OptionInstance.UnitDouble.INSTANCE.xmap(
+                        SoundOptionsScreenMixin::brbe$toSliderValue,
+                        SoundOptionsScreenMixin::brbe$fromSliderValue),
                 (double) BetterRecipeBook.config.pageFlipVolume,
-                value -> {
-                    BetterRecipeBook.config.pageFlipVolume = value.floatValue();
-                    try {
-                        BetterRecipeBook.configHolder.save();
-                    } catch (Exception ignored) {
-                        // Cloth Config 缺失/保存失败时保持内存值，滑块仍即时生效。
-                    }
-                });
+                SoundOptionsScreenMixin::brbe$applyPageFlipVolume);
         cir.setReturnValue(result);
+    }
+
+    /**
+     * 存量值（0–1.5）→ 滑块值（UnitDouble 是 0–1）。
+     *
+     * <p><b>为什么拆成方法 + 方法引用</b>：mixin 类里的 lambda 会被编译成合成方法，
+     * Mixin 必须重命名它们（否则与目标类同名合成方法冲突）并在 latest.log 打一行
+     * {@code Renaming synthetic method ...}；方法引用走 invokedynamic 的
+     * {@code MethodHandle}，与直接调用走同一套重映射（{@code transformMethodRef}），
+     * 不产生合成方法、不刷日志。</p>
+     */
+    private static Double brbe$toSliderValue(double stored) {
+        return stored * 1.5;
+    }
+
+    /** 滑块值（0–1）→ 存量值（0–1.5）。 */
+    private static double brbe$fromSliderValue(Double slider) {
+        return slider / 1.5;
+    }
+
+    /** 滑块拖动回调：写回内存值并尽力落盘。 */
+    private static void brbe$applyPageFlipVolume(Double value) {
+        BetterRecipeBook.config.pageFlipVolume = value.floatValue();
+        try {
+            BetterRecipeBook.configHolder.save();
+        } catch (Exception ignored) {
+            // Cloth Config 缺失/保存失败时保持内存值，滑块仍即时生效。
+        }
     }
 
     /**
