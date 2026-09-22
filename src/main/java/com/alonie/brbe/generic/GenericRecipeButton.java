@@ -213,7 +213,9 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
     }
 
     protected boolean isValidClickButton(int i) {
-        return i == 0 || i == 1;
+        // 26.3 起鼠标键号是 SDL3 约定（左=1、右=3）；与原版 RecipeButton 一致
+        // （javap 26.3：`button()==1 || button()==3`）。
+        return i == ClientCompat.MOUSE_LEFT || i == ClientCompat.MOUSE_RIGHT;
     }
 
     @Override

@@ -145,10 +145,10 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         } else {
             for (GenericRecipeButton<C, R, M> recipeButton : this.buttons) {
                 if (!ClientCompat.mouseClicked(recipeButton, mouseX, mouseY, button)) continue;
-                if (button == 0) {
+                if (button == ClientCompat.MOUSE_LEFT) {
                     this.lastClickedRecipe = recipeButton.getCurrentDisplayedRecipe();
                     this.lastClickedRecipeCollection = recipeButton.getCollection();
-                } else if (button == 1 && !overlayIsVisible() && !recipeButton.isOnlyOption()) {
+                } else if (button == ClientCompat.MOUSE_RIGHT && !overlayIsVisible() && !recipeButton.isOnlyOption()) {
                     this.initOverlay(recipeButton.getCollection(), this.parentLeft, this.parentTop, registryAccess);
                 }
                 return true;

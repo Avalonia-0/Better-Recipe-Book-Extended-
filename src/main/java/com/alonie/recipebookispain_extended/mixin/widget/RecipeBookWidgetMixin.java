@@ -178,7 +178,7 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
         if (!RecipeBookIsPainExtendedConfig.enabled()) return;
         // 按钮已隐藏：该区域不再吞掉点击，交回配方书原本的点击逻辑。
         if (rbip$pageButtonsHidden()) return;
-        if (!this.isVisible() || this.rbip$pageCount <= 1 || click.button() != 0) return;
+        if (!this.isVisible() || this.rbip$pageCount <= 1 || !com.alonie.brbe.util.ClientCompat.isLeftClick(click)) return;
 
         int x = (int) click.x();
         int y = (int) click.y();

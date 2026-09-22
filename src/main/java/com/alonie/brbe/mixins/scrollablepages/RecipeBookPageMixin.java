@@ -107,7 +107,7 @@ public abstract class RecipeBookPageMixin {
             return;
         }
 
-        if (!BetterRecipeBook.config.scrolling.scrollAround || totalPages <= 1 || event.button() != 0) {
+        if (!BetterRecipeBook.config.scrolling.scrollAround || totalPages <= 1 || !ClientCompat.isLeftClick(event)) {
             return;
         }
 
@@ -140,7 +140,7 @@ public abstract class RecipeBookPageMixin {
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     public void brbe$mouseClickedJumpToEdge(MouseButtonEvent event, int areaLeft, int areaTop, int areaWidth, int areaHeight, boolean widthTooNarrow, CallbackInfoReturnable<Boolean> cir) {
         if (RecipeViewerOverlay.modalMaskOwnsCursor((int) Mth.floor(event.x()), (int) Mth.floor(event.y()))
-                || event.button() != 0 || !ClientCompat.isControlDown()) {
+                || !ClientCompat.isLeftClick(event) || !ClientCompat.isControlDown()) {
             return;
         }
 

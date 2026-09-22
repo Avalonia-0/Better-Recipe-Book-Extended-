@@ -47,7 +47,7 @@ public class StateSwitchingButton extends AbstractWidget {
 
     @Override
     protected boolean isValidClickButton(MouseButtonInfo button) {
-        return button.button() == 0;
+        return button.button() == ClientCompat.MOUSE_LEFT;
     }
 
     @Override

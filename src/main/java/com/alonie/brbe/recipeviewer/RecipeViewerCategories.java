@@ -179,19 +179,6 @@ public final class RecipeViewerCategories {
      */
     public static RecipeViewerCategory defaultFor(ItemStack target, boolean usage,
                                                   AbstractContainerMenu menu) {
-        // [DEBUG-bug1] Temporary: capture the actual default-category decision
-        // (menu / usage / station-usage / workstation-menu / bestByPriority) so
-        // the "workstation not in any category always opens second category"
-        // report can be diagnosed from a real run.
-        boolean dbgIsWsm = isWorkstationMenu(menu);
-        RecipeViewerCategory dbgStation = usage ? stationUsageCategory(target) : null;
-        RecipeViewerCategory dbgWsCat = dbgIsWsm ? stationCategoryFor(menu) : null;
-        BetterRecipeBook.LOGGER.warn("[DEBUG-bug1] defaultFor target={} usage={} menu={} isWsm={} stationCat={} wsCat={} first={}",
-                target == null ? "null" : target.getItem(), usage,
-                menu == null ? "null" : menu.getClass().getSimpleName(), dbgIsWsm,
-                dbgStation == null ? "null" : dbgStation.id(),
-                dbgWsCat == null ? "null" : dbgWsCat.id(),
-                all().isEmpty() ? "null" : all().get(0).id());
         // 1) Usage query of a workstation block: THAT station's category wins
         //    (JEI semantics), regardless of which container the player is in.
         //    Must run BEFORE the container menu-jump below — a U-query on a
@@ -239,10 +226,6 @@ public final class RecipeViewerCategories {
         RecipeViewerCategory firstMatch = null;
         for (RecipeViewerCategory category : all()) {
             if (!category.appliesToStation(target)) continue;
-            // [DEBUG-bug1] Temporary: record each station category's decision.
-            BetterRecipeBook.LOGGER.warn("[DEBUG-bug1] stationUsage target={} cat={} appliesToStation=true hasContent={}",
-                    target == null ? "null" : target.getItem(), category.id(),
-                    category.hasContent(target, true));
             // 进度模式（hideNoRecipeBookStationObjects）：信息行类别（燃料/
             // 堆肥/信息）整体隐藏，无配方书体系的工作站类别（切石/铁砧/研磨）
             // 隐藏，非法工作站与类别的连接切断——只显示和进度相关的对象。
@@ -264,10 +247,6 @@ public final class RecipeViewerCategories {
             }
         }
         if (firstMatch != null) {
-            // [DEBUG-bug1] Temporary: show the fallback pick.
-            BetterRecipeBook.LOGGER.warn("[DEBUG-bug1] stationUsage fallback target={} firstMatch={} bestByPriority={}",
-                    target == null ? "null" : target.getItem(), firstMatch.id(),
-                    bestByPriority(target, true) == null ? "null" : bestByPriority(target, true).id());
             // The station categories have no content (e.g. the smithing table
             // with no unlocked recipes).  Before settling on the empty default
             // — which drops the query to the external viewer — prefer any

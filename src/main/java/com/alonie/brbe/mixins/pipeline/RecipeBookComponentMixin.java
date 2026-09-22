@@ -178,7 +178,7 @@ public abstract class RecipeBookComponentMixin {
     @Inject(method = "mouseClicked", at = @At("HEAD"), cancellable = true)
     private void brbe$rightClickClearSearch(MouseButtonEvent event, boolean doubled,
                                             CallbackInfoReturnable<Boolean> cir) {
-        if (event.button() != 1 || searchBox == null) return;
+        if (!com.alonie.brbe.util.ClientCompat.isRightClick(event) || searchBox == null) return;
         if (!searchBox.isMouseOver(event.x(), event.y())) return;
         searchBox.setValue("");
         searchBox.setFocused(false);

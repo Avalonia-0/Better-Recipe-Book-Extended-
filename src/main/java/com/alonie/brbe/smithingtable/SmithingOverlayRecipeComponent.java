@@ -69,7 +69,7 @@ public class SmithingOverlayRecipeComponent implements Renderable, GuiEventListe
     }
 
     public boolean mouseClicked(double mouseX, double mouseY, int button) {
-        if (button != 0) {
+        if (button != ClientCompat.MOUSE_LEFT) {
             return false;
         }
 
@@ -167,7 +167,7 @@ public class SmithingOverlayRecipeComponent implements Renderable, GuiEventListe
 
         @Override
         protected boolean isValidClickButton(MouseButtonInfo button) {
-            return button.button() == 0;
+            return button.button() == ClientCompat.MOUSE_LEFT;
         }
 
         @Override

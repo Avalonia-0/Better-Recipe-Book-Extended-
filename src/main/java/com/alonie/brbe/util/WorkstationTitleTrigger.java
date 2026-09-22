@@ -63,7 +63,7 @@ public final class WorkstationTitleTrigger {
     /** 左键点击标题：打开<b>新</b>查询窗口（多窗口，已开窗口不受影响）。
      *  工作站无法解析时静默（返回 false，点击交给原版）。 */
     public static boolean clickTitle(MouseButtonEvent event, AbstractContainerScreen<?> screen) {
-        if (event.button() != 0) return false;
+        if (!ClientCompat.isLeftClick(event)) return false;
         int mx = net.minecraft.util.Mth.floor(event.x());
         int my = net.minecraft.util.Mth.floor(event.y());
         int[] r = titleRect(screen);

@@ -1104,3 +1104,74 @@ ESC 退出界面。"（详见 `docs/1.21.11-26.2-查询窗口ESC退出问题.md`
   `column_panel.png.mcmeta`（`nine_slice width/height=32 border=4`）继续生效；包内其余覆盖贴图同样只放 PNG。
 - `column_panel_top` 未动（代码侧已不再使用该变体）。
 - 已构建、原子替换部署（备份 20260911-174055，md5 一致），jar 内贴图与用户源文件 md5 一致。
+## 2026-09-22：三项用户反馈（LEI 左键关窗 / 预览黑紫 / 严重掉帧）
+
+用户实测反馈三个问题，全部定位并处理（掉帧一项**不是本 mod 的问题**）。
+
+### ① LEI 查询界面"左键一点就关" —— 26.3 鼠标键号改成了 SDL3 约定
+
+**根因**：26.3 输入层从 GLFW 换成 SDL3，鼠标键号随之变化 —— **左=1、中=2、右=3**
+（26.2 及更早是 GLFW 的 左=0、中=2、右=1，**左右互换**）。证据（javap 26.3 客户端 jar）：
+`InputConstants$Type` 静态初始化 `key.mouse.left=1 / middle=2 / right=3`；原版
+`AbstractContainerScreen.mouseClicked` 判 `button()==1 || button()==3`；
+`RecipeButton.isValidClickButton` 同款。BRBE 26.3 的点击判定照抄了 26.2 的字面量，
+于是 `RecipeViewerOverlay` 里"右键关窗"的 `event.button() == 1` **命中的是左键** →
+用户看到的就是"左键点窗口内部直接关掉"；同时所有 `event.button() != 0` 的"左键专属"
+分支（放置配方、切标签、翻页、拖窗、工作站列查询…）全部失效。
+
+**修复**：`util/ClientCompat` 新增 `MOUSE_LEFT/MIDDLE/RIGHT` 常量与 `isLeftClick/isRightClick`
+谓词，**20 处硬编码键号全部改用它**（RecipeViewerOverlay ×8、WorkstationTitleTrigger、
+StateSwitchingButton、GenericRecipeButton/Page/BookComponent、SmithingOverlayRecipeComponent ×2、
+scrollablepages/RecipeBookPageMixin ×2、pipeline/RecipeBookComponentMixin、
+RBIP RecipeBookWidgetMixin）。**原样透传 `event.button()` 给原版控件的调用点不动**（原版已按 SDL3 判定）。
+详见 `docs/26.3-mouse-button-renumbering.md`。
+
+### ② LEI 预览"黑紫纹理" —— headless JEI 的贴图目录还是 26.2 的自定义图集布局
+
+**根因**：26.3 的 JEI 精灵走**原版 GUI 图集**（`Internal.getTextures()` →
+`minecraft.getAtlasManager().getAtlasOrThrow(AtlasIds.GUI)`，`Textures.createSpriteId(name)`
+→ `jei:<name>`），要求贴图位于 `assets/jei/textures/gui/sprites/**`；而 fork 里装的是 26.2 时代的
+`assets/jei/textures/jei/atlas/gui/**` + 自定义图集 `assets/jei/atlases/gui.json`。**那份 json 永远
+不会被读**（26.3 的 `SpriteSourceList.load(rm, minecraft:gui)` 只读
+`assets/minecraft/atlases/gui.json`；`AtlasManager.KNOWN_ATLASES` 是写死的 12 个图集）→
+贴图从未缝合进 GUI 图集 → `getSprite(jei:slot)` 返回 missing sprite（黑紫）。
+
+**修复**：`headless-jei/26.3` 的资源树整体换成官方 JEI 26.3 的
+（`rm -rf assets/jei && cp -r <official>/Common/src/main/resources/assets/jei assets/`，
+再补 `jei-icon.png`；删掉死掉的 `atlases/gui.json`；顺带补齐官方新增的
+`button_disabled/enabled/highlight`、`icons/tag_badge`、`icons/list_badge`、
+`interactive_ingredient_tooltip_background` 等代码已在引用的图）。重建 fork → 覆盖
+`26.3/libs/`（编译参考 + dev 运行时）与 `26.3/src/main/resources/META-INF/jars/`（成品内嵌）→ 重建主 mod。
+详见 `docs/26.3-jei-atlas-textures.md`；前后对比图 `docs/26.3-jei-preview-before.png` / `-after.png`。
+
+### ③ "掉帧非常严重" —— **与本 mod 无关**：NVIDIA 驱动不匹配 → llvmpipe 软渲染
+
+**结论**：这台机器上 Minecraft 根本没在用独显，跑的是 Mesa **llvmpipe（CPU 软件光栅化）**：
+日志 `Using graphics device: llvmpipe (LLVM 22.1.8, 256 bits) (Mesa)` +
+`MESA-EGL: warning: ... driver (null)` / `egl: failed to create dri2 screen`。
+用户自测 F3 26–31 fps、单客户端探针 62 fps（界面态）都是这个原因。
+
+**根因链**：机器 2026-09-20 18:41 启动后未重启；2026-09-21 12:15–12:26 pacman 把
+`nvidia-utils`/`nvidia-open-dkms` 610.57.04 → **615.71.09**；已装内核 `linux 7.2.6.arch2-1`
+（其 dkms 模块 = 615.71.09）但**还在跑 7.1.10-arch1-1**（该内核的模块目录已被删除），
+内存里的 nvidia 模块仍是 610.57.04 → 用户态与内核模块不匹配（`nvidia-smi`：
+`Failed to initialize NVML: Driver/library version mismatch`）→ EGL 初始化失败 → 软件渲染。
+**处理：重启**。详见 `docs/26.3-framerate-llvmpipe.md`。
+
+**排除 BRBE 的证据**：探针帧时/栈归因显示渲染线程 ~100% 卡在 GL 绘制调用
+（`nglMultiDrawElementsBaseVertex` 等），BRBE/JEI 栈占比个位数百分比；去掉 Sodium 同样慢。
+
+### 附：本轮新增/清理的工具与日志
+
+- **`tools/brbe-perf-probe/`**（仓库根，不入 git）：无人值守实测回路 —— 进世界后按阶段测
+  帧时（`getFrameTimeNs()` 高频采样去重）+ 采样线程做栈归因 + 子系统占比（BRBE/JEI/Sodium/MC/GL），
+  并能反射驱动 **clicktest**（左键点窗口内部不得关窗、右键应关窗）与 **shot**（悬停截图，
+  光标位置经 `MouseHandler.xpos/ypos` 反射写入，注意是**窗口像素坐标**，要按 GUI scale 换算）。
+  `run.sh perf "world,book,viewer,viewerhover,world2"` / `run.sh clicktest` / `NOSODIUM=1 ...`。
+- **清理遗留调试日志**（都是前几轮排查留下的"Temporary"埋点，用户日志里每次交互刷十几行）：
+  `RecipeViewerCategories` 的 `[DEBUG-bug1]`（3 处）、`BrbeJeiBridge` 的 `[DEBUG-layout]`、
+  `RecipeViewerOverlay` 的 `[VIEWER-DBG] open/render`（含限流字段）、`GhostSlotsMixin` 的
+  `[VIEWER-DBG] ghostFill`（**每帧限流打印，还附带一次只为打日志的
+  `PartialGhostOverlayUtil.shouldShowRedMask` 调用**）。`[BRBE-DIAG-PARTIAL]` 保留（26.2/1.21.11 同款）。
+- 同期仍存在的 **26.2 / 1.21.11 分支**没有这两个 26.3 专属 bug（键号与图集都是 26.3 才变的）；
+  上面清理掉的调试日志在这两个分支同样存在，需要时再清。

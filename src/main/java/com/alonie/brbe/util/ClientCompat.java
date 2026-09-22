@@ -53,6 +53,30 @@ public final class ClientCompat {
         return new CharacterEvent((int) character);
     }
 
+    // ------------------------------------------------------------------
+    // 26.3 鼠标键号改用 SDL3 约定：左=1、中=2、右=3
+    // （26.2 及更早是 GLFW 约定：左=0、中=2、右=1 —— **左键与右键整好换位**）
+    //
+    // 依据（javap 26.3 客户端 jar）：
+    //   InputConstants$Type 静态初始化 key.mouse.left=1 / key.mouse.middle=2 /
+    //   key.mouse.right=3；原版 AbstractContainerScreen.mouseClicked 判
+    //   `button()==1 || button()==3`，RecipeButton.isValidClickButton 同款。
+    // 所有硬编码键号一律改用下面的常量/谓词，别再写字面量 0/1/2。
+    // ------------------------------------------------------------------
+    public static final int MOUSE_LEFT = 1;
+    public static final int MOUSE_MIDDLE = 2;
+    public static final int MOUSE_RIGHT = 3;
+
+    /** 左键点击（SDL3 键号 1）。 */
+    public static boolean isLeftClick(MouseButtonEvent event) {
+        return event.button() == MOUSE_LEFT;
+    }
+
+    /** 右键点击（SDL3 键号 3）。 */
+    public static boolean isRightClick(MouseButtonEvent event) {
+        return event.button() == MOUSE_RIGHT;
+    }
+
     public static MouseButtonEvent mouseButtonEvent(double mouseX, double mouseY, int button) {
         return new MouseButtonEvent(mouseX, mouseY, new MouseButtonInfo(button, 0));
     }

@@ -312,8 +312,6 @@ public final class RecipeViewerOverlay {
      *  刚被 ESC 关掉的窗口立刻重新物化 → ESC 被反复吞掉、用户再也退不出当前界面。
      *  这里记下界面实例，界面一变（关闭/换屏）即自动解除。 */
     private static AbstractContainerScreen<?> restoreSuppressedScreen;
-    /** Rate limit for the [VIEWER-DBG] render-state trace (ms). */
-    private static long brbe$lastRenderLog;
 
     // ── Query-window persistence (brbe.queryviewers.json, like pins) ──────
     /** A persisted query viewer window: the query identity (target item +
@@ -1366,7 +1364,7 @@ public final class RecipeViewerOverlay {
         // title band, box, tab strip, workstation column — closes the window.
         // The close gesture is no longer confined to the extension band; it
         // runs first so nothing inside the window can swallow it.
-        if (event.button() == 1 && contains(event.x(), event.y())) {
+        if (ClientCompat.isRightClick(event) && contains(event.x(), event.y())) {
             close(true);
             return true;
         }
@@ -1384,7 +1382,7 @@ public final class RecipeViewerOverlay {
         // receives it.
         if (RecipePopupLayer.isActive()) {
             if (RecipePopupLayer.contains(event.x(), event.y())
-                    && event.button() == 0
+                    && ClientCompat.isLeftClick(event)
                     && RecipePopupLayer.button() instanceof OverlayRecipeButtonAccessor oba) {
                 placeRecipe(event, screen, oba.brbe$getRecipe(),
                         oba.brbe$getOuterComponent().getRecipeCollection());
@@ -1495,7 +1493,7 @@ public final class RecipeViewerOverlay {
     /** Whether the click lands on the open recipe book's turn-page buttons. */
     private boolean isPageTurnButton(MouseButtonEvent event, AbstractContainerScreen<?> screen) {
         if (!(screen instanceof AbstractRecipeBookScreen<?> rbs)) return false;
-        if (event.button() != 0) return false;
+        if (!ClientCompat.isLeftClick(event)) return false;
         RecipeBookComponent<?> book = ((AbstractRecipeBookScreenAccessor) rbs).brbe$getRecipeBookComponent();
         if (book == null) return false;
         RecipeBookPage page = ((RecipeBookComponentAccessor) book).getRecipeBookPage();
@@ -1613,7 +1611,7 @@ public final class RecipeViewerOverlay {
      *  scroll-around is enabled); Ctrl+click jumps straight to the first / last
      *  page (the same edge-jump the recipe book's own turn buttons do). */
     private boolean handlePageButtonClick(MouseButtonEvent event) {
-        if (!isPaged() || event.button() != 0) return false;
+        if (!isPaged() || !ClientCompat.isLeftClick(event)) return false;
         int bx = pageBtnX();
         int by = boxTop();
         int btnY = by - PAGE_BTN_HEIGHT - 2 + PAGE_BTN_SHIFT_Y;
@@ -1687,21 +1685,6 @@ public final class RecipeViewerOverlay {
             }
         }
         long now = net.minecraft.util.Util.getMillis();
-        if (now - brbe$lastRenderLog > 2000) {
-            brbe$lastRenderLog = now;
-            OverlayRecipeComponentAccessor racc = null;
-            try {
-                racc = (OverlayRecipeComponentAccessor) overlay;
-            } catch (Throwable ignored) {
-            }
-            BetterRecipeBook.LOGGER.warn(
-                    "[VIEWER-DBG] render win#{} box=({},{},{}x{}) overlay=({},{}) vis={} btns={} tabsY={} tabX0={} colX={} colY0={}",
-                    RecipeViewerOverlay.WINDOWS.indexOf(ViewerInstance.this),
-                    boxX, boxY, boxW, boxH, boxLeft(), boxTop(), overlay.isVisible(),
-                    racc == null ? -1 : racc.getRecipeButtons().size(),
-                    tabTop(), tabX(0), panelLeft() + 4,
-                    boxY + boxH - 4 - STATION_CELL);
-        }
         // Desktop-window semantics: the window renders on top of a fully
         // interactive desktop (no scrim, no dead cursor) — the box's
         // background blits below stay untouched (its top border line remains
@@ -2044,7 +2027,7 @@ public final class RecipeViewerOverlay {
      *  book's ghost ingredients).  Cells on non-furnace screens only consume
      *  the click. */
     private boolean handleFuelCellClick(MouseButtonEvent event, AbstractContainerScreen<?> screen) {
-        if (event.button() != 0) return false;
+        if (!ClientCompat.isLeftClick(event)) return false;
         ItemStack fuel = fuelCellAt(Mth.floor(event.x()), Mth.floor(event.y()));
         if (fuel.isEmpty()) return false;
         Minecraft mc = Minecraft.getInstance();
@@ -2441,7 +2424,7 @@ public final class RecipeViewerOverlay {
 
     /** Clicking a visible category tab switches the viewer to that category. */
     private boolean handleCategoryTabClick(MouseButtonEvent event) {
-        if (event.button() != 0) return false;
+        if (!ClientCompat.isLeftClick(event)) return false;
         int mx = Mth.floor(event.x());
         int my = Mth.floor(event.y());
         int tabY = tabTop();
@@ -2706,7 +2689,7 @@ public final class RecipeViewerOverlay {
     /** Clicking a left-column workstation object queries its recipes (re-opens
      *  the viewer for that object, R-key = "view recipe" semantics). */
     private boolean handleStationColumnClick(MouseButtonEvent event) {
-        if (event.button() != 0 || stationColumnItems.isEmpty() || ownerScreen == null) return false;
+        if (!ClientCompat.isLeftClick(event) || stationColumnItems.isEmpty() || ownerScreen == null) return false;
         int mx = Mth.floor(event.x());
         int my = Mth.floor(event.y());
         ItemStack hit = stationCellAt(mx, my);
@@ -3763,7 +3746,7 @@ public final class RecipeViewerOverlay {
         int[] r = windowChromeRect();
         // (Right-click closing is handled globally in mouseClicked — anywhere
         // in the window region — so the band needs no branch of its own.)
-        if (event.button() != 0) return false;
+        if (!ClientCompat.isLeftClick(event)) return false;
         // Left-press on the band TITLE arms the browse-all toggle ("show all
         // categories"): fired on RELEASE only when the window was NOT dragged
         // (a press that drags the window never triggers it — the press falls
@@ -3805,7 +3788,7 @@ public final class RecipeViewerOverlay {
      *  band limit does not fight the drag. */
     private boolean handleWindowDragged(MouseButtonEvent event) {
         if (!windowDragging) return false;
-        if (event.button() != 0) {
+        if (!ClientCompat.isLeftClick(event)) {
             windowDragging = false;
             return false;
         }
@@ -4122,15 +4105,6 @@ public final class RecipeViewerOverlay {
         viewerZ = PinOverlayManager.nextZ();
         RecipeViewerIndex.setViewerActive(true);
         RecipeViewerIndex.setViewerOpenedFromBook(anchorBookButton != null);
-        BetterRecipeBook.LOGGER.warn("[VIEWER-DBG] open target={} usage={} cat={} "
-                        + "window#{} box=({},{},{}x{}) anchor=({},{}) bottomA={} "
-                        + "stationCol={} grid={} gui={}x{} screen={}",
-                target.getHoverName().getString(), viewUsage,
-                currentCategory == null ? "null" : currentCategory.id(),
-                WINDOWS.size(), boxX, boxY, boxW, boxH, anchorScreenX, anchorScreenY,
-                bottomAnchor, stationColumnItems.size(),
-                gridHoverStack == null ? "-" : gridHoverStack.getHoverName().getString(),
-                guiW, guiH, screen.getClass().getSimpleName());
         // Persist the fresh window (identity + mode + category + page + position).
         syncSpec();
         return true;

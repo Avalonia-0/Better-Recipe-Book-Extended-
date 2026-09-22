@@ -510,7 +510,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             return true;
         }
 
-        if (button == 1 && this.searchBox.isMouseOver(mouseX, mouseY)) {
+        if (button == ClientCompat.MOUSE_RIGHT && this.searchBox.isMouseOver(mouseX, mouseY)) {
             boolean hadSearch = !this.searchBox.getValue().isEmpty();
             searchBox.setValue("");
             searchBox.setFocused(false);

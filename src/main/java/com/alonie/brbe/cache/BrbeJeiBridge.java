@@ -438,13 +438,6 @@ public final class BrbeJeiBridge {
                     }
                 }
                 if (targetDisplay == null) continue;
-                // [DEBUG-layout] Temporary: report display classes for matching.
-                if (!all.isEmpty()) {
-                    BetterRecipeBook.LOGGER.warn("[DEBUG-layout] match target={} firstEngine={} equal(engine1)={}",
-                            targetDisplay.getClass().getSimpleName(),
-                            all.get(0).display() == null ? "null" : all.get(0).display().getClass().getSimpleName(),
-                            all.get(0).display() != null && all.get(0).display().equals(targetDisplay));
-                }
                 int layoutW = ((Number) get(entry, "layoutWidth")).intValue();
                 int layoutH = ((Number) get(entry, "layoutHeight")).intValue();
                 if (layoutW <= 0 || layoutH <= 0) continue;
