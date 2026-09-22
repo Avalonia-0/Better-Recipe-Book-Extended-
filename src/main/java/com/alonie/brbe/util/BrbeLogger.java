@@ -5,6 +5,7 @@ import java.io.PrintWriter;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 
@@ -64,8 +65,14 @@ public final class BrbeLogger {
         Path logsDir = gameDir.resolve("logs");
         try {
             Files.createDirectories(logsDir);
-            writer = new PrintWriter(Files.newBufferedWriter(
-                    logsDir.resolve("brbe-debug.log"), StandardCharsets.UTF_8), true /* autoFlush */);
+            Path file = logsDir.resolve("brbe-debug.log");
+            // 追加而不是截断：无头 JEI（独立 mod）也写这个文件，谁先谁后不确定；
+            // 截断会把先写的一方抹掉。文件过大时（>4MB）才重新开始，避免无限增长。
+            boolean fresh = !Files.exists(file) || Files.size(file) > 4L * 1024 * 1024;
+            writer = new PrintWriter(fresh
+                    ? Files.newBufferedWriter(file, StandardCharsets.UTF_8)
+                    : Files.newBufferedWriter(file, StandardCharsets.UTF_8,
+                            StandardOpenOption.CREATE, StandardOpenOption.APPEND), true /* autoFlush */);
             writer.println("=== BRBE Debug Log ===");
             writer.println("Session: " + java.time.Instant.now());
             writer.println();

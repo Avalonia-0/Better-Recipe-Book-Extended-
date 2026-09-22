@@ -1216,3 +1216,25 @@ HMCL 日志重建（`~/.hmcl/logs/*.log` 里 `Launched process:` 那行），并
 
 **未纳入本轮**：headless-jei fork 自己的 `[BRBE-JEI-Plugins]` 启动 INFO 行（独立工程
 `headless-jei/26.3`，不在本次四个目标分支内）仍在 latest.log，约 20 行/次；需要的话另开一轮。
+
+## 2026-09-22（三）：无头 JEI 的日志开关并入 `-Dbrbe.debug`
+
+用户提议"无头 JEI 干脆和 BRBE 共用同一个 JVM 参数"，采纳。实现分两条路（详见 `headless-jei` 分支提交
+`63202339`）：
+
+1. **fork 自有的 `com.alonie.brbe.jei.*`**（无头核心/收集器，26.3 共 21 处）：新增
+   `HeadlessJeiLog`（与 `BrbeLogger` 同款 API/开关/文件），`LOGGER.info/debug` 全部改走它；
+   只保留"整个集成起不来"的 4 条 warn 默认可见。
+2. **官方 `mezz.jei.*`（逐字节上游，不动源码）**：`HeadlessJeiLog.init()` 里按开关反射调
+   `Configurator.setLevel("mezz.jei", WARN|INFO)`——关闭时 JEI 那些 `Starting JEI…` /
+   `took 214.2 microseconds` / `Registering recipes…` 的 INFO 不再进 latest.log。
+
+输出与 BRBE 主 mod 同一个文件；**两个 mod 都用 `CREATE+APPEND` + 各写一行会话头**
+（`=== BRBE Debug Log ===` / `--- headless-jei attached ---`），谁先初始化都不会抹掉对方，
+只有文件 >4MB 时 BRBE 侧重新开始。
+
+**实测（26.3-Fabric）**：不带参数 → latest.log 里 `BRBE-JEI-Plugins` **0 行**、JEI 官方 INFO 行
+从 ~40 降到 1、无 `brbe-debug.log`；带 `-Dbrbe.debug=true` → `brbe-debug.log` 生成，且其中出现
+fork 自己写的 `[BRBE-JEI-PLUGINS]` 行（插桩那次确认过 writer 正常、`enabled=true`）。
+改动需重建 fork 并覆盖内嵌产物才生效（`libs/` + `META-INF/jars/`），本轮已重建部署
+（备份 `brbe-ava-fabric-26.3-2.3.jar.bak.20260922-2118`，md5 `8c65bb35b41c5afde8127644b77835f6`）。
