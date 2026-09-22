@@ -1231,10 +1231,39 @@ HMCL 日志重建（`~/.hmcl/logs/*.log` 里 `Launched process:` 那行），并
 
 输出与 BRBE 主 mod 同一个文件；**两个 mod 都用 `CREATE+APPEND` + 各写一行会话头**
 （`=== BRBE Debug Log ===` / `--- headless-jei attached ---`），谁先初始化都不会抹掉对方，
-只有文件 >4MB 时 BRBE 侧重新开始。
+只有文件 >4MB 时 BRBE 侧就地清空重来。
 
 **实测（26.3-Fabric）**：不带参数 → latest.log 里 `BRBE-JEI-Plugins` **0 行**、JEI 官方 INFO 行
 从 ~40 降到 1、无 `brbe-debug.log`；带 `-Dbrbe.debug=true` → `brbe-debug.log` 生成，且其中出现
-fork 自己写的 `[BRBE-JEI-PLUGINS]` 行（插桩那次确认过 writer 正常、`enabled=true`）。
+fork 自己写的 `[BRBE-JEI-PLUGINS]` 行。
 改动需重建 fork 并覆盖内嵌产物才生效（`libs/` + `META-INF/jars/`），本轮已重建部署
 （备份 `brbe-ava-fabric-26.3-2.3.jar.bak.20260922-2118`，md5 `8c65bb35b41c5afde8127644b77835f6`）。
+
+### 追加（同日）：fork 的日志"整体消失"根因 = 非追加句柄互相覆盖（提交 `7b438f8c`）
+
+**现象**：fork 明明跑了（插桩确认 `init` 被调用、`writer` 已开、`Files.size` 也涨到 187），
+但 `brbe-debug.log` 里**连它的会话头都没有**。
+
+**根因**：`BrbeLogger` 在"文件不存在/超 4MB"分支用 `Files.newBufferedWriter(p, UTF_8)`
+（= `CREATE+TRUNCATE_EXISTING+WRITE`，**没有 O_APPEND**），写入走**自己的文件位置**；
+fork 用 `CREATE+APPEND`（O_APPEND，写到真实末尾）。于是 BRBE 建文件→fork 把会话头追加到末尾
+→BRBE 从自己的位置继续写→**把 fork 的整段字节覆盖掉**。最小复现：
+`A(非追加)` 写 2 行、`B(追加)` 写 1 行 → B 的行彻底消失。这也解释了"插桩那次却能看到 fork 的行"
+（那次文件已存在，BRBE 走追加分支）。
+
+**修复**：`BrbeLogger.init` 恒以 `CREATE+APPEND` 打开（26.2/1.21.11/1.21.1 原本是**无条件截断**，
+比 26.3 更糟，一并改掉）；>4MB 轮转改为**就地 truncate**
+（`FileChannel.open(file, WRITE, TRUNCATE_EXISTING)`——NIO 不允许 `APPEND+TRUNCATE_EXISTING`
+同时给，会抛 `IllegalArgumentException`；而"删除再建"会让 fork 的句柄悬在 unlink 的 inode 上）。
+
+**验证**（`tools/brbe-perf-probe/`，均先删除日志文件以复现 fresh 场景）：
+26.3 开开关 → 85 行含 `--- headless-jei attached ---` / `collecting from 1 plugins` /
+`embedded JEI core started (3 plugins)` / `indexed 5 JEI types (1704 entries)`；关开关 → 无文件、
+latest.log 调试标签 0 行。26.2 → 106 行含 fork 会话头 + `collecting from 10 plugins` /
+`collected categories=15 recipeTypes=16 catalysts=18`；1.21.11 → 450 行含 fork 会话头 +
+`indexed 5 JEI types (174 entries, mod plugins)`。完整诊断见
+`docs/brbe-debug-log-写入冲突诊断.md`。
+
+**部署**：26.3 md5 `517efb955aeedf7172b0d15b8ef6429b`（备份 20260922-2147）、
+26.2 md5 `a6d4eccd9d94998f1cbf46c34727f781`、1.21.11 md5 `07977bb5bd0a976626d2bd70c2644e19`
+（备份 20260922-2148）。
