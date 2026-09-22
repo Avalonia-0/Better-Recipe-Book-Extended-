@@ -312,8 +312,6 @@ public final class RecipeViewerOverlay {
      *  刚被 ESC 关掉的窗口立刻重新物化 → ESC 被反复吞掉、用户再也退不出当前界面。
      *  这里记下界面实例，界面一变（关闭/换屏）即自动解除。 */
     private static AbstractContainerScreen<?> restoreSuppressedScreen;
-    /** Rate limit for the [VIEWER-DBG] render-state trace (ms). */
-    private static long brbe$lastRenderLog;
 
     // ── Query-window persistence (brbe.queryviewers.json, like pins) ──────
     /** A persisted query viewer window: the query identity (target item +
@@ -362,7 +360,7 @@ public final class RecipeViewerOverlay {
                 }
             }
         } catch (Exception e) {
-            System.err.println("[BRBE] Failed to read query viewers: " + e.getMessage());
+            BetterRecipeBook.LOGGER.warn("[BRBE] 读取查询窗口文件失败: {}", e.getMessage());
         }
     }
 
@@ -376,7 +374,7 @@ public final class RecipeViewerOverlay {
                 Files.writeString(viewerSpecFile,
                         PV_GSON.toJson(snapshot), StandardCharsets.UTF_8);
             } catch (Exception e) {
-                System.err.println("[BRBE] Failed to write query viewers: " + e.getMessage());
+                BetterRecipeBook.LOGGER.warn("[BRBE] 写入查询窗口文件失败: {}", e.getMessage());
             }
         });
     }
@@ -1686,22 +1684,6 @@ public final class RecipeViewerOverlay {
                 btns0.get(i).setY(boxY + boxH - 28 - row * 25);
             }
         }
-        long now = net.minecraft.util.Util.getMillis();
-        if (now - brbe$lastRenderLog > 2000) {
-            brbe$lastRenderLog = now;
-            OverlayRecipeComponentAccessor racc = null;
-            try {
-                racc = (OverlayRecipeComponentAccessor) overlay;
-            } catch (Throwable ignored) {
-            }
-            BetterRecipeBook.LOGGER.warn(
-                    "[VIEWER-DBG] render win#{} box=({},{},{}x{}) overlay=({},{}) vis={} btns={} tabsY={} tabX0={} colX={} colY0={}",
-                    RecipeViewerOverlay.WINDOWS.indexOf(ViewerInstance.this),
-                    boxX, boxY, boxW, boxH, boxLeft(), boxTop(), overlay.isVisible(),
-                    racc == null ? -1 : racc.getRecipeButtons().size(),
-                    tabTop(), tabX(0), panelLeft() + 4,
-                    boxY + boxH - 4 - STATION_CELL);
-        }
         // Desktop-window semantics: the window renders on top of a fully
         // interactive desktop (no scrim, no dead cursor) — the box's
         // background blits below stay untouched (its top border line remains
@@ -1943,7 +1925,7 @@ public final class RecipeViewerOverlay {
                     RecipeDisplayId pid = oba.brbe$getRecipe();
                     String key = "btn-partial " + pid;
                     if (BTN_DIAG_ONCE.add(key)) {
-                        BetterRecipeBook.LOGGER.warn("[BRBE-DIAG-PARTIAL] " + key
+                        BrbeLogger.log("BRBE-DIAG-PARTIAL", "{}", key
                                 + " craftable=" + craftable
                                 + " colCraftable=" + col.isCraftable(pid)
                                 + " snap=" + RecipeViewerIndex.isViewerPartial(col, pid)
@@ -4122,15 +4104,6 @@ public final class RecipeViewerOverlay {
         viewerZ = PinOverlayManager.nextZ();
         RecipeViewerIndex.setViewerActive(true);
         RecipeViewerIndex.setViewerOpenedFromBook(anchorBookButton != null);
-        BetterRecipeBook.LOGGER.warn("[VIEWER-DBG] open target={} usage={} cat={} "
-                        + "window#{} box=({},{},{}x{}) anchor=({},{}) bottomA={} "
-                        + "stationCol={} grid={} gui={}x{} screen={}",
-                target.getHoverName().getString(), viewUsage,
-                currentCategory == null ? "null" : currentCategory.id(),
-                WINDOWS.size(), boxX, boxY, boxW, boxH, anchorScreenX, anchorScreenY,
-                bottomAnchor, stationColumnItems.size(),
-                gridHoverStack == null ? "-" : gridHoverStack.getHoverName().getString(),
-                guiW, guiH, screen.getClass().getSimpleName());
         // Persist the fresh window (identity + mode + category + page + position).
         syncSpec();
         return true;
@@ -4243,7 +4216,7 @@ public final class RecipeViewerOverlay {
                 boolean synth = com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.isSynthetic(h.id());
                 sb.append(h.id()).append(synth ? ":S" : ":B").append(' ');
             }
-            BetterRecipeBook.LOGGER.warn("[BRBE-DIAG-PARTIAL] hits n=" + hits.size()
+            BrbeLogger.log("BRBE-DIAG-PARTIAL", "hits n=" + hits.size()
                     + " synth=" + hits.stream().filter(h -> com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.isSynthetic(h.id())).count()
                     + " ids=" + sb.append(']'));
         }

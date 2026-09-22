@@ -17,6 +17,7 @@ import java.util.Set;
 import static com.alonie.brbe.brewingstand.PlatformPotionUtil.getIngredient;
 import static com.alonie.brbe.brewingstand.PlatformPotionUtil.getFrom;
 import static com.alonie.brbe.brewingstand.PlatformPotionUtil.getTo;
+import com.alonie.brbe.util.BrbeLogger;
 
 /**
  * 酿造/锻造配方书进度解锁——全部数据运行时推导，零硬编码；
@@ -78,9 +79,7 @@ public final class RecipeUnlockTracker {
     public static void refreshIngredients() {
         MATERIAL_RESULTS = deriveMaterialResults(
                 net.minecraft.client.Minecraft.getInstance().level);
-        BetterRecipeBook.LOGGER.info("[BRBE-RECIPE-PROGRESS] tracked {} brewing materials ({} results)",
-                MATERIAL_RESULTS.size(),
-                MATERIAL_RESULTS.values().stream().mapToInt(Set::size).sum());
+        BrbeLogger.log("BRBE-RECIPE-PROGRESS", "tracked {} brewing materials ({} results)", MATERIAL_RESULTS.size(), MATERIAL_RESULTS.values().stream().mapToInt(Set::size).sum());
     }
 
     /** 运行时推导"材料 → 产物"映射（PotionBrewing 混合表，客户端/服务器线程
@@ -233,9 +232,7 @@ public final class RecipeUnlockTracker {
                 writeBrewJson(advDir.resolve(ns + "-" + path + ".json"), adv);
             }
             java.nio.file.Files.writeString(fp, fingerprint);
-            BetterRecipeBook.LOGGER.info(
-                    "[BRBE-RECIPE-PROGRESS] wrote brew progress pack to {} ({} materials)",
-                    packRoot, results.size());
+            BrbeLogger.log("BRBE-RECIPE-PROGRESS", "wrote brew progress pack to {} ({} materials)", packRoot, results.size());
         } catch (Exception | LinkageError e) {
             BetterRecipeBook.LOGGER.warn("[BRBE-RECIPE-PROGRESS] brew pack write failed: {}",
                     e.toString());
@@ -359,9 +356,7 @@ public final class RecipeUnlockTracker {
             }
             if (written == 0) return;
             java.nio.file.Files.writeString(fp, fingerprint);
-            BetterRecipeBook.LOGGER.info(
-                    "[BRBE-RECIPE-PROGRESS] wrote smithing progress pack to {} ({} mod recipes)",
-                    packRoot, written);
+            BrbeLogger.log("BRBE-RECIPE-PROGRESS", "wrote smithing progress pack to {} ({} mod recipes)", packRoot, written);
         } catch (Exception | LinkageError e) {
             BetterRecipeBook.LOGGER.warn("[BRBE-RECIPE-PROGRESS] smithing pack write failed: {}",
                     e.toString());
@@ -424,8 +419,7 @@ public final class RecipeUnlockTracker {
             }
         }
         if (changed) {
-            BetterRecipeBook.LOGGER.info("[BRBE-RECIPE-PROGRESS] observed brewing materials: {}",
-                    KNOWN_MATERIALS.size());
+            BrbeLogger.log("BRBE-RECIPE-PROGRESS", "observed brewing materials: {}", KNOWN_MATERIALS.size());
         }
     }
 
@@ -456,7 +450,7 @@ public final class RecipeUnlockTracker {
                 RecipeToast.addOrUpdate(manager, display);
             }
         } catch (Exception | LinkageError e) {
-            BetterRecipeBook.LOGGER.debug("[BRBE-RECIPE-PROGRESS] toast failed: {}", e.toString());
+            BrbeLogger.log("BRBE-RECIPE-PROGRESS", "toast failed: {}", e.toString());
         }
     }
 
@@ -495,8 +489,7 @@ public final class RecipeUnlockTracker {
                 }
             }
         } catch (Exception | LinkageError e) {
-            BetterRecipeBook.LOGGER.debug("[BRBE-RECIPE-PROGRESS] advancement poll failed: {}",
-                    e.toString());
+            BrbeLogger.log("BRBE-RECIPE-PROGRESS", "advancement poll failed: {}", e.toString());
         }
     }
 
@@ -511,8 +504,7 @@ public final class RecipeUnlockTracker {
             for (Identifier resultPotion : MATERIAL_RESULTS.get(material)) {
                 toastBrewingUnlock(mc, resultPotion);
             }
-            BetterRecipeBook.LOGGER.info(
-                    "[BRBE-RECIPE-PROGRESS] advancement-unlocked brewing material: {}", material);
+            BrbeLogger.log("BRBE-RECIPE-PROGRESS", "advancement-unlocked brewing material: {}", material);
         }
     }
 
@@ -539,9 +531,7 @@ public final class RecipeUnlockTracker {
             }
             book.rebuildCollections();
             RecipeViewerIndex.forceNextRebuild();
-            BetterRecipeBook.LOGGER.info(
-                    "[BRBE-RECIPE-PROGRESS] injected smithing unlock {} ({} displays)",
-                    recipeId, displays.size());
+            BrbeLogger.log("BRBE-RECIPE-PROGRESS", "injected smithing unlock {} ({} displays)", recipeId, displays.size());
         } catch (Exception | LinkageError e) {
             BetterRecipeBook.LOGGER.warn("[BRBE-RECIPE-PROGRESS] inject failed: {}", e.toString());
         }

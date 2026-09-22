@@ -10,6 +10,7 @@ import me.shedaniel.autoconfig.ConfigHolder;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
+import com.alonie.brbe.util.BrbeLogger;
 
 /**
  * The single dependency-injection root for BRBE.
@@ -95,8 +96,7 @@ public final class AppContext {
 
         // Wire config save listener through the event bus
         configHolder.registerSaveListener((holder, cfg) -> {
-            com.alonie.brbe.BetterRecipeBook.LOGGER.info(
-                    "[BRBE] config save listener fired; unlockAll={}", cfg.unlockAll);
+            BrbeLogger.log("BRBE", "config save listener fired; unlockAll={}", cfg.unlockAll);
             this.config = cfg;
             events.publish(new ConfigEventBus.ConfigChanged(cfg));
             events.publish(new ConfigEventBus.PartialCraftingChanged(

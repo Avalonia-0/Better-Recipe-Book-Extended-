@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import com.alonie.brbe.util.BrbeLogger;
 
 /**
  * The real {@link SyntheticRecipeRenderer}: delegates the recipe's full JEI UI
@@ -96,8 +97,7 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
         if (recipe == null || layout == null) {
             if (!renderSkipLogged) {
                 renderSkipLogged = true;
-                BetterRecipeBook.LOGGER.info("[BRBE-POPUP] synthetic render skipped recipe={} layout={}",
-                        recipe != null, layout != null);
+                BrbeLogger.log("BRBE-POPUP", "synthetic render skipped recipe={} layout={}", recipe != null, layout != null);
             }
             return false;
         }
@@ -108,14 +108,14 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
             if (drawable == null) {
                 if (!drawableFailLogged) {
                     drawableFailLogged = true;
-                    BetterRecipeBook.LOGGER.info("[BRBE-POPUP] createRecipeLayoutDrawable failed for {}", id);
+                    BrbeLogger.log("BRBE-POPUP", "createRecipeLayoutDrawable failed for {}", id);
                 }
                 return false;
             }
             LAYOUT_CACHE.put(id, drawable);
             if (!delegationLogged) {
                 delegationLogged = true;
-                BetterRecipeBook.LOGGER.info("[BRBE-JEI-Plugins] delegating synthetic recipe UI to JEI (createRecipeLayoutDrawable)");
+                BrbeLogger.log("BRBE-JEI-PLUGINS", "delegating synthetic recipe UI to JEI (createRecipeLayoutDrawable)");
             }
         }
 
@@ -372,7 +372,7 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
                     .invoke(manager, category, recipe, focusGroup);
             return (IRecipeLayoutDrawable<?>) opt.orElse(null);
         } catch (Exception | LinkageError e) {
-            BetterRecipeBook.LOGGER.debug("[BRBE-JEI-Plugins] createRecipeLayoutDrawable failed: {}", e.toString());
+            BrbeLogger.log("BRBE-JEI-PLUGINS", "createRecipeLayoutDrawable failed: {}", e.toString());
             return null;
         }
     }

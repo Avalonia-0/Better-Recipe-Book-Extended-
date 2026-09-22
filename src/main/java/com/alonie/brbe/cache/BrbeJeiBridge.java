@@ -14,6 +14,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import com.alonie.brbe.util.BrbeLogger;
 
 /**
  * 1.21.11 无头 JEI 桥（BRBE 侧，纯反射）：独立项目 headless-jei mod 的
@@ -295,8 +296,7 @@ public final class BrbeJeiBridge {
                     com.alonie.brbe.compat.SyntheticRecipeRenderers.register(
                             new com.alonie.brbe.jei.plugins.engine.SyntheticRecipeRendererImpl());
                 }
-                BetterRecipeBook.LOGGER.info("[BRBE-JEI-BRIDGE] imported {} JEI entries from headless-jei ({} types)",
-                        total, typeIds.size());
+                BrbeLogger.log("BRBE-JEI-BRIDGE", "imported {} JEI entries from headless-jei ({} types)", total, typeIds.size());
             }
             // 注册到原版类型的 mod 工作站（如 BetterEnd 末地石冶炼炉 →
             // minecraft:blasting）：registry 的 stations 不依赖条目存在，
@@ -438,13 +438,6 @@ public final class BrbeJeiBridge {
                     }
                 }
                 if (targetDisplay == null) continue;
-                // [DEBUG-layout] Temporary: report display classes for matching.
-                if (!all.isEmpty()) {
-                    BetterRecipeBook.LOGGER.warn("[DEBUG-layout] match target={} firstEngine={} equal(engine1)={}",
-                            targetDisplay.getClass().getSimpleName(),
-                            all.get(0).display() == null ? "null" : all.get(0).display().getClass().getSimpleName(),
-                            all.get(0).display() != null && all.get(0).display().equals(targetDisplay));
-                }
                 int layoutW = ((Number) get(entry, "layoutWidth")).intValue();
                 int layoutH = ((Number) get(entry, "layoutHeight")).intValue();
                 if (layoutW <= 0 || layoutH <= 0) continue;
@@ -482,9 +475,7 @@ public final class BrbeJeiBridge {
                 fallback = attachSmithingFallbackLayouts(all);
             }
             if (attached > 0 || fallback > 0) {
-                BetterRecipeBook.LOGGER.info(
-                        "[BRBE-JEI-BRIDGE] attached vanilla JEI layout to {} stonecutter/smithing entries ({}+{})",
-                        attached + fallback, attached, fallback);
+                BrbeLogger.log("BRBE-JEI-BRIDGE", "attached vanilla JEI layout to {} stonecutter/smithing entries ({}+{})", attached + fallback, attached, fallback);
             }
         } catch (Exception | LinkageError e) {
             BetterRecipeBook.LOGGER.warn("[BRBE-JEI-BRIDGE] attachVanillaLayouts failed: {}", e.toString());
@@ -583,8 +574,7 @@ public final class BrbeJeiBridge {
                 RECIPE_BY_ID.put(entry.id(), holder);
                 out++;
             }
-            // [DEBUG-fb] Temporary: report fallback source state when nothing attached
-            // (rate-limited to 5s to avoid per-tick spam from the poll).
+            // 什么都没挂上时报告 fallback 数据源状态（轮询路径，限频 5s 防刷屏）
             if (out == 0) {
                 long now = System.currentTimeMillis();
                 if (now - lastFbDebugLog > 5_000) {
@@ -598,8 +588,8 @@ public final class BrbeJeiBridge {
                                 : entry.display().getClass().getSimpleName())
                                 .append("(byId=").append(findSmithingHolderById(entry) != null).append("),");
                     }
-                    BetterRecipeBook.LOGGER.warn(
-                            "[DEBUG-fb] smithing fallback: entries={} pending={} synced={} smithingHolders={} serverSmithingHolders={} sample=[{}]",
+                    BrbeLogger.log("BRBE-JEI-BRIDGE",
+                            "smithing fallback: entries={} pending={} synced={} smithingHolders={} serverSmithingHolders={} sample=[{}]",
                             all.size(), pending, clientSyncedRecipes != null,
                             smithingHolders().size(), serverSmithingHolders().size(), sample);
                 }
@@ -608,7 +598,7 @@ public final class BrbeJeiBridge {
         return out;
     }
 
-    /** [DEBUG-fb] 日志限频（轮询每 tick 调用，避免刷屏）。 */
+    /** fallback 日志限频（轮询每 tick 调用，避免刷屏）。 */
     private static long lastFbDebugLog;
 
 
@@ -736,11 +726,10 @@ public final class BrbeJeiBridge {
             if (!pending) return;
             int n = attachSmithingFallbackLayouts(all);
             if (n > 0) {
-                BetterRecipeBook.LOGGER.info(
-                        "[BRBE-JEI-BRIDGE] fallback attached vanilla smithing layout to {} trim entries", n);
+                BrbeLogger.log("BRBE-JEI-BRIDGE", "fallback attached vanilla smithing layout to {} trim entries", n);
             }
         } catch (Exception | LinkageError e) {
-            BetterRecipeBook.LOGGER.warn("[BRBE-JEI-BRIDGE] pollSmithingLayoutFallback failed: {}", e.toString());
+            BrbeLogger.log("BRBE-JEI-BRIDGE", "pollSmithingLayoutFallback failed: " + e, e);
         }
     }
 

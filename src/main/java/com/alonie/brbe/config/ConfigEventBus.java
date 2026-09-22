@@ -69,7 +69,9 @@ public final class ConfigEventBus {
             } catch (Exception e) {
                 // Swallow per-listener errors so one broken subscriber
                 // doesn't prevent others from receiving the event.
-                e.printStackTrace();
+                // 真故障（订阅者抛异常）保持默认可见，但走日志系统而非裸 stderr。
+                com.alonie.brbe.BetterRecipeBook.LOGGER.warn(
+                        "[BRBE] 事件订阅者处理异常（事件 {}）", event.getClass().getSimpleName(), e);
             }
         }
     }

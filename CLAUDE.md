@@ -1057,3 +1057,28 @@ ESC 退出界面。"（详见 `docs/1.21.11-26.2-查询窗口ESC退出问题.md`
   `column_panel.png.mcmeta`（`nine_slice width/height=32 border=4`）继续生效；包内其余覆盖贴图同样只放 PNG。
 - `column_panel_top` 未动（代码侧已不再使用该变体）。
 - 已构建、原子替换部署（备份 20260911-174055，md5 一致），jar 内贴图与用户源文件 md5 一致。
+## 2026-09-22：调试日志统一到 `-Dbrbe.debug` 开关（四分支同步）
+
+用户需求：日志输出改由一个 JVM 参数启用并精简日志工具。26.3 为参照实现，本分支照做并已构建部署。
+
+- **唯一开关** `-Dbrbe.debug=true`；**唯一出口** `com.alonie.brbe.util.BrbeLogger`
+  （类加载求值一次，未开时空操作）；写 `<gameDir>/logs/brbe-debug.log`（不再写 latest.log）；
+  `{}` 顺序占位（不是 String.format）。
+- 入口接线：`fabric/BetterRecipeBookClientFabric#onInitializeClient` 开头
+  `BrbeLogger.init(Minecraft.getInstance().gameDirectory.toPath())`。
+- 分级：`LOGGER.info/debug` + 纯诊断 warn（`BRBE-DIAG`、`DEBUG-bug1`、`DEBUG-fb`、`DEBUG-layout`、
+  `VIEWER-DBG`）门控；真故障（文件读写失败、工作站 JSON 非法、注册/反射失败、进度写入失败、
+  `[BRBE-CACHE] 过期命中` 断言）保持默认可见。
+- 数字：门控 **77**（info/debug 54 + 诊断 warn 9 + RecipeStateDiagnostic 9 + RecipeUnlockUtil 5），
+  保留 `LOGGER.warn/error` **46**（另有 `LOG.warn/error` 4：RecipeUnlockUtil ×3 + TestRecipes ×1），
+  残留 `LOGGER.info/debug` 0、裸 `System.out/err` 0、旧属性 0；
+  `[DEBUG-bug1]`/`[DEBUG-layout]`/`[VIEWER-DBG]` 整块（含只为打日志的限频与局部变量）删除，
+  `[DEBUG-fb]` 去标记后门控。
+- 本分支主动补齐的三处（26.3 随后也已同步）：`RecipeUnlockUtil` 的 5 个 `LOG.info`（该文件用的是
+  `LOG.` 而非 `LOGGER.`，参照实现漏了）；`ConfigEventBus` 裸 `e.printStackTrace()` → `LOGGER.warn`；
+  删掉门控后变成死字段的 `ClientCompat.LOGGER` + slf4j import；`-Dbrbe.diagnostics` 过时 javadoc 改掉。
+- **未动**：`com/ava/test/TestRecipes`（自带 `-Dava.test.recipes=N` 开关、默认不输出）、
+  `BRBE-CACHE` 过期命中 `LOGGER.error`（缓存陈旧性断言，属真信号）。
+- 编译：`JAVA_HOME=/usr/lib/jvm/java-25-openjdk sh gradlew build` 通过（另跑过 `clean compileJava`
+  与 `--rerun-tasks` 全量重编）；**已原子替换部署**（备份
+  `brbe-ava-fabric-26.2-2.3.jar.bak.20260922-2115`，md5 `262a4ebab3a0efd39e6fca5e563332b9` 与产物一致）。

@@ -12,6 +12,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.*;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
+import com.alonie.brbe.util.BrbeLogger;
 
 /**
  * Loads vanilla Minecraft recipe JSONs from the classpath at startup.
@@ -78,14 +79,13 @@ public final class VanillaRecipeLoader {
             }
 
             File jarFile = new File(mcUrl.toURI());
-            BetterRecipeBook.LOGGER.info("[BRBE-CACHE] scanning JAR: {}", jarFile);
+            BrbeLogger.log("BRBE-CACHE", "scanning JAR: {}", jarFile);
             parsed = scanJar(jarFile, result);
         } catch (Exception e) {
             BetterRecipeBook.LOGGER.warn("[BRBE-CACHE] error scanning recipes: {}", e.getMessage());
         }
 
-        BetterRecipeBook.LOGGER.info(
-                "[BRBE-CACHE] loaded {} recipe entries from classpath", result.size());
+        BrbeLogger.log("BRBE-CACHE", "loaded {} recipe entries from classpath", result.size());
         return result;
     }
 

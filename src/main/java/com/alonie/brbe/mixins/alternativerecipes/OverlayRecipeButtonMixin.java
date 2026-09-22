@@ -28,6 +28,7 @@ import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import java.util.List;
+import com.alonie.brbe.util.BrbeLogger;
 
 
 @Mixin(targets = "net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent$OverlayRecipeButton")
@@ -184,7 +185,7 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
             // [BRBE-DIAG] 一次性：真实按钮状态分解（每个 id 一次）
             if (VBTN_DIAG.add(this.recipe)) {
                 RecipeDisplayEntry entry = recipeEntry();
-                com.alonie.brbe.BetterRecipeBook.LOGGER.warn("[BRBE-DIAG-PARTIAL] vbtn id=" + this.recipe
+                BrbeLogger.log("BRBE-DIAG-PARTIAL", "vbtn id=" + this.recipe
                         + " disp=" + (entry == null ? "null" : entry.display().getClass().getSimpleName())
                         + " layout=" + (entry != null && com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.getLayout(this.recipe) != null)
                         + " isCraftable=" + this.isCraftable

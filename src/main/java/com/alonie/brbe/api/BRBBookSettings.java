@@ -6,6 +6,7 @@ import net.minecraft.resources.Identifier;
 
 import java.util.HashMap;
 import java.util.Map;
+import com.alonie.brbe.util.BrbeLogger;
 
 public class BRBBookSettings {
     private static final Map<Identifier, TypeSettings> states = new HashMap<>();
@@ -13,7 +14,7 @@ public class BRBBookSettings {
 
     public static void registerBook(BRBHelper.Book book) {
         if (book == null) return;
-        BetterRecipeBook.LOGGER.info("Registering book {}", book.Identifier);
+        BrbeLogger.log("BRBE", "Registering book {}", book.Identifier);
         states.put(book.Identifier, new TypeSettings(false, false));
     }
 

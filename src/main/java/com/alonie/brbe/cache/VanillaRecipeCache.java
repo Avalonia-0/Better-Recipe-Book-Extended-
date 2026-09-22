@@ -15,6 +15,7 @@ import net.minecraft.world.item.equipment.trim.TrimPattern;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import com.alonie.brbe.util.BrbeLogger;
 
 /**
  * Local vanilla recipe cache that supplements server-provided recipes.
@@ -60,16 +61,16 @@ public final class VanillaRecipeCache {
                 cache.put(entry.recipeKey(), entry);
             }
         }
-        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] init loaded {} vanilla recipes from classpath", cache.size());
+        BrbeLogger.log("BRBE-CACHE", "init loaded {} vanilla recipes from classpath", cache.size());
         Map<String, Long> byCategory = cache.values().stream()
                 .collect(Collectors.groupingBy(
                         e -> e.categoryName() != null ? e.categoryName() : "null",
                         LinkedHashMap::new, Collectors.counting()));
-        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] cache by category: {}", byCategory);
+        BrbeLogger.log("BRBE-CACHE", "cache by category: {}", byCategory);
     }
 
     public static void clear() {
-        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] session cleared");
+        BrbeLogger.log("BRBE-CACHE", "session cleared");
         lastInjected.clear();
         lastFiltered.clear();
         lastCategoryBreakdown.clear();
@@ -100,8 +101,7 @@ public final class VanillaRecipeCache {
         lastServerFingerprint = serverFingerprint;
         forceInject = false;
         lastServerCount = (int) known.keySet().stream().filter(id -> id.index() >= 0).count();
-        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] pre-rebuild known count: {} (server: {})",
-                known.size(), lastServerCount);
+        BrbeLogger.log("BRBE-CACHE", "pre-rebuild known count: {} (server: {})", known.size(), lastServerCount);
         known.keySet().removeIf(id -> id.index() < 0);
         if (lastServerCount == 0) {
             injectEntries(known, Set.of());
@@ -148,8 +148,7 @@ public final class VanillaRecipeCache {
                 }
             }
         }
-        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] server covers {} unique result items",
-                keys.size());
+        BrbeLogger.log("BRBE-CACHE", "server covers {} unique result items", keys.size());
         return keys;
     }
 
@@ -224,8 +223,7 @@ public final class VanillaRecipeCache {
             }
         }
         String mode = complementMode ? "complement" : "all";
-        BetterRecipeBook.LOGGER.info("[BRBE-CACHE] injected ({}): {} cached, {} skipped, {} filtered (known now {})",
-                mode, injectedCount, skippedCount, filteredCount, known.size());
+        BrbeLogger.log("BRBE-CACHE", "injected ({}): {} cached, {} skipped, {} filtered (known now {})", mode, injectedCount, skippedCount, filteredCount, known.size());
         if (filteredCount > 0)
             BetterRecipeBook.LOGGER.warn("[BRBE-CACHE] filtered air entries (first {}): {}",
                     Math.min(SAMPLE_SIZE, lastFiltered.size()), lastFiltered);
@@ -233,14 +231,13 @@ public final class VanillaRecipeCache {
     }
 
     public static void dumpStatus() {
-        BetterRecipeBook.LOGGER.info("========== [BRBE-CACHE] STATUS REPORT ==========");
-        BetterRecipeBook.LOGGER.info("  Cache size: {}, server recipes in known: {}",
-                cache.size(), lastServerCount);
+        BrbeLogger.log("BRBE", "========== [BRBE-CACHE] STATUS REPORT ==========");
+        BrbeLogger.log("BRBE", "  Cache size: {}, server recipes in known: {}", cache.size(), lastServerCount);
         if (!lastInjected.isEmpty())
-            BetterRecipeBook.LOGGER.info("  Injected (sample {}): {}", lastInjected.size(), lastInjected);
+            BrbeLogger.log("BRBE", "  Injected (sample {}): {}", lastInjected.size(), lastInjected);
         if (!lastCategoryBreakdown.isEmpty())
-            BetterRecipeBook.LOGGER.info("  By category (injected): {}", lastCategoryBreakdown);
-        BetterRecipeBook.LOGGER.info("================================================");
+            BrbeLogger.log("BRBE", "  By category (injected): {}", lastCategoryBreakdown);
+        BrbeLogger.log("BRBE", "================================================");
     }
 
     static String extractResultItemId(SlotDisplay slot) {
@@ -281,7 +278,7 @@ public final class VanillaRecipeCache {
             return itemA.compareTo(itemB);
         });
 
-        BetterRecipeBook.LOGGER.info("[BRBE-DUMP] === BEGIN {} entries ===", known.size());
+        BrbeLogger.log("BRBE-DUMP", "=== BEGIN {} entries ===", known.size());
         for (var entry : sorted) {
             RecipeDisplayId id = entry.getKey();
             RecipeDisplayEntry val = entry.getValue();
@@ -289,10 +286,9 @@ public final class VanillaRecipeCache {
             String cat = categoryKey(val.category());
             String result = extractResultItemId(val.display().result());
             if (result == null) result = "<no-item>";
-            BetterRecipeBook.LOGGER.info("[BRBE-DUMP] {} {}[{}] {}",
-                    cat, source, id.index(), result);
+            BrbeLogger.log("BRBE-DUMP", "{} {}[{}] {}", cat, source, id.index(), result);
         }
-        BetterRecipeBook.LOGGER.info("[BRBE-DUMP] === END {} entries ===", known.size());
+        BrbeLogger.log("BRBE-DUMP", "=== END {} entries ===", known.size());
     }
 
     /**

@@ -31,6 +31,7 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import com.alonie.brbe.BetterRecipeBook;
 
 /**
  * Registry of every open pin overlay, plus the merged z-order rendering and the
@@ -103,7 +104,7 @@ public final class PinOverlayManager {
                 }
             }
         } catch (Exception e) {
-            System.err.println("[BRBE] Failed to read pin overlays: " + e.getMessage());
+            BetterRecipeBook.LOGGER.warn("[BRBE] 读取 pin 浮层文件失败: {}", e.getMessage());
         }
     }
 
@@ -121,7 +122,7 @@ public final class PinOverlayManager {
                 Files.createDirectories(pinFile.getParent());
                 Files.writeString(pinFile, json, StandardCharsets.UTF_8);
             } catch (IOException e) {
-                System.err.println("[BRBE] Failed to write pin overlays: " + e.getMessage());
+                BetterRecipeBook.LOGGER.warn("[BRBE] 写入 pin 浮层文件失败: {}", e.getMessage());
             }
         });
     }

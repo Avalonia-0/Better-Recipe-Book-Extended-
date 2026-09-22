@@ -103,7 +103,7 @@ public class RecipeUnlockUtil {
             }
         }
         deferredUnlockToasts.clear();
-        LOG.info("[BRBE] unlock-all flushed deferred unlock toasts");
+        BrbeLogger.log("BRBE", "unlock-all flushed deferred unlock toasts");
     }
 
     public static Set<RecipeDisplayId> getServerUnlockedRecipes() {
@@ -166,7 +166,7 @@ public class RecipeUnlockUtil {
             // Already fully unlocked — a progression packet adds nothing.
             return;
         }
-        LOG.info("[BRBE] unlock-all recipe-book packet: unlockAll={} serverUnlocked={} applied={}",
+        BrbeLogger.log("BRBE", "unlock-all recipe-book packet: unlockAll={} serverUnlocked={} applied={}",
                 unlockAll, serverUnlockedRecipes.size(), unlockAllApplied);
         if (unlockAll) {
             unlockRecipes();
@@ -179,7 +179,7 @@ public class RecipeUnlockUtil {
     /** Called when the config changes.  Applies the unlockAll toggle. */
     public static void syncToConfig() {
         boolean unlockAll = BetterRecipeBook.config.unlockAll;
-        LOG.info("[BRBE] unlock-all syncToConfig: unlockAll={} last={}",
+        BrbeLogger.log("BRBE", "unlock-all syncToConfig: unlockAll={} last={}",
                 unlockAll, lastUnlockAll);
         if (lastUnlockAll != null && lastUnlockAll == unlockAll) {
             return;
@@ -250,7 +250,7 @@ public class RecipeUnlockUtil {
         }
         book.rebuildCollections();
         unlockAllApplied = true;
-        LOG.info("[BRBE] unlock-all: injected {} displays", unlockAllInjected.size());
+        BrbeLogger.log("BRBE", "unlock-all: injected {} displays", unlockAllInjected.size());
     }
 
     /**
@@ -296,7 +296,7 @@ public class RecipeUnlockUtil {
         unlockAllInjected.clear();
         unlockAllApplied = false;
         book.rebuildCollections();
-        LOG.info("[BRBE] unlock-all revoked: removed {} displays, {} server-unlocked kept",
+        BrbeLogger.log("BRBE", "unlock-all revoked: removed {} displays, {} server-unlocked kept",
                 toRemove.size(), accessor.brbe$getKnown().size());
     }
 

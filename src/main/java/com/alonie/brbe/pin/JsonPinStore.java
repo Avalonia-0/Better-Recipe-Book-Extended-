@@ -11,6 +11,7 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import net.minecraft.resources.Identifier;
+import com.alonie.brbe.BetterRecipeBook;
 
 /**
  * JSON-file implementation of {@link PinStore}.
@@ -57,7 +58,7 @@ public final class JsonPinStore implements PinStore {
             Set<Identifier> result = GSON.fromJson(json, SET_TYPE);
             return result != null ? result : new HashSet<>();
         } catch (IOException e) {
-            System.err.println("[BRBE] Failed to read pins file: " + e.getMessage());
+            BetterRecipeBook.LOGGER.warn("[BRBE] 读取 pins 文件失败: {}", e.getMessage());
             return new HashSet<>();
         }
     }
@@ -71,7 +72,7 @@ public final class JsonPinStore implements PinStore {
                 Files.createDirectories(path.getParent());
                 Files.writeString(path, json, StandardCharsets.UTF_8);
             } catch (IOException e) {
-                System.err.println("[BRBE] Failed to write pins file: " + e.getMessage());
+                BetterRecipeBook.LOGGER.warn("[BRBE] 写入 pins 文件失败: {}", e.getMessage());
             }
         });
     }
