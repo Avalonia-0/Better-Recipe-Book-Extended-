@@ -30,8 +30,9 @@ public final class PerfTimer {
 
     /** Call at the top of updateCollections to arm. */
     public static void begin() {
-        // 纯诊断计时：只在调试日志开启时收集，否则整个计数链都是空操作。
-        enabled = BetterRecipeBook.ctx().config() != null && BrbeLogger.isEnabled();
+        // 纯诊断计时：只在 -Dbrbe.diag=true 时收集（每次刷新都要插桩计时，不能常开），
+        // 否则整个计数链都是空操作。
+        enabled = BetterRecipeBook.ctx().config() != null && BrbeLogger.diagnosticsEnabled();
         if (!enabled) return;
         active.get().clear();
     }

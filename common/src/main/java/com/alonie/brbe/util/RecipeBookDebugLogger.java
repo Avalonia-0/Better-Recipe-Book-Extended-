@@ -14,15 +14,16 @@ import java.util.List;
  * cycle, RBIP creative-tab filtering, pipeline stages, and cache operations.
  * All output is tagged with {@code [BRBE-DEBUG]} so it can be filtered.
  *
- * <p><b>开关</b>：跟随 {@link BrbeLogger}（JVM 属性 {@code -Dbrbe.debug=true}）——
+ * <p><b>开关</b>：跟随 {@link BrbeLogger}（JVM 属性 {@code -Dbrbe.diag=true}）——
  * 关闭时（默认）所有调用都是空操作，输出写 {@code <gameDir>/logs/brbe-debug.log}，
  * 不再污染 {@code latest.log}。
  */
 public final class RecipeBookDebugLogger {
 
-    /** 总开关（跟随 {@link BrbeLogger}：{@code -Dbrbe.debug=true} 才输出）。 */
+    /** 总开关：跟 {@code -Dbrbe.diag=true}（开发期自检闸门）。日志本身恒写
+     *  {@code brbe-debug.log}，但本类是"每次刷新刷一堆行"的诊断，不能常开。 */
     public static boolean enabled() {
-        return BrbeLogger.isEnabled();
+        return BrbeLogger.diagnosticsEnabled();
     }
 
     /** Log collection contents details (can be very noisy). */

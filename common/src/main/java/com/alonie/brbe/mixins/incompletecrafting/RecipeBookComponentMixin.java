@@ -196,10 +196,11 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         }
 
         // Diagnostic: count craftable state before pipeline.
-        // 仅 -Dbrbe.debug=true 时统计（O(n) 计数只为调试日志服务）。
+        // 仅 -Dbrbe.diag=true 时统计（O(n) 计数只为调试日志服务；日志恒写文件，
+        // 但"每次刷新都重算"的自检不能跟着日志常开）。
         int diagCraftableBefore = 0;
         int diagKnown = 0;
-        if (BrbeLogger.isEnabled()) {
+        if (BrbeLogger.diagnosticsEnabled()) {
             for (RecipeCollection c : collections) {
                 if (c.hasCraftable()) diagCraftableBefore++;
                 if (c.hasKnownRecipes()) diagKnown++;
@@ -253,10 +254,10 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
             }
         }
 
-        // Diagnostic: count craftable state after pipeline（仅调试开关开启时统计）。
+        // Diagnostic: count craftable state after pipeline（仅 -Dbrbe.diag=true 统计）。
         int diagCraftableAfter = 0;
         int diagPartialAfter = 0;
-        if (BrbeLogger.isEnabled()) {
+        if (BrbeLogger.diagnosticsEnabled()) {
             for (RecipeCollection c : collections) {
                 if (c.hasCraftable()) diagCraftableAfter++;
                 if (PartialCraftingUtil.hasPartialMaterials(c)) diagPartialAfter++;
@@ -297,8 +298,8 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         boolean partialMarking = BetterRecipeBook.ctx().config().partialMarkingEnabled;
 
         // Diagnostic: category + known count of the list after vanilla removeIf
-        // （仅调试开关开启时统计）。
-        if (BrbeLogger.isEnabled()) {
+        // （仅 -Dbrbe.diag=true 统计）。
+        if (BrbeLogger.diagnosticsEnabled()) {
             int knownAfter = 0;
             if (list != null) {
                 for (RecipeCollection c : list) if (c.hasKnownRecipes()) knownAfter++;

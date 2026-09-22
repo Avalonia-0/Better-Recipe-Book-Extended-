@@ -1588,3 +1588,32 @@ jar 内两张贴图 md5 与源文件一致，包内 `recipe_book` 覆盖贴图 2
 `brbe-debug.log` 含 fork 会话头与 fork 的收集/索引行；关闭开关时无该文件、`latest.log`
 调试标签 0 行。完整诊断见根目录 `docs/brbe-debug-log-写入冲突诊断.md`。
 
+
+## 2026-09-22（二）：日志改为「恒写一个文件」，取消 `-Dbrbe.debug`
+
+用户评估后拍板：不再用 JVM 参数控制日志输出，BRBE 与无头 JEI 的日志**全部输出到
+`<gameDir>/logs/brbe-debug.log`**——既不干扰 `latest.log`，也不需要开关。
+
+**BRBE 侧**（`util/BrbeLogger.java`，四分支逐字节一致 md5 `20e8f30a…`）：
+- 删掉 `PROPERTY`/`ENABLED`/`isEnabled()`，`init()` 与 `log()` **恒写**该文件
+  （`CREATE+APPEND` + 会话头 + >4 MB 就地清空，沿用同日修好的追加规则）。
+- 昂贵自检改由**独立闸门** `-Dbrbe.diag=true`（`BrbeLogger.diagnosticsEnabled()`，默认关）：
+  `RecipeStateDiagnostic`（每次刷新对全部配方做独立预测，官方注释写明"生产路径开启会显著
+  拖慢配方书刷新"）、1.21.1 的两处集合计数诊断、`RecipeBookDebugLogger`、`PerfTimer`。
+
+**无头 JEI 侧**（`HeadlessJeiLog.java`，四工程一致）：恒写同一文件；并新增
+**log4j 路由**——入口在**没有真实 JEI**（`!isModLoaded("jei")`）时把 `mezz.jei` logger
+接到本文件（`additivity=false` + 自有 appender，INFO 起），WARN 及以上旁路回原
+`File` appender（`latest.log` 仍能看到 JEI 的告警/错误）；**装了真实 JEI 时完全不碰**。
+
+**验证**（详见根 `docs/brbe-debug-log-写入冲突诊断.md` §7）：
+- 26.3 实机不带任何 JVM 参数进世界 → `brbe-debug.log` 124 行，含两个会话头、路由确认行、
+  官方 `Starting JEI… / Configuring JEI took 402.0 microseconds / Registering recipes…`；
+  `latest.log` 里 BRBE 调试标签 0 行、JEI 官方行 0 行。
+- 26.2 / 1.21.11 **装有真实 JEI** → 无 `routed here`（未劫持），JEI 行留在 `latest.log`。
+- WARN 旁路用离线探针（真实 fork jar + 实例 `log4j2.xml`）确定性验证：`mezz.jei.probe`
+  的 INFO 只进 brbe-debug.log，WARN 两个文件都有。
+
+**部署**：26.3 `8f97e426…`（备份 20260922-2229）、26.2 `4dc7122a…`、1.21.11 `bde411d7…`
+（备份同日 2230）；1.21.1 按用户要求只构建不部署（BRBE 双端 + fork 双端 jar 均已构建）。
+

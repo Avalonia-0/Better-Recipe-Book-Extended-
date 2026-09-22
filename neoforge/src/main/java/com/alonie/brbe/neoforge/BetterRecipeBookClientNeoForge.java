@@ -41,8 +41,8 @@ public class BetterRecipeBookClientNeoForge {
 
     public static void init(IEventBus modEventBus) {
 
-        // 调试日志总闸门：只有 -Dbrbe.debug=true 时才创建 logs/brbe-debug.log；
-        // 未开启时 BrbeLogger 的所有调用都是空操作（latest.log 不再被调试输出刷屏）。
+        // 日志恒写 <gameDir>/logs/brbe-debug.log（没有开关）：BRBE、无头 JEI、
+        // 以及被路由过来的官方 mezz.jei 行都在同一个文件里，latest.log 保持干净。
         // 幂等：common 的 BetterRecipeBook.init() 已调用过时内部直接返回（writer != null）。
         com.alonie.brbe.util.BrbeLogger.init(Minecraft.getInstance().gameDirectory.toPath());
 

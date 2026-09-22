@@ -175,7 +175,7 @@ public final class RecipePipeline {
         }
 
         // ── 诊断：每次物品栏刷新后检查配方状态 ──
-        // 默认关闭（-Dbrbe.debug=true 开启）：这是开发期 QA 工具，生产路径开启
+        // 默认关闭（-Dbrbe.diag=true 开启）：这是开发期 QA 工具，生产路径开启
         // 会对全部配方做一遍独立状态预测，显著拖慢配方书刷新。
         if (ctx.menuSlots != null && RecipeStateDiagnostic.enabled()) {
             RecipeStateDiagnostic.run(collections, ctx.menuSlots, ctx.carried);

@@ -116,7 +116,7 @@ public class BetterRecipeBook {
         @SuppressWarnings("unused")
         Class<com.alonie.brbe.util.CollectionCategory> _cc = com.alonie.brbe.util.CollectionCategory.class;
 
-        // Initialise debug logger (no-op unless -Dbrbe.debug=true)
+        // Initialise debug logger (no-op unless -Dbrbe.diag=true)
         BrbeLogger.init(Minecraft.getInstance().gameDirectory.toPath());
 
         PotionLoader.init();
