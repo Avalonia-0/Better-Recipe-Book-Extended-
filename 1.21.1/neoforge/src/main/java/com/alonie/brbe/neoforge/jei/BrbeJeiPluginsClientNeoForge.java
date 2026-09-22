@@ -2,6 +2,7 @@ package com.alonie.brbe.neoforge.jei;
 
 import com.alonie.brbe.jei.plugins.BrbeJeiHeadlessCore;
 import com.alonie.brbe.jei.plugins.BrbeJeiPlugins;
+import com.alonie.brbe.jei.plugins.HeadlessJeiLog;
 import net.neoforged.bus.api.IEventBus;
 import net.neoforged.neoforge.common.NeoForge;
 import net.neoforged.neoforge.event.GameShuttingDownEvent;
@@ -20,6 +21,15 @@ public final class BrbeJeiPluginsClientNeoForge {
     private BrbeJeiPluginsClientNeoForge() {}
 
     public static void init(IEventBus modEventBus) {
+        // 日志总闸门：与 BRBE 主 mod 共用 -Dbrbe.debug=true。
+        // 关闭时还会把官方 mezz.jei 的 log4j 级别抬到 WARN（那些 INFO 不再刷 latest.log）。
+        // 时机：本方法由 mod 主类的构造器调用（@Mod 入口尚未在本工程落地——见 BRBE
+        // BrbeJeiBridge 的说明）；NeoForge 21.1.21 的 ClientModLoader.begin 被 patch 在
+        // Minecraft.<init> 内（javap 核实：instance 静态字段在 offset 154 赋值、
+        // gameDirectory 在 offset 172 赋值、ClientModLoader.begin 在 offset 945 调用）
+        // ——构造期 getInstance() 已非 null 且 gameDirectory 已就绪。
+        HeadlessJeiLog.init(net.minecraft.client.Minecraft.getInstance().gameDirectory.toPath());
+
         // 真实 JEI 存在：跳过图集双注册（真实 JEI 自己注册）；start() 自带
         // real 守卫（BrbeJeiPlatform.realJeiLoaded），收集照常（数据搬运）。
         if (!com.alonie.brbe.jei.plugins.BrbeJeiPlatform.realJeiLoaded()) {
@@ -31,7 +41,7 @@ public final class BrbeJeiPluginsClientNeoForge {
                             mezz.jei.common.Internal.getTextures().getGuiSpriteManager();
                     event.registerReloadListener(spriteManager);
                 } catch (Exception | LinkageError e) {
-                    LOGGER.debug("JEI gui sprite manager skipped: {}", e.toString());
+                    HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "JEI gui sprite manager skipped: {}", e.toString());
                 }
             });
         }
@@ -59,7 +69,4 @@ public final class BrbeJeiPluginsClientNeoForge {
         NeoForge.EVENT_BUS.addListener(GameShuttingDownEvent.class,
                 event -> BrbeJeiHeadlessCore.onClientStopping());
     }
-
-    private static final org.apache.logging.log4j.Logger LOGGER =
-            org.apache.logging.log4j.LogManager.getLogger("headless-jei");
 }

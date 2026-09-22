@@ -1,8 +1,5 @@
 package com.alonie.brbe.jei.plugins;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
 import mezz.jei.common.Internal;
 import mezz.jei.common.gui.textures.JeiAtlasManager;
 import mezz.jei.common.gui.textures.Textures;
@@ -37,13 +34,15 @@ import java.util.concurrent.Executor;
  */
 public final class BrbeJeiPluginsClientFabric implements ClientModInitializer {
 
-    private static final Logger LOGGER = LogManager.getLogger("headless-jei");
-
     /** 真实 JEI 场景：数据搬运收集是否已完成（本次 world join）。 */
     private static boolean realJeiCollected;
 
     @Override
     public void onInitializeClient() {
+        // 日志总闸门：与 BRBE 主 mod 共用 -Dbrbe.debug=true。
+        // 关闭时还会把官方 mezz.jei 的 log4j 级别抬到 WARN（那些 INFO 不再刷 latest.log）。
+        HeadlessJeiLog.init(net.minecraft.client.Minecraft.getInstance().gameDirectory.toPath());
+
         // 真实 JEI 存在：无头不启动 runtime（真实 JEI 自己运行），只做数据
         // 搬运——插件收集 + VanillaPlugin 运行时类型（anvil/brewing/grindstone）
         // 从真实 JEI 的 manager 读入 JeiRecipeRegistry，BRBE 桥走同一 registry
@@ -98,7 +97,7 @@ public final class BrbeJeiPluginsClientFabric implements ClientModInitializer {
                         }
                     });
         } catch (Exception | LinkageError e) {
-            LOGGER.debug("[BRBE-JEI-Plugins] JEI gui atlas listener skipped: {}", e.toString());
+            HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "JEI gui atlas listener skipped: {}", e.toString());
         }
 
         // 内嵌核心 + 生命周期接线（JOIN 启动/DISCONNECT/CLIENT_STOPPING/

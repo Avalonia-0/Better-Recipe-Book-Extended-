@@ -10,20 +10,18 @@ import mezz.jei.api.runtime.IIngredientManager;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.context.ContextMap;
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import com.alonie.brbe.jei.plugins.HeadlessJeiLog;
 
 /** {@link IRecipeRegistration} implementation that records every
  *  {@code recipeType -> recipes} mapping reported by the loaded JEI plugins,
  *  without registering them into a JEI runtime. */
 public final class RecipeCollector implements IRecipeRegistration {
 
-    private static final Logger LOGGER = LogManager.getLogger("headless-jei");
 
     private final Map<IRecipeType<?>, List<Object>> recipes = new LinkedHashMap<>();
 
@@ -54,7 +52,7 @@ public final class RecipeCollector implements IRecipeRegistration {
     @Override
     public <T> void addRecipes(IRecipeType<T> recipeType, List<T> recipes) {
         if (recipeType == null || recipes == null) return;
-        LOGGER.info("[BRBE-JEI-Plugins] addRecipes type={} recipes={}",
+        HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "addRecipes type={} recipes={}",
                 recipeType.getUid(), recipes == null ? -1 : recipes.size());
         List<Object> bucket = this.recipes.computeIfAbsent(recipeType, k -> new ArrayList<>());
         bucket.addAll(recipes);

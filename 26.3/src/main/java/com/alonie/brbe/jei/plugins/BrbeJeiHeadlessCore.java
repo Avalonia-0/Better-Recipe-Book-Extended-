@@ -144,7 +144,7 @@ public final class BrbeJeiHeadlessCore {
         }
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.level == null) {
-            LOGGER.info("[BRBE-JEI-Plugins] no level yet; deferring embedded core start");
+            HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "no level yet; deferring embedded core start");
             return;
         }
         try {
@@ -192,7 +192,7 @@ public final class BrbeJeiHeadlessCore {
             jeiStarter = new JeiStarter(startData);
             jeiStarter.start();
             running = true;
-            LOGGER.info("[BRBE-JEI-Plugins] embedded JEI core started ({} plugins)", plugins.size());
+            HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "embedded JEI core started ({} plugins)", plugins.size());
             injectSyncedModRecipes();
             // 收集（collectAndInject）可能已在核心启动前跑过——那时
             // JeiRuntimeBridge 为空，indexVanillaRuntimeTypes 直接返回，
@@ -293,10 +293,10 @@ public final class BrbeJeiHeadlessCore {
                         manager.addRecipes((IRecipeType) recipeType, recipes);
                     }
                 }
-                LOGGER.info("[BRBE-JEI-Plugins] injected {} recipes into JEI manager for {}",
+                HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "injected {} recipes into JEI manager for {}",
                         entry.getValue().size(), typeKey);
             } catch (Exception | LinkageError e) {
-                LOGGER.warn("[BRBE-JEI-Plugins] failed to inject recipes for {}: {}",
+                HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "failed to inject recipes for {}: {}",
                         typeKey, e.toString());
             }
         }
@@ -309,7 +309,7 @@ public final class BrbeJeiHeadlessCore {
         try {
             jeiStarter.stop();
         } catch (Exception | LinkageError e) {
-            LOGGER.debug("[BRBE-JEI-Plugins] embedded JEI core stop: {}", e.toString());
+            HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "embedded JEI core stop: {}", e.toString());
         }
         running = false;
         injectedTypes.clear();

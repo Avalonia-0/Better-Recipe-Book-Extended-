@@ -11,6 +11,10 @@ public final class BrbeJeiPluginsClientFabric implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        // 日志总闸门：与 BRBE 主 mod 共用 -Dbrbe.debug=true。
+        // 关闭时还会把官方 mezz.jei 的 log4j 级别抬到 WARN（那些 INFO 不再刷 latest.log）。
+        HeadlessJeiLog.init(net.minecraft.client.Minecraft.getInstance().gameDirectory.toPath());
+
         // 真实 JEI 存在：无头不启动 runtime（真实 JEI 自己运行），只做数据
         // 搬运——插件收集 + VanillaPlugin 运行时类型（anvil/brewing/grindstone）
         // 从真实 JEI 的 manager 读入 JeiRecipeRegistry，BRBE 桥走同一 registry

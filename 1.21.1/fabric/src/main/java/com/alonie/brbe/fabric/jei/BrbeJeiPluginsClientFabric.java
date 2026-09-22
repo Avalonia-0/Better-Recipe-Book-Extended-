@@ -1,9 +1,8 @@
 package com.alonie.brbe.fabric.jei;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
 import com.alonie.brbe.jei.plugins.BrbeJeiHeadlessCore;
 import com.alonie.brbe.jei.plugins.BrbeJeiPlugins;
+import com.alonie.brbe.jei.plugins.HeadlessJeiLog;
 import mezz.jei.common.Internal;
 import mezz.jei.common.gui.textures.JeiGuiSpriteManager;
 import net.fabricmc.api.ClientModInitializer;
@@ -33,13 +32,19 @@ import java.util.concurrent.Executor;
  */
 public final class BrbeJeiPluginsClientFabric implements ClientModInitializer {
 
-    private static final Logger LOGGER = LogManager.getLogger("headless-jei");
-
     /** 真实 JEI 场景：数据搬运收集是否已完成（本次 world join）。 */
     private static boolean realJeiCollected;
 
     @Override
     public void onInitializeClient() {
+        // 日志总闸门：与 BRBE 主 mod 共用 -Dbrbe.debug=true。
+        // 关闭时还会把官方 mezz.jei 的 log4j 级别抬到 WARN（那些 INFO 不再刷 latest.log）。
+        // 时机：fabric-loader 0.15.11 的 EntrypointPatch 把 Hooks.startClient 注入在
+        // Minecraft.<init> 内（javap 核实：instance 静态字段在 offset 154 赋值、
+        // gameDirectory 在 offset 172 赋值，注入点在 window/GL 初始化之后）——
+        // 此处 getInstance() 非 null 且 gameDirectory 已就绪。
+        HeadlessJeiLog.init(net.minecraft.client.Minecraft.getInstance().gameDirectory.toPath());
+
         // 真实 JEI 存在：无头不启动 runtime（真实 JEI 自己运行），只做数据
         // 搬运——插件收集读入 JeiRecipeRegistry（BRBE 桥走同一 registry
         // 数据流）；不注册图集监听器（真实 JEI 自己注册）。
@@ -84,7 +89,7 @@ public final class BrbeJeiPluginsClientFabric implements ClientModInitializer {
                         }
                     });
         } catch (Exception | LinkageError e) {
-            LOGGER.debug("[BRBE-JEI-Plugins] JEI gui sprite manager skipped: {}", e.toString());
+            HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "JEI gui sprite manager skipped: {}", e.toString());
         }
 
         ClientPlayConnectionEvents.JOIN.register((handler, sender, client) -> {

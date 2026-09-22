@@ -1,8 +1,6 @@
 package com.alonie.brbe.jei.plugins.engine;
 
-import org.apache.logging.log4j.LogManager;
-import org.apache.logging.log4j.Logger;
-
+import com.alonie.brbe.jei.plugins.HeadlessJeiLog;
 import com.alonie.brbe.jei.plugins.engine.DataOnlyLayoutBuilder;
 import com.alonie.brbe.jei.plugins.engine.EmptyFocusGroup;
 import com.alonie.brbe.jei.plugins.engine.SlotData;
@@ -51,8 +49,6 @@ import java.util.Set;
  * {@link DataOnlyLayoutBuilder} 记录槽位（仅数据，不渲染）。</p>
  */
 public final class PluginRecipeIndexer {
-
-    private static final Logger LOGGER = LogManager.getLogger("headless-jei");
 
     private PluginRecipeIndexer() {}
 
@@ -155,7 +151,7 @@ public final class PluginRecipeIndexer {
                 try {
                     recipes = manager.createRecipeLookup(category.getRecipeType()).get().toList();
                 } catch (Exception | LinkageError e) {
-                    LOGGER.warn("[BRBE-JEI-Plugins] vanilla {} recipe lookup failed: {}",
+                    HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "vanilla {} recipe lookup failed: {}",
                             uid, e.toString());
                     continue;
                 }
@@ -173,10 +169,10 @@ public final class PluginRecipeIndexer {
                 if (indexed.isEmpty()) continue;
                 entries.put(ResourceLocation.parse(uid), indexed);
                 stations.put(ResourceLocation.parse(uid), vanillaStationsFor(uid));
-                LOGGER.info("[BRBE-JEI-Plugins] vanilla runtime type {}: {} recipes indexed",
+                HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "vanilla runtime type {}: {} recipes indexed",
                         uid, indexed.size());
             } catch (Exception | LinkageError e) {
-                LOGGER.warn("[BRBE-JEI-Plugins] vanilla runtime type {} pass failed: {}",
+                HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "vanilla runtime type {} pass failed: {}",
                         uid, e.toString());
             }
         }
@@ -200,7 +196,7 @@ public final class PluginRecipeIndexer {
         JeiRecipeRegistry.putAll(entries, stations, titles);
         com.alonie.brbe.jei.api.JeiPopupRenderer.invalidate();
         if (!entries.isEmpty()) {
-            LOGGER.info("[BRBE-JEI-Plugins] indexed {} JEI types ({} entries, {})",
+            HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "indexed {} JEI types ({} entries, {})",
                     entries.size(), entries.values().stream().mapToInt(List::size).sum(), source);
         }
     }
@@ -269,7 +265,7 @@ public final class PluginRecipeIndexer {
             }
             return buildGenericEntry(uid, category, recipe);
         } catch (Exception | LinkageError e) {
-            LOGGER.debug("[BRBE-JEI-Plugins] entry build failed for {}: {}",
+            HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "entry build failed for {}: {}",
                     uid, e.toString());
             return null;
         }
@@ -323,7 +319,7 @@ public final class PluginRecipeIndexer {
         try {
             ((IRecipeCategory) category).setRecipe(builder, recipe, EmptyFocusGroup.INSTANCE);
         } catch (Exception | LinkageError e) {
-            LOGGER.debug("[BRBE-JEI-Plugins] setRecipe failed for {}: {}",
+            HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "setRecipe failed for {}: {}",
                     uid, e.toString());
             // setRecipe 失败（如 smithing trim 的 tag 依赖未绑定）时保留配方
             // 条目本身（仅缺 layout）——弹窗回退 vanilla 布局，不整类丢失。

@@ -40,7 +40,7 @@ public final class BrbeJeiPlugins {
             n = recipes == null ? -1 : recipes.recipes().size();
         } catch (Exception | LinkageError ignored) {
         }
-        LOGGER.info("[BRBE-JEI-Plugins] setSyncedRecipes called ({} recipes)", n);
+        HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "setSyncedRecipes called ({} recipes)", n);
     }
 
     public static net.fabricmc.fabric.api.recipe.v1.sync.SynchronizedRecipes syncedRecipes() {
@@ -67,10 +67,10 @@ public final class BrbeJeiPlugins {
 
             List<IModPlugin> plugins = BrbeJeiPluginFinder.findPlugins();
             if (plugins.isEmpty()) {
-                LOGGER.info("[BRBE-JEI-Plugins] no JEI plugins found");
+                HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "no JEI plugins found");
                 return;
             }
-            LOGGER.info("[BRBE-JEI-Plugins] collecting from {} plugins", plugins.size());
+            HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "collecting from {} plugins", plugins.size());
             // 无头核心本身会把 VanillaPlugin/JeiInternalPlugin 装进 JEI 运行时；
             // 原版 anvil/brewing/grindstone 类别与配方数据从运行时直接读取
             // （PluginRecipeIndexer.indexVanillaRuntimeTypes），不在此重跑
@@ -83,7 +83,7 @@ public final class BrbeJeiPlugins {
                     plugin.registerCategories(categoryCollector);
                     plugin.registerRecipeCatalysts(catalystCollector);
                     plugin.registerRecipes(recipeCollector);
-                    LOGGER.info("[BRBE-JEI-Plugins] collected from plugin {}", uid);
+                    HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "collected from plugin {}", uid);
                 } catch (Exception | LinkageError e) {
                     LOGGER.warn("[BRBE-JEI-Plugins] plugin {} failed: {}",
                             safeUid(plugin), e.toString());
@@ -92,7 +92,7 @@ public final class BrbeJeiPlugins {
 
             PluginRecipeIndexer.indexModData(categoryCollector.categories(),
                     recipeCollector.recipes(), catalystCollector.collected());
-            LOGGER.info("[BRBE-JEI-Plugins] collected categories={} recipeTypes={} catalysts={}",
+            HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "collected categories={} recipeTypes={} catalysts={}",
                     categoryCollector.categories().size(),
                     recipeCollector.recipes().size(),
                     catalystCollector.collected().size());
@@ -100,7 +100,7 @@ public final class BrbeJeiPlugins {
             // （嵌入式无头核心或真实 JEI）的 VanillaPlugin 注册。
             PluginRecipeIndexer.indexVanillaRuntimeTypes();
         } catch (Exception e) {
-            LOGGER.warn("[BRBE-JEI-Plugins] collection failed: {}", e.toString());
+            HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "collection failed: {}", e.toString());
         }
     }
 

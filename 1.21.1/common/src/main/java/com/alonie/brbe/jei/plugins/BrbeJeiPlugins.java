@@ -46,7 +46,7 @@ public final class BrbeJeiPlugins {
 
             List<IModPlugin> plugins = BrbeJeiPluginFinder.findPlugins();
             if (plugins.isEmpty()) {
-                LOGGER.info("[BRBE-JEI-Plugins] no JEI plugins found");
+                HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "no JEI plugins found");
                 return;
             }
             // 无头核心本身会把 VanillaPlugin/JeiInternalPlugin 装进 JEI 运行时；
@@ -61,7 +61,7 @@ public final class BrbeJeiPlugins {
                     plugin.registerCategories(categoryCollector);
                     plugin.registerRecipeCatalysts(catalystCollector);
                     plugin.registerRecipes(recipeCollector);
-                    LOGGER.info("[BRBE-JEI-Plugins] collected from plugin {}", uid);
+                    HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "collected from plugin {}", uid);
                 } catch (Exception | LinkageError e) {
                     LOGGER.warn("[BRBE-JEI-Plugins] plugin {} failed: {}",
                             safeUid(plugin), e.toString());
@@ -74,7 +74,7 @@ public final class BrbeJeiPlugins {
             // （嵌入式无头核心或真实 JEI）的 VanillaPlugin 注册。
             PluginRecipeIndexer.indexVanillaRuntimeTypes();
         } catch (Exception e) {
-            LOGGER.warn("[BRBE-JEI-Plugins] collection failed: {}", e.toString());
+            HeadlessJeiLog.log("BRBE-JEI-PLUGINS", "collection failed: {}", e.toString());
         }
     }
 
