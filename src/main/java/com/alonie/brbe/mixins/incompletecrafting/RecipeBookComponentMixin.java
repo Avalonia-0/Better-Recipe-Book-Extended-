@@ -378,8 +378,45 @@ public abstract class RecipeBookComponentMixin {
      */
     @Inject(method = "selectMatchingRecipes", at = @At("HEAD"))
     private void brbe$beginCraftingIndexPass(CallbackInfo ci) {
-        int gridSig = this.menu.getRecipeBookType().ordinal();
-        com.alonie.brbe.util.RecipeCraftingIndex.beginPass(this.stackedContents, gridSig);
+        com.alonie.brbe.util.RecipeCraftingIndex.beginPass(
+                this.stackedContents, brbe$selectionSignature());
+    }
+
+    /**
+     * 「选择谓词签名」——增量 canCraft 索引的失效判据。
+     *
+     * <p>vanilla 的 {@code RecipeCollection.selectRecipes(stacked, predicate)} 同时写
+     * {@code selected} 与 {@code craftable}，而 predicate（
+     * {@code CraftingRecipeBookComponent.canDisplay}）<b>依赖当前合成网格尺寸</b>：
+     * 2×2 背包放不下 3×3 配方。BRBE 还会在物品栏界面按
+     * {@code showAllRecipesInSurvival} 强制放行 3×3（incompatibleenvironment 的
+     * {@code canDisplay} 注入）。因此「网格尺寸 / 是否物品栏 / 该开关」三者任一变化，
+     * 既往的 selected 都必须失效重算。</p>
+     *
+     * <p><b>旧实现的 bug</b>：签名只取 {@code menu.getRecipeBookType().ordinal()}，
+     * 而物品栏（{@code InventoryMenu}）与工作台（{@code CraftingMenu}）**都返回
+     * {@code RecipeBookType.CRAFTING}** → 从工作台回到背包时签名不变，
+     * {@code RecipeCollectionMixin} 把 {@code selectRecipes} 整体跳过 → 3×3 配方带着
+     * 3×3 网格下算出的 selected 残留显示在 2×2 背包配方书里（无不可合成标记、可点击
+     * → 弹出幽灵物品）；在游戏内关掉该开关同理不生效（谓词变了但选择没重算）。</p>
+     */
+    @Unique
+    private int brbe$selectionSignature() {
+        int sig = this.menu != null ? this.menu.getRecipeBookType().ordinal() : -1;
+        int gridWidth = 0;
+        int gridHeight = 0;
+        if (this.menu instanceof net.minecraft.world.inventory.AbstractCraftingMenu craftingMenu) {
+            gridWidth = craftingMenu.getGridWidth();
+            gridHeight = craftingMenu.getGridHeight();
+        }
+        // 开关开启 + 物品栏界面 = canDisplay 被强制放行（3×3 也进 selected）
+        boolean forceShowAll = BetterRecipeBook.config.showAllRecipesInSurvival
+                && this.minecraft != null
+                && this.minecraft.gui.screen() instanceof InventoryScreen;
+        sig = sig * 31 + gridWidth;
+        sig = sig * 31 + gridHeight;
+        sig = sig * 31 + (forceShowAll ? 1 : 0);
+        return sig;
     }
 
     /**

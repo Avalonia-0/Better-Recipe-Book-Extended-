@@ -1283,3 +1283,56 @@ transformMethodRef` 处理——与普通 `INVOKEVIRTUAL/INVOKESTATIC` 指令**�
 
 **构建/部署**：26.2-Fabric `8e113a55f795d077d4b3ae622a2bfa47`（备份 `20260923-181610`，原子替换）；
 `javap -c` 核对 jar 内 `BrbeConfig.<init>` 两字段为 `iconst_0`（false）。
+
+## 2026-09-23（三）：关闭「在生存模式配方书中显示3x3配方」后 3×3 配方仍留在背包配方书（四分支同源）
+
+**用户反馈**：关闭该开关后，背包（2×2）配方书里的 3×3 配方不消失——没有不可合成标记，
+还能点击并弹出幽灵物品；26.3 更严重（在游戏内关掉开关完全无效）。要求四分支排查。
+
+**根因：增量 canCraft 索引的「跳过」判据不覆盖选择谓词**
+
+- vanilla 的显示门是"集合里有没有被选中的配方"：26.x 是
+  `RecipeCollection.selectRecipes(stacked, predicate)` 写 `selected`/`craftable`
+  （反编译核实：`hasAnySelected()` = `!selected.isEmpty()`；
+  `CraftingRecipeBookComponent.canDisplay` 按 `menu.getGridWidth()/getGridHeight()`
+  判定"3×3 放不下 2×2"）；1.21.1 是 `canCraft(stacked, w, h, book)` 填
+  `craftable`/`fitsDimensions`（显示门 `hasFitting()`）。
+- BRBE 的 `RecipeCraftingIndex` + `RecipeCollectionMixin`（26.x）/ `forEachRedirect`
+  （1.21.1）为省掉全量重算，在"库存内容没变"时**整体跳过**
+  `selectRecipes`/`canCraft`。但它的失效签名只取
+  `menu.getRecipeBookType().ordinal()` —— 而**物品栏（`InventoryMenu`）与工作台
+  （`CraftingMenu`）都返回 `RecipeBookType.CRAFTING`**（对 26.3/26.2/1.21.11 三个
+  版本的本体 jar 反编译核实）。
+- 后果：① 从工作台回到背包，签名不变 → 跳过重算 → 3×3 配方带着 3×3 网格下算出的
+  selected/craftable **残留**显示在 2×2 背包书里；② 游戏内切换开关同理——谓词变了
+  （`incompatibleenvironment/CraftingRecipeBookComponentMixin` 只在开关开启时强制
+  `canDisplay=true`），但选择没重算 → 开关"不生效"；③ 残留条目处于"已选中"状态，
+  所以按钮照常渲染且可点击 → 2×2 放不下 → 弹出幽灵物品；④ 没有不可合成标记是因为
+  `retainIncompatible = 物品栏 && showAllRecipesInSurvival` 在开关关闭时恒 false
+  （设计上关闭 = 纯 vanilla，本就不该显示它们，因此也不标记）。
+
+**修复（两层）**
+
+1. **失效签名覆盖整个选择谓词**（四分支）：
+   `sig = 配方书类型 *31 + 网格宽 *31 + 网格高 *31 + (开关开启 && 物品栏 ? 1 : 0)`。
+   26.x：`selectMatchingRecipes` HEAD 处调用新增的 `brbe$selectionSignature()`；
+   1.21.1：在 `brbe$forEachRedirect` 内就地扩展（`menu.getGridWidth/getGridHeight`）。
+2. **显示路径兜底**（26.3 / 26.2 / 1.21.11）：pipeline 新增 **Stage 0**
+   `brbe$applyGridVisibility(list)` —— 开关关闭且当前网格 < 3×3 时，把"需要更大网格"
+   的配方从 `selected`/`craftable` 中剔除，只剩 3×3 的集合整组丢弃。它挂在**显示路径**
+   （缓存指纹之前、每轮无条件执行），因此无论 selected 是否被重算，显示结果都正确。
+   **1.21.1 不需要第 2 层**：其 `RecipePipeline.applyVisibility` 早就是同一语义的
+   无条件兜底（还顺带在 3×3 网格重建 `fitsDimensions`），所以 1.21.1 只有潜在缺陷、
+   没有可见症状（用户也未在该分支报告）。
+
+**为什么 26.3 显得"更严重"**：26.2/26.3 这段代码完全相同，差别只在触发路径——26.3 的
+实测流程（在配置界面里关开关 / 先进过工作台）正好命中"谓词变了但选择不重算"；26.2 那次
+可能是改 toml 重启（新会话重新全量计算）因此没暴露。同一根因，本次一并修掉。
+
+**构建/部署**：原子替换，备份 `20260923-203451`；`javap` 核对 jar 内
+`brbe$selectionSignature` / `brbe$applyGridVisibility` 均在。
+**分支构建**：26.2-Fabric `6304ffbae84eca3bb29724807e511c30`（同上：签名修复 + Stage 0 兜底）。
+
+**验证状态**：静态证据完整（三版本反编译核实两个菜单的 RecipeBookType 相同 + 显示门
+链路）；**实机验证未做**——需要一次实例启动（探针或用户自测）：关掉开关后背包配方书
+不应再有 3×3 配方，从工作台回背包同样不应有。

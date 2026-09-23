@@ -284,6 +284,13 @@ public abstract class RecipeBookComponentMixin {
     private void brbe$runPipeline(RecipeBookPage page, List<RecipeCollection> list,
                                    boolean resetPageNumber, boolean isFiltering) {
 
+        // ---- Stage 0: 网格可见性（显示路径的兜底，先于指纹/缓存）----
+        // 2×2 网格 + showAllRecipesInSurvival=OFF 时，3×3 配方必须从 selected /
+        // craftable 里剔除，只剩 3×3 的集合整组丢弃。挂在**显示路径**上意味着
+        // 无论 selected 是否被重算（增量索引跳过 / 未重算的路径），显示结果都对。
+        // 语义与 1.21.1 的 RecipePipeline.applyVisibility 一致。
+        list = brbe$applyGridVisibility(list);
+
         // ---- Pipeline output cache ----
         // 键 = **单一指纹**（见 brbe$cacheFingerprint 的注释）：命中判据从十几个代理量
         // 收敛成一次 int 比较，而指纹同时覆盖"生产者纪元"与"输入数据实际内容"。
@@ -419,6 +426,49 @@ public abstract class RecipeBookComponentMixin {
             }
         }
         return list;
+    }
+
+    /**
+     * Stage 0 —— 网格可见性（显示路径兜底）。
+     *
+     * <p>2×2 合成网格 + {@code showAllRecipesInSurvival=OFF} 时，把"需要更大网格"的配方
+     * 从 {@code selected} / {@code craftable} 中剔除，只含 3×3 的集合整组丢弃。vanilla
+     * 的 {@code CraftingRecipeBookComponent.canDisplay} 本应如此计算，但增量 canCraft 索引
+     * （{@link RecipeCraftingIndex}）会跳过不受库存变化影响的 {@code selectRecipes} ——
+     * 一旦网格尺寸 / 界面 / 开关变化而签名没变，selected 就是上一轮的残留：3×3 配方留在
+     * 2×2 背包配方书里（无不可合成标记、可点击 → 幽灵物品），或在游戏内关掉开关后不消失。
+     * 这里挂在显示路径上，与 selected 是否重算无关，结果恒定正确；语义与 1.21.1 的
+     * {@code RecipePipeline.applyVisibility} 一致。</p>
+     */
+    @Unique
+    private List<RecipeCollection> brbe$applyGridVisibility(List<RecipeCollection> list) {
+        if (BetterRecipeBook.config == null
+                || BetterRecipeBook.config.showAllRecipesInSurvival) {
+            return list;
+        }
+        int gridWidth = 0;
+        int gridHeight = 0;
+        if (this.menu instanceof net.minecraft.world.inventory.AbstractCraftingMenu craftingMenu) {
+            gridWidth = craftingMenu.getGridWidth();
+            gridHeight = craftingMenu.getGridHeight();
+        }
+        // 3×3 及以上网格：所有合成配方都放得下，无需过滤。
+        if (gridWidth >= 3 && gridHeight >= 3) return list;
+
+        List<RecipeCollection> out = new java.util.ArrayList<>(list.size());
+        for (RecipeCollection collection : list) {
+            RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+            for (RecipeDisplayEntry entry : collection.getRecipes()) {
+                if (!PartialCraftingUtil.needsLargerGrid(entry.display())) continue;
+                RecipeDisplayId id = entry.id();
+                accessor.brbe$getSelected().remove(id);
+                accessor.brbe$getCraftable().remove(id);
+            }
+            if (collection.hasAnySelected()) {
+                out.add(collection);
+            }
+        }
+        return out;
     }
 
     /** [诊断] 命中时用**当前输入**重算 Stage 1–4，比较"来自输入列表的元素"的顺序。
