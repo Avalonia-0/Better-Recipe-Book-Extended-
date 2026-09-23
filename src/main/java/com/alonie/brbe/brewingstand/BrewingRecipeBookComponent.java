@@ -16,16 +16,12 @@ import net.fabricmc.api.Environment;
 import net.minecraft.client.Minecraft;
 import net.minecraft.core.RegistryAccess;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.BrewingStandMenu;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
 import net.minecraft.world.item.PotionItem;
-import net.minecraft.world.item.alchemy.Potion;
-import net.minecraft.world.item.alchemy.PotionContents;
 import net.minecraft.world.item.crafting.Ingredient;
 
 import java.util.ArrayList;
@@ -33,7 +29,6 @@ import java.util.List;
 import java.util.Objects;
 import java.util.function.Consumer;
 
-import static com.alonie.brbe.brewingstand.PlatformPotionUtil.getFrom;
 import static com.alonie.brbe.brewingstand.PlatformPotionUtil.getIngredient;
 
 @Environment(EnvType.CLIENT)
@@ -83,20 +78,9 @@ public class BrewingRecipeBookComponent extends GenericRecipeBookComponent<Brewi
     }
 
     public ItemStack getInputStack(BrewableResult result) {
-        Potion inputPotion = getFrom(result.recipe);
-        Ingredient ingredient = getIngredient(result.recipe);
-        //Identifier identifier = BuiltInRegistries.POTION.getKey(inputPotion);
-        ItemStack inputStack;
-        if (this.selectedTab.getCategory() == BetterRecipeBook.BREWING_SPLASH_POTION) {
-            inputStack = new ItemStack(Items.SPLASH_POTION);
-        } else if (this.selectedTab.getCategory() == BetterRecipeBook.BREWING_LINGERING_POTION) {
-            inputStack = new ItemStack(Items.LINGERING_POTION);
-        } else {
-            inputStack = new ItemStack(Items.POTION);
-        }
-
-        inputStack.set(DataComponents.POTION_CONTENTS, new PotionContents(BuiltInRegistries.POTION.wrapAsHolder(inputPotion)));
-        return inputStack;
+        // 输入形态取配方自带的基底物品（26.3：喷溅/滞留配方不能用标签页物品硬套），
+        // 本分支数据无形态信息 → 回退到标签页物品，结果与历史实现一致。
+        return result.inputAsItemStack(this.selectedTab.getCategory());
     }
 
     public void setupGhostRecipe(BrewableResult result, List<Slot> slots) {
@@ -116,6 +100,11 @@ public class BrewingRecipeBookComponent extends GenericRecipeBookComponent<Brewi
         BRBBookCategories.Category category = selectedTab.getCategory();
 
         for (BrewableResult potion : PotionLoader.POTIONS) {
+            // 26.3 的配方表含三种物品形态（普通/喷溅/滞留药水）的同一转换，
+            // 只列出基底物品与本标签页一致的条目（本分支数据无形态 → 恒 true）。
+            if (!potion.belongsToTab(category)) {
+                continue;
+            }
             // 酿造自建进度：未解锁（酿造材料未获得过）的配方不显示。
             if (!com.alonie.brbe.brewingstand.RecipeUnlockTracker.isUnlocked(potion)) {
                 continue;

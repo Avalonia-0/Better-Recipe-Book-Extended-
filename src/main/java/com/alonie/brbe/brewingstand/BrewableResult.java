@@ -37,11 +37,47 @@ public class BrewableResult implements GenericRecipe {
         return false;
     }
 
+    /** 配方消耗的<b>基底物品</b>（26.3 配方自带 input.item）；本分支数据无形态信息 → null。 */
+    public Item inputItem() {
+        return getInputItem(recipe);
+    }
+
+    /** 配方产出的物品形态；本分支数据无形态信息 → null。 */
+    public Item outputItem() {
+        return getOutputItem(recipe);
+    }
+
+    /**
+     * 该配方是否属于给定标签页。
+     *
+     * <p>26.3 的酿造配方表把三种物品形态（普通/喷溅/滞留药水）放在同一份
+     * {@code minecraft:brewing} 配方里，必须按基底物品过滤才不会在同一个标签页里
+     * 列出三份一模一样的配方。本分支的 data（{@code PotionBrewing.Mix}）不含物品
+     * 形态——形态完全由标签页决定——所以 {@link #inputItem()} 返回 null，
+     * 这里恒 true，<b>行为与历史版本完全一致</b>。</p>
+     */
+    public boolean belongsToTab(BRBBookCategories.Category category) {
+        Item input = inputItem();
+        return input == null || input == category.getItemIcons().getFirst().getItem();
+    }
+
+    /** 输入物品形态：优先配方自带（26.3），否则用标签页物品（本分支语义）。 */
+    public Item inputFormItem(BRBBookCategories.Category category) {
+        return formItem(inputItem(), category);
+    }
+
+    /** 输出物品形态：优先配方自带（26.3），否则用标签页物品（本分支语义）。 */
+    public Item outputFormItem(BRBBookCategories.Category category) {
+        return formItem(outputItem(), category);
+    }
+
+    private static Item formItem(Item recipeItem, BRBBookCategories.Category category) {
+        return recipeItem != null ? recipeItem : category.getItemIcons().getFirst().getItem();
+    }
+
     public ItemStack inputAsItemStack(BRBBookCategories.Category category) {
         Potion inputPotion = getFrom(recipe);
-
-        var potionItem = category.getItemIcons().getFirst().getItem();
-        return potionStackFromPotion(potionItem, inputPotion);
+        return potionStackFromPotion(inputFormItem(category), inputPotion);
     }
 
     public boolean hasInput(BRBBookCategories.Category category, List<Slot> slots, ItemStack carried) {
@@ -78,15 +114,13 @@ public class BrewableResult implements GenericRecipe {
 
     public Component getHoverName(BRBBookCategories.Category category) {
         var resultPotion = getTo(recipe);
-        var potionItem = category.getItemIcons().getFirst().getItem();
-        return potionStackFromPotion(potionItem, resultPotion).getHoverName();
+        return potionStackFromPotion(outputFormItem(category), resultPotion).getHoverName();
     }
 
     @Override
     public ItemStack getResult(RegistryAccess registryAccess, BRBBookCategories.Category category) {
         var resultPotion = getTo(recipe);
-        var potionItem = category.getItemIcons().getFirst().getItem();
-        return potionStackFromPotion(potionItem, resultPotion);
+        return potionStackFromPotion(outputFormItem(category), resultPotion);
     }
 
     @Override

@@ -1223,3 +1223,44 @@ transformMethodRef` 处理——与普通 `INVOKEVIRTUAL/INVOKESTATIC` 指令**�
 
 **部署**：26.3 `371cb7eb…`、26.2 `876df8d0…`、1.21.11 `e99411a2…`（备份 20260922-230047，原子替换）。
 **规则已写入根 `CLAUDE.md`**：mixin 类内不要写 lambda；`@Accessor` 读 static 字段必须声明 `static`。
+
+## 2026-09-23：两处同源缺陷修复 + 酿造链形状同步（26.3 发现，本分支同源/不适用）
+
+用户反馈（26.3）四项，逐项交叉检查后本分支命中两项、同步一项形状：
+
+### ① 配方状态变化后整体排序不刷新（**同源，已修**）
+
+`CollectionPipeline.CATEGORY_CACHE` 命中判据只有 `RecipeCraftingIndex.currentVersion()`，而分类
+（`TRULY_CRAFTABLE / PARTIAL / UNASSIGNED`）的输入是「craftable 集合 + 残缺标记」——两者都能在
+**库存数量没变**时改变：配置整轮重标记（`partialMarkingEnabled` / `invalidateCaches`）、手持
+（carried）与副手变化触发的重标记（vanilla `stackedContents` 不含副手、也不含 carried →
+`currentVersion()` 不变）、pin 浮层 `forceReevaluate`。过期分类 → Stage 4 把按钮排进旧桶 ⇒
+"状态变了、排序不刷新"。
+
+**修复**：`CachedCategory(category, version)` → `CachedCategory(category, version, stateHash)`，
+`stateHash = PartialCraftingUtil.pipelineStateHash(List.of(c))`（与管线指纹同一套分量），命中需
+`version` 与 `stateHash` 同时相等。
+
+### ② 锻造/酿造幽灵物品缺少工作台那套遮罩调整（**同源，已修**）
+
+工作台幽灵（`incompletecrafting/GhostSlotsMixin`）已有材料会跳过红底+白罩、缺料红底加深为
+`0x66FF0000`；锻造/酿造的 `GenericGhostRecipe` 固定画 `0x30FF0000` + `0x30FFFFFF`，没有这套
+判定。**修复**：`GenericGhostRecipe` 新增 `GHOST_RED / GHOST_RED_STRONG / GHOST_WHITE` 与
+`brbe$missingSlots()`（`PartialGhostOverlayUtil.computeMissing` +
+`PartialCraftingUtil.searchSpaceItemCounts()`，与查询预览/pin 的逐槽红罩同源），已有材料槽位
+红底白罩都不画、缺料槽位红底加深；`GenericGhostIngredient` 新增 `getVariants()`。
+（本分支的 `render(GuiGraphics, …)` / `renderFakeItem` / `renderItemDecorations` 签名与 26.2 不同，
+移植时已按本分支 API 手改。）
+
+### ③ 酿造书标签页重复配方 —— 本分支**不适用**，但同步了代码形状
+
+26.3 的 `minecraft:brewing` 配方表把三种物品形态放在同一份数据里（279 条 = 108/108/63），
+不按基底物品过滤就会在同一标签页列出三份一模一样的配方。本分支的 `PotionBrewing.Mix`
+**不含物品形态**（形态完全由标签页决定），因此 `PlatformPotionUtil.getInputItem/getOutputItem`
+默认返回 `null` → `BrewableResult.belongsToTab` 恒 true、`inputFormItem/outputFormItem` 回退
+标签页物品 —— **行为与历史版本等价**。同步这四个文件（`PlatformPotionUtil` / `BrewableResult` /
+`BrewingRecipeBookComponent` / `PotionLoader`）只为让三分支共享文件不再分叉；`PotionLoader`
+的形态明细日志在形态未知时不打印括号部分，日志输出保持原样。
+
+**部署**：1.21.11-Fabric `37d6238e634b978d02a816a3cabaf734`（备份 `20260923-180233`，原子替换）。
+**未跑**：本分支无运行时验证（① ② 与 26.3 同源同改，③ 语义等价；用户当时在用自己的实例）。
