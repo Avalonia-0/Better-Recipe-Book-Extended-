@@ -1264,3 +1264,18 @@ transformMethodRef` 处理——与普通 `INVOKEVIRTUAL/INVOKESTATIC` 指令**�
 
 **部署**：1.21.11-Fabric `37d6238e634b978d02a816a3cabaf734`（备份 `20260923-180233`，原子替换）。
 **未跑**：本分支无运行时验证（① ② 与 26.3 同源同改，③ 语义等价；用户当时在用自己的实例）。
+
+## 2026-09-23（二）：两个开关默认改为关（四分支同步）
+
+用户要求：「在生存模式配方书中显示3x3配方」（`showAllRecipesInSurvival`）与
+「优化原版配方过滤器」（`partialCraftingEnabled`）的默认启用状态 → **关**。仅改 `BrbeConfig`
+默认值 + 一行注释，门控逻辑未动。
+
+- `showAllRecipesInSurvival=false`：生存模式配方书不再放行 3×3 / 环境不兼容配方
+  （物品栏 2×2 界面不含 3×3），残缺配方注入路径随之关闭 → 默认接近原版。
+- `partialCraftingEnabled=false`：保留原版「仅显示可合成」按钮，Stage 4 可合成置顶排序
+  只在玩家开启过滤时生效（"按钮可见 + 开启过滤"这条路径的 2026-09-11 修复仍在）。
+- 已有实例的 `brbe.toml` 保存旧值（实测 `= true`），默认值只对新配置生效。
+
+**构建/部署**：1.21.11-Fabric `51969fbc41112389b1290f5fe24c373e`（备份 `20260923-181610`，原子替换）；
+`javap -c` 核对 jar 内 `BrbeConfig.<init>` 两字段为 `iconst_0`（false）。
