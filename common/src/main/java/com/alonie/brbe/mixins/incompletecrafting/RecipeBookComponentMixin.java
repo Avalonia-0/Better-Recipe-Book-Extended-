@@ -178,8 +178,23 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         // their craftable set from the last pass (canCraft is a pure function
         // of ingredients × inventory contents).  Must run before the per-
         // collection canCraft loop below.
-        int gridSig = menu != null
-                ? menu.getRecipeBookType().ordinal() : -1;
+        //
+        // ⚠️ 签名必须覆盖**整个选择谓词**，不能只看配方书类型：vanilla 的
+        // canCraft(stacked, gridW, gridH, book) 按当前网格尺寸填 craftable /
+        // fitsDimensions，而物品栏（2×2）与工作台（3×3）的 RecipeBookType **都是
+        // CRAFTING** —— 旧签名只取 ordinal 时，从工作台回到背包签名不变 → canCraft
+        // 被整体跳过 → 3×3 配方带着 3×3 网格下算出的 craftable/fitsDimensions 残留
+        // 显示在 2×2 背包配方书里（无不可合成标记、可点击 → 幽灵物品）；
+        // showAllRecipesInSurvival 开关变化同理（本分支由 RecipePipeline.applyVisibility
+        // 在显示路径兜底，但签名仍应反映真实谓词，避免其它消费方读到残留状态）。
+        int gridSig = menu != null ? menu.getRecipeBookType().ordinal() : -1;
+        int gridWidth = menu != null ? menu.getGridWidth() : 0;
+        int gridHeight = menu != null ? menu.getGridHeight() : 0;
+        boolean forceShowAll = BetterRecipeBook.ctx().config().showAllRecipesInSurvival
+                && onInventory;
+        gridSig = gridSig * 31 + gridWidth;
+        gridSig = gridSig * 31 + gridHeight;
+        gridSig = gridSig * 31 + (forceShowAll ? 1 : 0);
         RecipeCraftingIndex.beginPass(stackedContents, gridSig);
 
         if (inventoryChanged || rebuildDetected) {
