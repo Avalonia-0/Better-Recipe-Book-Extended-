@@ -1617,3 +1617,21 @@ jar 内两张贴图 md5 与源文件一致，包内 `recipe_book` 覆盖贴图 2
 **部署**：26.3 `8f97e426…`（备份 20260922-2229）、26.2 `4dc7122a…`、1.21.11 `bde411d7…`
 （备份同日 2230）；1.21.1 按用户要求只构建不部署（BRBE 双端 + fork 双端 jar 均已构建）。
 
+## 2026-09-23（二）：两个开关默认改为关（四分支同步）
+
+用户要求：「在生存模式配方书中显示3x3配方」（`showAllRecipesInSurvival`）与
+「优化原版配方过滤器」（`partialCraftingEnabled`）的默认启用状态 → **关**。本分支
+`common/src/main/java/com/alonie/brbe/config/BrbeConfig.java` 只改默认值 + 一行注释，
+门控逻辑与 `@ConfigEntry` 注解（含 `showAllRecipesInSurvival` 上的 `PrefixText`）未动。
+
+- `showAllRecipesInSurvival=false`：生存模式配方书不再放行 3×3 / 环境不兼容配方
+  （物品栏 2×2 界面不含 3×3），残缺配方注入路径随之关闭 → 默认接近原版。
+- `partialCraftingEnabled=false`：保留原版「仅显示可合成」按钮；本分支该开关仅影响
+  `DisableCraftableFilter` 与管线 Stage 4 排序时机。
+- 已有实例的 `brbe.toml` 保存旧值（1.21.1-Fabric `= true`、NeoForge 该键 `= false`），
+  默认值只对新配置生效。
+
+**构建（按规则不部署）**：fabric `6eab9d710cf7550d63dc5333ea2581b9`、
+neoforge `a3087c0e998ebedc67f81e3576f06c17`；`javap -c` 核对两 jar 内
+`BrbeConfig.<init>` 两字段均为 `iconst_0`（false）。
+
