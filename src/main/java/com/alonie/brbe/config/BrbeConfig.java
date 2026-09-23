@@ -106,12 +106,14 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.Tooltip
     public boolean unlockAll = true;
 
+    /** 默认关（2026-09-23 用户要求）：开启时才在生存模式配方书里放行 3×3 / 环境不兼容配方。 */
     @ConfigEntry.Category("recipeSettings")
-    public boolean showAllRecipesInSurvival = true;
+    public boolean showAllRecipesInSurvival = false;
 
+    /** 默认关（2026-09-23 用户要求）：开启 = 移除「仅显示可合成」按钮并让可合成始终置顶。 */
     @ConfigEntry.Category("recipeSettings")
     @ConfigEntry.Gui.Tooltip
-    public boolean partialCraftingEnabled = true;
+    public boolean partialCraftingEnabled = false;
 
     @ConfigEntry.Category("recipeSettings")
     @ConfigEntry.Gui.PrefixText
