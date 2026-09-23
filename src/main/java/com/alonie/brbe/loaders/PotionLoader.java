@@ -31,7 +31,10 @@ public class PotionLoader {
             POTIONS.add(new BrewableResult(potionRecipe));
         }
 
-        BrbeLogger.log("BRBE", "Loaded %d potions.".formatted(POTIONS.size()));
+        String tally = formTally();
+        BrbeLogger.log("BRBE", tally.isEmpty()
+                ? "Loaded %d potions.".formatted(POTIONS.size())
+                : "Loaded %d potions (%s).".formatted(POTIONS.size(), tally));
         // 酿造/锻造进度（运行时推导）：重建"材料 → 产物"映射。
         com.alonie.brbe.brewingstand.RecipeUnlockTracker.refreshIngredients();
         // 注：酿造查询引擎数据 = headless-JEI 直接注册（条目自带 native layout，
@@ -44,6 +47,31 @@ public class PotionLoader {
     public static void clear() {
         BrbeLogger.log("BRBE", "Clearing potions...");
         clearNoLog();
+    }
+
+    /**
+     * 按<b>基底物品形态</b>统计（配方书三个标签页各自的条目数）。
+     *
+     * <p>26.3 的 {@code minecraft:brewing} 配方表把普通/喷溅/滞留三种形态放在同一份
+     * 配方里，加载总数是旧版的约 3 倍（旧版 {@code PotionBrewing.Mix} 只有药水→药水）。
+     * 这一行是"形态归属是否正确"的现场证据。<b>本分支形态完全未知，返回空串</b>，
+     * 日志保持原样。</p>
+     */
+    private static String formTally() {
+        java.util.Map<String, Integer> counts = new java.util.LinkedHashMap<>();
+        for (BrewableResult result : POTIONS) {
+            net.minecraft.world.item.Item item = result.inputItem();
+            String key = item == null ? "unknown"
+                    : String.valueOf(net.minecraft.core.registries.BuiltInRegistries.ITEM.getKey(item));
+            counts.merge(key, 1, Integer::sum);
+        }
+        if (counts.size() == 1 && counts.containsKey("unknown")) return "";
+        StringBuilder builder = new StringBuilder();
+        counts.forEach((key, count) -> {
+            if (builder.length() > 0) builder.append(", ");
+            builder.append(key).append('=').append(count);
+        });
+        return builder.toString();
     }
 
     private static void clearNoLog() {

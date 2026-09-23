@@ -247,16 +247,29 @@ public final class CollectionPipeline {
 
     private static int lastCategoryCacheVersion = Integer.MIN_VALUE;
 
-    private record CachedCategory(CollectionCategory category, int version) {}
+    private record CachedCategory(CollectionCategory category, int version, int stateHash) {}
 
     private static CollectionCategory categorizeEvenIfStale(RecipeCollection c) {
         int version = RecipeCraftingIndex.currentVersion();
+        // ⚠️ 只按 currentVersion 失效是**不够的**（2026-09-22 用户反馈："配方状态变了，
+        // 整体排序不立即刷新"）。分类的实际输入是「集合的 craftable 集合 + 残缺标记」，
+        // 而这两者都会在**库存数量没变**时改变：
+        //   · 配置整轮重标记（partialMarkingEnabled 开关 / invalidateCaches）
+        //   · 手持（carried）或副手变化触发的重标记 —— BRBE 的 slotHash 计入二者，
+        //     但 vanilla 的 stackedContents（= RecipeCraftingIndex 的 diff 源）不含副手、
+        //     也不含 carried → currentVersion 不变
+        //   · pin 浮层的 forceReevaluate / carried 提升注入 craftable
+        // 于是分类一直是过期的：按钮状态（读 craftable 集合）已经变了，Stage 4 排出来的
+        // 顺序却还把它放在旧桶里 —— 症状正是"状态变了、排序不刷新"。
+        // 这里把**集合自身的状态哈希**（与管线指纹同一套分量：craftable + selected +
+        // 残缺标记，见 PartialCraftingUtil#pipelineStateHash）也纳入命中判据。
+        int stateHash = PartialCraftingUtil.pipelineStateHash(java.util.List.of(c));
         if (version != lastCategoryCacheVersion) {
             CATEGORY_CACHE.clear();
             lastCategoryCacheVersion = version;
         }
         CachedCategory cached = CATEGORY_CACHE.get(c);
-        if (cached != null && cached.version() == version) {
+        if (cached != null && cached.version() == version && cached.stateHash() == stateHash) {
             return cached.category();
         }
 
@@ -273,7 +286,7 @@ public final class CollectionPipeline {
         else if (partial) category = CollectionCategory.PARTIAL;
         else category = CollectionCategory.UNASSIGNED;
 
-        CATEGORY_CACHE.put(c, new CachedCategory(category, version));
+        CATEGORY_CACHE.put(c, new CachedCategory(category, version, stateHash));
         return category;
     }
 
