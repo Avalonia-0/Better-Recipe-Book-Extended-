@@ -1595,3 +1595,25 @@ outputFormItem`、`PlatformPotionUtilImpl.getInputItem / getOutputItem`、
   游戏即可核对**：`brbe-debug.log` 里应为上面那一行；酿造书三个标签页分别 108 / 108 / 63 条，
   同一转换不再出现三次。
 - 已跑（上一轮）：① 排序探针、③ 堆肥/锻造遮罩探针（详见 2026-09-22（五））。
+
+## 2026-09-23（二）：两个开关默认改为关（四分支同步）
+
+用户要求：「在生存模式配方书中显示3x3配方」（`showAllRecipesInSurvival`）与
+「优化原版配方过滤器」（`partialCraftingEnabled`）的默认启用状态 → **关**。
+四分支各自 `BrbeConfig` 只改默认值 + 补一行注释，门控逻辑一行未动。
+
+**默认关之后的语义**（涉及两条既有代码路径）：
+- `showAllRecipesInSurvival=false`：生存模式配方书不再放行 3×3 配方与环境不兼容配方
+  （物品栏 2×2 界面不含 3×3），残缺配方的材料注入路径随之关闭 → 默认即"接近原版"。
+- `partialCraftingEnabled=false`：保留原版「仅显示可合成」过滤按钮（不再被
+  `DisableCraftableFilter` 移除），Stage 4「可合成置顶」排序只在玩家手动开启过滤时生效。
+  ⚠️ "按钮可见 + 玩家开启过滤"正是 2026-09-11 修过的「空气占位符 / 点击崩溃」路径，
+  当时的修复（`RecipeBookPageSafetyMixin` + 放行原版谓词）仍在，已随本次构建一起部署。
+
+**已有实例不受影响**：Cloth Config 的 `brbe.toml` 保存着旧值（五个实例实测均为 `= true`，
+1.21.1-NeoForge 的 `showAllRecipesInSurvival` 例外为 `false`），默认值只对**新生成**的配置生效；
+要立即生效需在配置界面手动关闭或改 toml（未擅自改动用户存档配置）。
+
+**构建/部署**：26.3 `24f37c00`、26.2 `8e113a55`、1.21.11 `51969fbc`（备份 `20260923-181610`，
+原子替换）；1.21.1 按既有规则**只构建不部署**（fabric `6eab9d71` / neoforge `a3087c0e`）。
+`javap -c` 核对四个 jar 的 `BrbeConfig.<init>`：两字段初始化均为 `iconst_0`（false）。
