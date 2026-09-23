@@ -1464,3 +1464,134 @@ masksWithEmptyInventory=90 masksWithLiveInventory=90`
 - 复现/验证工具：`tools/brbe-screen-selftest/BrbeCompostProbe.java`（探针 mod）+
   `run-cbtest.sh`（`TEST_SRC=... TEST_ENTRY=... TEST_ID=... TEST_JAR=... GREP_TAG=BRBE-CPROBE`），
   跑完自动卸载 mod。
+
+## 2026-09-23：三处缺陷修复 + 酿造书标签页重复配方（26.2 / 1.21.11 同步其中三项）
+
+用户反馈四项：① 配方状态变化后配方书**整体排序不刷新**；② 酿造配方**完全不解锁**（连
+`unlockAll` 都不行）；③ 锻造台幽灵物品没有工作台那套遮罩调整；④ **某组酿造配方解锁后，
+该标签页里出现三份一模一样的配方**。并指示"这些问题我不能保证 26.2 及以前不存在，顺带检查"。
+
+### ① 状态变化后排序不刷新（26.2 / 1.21.11 同源，已同修）
+
+**根因**：`CollectionPipeline.CATEGORY_CACHE` 的命中判据只有
+`RecipeCraftingIndex.currentVersion()`，而分类（`TRULY_CRAFTABLE / PARTIAL / UNASSIGNED`）的
+实际输入是「集合的 craftable 集合 + 残缺标记」——**这两者都会在库存数量没变时改变**：
+
+- 配置整轮重标记（`partialMarkingEnabled` 开关 / `invalidateCaches`）；
+- 手持（carried）或副手变化触发的重标记 —— BRBE 的 slotHash 计入二者，但 vanilla 的
+  `stackedContents`（= `RecipeCraftingIndex` 的 diff 源）**不含副手、也不含 carried**
+  → `currentVersion()` 不变；
+- pin 浮层的 `forceReevaluate` / carried 提升注入 craftable。
+
+于是分类一直是过期的：按钮状态（读 craftable 集合）已经变了，Stage 4 排出来的顺序却还把它
+放在旧桶里 —— 症状正是"状态变了、排序不刷新"。
+
+**修复**（`util/CollectionPipeline.java`）：`CachedCategory(category, version)` →
+`CachedCategory(category, version, stateHash)`，`stateHash = PartialCraftingUtil.pipelineStateHash(
+List.of(c))`（与管线指纹同一套分量），命中需 `version` 与 `stateHash` 同时相等。
+
+**交叉检查**：26.2 / 1.21.11 是同一份代码 → 同修（已部署）；**1.21.1 无此缓存**
+（`@ModifyArg` 就地过滤 + `isAdvanced()` 守卫），不受影响。
+
+**运行时证据**（探针，修复后的 jar；目标集合在列表末尾 → 可合成后应移到 unpick 桶）：
+`craftable false->true index 1055->0 freshCategory=TRULY_CRAFTABLE`、
+`stateChanged=true orderChanged=true → OK`。
+
+### ② 酿造配方完全不解锁（26.3 独有回归）
+
+26.3 删除了硬编码的 `PotionBrewing`，酿造改为常规数据驱动配方 `RecipeType.BREWING`；
+而客户端 `ClientLevel.recipeAccess()` 返回的是 vanilla `ClientRecipeContainer`——**只有
+配方属性集与切石配方**，不是 `RecipeManager`（26.2 客户端还能从 `level.potionBrewing()`
+拿硬编码表）。旧写法 `instanceof RecipeManager` 在客户端**永远不成立** → 返回空列表 →
+`PotionLoader.POTIONS` 为空 → 酿造书一条都不显示，`unlockAll` 也救不了（根本没有条目）。
+
+**修复**（`brewingstand/fabric/PlatformPotionUtilImpl`）：`getPotionMixes` 三级解析：
+服务端 `RecipeManager`（`ServerLevel.recipeAccess()` 就是它）→ fabric-recipe-api 同步集
+`FabricRecipeAccess.getSynchronizedRecipes().getAllOfType(RecipeType.BREWING)` →
+单人集成服务端 `Minecraft.getSingleplayerServer().getRecipeManager()` → 空。
+`RecipeUnlockTracker.deriveMaterialResults` 用同一入口，材料→产物映射随之恢复。
+26.2 / 1.21.11 **无此问题**（仍走 `potionBrewing()` + `FabricPotionBrewingAccessor`）。
+
+### ③ 锻造/酿造幽灵物品缺少工作台的遮罩调整（26.2 / 1.21.11 同源，已同修）
+
+工作台幽灵由 `incompletecrafting/GhostSlotsMixin` 绘制（已有材料跳过红底+白罩、缺料红底加深为
+`0x66FF0000`），而锻造/酿造走 BRBE 自研的 `GenericGhostRecipe`，固定画 `0x30FF0000` 红底 +
+`0x30FFFFFF` 白罩，没有这套判定 → 已有材料仍被遮罩盖住、缺料红底也不加深。
+
+**修复**（`generic/GenericGhostRecipe`）：新增常量 `GHOST_RED / GHOST_RED_STRONG / GHOST_WHITE`；
+`render` 先算 `missing[]`（`PartialGhostOverlayUtil.computeMissing` +
+`PartialCraftingUtil.searchSpaceItemCounts()`，与查询预览/pin 的逐槽红罩同源——"候选变体任意
+一个拥有即不缺料"，按 (y,x) 顺序扣减数量）；已有材料的槽位**红底与白罩都不画**，缺料槽位红底用
+加深值。`GenericGhostIngredient` 新增 `getVariants()`（轮循槽位的全部候选物品）。
+
+### ④ 酿造书标签页出现三份一模一样的配方（26.3 独有回归，本轮新修）
+
+**数据事实**（26.3 客户端 jar `data/minecraft/recipe/brewing/**.json`，共 **279** 条）：
+26.3 把三种物品形态（普通/喷溅/滞留药水）放进**同一份**配方表——按 `input.item` 统计
+`minecraft:potion` 108 / `splash_potion` 108 / `lingering_potion` 63；同一个「药水→药水」
+转换以三种形态各存在一条（**63 组 × 3 条**，组内只有 `input.item`/`output.id` 不同，内容完全
+相同），另有 45 条「药水 + 火药 → 喷溅药水」、45 条「喷溅 + 龙息 → 滞留药水」。
+
+旧版 `PotionBrewing.Mix` 只有药水→药水、**不含物品形态**（形态完全由标签页决定；26.2 实例
+日志实测 `Loaded 68 potions.`），所以旧代码"每个标签页列出全部条目"是对的。26.3 若不按形态
+过滤，同一标签页就会把三种形态全部列出，而结果图标又统一按标签页物品绘制
+（`getResult` 用 `category.getItemIcons()`）→ **三个一模一样的按钮**。
+
+**修复**：
+- `PlatformPotionUtil` 新增 `getInputItem / getOutputItem`（接口**默认返回 null = 未知**，
+  旧分支不覆写即行为不变）；26.3 fabric 实现从 `BrewingRecipe` 取
+  `getInput().ingredient()`（基底物品）与 `getOutput().create()`（产物物品）。
+- `BrewableResult` 新增 `inputItem() / outputItem() / belongsToTab(category) /
+  inputFormItem / outputFormItem`；结果、悬停名、幽灵/放置用的输入栈全部改用**配方真实物品
+  形态**（火药→喷溅、龙息→滞留的产物不再是标签页物品）。
+- `BrewingRecipeBookComponent.getCollectionsForCategory` 按 `belongsToTab` 过滤；
+  `getInputStack` 改为 `result.inputAsItemStack(category)`（消除重复的形态分支）。
+- `PotionLoader.load` 的日志加形态明细（见下），便于现场核对归属。
+
+**归属口径 = 基底物品**（设计蓝图 §2.8「根据基底物品类型区分」）：标签页 = 你放进酿造台的
+瓶子形态，所以「普通药水 + 火药 → 喷溅药水」出现在**普通药水**页（它的基底是普通药水）——
+这两类转换在 26.2 因数据不含形态而**整个看不到**，现在各归其位、不重复。
+
+**离线复核**（拿真实 26.3 数据按新口径重算，脚本化）：
+普通 108 / 喷溅 108 / 滞留 63，合计 279 = 配方总数（每条恰好出现一次）；
+"同基底 + 同材料 + 同产物"的重复为 **0**。残留 9 条同图标条目是**原版多路径**
+（发酵蛛眼：3 条 → 伤害、2 条 → 缓慢、2 条 → 长缓慢、2 条 → 强伤害）——
+26.2 同样存在（反编译 26.2 `PotionBrewing` 静态初始化可见 `healing / poison / long_poison /
+strong_poison + fermented_spider_eye → harming` 多条），其 tooltip 末行会显示各自不同的输入
+药水，按原样保留。
+
+**新日志行**（写 `brbe-debug.log`）：
+`Loaded 279 potions (minecraft:potion=108, minecraft:splash_potion=108, minecraft:lingering_potion=63).`
+—— 三个数应分别等于各标签页的条目数、合计等于总数；旧分支形态未知时**不打括号部分**，日志保持原样。
+
+### 跨分支落地
+
+| 分支 | ① 排序缓存 | ② 酿造数据源 | ③ 幽灵遮罩 | ④ 标签页形态 |
+|---|---|---|---|---|
+| 26.3 | 修 | 修（26.3 回归） | 修 | 修（26.3 回归） |
+| 26.2 | 修（同源） | 无此问题 | 修（同源） | 不适用（数据无形态；代码形状已同步，`belongsToTab` 恒 true） |
+| 1.21.11 | 修（同源） | 无此问题 | 修（同源） | 同上 |
+| 1.21.1 | 无此缓存，不涉及 | 无此问题 | 未改（旧版 `GhostRecipe` 需另加 accessor，用户先前要求暂缓） | 不适用 |
+
+**④ 的旧分支同步**：`PlatformPotionUtil` / `BrewableResult` / `BrewingRecipeBookComponent` /
+`PotionLoader` 四个文件在 26.2 / 1.21.11 也做了同样的**形状同步**——新增的都是 `null` 回退
+路径，旧分支行为**等价**（`belongsToTab` 恒 true、`inputFormItem` 回退标签页物品），目的是让
+三个分支的共享文件不再分叉、将来移植零冲突。
+
+### 部署
+
+- 26.3-Fabric `28cb15f4d87c1e0086d3ad8d7dd62837`（备份 `20260923-180233`）
+- 26.2-Fabric `6a669a2ca822a5f64ee493a9068b0633`（备份 `20260923-180237`）
+- 1.21.11-Fabric `37d6238e634b978d02a816a3cabaf734`（备份 `20260923-180233`）
+
+全部原子替换；`javap` 核对 jar 内 `BrewableResult.belongsToTab / inputFormItem /
+outputFormItem`、`PlatformPotionUtilImpl.getInputItem / getOutputItem`、
+`PotionLoader.formTally` 均在。
+
+### 验证
+
+- **未跑**：④ 的实机确认（看三个标签页条目数）与 ② 的实机确认（`Loaded N potions (...)`
+  行）都还没做——用户当时在用自己的实例，未获许可前不启动游戏。日志行落地后**用户自己开一次
+  游戏即可核对**：`brbe-debug.log` 里应为上面那一行；酿造书三个标签页分别 108 / 108 / 63 条，
+  同一转换不再出现三次。
+- 已跑（上一轮）：① 排序探针、③ 堆肥/锻造遮罩探针（详见 2026-09-22（五））。
