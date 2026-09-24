@@ -110,10 +110,10 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Category("recipeSettings")
     public boolean showAllRecipesInSurvival = false;
 
-    /** 默认关（2026-09-23 用户要求）：开启 = 移除「仅显示可合成」按钮并让可合成始终置顶。 */
+    /** 默认开（2026-09-25 用户要求；2026-09-23 曾按要求改为关）：开启 = 移除「仅显示可合成」按钮并让可合成始终置顶。 */
     @ConfigEntry.Category("recipeSettings")
     @ConfigEntry.Gui.Tooltip
-    public boolean partialCraftingEnabled = false;
+    public boolean partialCraftingEnabled = true;
 
     @ConfigEntry.Category("recipeSettings")
     @ConfigEntry.Gui.PrefixText

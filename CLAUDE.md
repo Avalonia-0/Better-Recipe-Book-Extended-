@@ -1530,3 +1530,20 @@ RBIP `MouseMixin` 只转发同一方法、新旧 mixin 类均无 `lambda$`。
 开关打开 → 立即恢复全量。纯净实例（没有绕过进度的授予）应看到 `hid 0`（行为不变）。
 
 > 本分支已部署，md5 `82b59c9305fdc9cf6a2bee07f4c4f688`。
+
+
+## 2026-09-25（四）：「优化原版配方过滤器」默认改回**开**
+
+用户要求（2026-09-25）：`partialCraftingEnabled` 的默认启用状态 → **开**（`true`），
+除 26.1.2（停维）外四分支同步。
+
+- 仅改 `BrbeConfig` 的字段默认值与注释：26.2 / 26.3 / 1.21.11 在
+  `src/main/java/com/alonie/brbe/config/BrbeConfig.java:116`，1.21.1 在
+  `common/src/main/java/com/alonie/brbe/config/BrbeConfig.java:99`；注释改为
+  「默认开（2026-09-25 用户要求；2026-09-23 曾按要求改为关）」。
+- 另一个开关「在生存模式配方书中显示3x3配方」（`showAllRecipesInSurvival`）**保持默认关**，
+  2026-09-23 的结论不变。
+- **按用户要求本轮不构建、不部署**：已存在实例的 `brbe.toml` 不受影响（默认值只作用于
+  新生成的配置文件）；lang tooltip 未写默认值，无需同步。
+- 上一条 2026-09-23「两个开关默认改为关」的记录中，关于 `partialCraftingEnabled` 的部分
+  由本轮取代（`showAllRecipesInSurvival` 部分仍然有效）。
