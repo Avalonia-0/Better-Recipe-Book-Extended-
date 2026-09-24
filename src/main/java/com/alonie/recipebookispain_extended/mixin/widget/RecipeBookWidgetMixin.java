@@ -443,21 +443,24 @@ public class RecipeBookWidgetMixin implements RecipeBookScrollAccess {
     @Unique
     private boolean rbip$isMouseOverAnyVisibleTab(double mouseX, double mouseY) {
         // 固定滚动区域 = 创造模式标签的完整容纳空间（不依赖实际放置的标签）：
-        // 左侧 6 槽整列 + 顶部整行 + 底部整行（含 padding 上下扩展）。
+        // 左侧 6 槽整列 + 顶部整行 + 底部整行（含向书体**外侧**的 20px 余量）。
         // 只要鼠标落在这些槽位区域内（即便该处没有标签）即可翻页。
         if (this.rbip$isInside(mouseX, mouseY, this.rbip$getTabX(), this.rbip$getTabY(),
                 RBIP_TAB_WIDTH, RBIP_LEFT_TOTAL_SLOTS * RBIP_TAB_HEIGHT)) {
             return true;
         }
+        // 上下两条：余量只加在书体外侧，内侧止于标签自身边缘。旧写法以标签矩形
+        // 为中心上下各扩 20px，于是下方那条伸进书体 20px、盖住配方网格最后一行 ——
+        // 在配方区滚动会被当成"滚标签"吃掉（2026-09-25 修正）。
         int horizX = this.rbip$getHorizontalTabStartX();
         int horizW = RBIP_TOP_SLOTS * RBIP_EXTENDED_SLOT_STEP;
-        int horizH = RBIP_ROTATED_TAB_HEIGHT + 2 * RBIP_HORIZONTAL_SCROLL_OUTWARD_PADDING;
-        if (this.rbip$isInside(mouseX, mouseY, horizX, this.rbip$getTopTabY() - RBIP_HORIZONTAL_SCROLL_OUTWARD_PADDING,
-                horizW, horizH)) {
+        int topStripY = this.rbip$getTopTabY() - RBIP_HORIZONTAL_SCROLL_OUTWARD_PADDING;
+        int stripH = RBIP_ROTATED_TAB_HEIGHT + RBIP_HORIZONTAL_SCROLL_OUTWARD_PADDING;
+        if (this.rbip$isInside(mouseX, mouseY, horizX, topStripY, horizW, stripH)) {
             return true;
         }
-        if (this.rbip$isInside(mouseX, mouseY, horizX, this.rbip$getBottomTabY() - RBIP_HORIZONTAL_SCROLL_OUTWARD_PADDING,
-                horizW, horizH)) {
+        int bottomStripY = this.rbip$getBottomTabY();
+        if (this.rbip$isInside(mouseX, mouseY, horizX, bottomStripY, horizW, stripH)) {
             return true;
         }
         // The turn-page buttons themselves are also a scroll zone.
