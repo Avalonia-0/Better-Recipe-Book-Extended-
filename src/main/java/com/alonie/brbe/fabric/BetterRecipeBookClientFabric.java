@@ -14,6 +14,8 @@ import com.alonie.brbe.util.TopLayerOverlayRenderer;
 import com.alonie.brbe.util.ConfigScreenSideText;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -70,6 +72,22 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         KeyMappingHelper.registerKeyMapping(BetterRecipeBook.RECIPE_VIEW_MAPPING);
         KeyMappingHelper.registerKeyMapping(BetterRecipeBook.USAGE_VIEW_MAPPING);
         KeyMappingHelper.registerKeyMapping(BetterRecipeBook.CYCLE_LOCK_MAPPING);
+
+        // /brbe 客户端指令（clear 子命令）。指令树与加载器无关，这里只提供
+        // 源类型适配：FabricClientCommandSource → sendFeedback / sendError。
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
+                dispatcher.register(com.alonie.brbe.command.BrbeCommandTree.build(
+                        new com.alonie.brbe.command.BrbeCommandTree.Feedback<FabricClientCommandSource>() {
+                            @Override
+                            public void success(FabricClientCommandSource source, String langKey, Object... args) {
+                                source.sendFeedback(Component.translatable(langKey, args));
+                            }
+
+                            @Override
+                            public void failure(FabricClientCommandSource source, String langKey, Object... args) {
+                                source.sendError(Component.translatable(langKey, args));
+                            }
+                        })));
 
         // 锻造 fallback：尽早注册同步配方监听（须先于登录的
         // ClientRecipeSynchronizedEvent，否则错过回调、兜底永远无数据）。
