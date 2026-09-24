@@ -1780,3 +1780,8 @@ GetYOrigin`；26.x 用 `minecraft.gui.screen()`，1.21.11 用 `minecraft.screen`
 ## 2026-09-25（二）：滚轮接缝收敛 + 兼容自检 —— 本分支未改
 
 > 架构改动未移植到本分支（滚轮只有单一入口、无第二个消费者，且无 mousewheelie 实例可验证）。
+
+
+## 2026-09-25（三）：unlockAll 关闭 = 只显示进度已解锁配方 —— 本分支未移植
+
+> 未移植到本分支（配方书为 `RecipeHolder`/`known: Set<ResourceLocation>` 的另一套模型，需单独实现）。
