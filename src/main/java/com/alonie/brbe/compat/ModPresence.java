@@ -23,9 +23,10 @@ public final class ModPresence {
             return "?";
         }
         try {
-            Object metadata = container.getClass().getMethod("getMetadata").invoke(container);
-            Object version = metadata.getClass().getMethod("getVersion").invoke(metadata);
-            Object friendly = version.getClass().getMethod("getFriendlyString").invoke(version);
+            Object metadata = invokeOn("net.fabricmc.loader.api.ModContainer", container, "getMetadata");
+            Object version = invokeOn("net.fabricmc.loader.api.metadata.ModMetadata", metadata, "getVersion");
+            Object friendly = invokeOn("net.fabricmc.loader.api.Version", version,
+                    "getFriendlyString");
             return String.valueOf(friendly);
         } catch (Throwable t) {
             return "?";
@@ -48,5 +49,11 @@ public final class ModPresence {
         } catch (Throwable t) {
             return null;
         }
+    }
+
+    /** 通过**接口类**取方法：Fabric 的实现类多半不是 public，直接 getClass().getMethod(...)
+     * 拿到的 Method 在 invoke 时会抛 IllegalAccessException（实测版本号因此显示成 "?"）。 */
+    private static Object invokeOn(String className, Object target, String method) throws Exception {
+        return Class.forName(className).getMethod(method).invoke(target);
     }
 }
