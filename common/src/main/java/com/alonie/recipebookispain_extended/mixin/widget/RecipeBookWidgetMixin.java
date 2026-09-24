@@ -712,20 +712,23 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess, R
     @Unique
     private boolean rbip$isMouseOverAnyVisibleTab(double mouseX, double mouseY) {
         // 固定滚动区域 = 创造模式标签的完整容纳空间（不依赖实际放置的标签）：
-        // 左侧 6 槽整列 + 顶部整行 + 底部整行（含 SCROLL_PADDING 上下扩展）。
+        // 左侧 6 槽整列 + 顶部整行 + 底部整行（含向书体**外侧**的 SCROLL_PADDING 余量）。
         // 只要鼠标落在这些槽位区域内（即便该处没有标签）即可翻页。
         if (rbip$isInside(mouseX, mouseY, rbip$getTabX(), rbip$getTabY(),
                 TAB_W, LEFT_SLOTS * TAB_H)) {
             return true;
         }
+        // 上下两条：余量只加在书体外侧，内侧止于标签自身边缘。旧写法以标签矩形
+        // 为中心上下各扩 SCROLL_PADDING，于是下方那条伸进书体、盖住配方网格最后
+        // 一行 —— 在配方区滚动会被当成"滚标签"吃掉（2026-09-25 修正）。
         int horizX = rbip$getHorizontalTabStartX();
         int horizW = rbip$getTopSlots() * HORIZ_STEP;
-        int horizH = ROT_TAB_H + 2 * SCROLL_PADDING;
+        int stripH = ROT_TAB_H + SCROLL_PADDING;
         if (rbip$isInside(mouseX, mouseY, horizX, rbip$getTopTabY() - SCROLL_PADDING,
-                horizW, horizH)) {
+                horizW, stripH)) {
             return true;
         }
-        return rbip$isInside(mouseX, mouseY, horizX, rbip$getBottomTabY() - SCROLL_PADDING,
-                horizW, horizH);
+        return rbip$isInside(mouseX, mouseY, horizX, rbip$getBottomTabY(),
+                horizW, stripH);
     }
 }
