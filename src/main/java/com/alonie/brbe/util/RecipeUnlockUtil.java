@@ -23,6 +23,7 @@ import org.apache.logging.log4j.Logger;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 /**
@@ -37,6 +38,11 @@ import java.util.Set;
  * are negative, see {@link VanillaRecipeCache#isLocalRecipe}).  Because the
  * marker set and the known map are both in memory, toggling applies
  * immediately (rebuildCollections → engine rebuild), no world reload needed.
+ *
+ * <p>Displays that were already in the book when unlock-all ran (server
+ * progression, or another mod that unlocks everything — e.g. the
+ * {@code get-recipes} mod's client-side injector) are <b>not</b> marked and are
+ * left untouched when the toggle turns off: they are not BRBE's doing.</p>
  *
  * <p>{@link #isBrbeImported} is the same mark-then-filter pattern as the
  * workstation {@code recipeBook} flag: it distinguishes the BRBE-imported half
@@ -150,8 +156,8 @@ public class RecipeUnlockUtil {
 
     /**
      * Called on every recipe-book packet (each progression unlock).  Re-applies
-     * unlock-all and, when the toggle is off, repairs a server book polluted
-     * by the old implementation.
+     * unlock-all and, when the toggle is off, runs the once-per-session
+     * fully-unlocked diagnostic.
      *
      * <p>While unlock-all is active, a progression unlock (e.g. crafting
      * sticks) must NOT re-run the full injection: every recipe is already in
@@ -171,7 +177,7 @@ public class RecipeUnlockUtil {
         if (unlockAll) {
             unlockRecipes();
         } else {
-            repairPollutedServerBook();
+            reportFullyUnlockedServerBook();
         }
         lastUnlockAll = unlockAll;
     }
@@ -188,7 +194,7 @@ public class RecipeUnlockUtil {
             unlockRecipes();
         } else {
             revokeUnlockAll();
-            repairPollutedServerBook();
+            reportFullyUnlockedServerBook();
             // Now that the book shows server-unlocked recipes again, surface
             // the unlock toasts that were deferred while unlock-all was on.
             flushDeferredUnlockToasts();
@@ -243,28 +249,43 @@ public class RecipeUnlockUtil {
         }
 
         ClientRecipeBook book = minecraft.player.getRecipeBook();
+        // Mark only what this call actually adds.  A display that is already in
+        // the book (server progression, or another mod that unlocks recipes —
+        // e.g. get-recipes injecting locally) is not BRBE's doing and must stay
+        // when the toggle turns off; recording it in unlockAllInjected made
+        // revokeUnlockAll() delete someone else's recipes (2026-09-25: the
+        // whole book went blank in a modpack after toggling unlock-all off).
+        Map<RecipeDisplayId, RecipeDisplayEntry> known =
+                ((ClientRecipeBookAccessor) book).brbe$getKnown();
         unlockAllInjected.clear();
+        int added = 0;
         for (RecipeDisplayEntry entry : allDisplays) {
+            if (known.containsKey(entry.id())) {
+                continue;
+            }
             unlockAllInjected.add(entry.id());
             book.add(entry);
+            added++;
         }
         book.rebuildCollections();
         unlockAllApplied = true;
-        BrbeLogger.log("BRBE", "[BRBE] unlock-all: injected {} displays", unlockAllInjected.size());
+        BrbeLogger.log("BRBE", "[BRBE] unlock-all: injected {} displays ({} already unlocked, left untouched)",
+                added, allDisplays.size() - added);
     }
 
     /**
-     * Removes the unlock-all injections — the vanilla-cache negative-index
-     * entries, plus every unlock-all display the server did not already unlock
-     * — so the book returns to the server-authoritative state.
+     * Removes BRBE's own unlock-all injections — exactly the displays
+     * {@link #unlockRecipes()} added and the server has not unlocked since —
+     * plus the vanilla-cache negative-index entries, so the book returns to
+     * the state it had before BRBE touched it.
      *
-     * <p>{@link #unlockAllInjected} holds the FULL server recipe set (unlock
-     * all enumerates every recipe the singleplayer server knows), which also
-     * contains the recipes the server itself unlocked.  Those must stay:
-     * only the difference (server set minus server-unlocked) is BRBE's doing
-     * and gets removed.  Server-unlocked ids come from
-     * {@link #serverUnlockedRecipes} (the recipe-book add packets); the
-     * vanilla-cache negative-index entries are always local and removed too.
+     * <p>Displays that were already unlocked when unlock-all ran (server
+     * progression, another mod's injection) were never marked, so they survive
+     * the revoke.
+     *
+     * <p>{@link #serverUnlockedRecipes} (the recipe-book add packets) is the
+     * second guard: a recipe the server unlocked after BRBE added it is the
+     * server's, not BRBE's, and stays.
      */
     public static void revokeUnlockAll() {
         Minecraft minecraft = Minecraft.getInstance();
@@ -306,19 +327,33 @@ public class RecipeUnlockUtil {
      */
     public static void restoreRecipes() {
         unlockAllApplied = false;
+        fullyUnlockedReported = false;
         revokeUnlockAll();
     }
 
     /**
-     * One-time repair for worlds polluted by the pre-fix implementation, which
-     * awarded every recipe into the server recipe book.  That state is now
-     * persisted in the player data, so the server keeps re-sending everything
-     * and the unlock-all toggle cannot be turned off.  When detected (toggle
-     * off, server book holds nearly every recipe — vanilla never produces this
-     * state) the server book is reset so the client sees real unlock progress
-     * again.
+     * Diagnostic-only replacement for the former "polluted server book"
+     * repair (removed 2026-09-25).
+     *
+     * <p>The old repair deleted every recipe from the <b>server</b> recipe book
+     * whenever ≥90% of all recipes were unlocked, on the assumption that this
+     * state could only come from the pre-2.3 implementation that awarded
+     * recipes server-side.  That assumption is wrong — an "unlock everything"
+     * mod or datapack, an admin command, or simply a completionist save produce
+     * exactly the same state, and the repair then destroyed the player's real
+     * progression.  Observed 2026-09-25 in the 26.2 modpack: the
+     * {@code get-recipes} mod unlocked all 1568 recipes, the toggle was switched
+     * off, BRBE removed 1561 recipes from the server book and the recipe book
+     * (tabs included) went blank.
+     *
+     * <p>Nothing has to be repaired automatically: the current implementation
+     * never writes to the server book.  All that remains is a once-per-session
+     * notice so a "the toggle does nothing" report has a visible cause.
      */
-    private static void repairPollutedServerBook() {
+    private static void reportFullyUnlockedServerBook() {
+        if (fullyUnlockedReported) {
+            return;
+        }
         Minecraft minecraft = Minecraft.getInstance();
         if (minecraft.player == null || !minecraft.hasSingleplayerServer()) {
             return;
@@ -327,6 +362,7 @@ public class RecipeUnlockUtil {
         if (server == null) {
             return;
         }
+        fullyUnlockedReported = true;
 
         java.util.UUID playerId = minecraft.player.getUUID();
         try {
@@ -341,16 +377,15 @@ public class RecipeUnlockUtil {
                 if (total == 0 || known.size() < total * 0.9) {
                     return;
                 }
-                List<RecipeHolder<?>> all = new ArrayList<>();
-                for (ResourceKey<Recipe<?>> key : known) {
-                    server.getRecipeManager().byKey(key).ifPresent(all::add);
-                }
-                book.removeRecipes(all, serverPlayer);
-                LOG.warn("[BRBE] reset unlock-all-polluted server recipe book: removed {} known recipes",
-                        all.size());
+                LOG.warn("[BRBE] this world's recipe book is fully unlocked ({} of {} recipes) by "
+                                + "something other than BRBE; the \"unlock all recipes\" toggle cannot hide "
+                                + "them — remove the mod/datapack that unlocks everything if that is not wanted",
+                        known.size(), total);
             }).join();
         } catch (Exception e) {
-            LOG.warn("[BRBE] failed to repair polluted server recipe book", e);
+            LOG.warn("[BRBE] failed to inspect the server recipe book", e);
         }
     }
+
+    private static boolean fullyUnlockedReported;
 }
