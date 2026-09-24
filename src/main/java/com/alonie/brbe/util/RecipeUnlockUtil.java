@@ -200,6 +200,8 @@ public class RecipeUnlockUtil {
             flushDeferredUnlockToasts();
         }
         lastUnlockAll = unlockAll;
+        // 开关切换 = 进度白名单的启用状态变了（关 = 只显示进度解锁项），重算一次。
+        ProgressionUnlocks.markDirty();
         // Force every open recipe-book UI to rebuild from the fresh known set:
         // rebuildCollections alone does not re-run the screen's updateCollections
         // (which is what actually re-reads getCollections()), so without this

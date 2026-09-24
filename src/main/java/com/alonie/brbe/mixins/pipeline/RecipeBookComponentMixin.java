@@ -290,6 +290,12 @@ public abstract class RecipeBookComponentMixin {
         // 语义与 1.21.1 的 RecipePipeline.applyVisibility 一致。
         list = brbe$applyGridVisibility(list);
 
+        // ---- Stage 0b: 进度可见性（同一显示路径兜底）----
+        // unlockAll 关闭 = 只显示进度系统（advancement rewards.recipes）解锁的配方：
+        // 任何"解锁全部"模组给服务端配方书塞进来的配方都在这里被剔除（它们不是
+        // BRBE 的注入，撤销管不到；详见 ProgressionUnlocks 的类注释）。
+        list = brbe$applyProgressionVisibility(list);
+
         // ---- Pipeline output cache ----
         // 键 = **单一指纹**（见 brbe$cacheFingerprint 的注释）：命中判据从十几个代理量
         // 收敛成一次 int 比较，而指纹同时覆盖"生产者纪元"与"输入数据实际内容"。
@@ -467,6 +473,44 @@ public abstract class RecipeBookComponentMixin {
                 out.add(collection);
             }
         }
+        return out;
+    }
+
+    /**
+     * Stage 0b：进度可见性。{@code unlockAll} 关闭时，把不在
+     * {@link com.alonie.brbe.util.ProgressionUnlocks} 白名单里的 display 从
+     * {@code selected}/{@code craftable} 中剔除，只剩白名单项的集合整组丢弃。
+     *
+     * <p>挂在显示路径（指纹/缓存之前、每轮无条件执行）上，因此无论
+     * {@code selectRecipes} 是否被增量索引跳过，显示结果都由进度白名单决定；
+     * 白名单本身按脏标记缓存，只有世界加入/成就变化/开关变化后重算一次。</p>
+     */
+    @Unique
+    private List<RecipeCollection> brbe$applyProgressionVisibility(List<RecipeCollection> list) {
+        if (!com.alonie.brbe.util.ProgressionUnlocks.filtersActive()) {
+            return list;
+        }
+        java.util.Set<RecipeDisplayId> allowed =
+                com.alonie.brbe.util.ProgressionUnlocks.whitelist();
+        if (allowed == null) {
+            return list;
+        }
+        List<RecipeCollection> out = new java.util.ArrayList<>(list.size());
+        int hidden = 0;
+        for (RecipeCollection collection : list) {
+            RecipeCollectionAccessor accessor = (RecipeCollectionAccessor) collection;
+            for (RecipeDisplayEntry entry : collection.getRecipes()) {
+                RecipeDisplayId id = entry.id();
+                if (allowed.contains(id)) continue;
+                accessor.brbe$getSelected().remove(id);
+                accessor.brbe$getCraftable().remove(id);
+                hidden++;
+            }
+            if (collection.hasAnySelected()) {
+                out.add(collection);
+            }
+        }
+        com.alonie.brbe.util.ProgressionUnlocks.noteHidden(hidden);
         return out;
     }
 
