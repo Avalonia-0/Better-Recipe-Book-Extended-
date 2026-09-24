@@ -65,6 +65,19 @@ public final class RecipeBookGesture {
         if (minecraft == null || minecraft.gui == null || minecraft.getOverlay() != null) {
             return false;
         }
+        // ★ 桌面窗口语义优先（2026-09-25 修正）：查询界面 / pin / 预览 拥有光标时，
+        // 滚轮归它们 —— 必须在这里把事件转交给 RecipeViewerOverlay 自己的分发器，
+        // 而不是像以前那样等屏幕分发。因为接缝一旦按"配方书矩形"认领就会 cancel：
+        //   ① 窗口的滚轮分发器再也收不到 → 窗口翻不了页；
+        //   ② 配方书自己又会因为"窗口压在上面"（RecipeBookPageMixin 的
+        //      modalMaskOwnsCursor 守卫）把入队的滚动丢掉 → 配方书也不翻页。
+        // 认领并且不再往下走，顺带挡掉 mousewheelie / amecs priority 键位 /
+        // 原版快捷栏滚动。
+        if (RecipeViewerOverlay.modalMaskOwnsCursor(
+                net.minecraft.util.Mth.floor(mouseX), net.minecraft.util.Mth.floor(mouseY))) {
+            RecipeViewerOverlay.mouseScrolled(mouseX, mouseY, verticalAmount);
+            return true;
+        }
         Screen screen = minecraft.screen;
         if (!(screen instanceof AbstractRecipeBookScreen<?> bookScreen)) {
             return false;

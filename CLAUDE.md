@@ -1592,3 +1592,38 @@ if (config != null && !config.showAllRecipesInSurvival) {
 
 **验证方法**：工作台 → RBIP 标签（如「建筑方块」）应能看到并点击 3×3 配方；
 「刷怪蛋」标签应重新出现且含嘎枝之心；背包（2×2）里这些 3×3 配方仍不显示、不可点。
+
+
+## 2026-09-25（六）：查询窗口压在配方书上时两边都翻不了页（滚轮接缝的回归）
+
+**用户报告**：查询界面（LEI/R-U viewer）放在配方书**上面**时，窗口的翻页区域被配方书占用
+——窗口翻不了页，配方书的翻页区域也触发不了。
+
+**根因：当天（二）"滚轮接缝收敛"引入的回归**。接缝把认领点提到了
+`MouseHandler.onScroll` HEAD，而它只按"**配方书矩形** + 标签条"认领并 `ci.cancel()`，
+没看"窗口是不是压在书上面"：
+
+| 步骤 | 收敛前 | 收敛后（回归） |
+|---|---|---|
+| `MouseHandler.onScroll` HEAD | 无人认领 | 接缝按配方书矩形**认领并 cancel** |
+| 屏幕分发 → 静态 `RecipeViewerOverlay.mouseScrolled` | 窗口/pin 拿到滚轮 → 翻页 ✓ | **收不到**（事件已 cancel） |
+| 配方书自己的入队滚动 | 窗口在上时被 `RecipeBookPageMixin` 的 `modalMaskOwnsCursor` 守卫丢弃 | 同样被丢弃 |
+
+两边都失效，与用户描述完全一致。`isPageTurnButton`/点击路径不受影响（点击仍走
+`AbstractRecipeBookScreen.mouseClicked` HEAD 的窗口分发）——所以症状只在**滚轮**上。
+
+**修复**（`util/RecipeBookGesture#claimScroll`，26.2 / 26.3 / 1.21.11）：认领配方书矩形**之前**
+先判桌面窗口语义——`RecipeViewerOverlay.modalMaskOwnsCursor(x, y)`（窗口/pin/预览拥有光标）成立时，
+把这次滚动**转交给** `RecipeViewerOverlay.mouseScrolled(...)` 并照样认领（cancel）：窗口/pin
+正常翻页，同时仍挡掉 mousewheelie / amecs priority 键位 / 原版快捷栏滚动。
+
+> 与 1.21.1 的实现一致：那分支的 `MouseScrollHandler` 本来就是"先给 viewer、消费才 cancel"，
+> 所以从未有这个回归。26.x 的接缝收敛时漏掉了这一步。
+
+**构建/部署**（原子替换，备份 `20260925-023423`）：26.2-Fabric `2008fee5074a61a211eb1e95008c3266`
+（部署两个 26.2 实例）、26.3-Fabric `0439539fb4395cacabbd0d27e783fc68`、
+1.21.11-Fabric `fd64d73904ef27d9668bd695efc7e9f1`；核对三个 jar 内
+`RecipeBookGesture.class` 均引用 `modalMaskOwnsCursor` + `mouseScrolled`。
+
+**验证方法**：把查询窗口拖到配方书上方（重叠）→ 在窗口的翻页区域滚轮应能翻查询页；
+把指针移到窗口之外的配方书区域滚轮 → 配方书照常翻页（窗口不挡）；实测无误即可。
