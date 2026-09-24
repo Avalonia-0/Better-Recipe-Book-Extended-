@@ -1817,3 +1817,54 @@ RBIP `MouseMixin` 只转发同一方法、新旧 mixin 类均无 `lambda$`。
 整合包首滚配方书时再多一行"滚轮接缝生效…"；配方区滚轮 = 平滑翻页 + 音效，标签条滚轮不再切标签。
 
 > 本分支已部署，md5 `41ccb600704251414e973ed6f50dbdfb`。
+
+
+## 2026-09-25（三）：unlockAll 关闭 = 只显示「进度系统已解锁」的配方（26.2 / 26.3 / 1.21.11）
+
+**用户反馈（26.2 整合包）**：「关掉『自动解锁所有配方』后不再空书了，但进度系统中未解锁的
+配方并不会被隐藏」——开关关掉后配方书照样全亮。
+
+**根因（新语义缺口，不是回归）**：上一轮的修复只做"撤销 BRBE 自己注入的 display"，这在纯净
+环境等价于恢复服务端状态；但整合包里的 `get-recipes` 会给**服务端配方书授予全部配方**
+（实例日志 `GetRecipes: server sent 1568 ... (replace=true)`、`serverUnlocked=1568`、
+`unlock-all: injected 0 displays (1568 already unlocked, left untouched)`），于是"服务端状态"
+本身就是全解锁 —— 撤销管不到别人塞进来的东西。
+
+**修复：进度可见性白名单（`util/ProgressionUnlocks`）**
+
+- 权威信号 = **原版进度系统**：每条原版配方都有一条 `minecraft:advancement/recipes/**`
+  成就（26.2 共 1572 条，`rewards.recipes` 就是它解锁的配方），BRBE 自己生成的
+  `brbe:recipe/**`（模组锻造）同样走 `rewards.recipes`。于是
+  `白名单 = ⋃ { advancement.rewards.recipes() | 该 advancement 已完成 }`
+  （服务端枚举 `MinecraftServer.getAdvancements().getAllAdvancements()` +
+  `PlayerAdvancements.getOrStartProgress(holder).isDone()`），再经
+  `RecipeManager.listDisplaysForRecipe` 映射成 display id（与 unlock-all 同一套枚举）。
+  与酿造/锻造书既有的 `RecipeUnlockTracker` 同一个进度权威，语义一致。
+- 作用点：26.x 管线新增 **Stage 0b `brbe$applyProgressionVisibility`**（紧随 Stage 0 网格
+  可见性、指纹/缓存之前，每轮无条件执行）——把白名单外的 display 从 `selected`/`craftable`
+  剔除、只剩白名单项的集合整组丢弃。与几何兜底同一哲学：**无论谁往配方书里塞了什么，
+  显示结果由白名单决定**。
+- 失效与开销：脏标记（世界卸载 `clear()`、`handleUpdateAdvancementsPacket` RETURN、
+  开关切换）驱动；`whitelist()` 250ms 节流，且先做廉价的"配方集合是否变化"比较，
+  只有真变了才做昂贵的 display 枚举。
+- **多人服务器**：无集成服务器 → `whitelist()` 返回 `null` → **不过滤**（保持服务端状态；
+  与 unlock-all 本身只支持单机一致），并记一行说明。
+- 诊断：`progress filter: N recipes / M displays unlocked by completed advancements`（每次重算）
+  与 `progress filter: hid K displays not unlocked by progression`（隐藏条数变化时）。
+  **副产物**：纯净/正常世界里"没人绕过进度塞配方" ⇒ `hid 0`，即该过滤器是**零行为变化**的
+  安全网；只有存在绕过进度的授予（解锁全部模组、`/recipe give`、直接 awardRecipes 的模组）
+  时才生效。
+
+**未做**：R/U 查询 viewer 仍按既有规则显示（本次只收敛配方书显示路径）；1.21.1 未移植
+（其配方书是 `RecipeHolder`/`known: Set<ResourceLocation>` 的另一套模型，需单独实现）。
+
+**构建/部署**（原子替换，备份 `20260925-012746`）：26.2-Fabric `df09b4642b990a80c58833b4dc90cd39`
+（部署两个 26.2 实例）、26.3-Fabric `04277b31f0fbfa7a6c3b87ffc5b7ec94`、
+1.21.11-Fabric `82b59c9305fdc9cf6a2bee07f4c4f688`；`javap` 核对三个 jar：`ProgressionUnlocks` 在、
+管线 mixin 引用 3 处、无 `lambda$`。
+
+**验证方法**：整合包里关掉「自动解锁所有配方」→ 配方书只剩进度（成就）解锁的配方，
+`brbe-debug.log` 出现 `progress filter: …` 与 `progress filter: hid …`；
+开关打开 → 立即恢复全量。纯净实例（没有绕过进度的授予）应看到 `hid 0`（行为不变）。
+
+> 本分支已部署，md5 `04277b31f0fbfa7a6c3b87ffc5b7ec94`。

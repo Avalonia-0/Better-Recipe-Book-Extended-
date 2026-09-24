@@ -16,6 +16,7 @@ public class MinecraftMixin {
     @Inject(method = "clearClientLevel", at = @At("HEAD"))
     private void onClearClientLevel(Screen screen, CallbackInfo ci) {
         RecipeUnlockUtil.restoreRecipes();
+        com.alonie.brbe.util.ProgressionUnlocks.clear();
         VanillaRecipeCache.clear();
         RecipeViewerEngine.clear();
         PartialCraftingUtil.clearDisplayResolutionCache();
