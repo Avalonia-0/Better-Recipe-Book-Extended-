@@ -5,6 +5,7 @@ import com.alonie.brbe.util.RecipeUnlockUtil;
 import net.minecraft.client.ClientRecipeBook;
 import net.minecraft.client.multiplayer.ClientPacketListener;
 import net.minecraft.network.protocol.game.ClientboundRecipeBookAddPacket;
+import net.minecraft.network.protocol.game.ClientboundUpdateAdvancementsPacket;
 import net.minecraft.network.protocol.game.ClientboundRecipeBookRemovePacket;
 import net.minecraft.network.protocol.game.ClientboundRecipeBookSettingsPacket;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
@@ -81,6 +82,17 @@ public abstract class ClientPacketListenerMixin {
      * its content is identical to the last refresh the whole chain
      * (rebuildCollections + search trees + recipesUpdated) is a no-op.
      */
+    /**
+     * 成就进度变化 = 进度白名单可能变化（原版配方解锁全部由 advancement 的
+     * {@code rewards.recipes} 驱动）。这里只打脏标记，真正的重算推迟到下一次
+     * 配方书显示路径（{@code ProgressionUnlocks.whitelist()}），避免每个成就包
+     * 都做一次服务器枚举。
+     */
+    @Inject(method = "handleUpdateAdvancementsPacket", at = @At("RETURN"))
+    private void brbe$markProgressionDirty(ClientboundUpdateAdvancementsPacket packet, CallbackInfo ci) {
+        com.alonie.brbe.util.ProgressionUnlocks.markDirty();
+    }
+
     @Inject(method = "refreshRecipeBook", at = @At("HEAD"), cancellable = true)
     private void brbe$skipUnchangedRefresh(ClientRecipeBook book, CallbackInfo ci) {
         if (brbe$forceNextRefresh) {
