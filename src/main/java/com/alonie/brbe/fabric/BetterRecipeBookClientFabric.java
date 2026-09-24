@@ -93,19 +93,16 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         // ClientRecipeSynchronizedEvent，否则错过回调、兜底永远无数据）。
         com.alonie.brbe.cache.BrbeJeiBridge.initClient();
 
-        // 拼音搜索：中文语言（zh_*）默认开启（用户仍可手动关闭）；
+        // 拼音搜索：语言相关默认值——中文语言（zh_*）默认开启（用户仍可手动关闭）；
         // 非中文语言强制关闭（配置界面同时隐藏该选项，见 PinyinSearchGuiRegistrar）。
+        // 判定收口在 PinyinSearchDefaults：启动钩子与 /brbe clear configchange 的
+        // "恢复默认"共用同一语义（否则恢复默认会退回 POJO 常量 false，中文下即被关掉）。
         // 注：entrypoint 阶段 Minecraft.options 尚为 null，须延迟到 CLIENT_STARTED
         // （客户端初始化完成、仅触发一次）。
         ClientLifecycleEvents.CLIENT_STARTED.register(client -> {
             if (BetterRecipeBook.config == null || BetterRecipeBook.configHolder == null) return;
-            String languageCode = client.options.languageCode;
-            boolean chinese = languageCode != null && languageCode.startsWith("zh");
-            if (chinese && !BetterRecipeBook.config.pinyinSearch) {
-                BetterRecipeBook.config.pinyinSearch = true;
-                BetterRecipeBook.configHolder.save();
-            } else if (!chinese && BetterRecipeBook.config.pinyinSearch) {
-                BetterRecipeBook.config.pinyinSearch = false;
+            if (com.alonie.brbe.config.PinyinSearchDefaults.applyLanguageDefault(
+                    BetterRecipeBook.config, client)) {
                 BetterRecipeBook.configHolder.save();
             }
             // 配置键为权威：启动时同步回原版 KeyMapping 并持久化到 options.txt。
