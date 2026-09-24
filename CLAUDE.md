@@ -1775,3 +1775,8 @@ GetYOrigin`；26.x 用 `minecraft.gui.screen()`，1.21.11 用 `minecraft.screen`
    mousewheelie 物品滚动（滚一个物品进出）不受影响。
 
 > 本分支只构建不部署：fabric `ec89a86f7a2d8c03dd279be0dc0d1c36` / neoforge `465ae140deaec2cac7b2e315f714ff9b`（只含 ③）。
+
+
+## 2026-09-25（二）：滚轮接缝收敛 + 兼容自检 —— 本分支未改
+
+> 架构改动未移植到本分支（滚轮只有单一入口、无第二个消费者，且无 mousewheelie 实例可验证）。
