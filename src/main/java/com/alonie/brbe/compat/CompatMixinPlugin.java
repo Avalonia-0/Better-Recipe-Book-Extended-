@@ -22,14 +22,9 @@ public class CompatMixinPlugin implements IMixinConfigPlugin {
         // mousewheelie compat — use reflection to avoid compile-time coupling to FabricLoader
         // (NeoForge does not ship fabric-loader at runtime)
         if (mixinClassName.equals("com.alonie.brbe.compat.mixins.mousewheelie.MixinMWClient")) {
-            try {
-                Class<?> fabricLoader = Class.forName("net.fabricmc.loader.api.FabricLoader");
-                Object instance = fabricLoader.getMethod("getInstance").invoke(null);
-                return (boolean) instance.getClass().getMethod("isModLoaded", String.class)
-                        .invoke(instance, "mousewheelie");
-            } catch (Throwable e) {
-                return false;
-            }
+            // 纯反射实现抽到 ModPresence（不引用任何 Minecraft 类，Mixin 引导阶段可安全调用）；
+            // 同一份判定也被 CompatSelfCheck 用于启动自检，避免两处各写一套。
+            return ModPresence.isLoaded("mousewheelie");
         }
         return false;
     }

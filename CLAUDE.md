@@ -1423,3 +1423,63 @@ GetYOrigin`；26.x 用 `minecraft.gui.screen()`，1.21.11 用 `minecraft.screen`
    mousewheelie 物品滚动（滚一个物品进出）不受影响。
 
 > 本分支已部署（两个 26.2 实例），md5 `1acc668fd2008d5cd1cc26fa6256c841`。
+
+
+## 2026-09-25（二）：滚轮接缝收敛 + 兼容自检（架构，26.2 / 26.3 / 1.21.11）
+
+**动机**：上一轮定位到"滚轮无翻页动画/音效 + 滚轮切标签"是 mousewheelie 抢走了手势。修好之后
+顺带把这一类问题的**根**处理掉：同一个手势当时有<b>三套各自为政</b>的实现，
+
+| 实现 | 位置 | 职责 | 问题 |
+|---|---|---|---|
+| BRBE | `mixins/MouseScrollHandler`（RETURN 注入） | 只把滚动排进 `queuedScroll` | 不认领事件；被 amecs 的 priority 键位一 cancel 就再也收不到 |
+| RBIP | `mixin/MouseMixin`（HEAD 注入） | 标签栏翻页并 `ci.cancel()` | 与上者各写一套坐标/判定，谁先跑取决于 mixin 应用顺序 |
+| 兼容 | `MixinMWClient` | 事后堵 mousewheelie | 26.x 上落在**没有任何实现类**的死分支（白挂几个月） |
+
+### ① 接缝收敛：`util/RecipeBookGesture`
+
+新增普通类 `RecipeBookGesture`（`BOOK_WIDTH/HEIGHT/TAB_STRIP_WIDTH` 三常量在此唯一定义）：
+
+- `claimScroll(mouseX, mouseY, verticalAmount)`：**唯一归属判定 + 唯一消费点**。
+  ① 先问 RBIP 标签栏（左列/上下条带/翻页箭头，内部自带开关守卫）；
+  ② 再判配方书面板本体 + 其左侧标签条 → 写入 `BetterRecipeBook.queuedScroll`
+  （渲染时由 `scrollablepages/RecipeBookPageMixin` 翻页，动画/音效/残缺红罩/pin 全链路一行未改）。
+- `ownsRecipeBookArea(x, y)`：纯几何判定，供 mousewheelie 兼容做兜底（接缝在前，正常轮不到它）。
+
+`MouseScrollHandler` 与 RBIP `MouseMixin` 都改成 **`MouseHandler.onScroll` HEAD 调 `claimScroll`**：
+先跑到的那一个认领并 `ci.cancel()`，**另一个连同原版方法体一起被跳过** → 注入顺序不再影响结果；
+下游（mousewheelie / amecs priority 键位 / 原版快捷栏滚动）根本看不到这次事件。
+保留 RBIP 那个入口（而不是删掉）是为了 RBIP 配置独立加载时的鲁棒性——两个入口幂等，只有一个能认领。
+
+**范围与可见行为变化**：接缝只认领**原版配方书界面**（`AbstractRecipeBookScreen`：背包/工作台/熔炉族）。
+BRBE 自研的酿造台/锻造台书没有竞争者，仍走"兜底无条件入队 + 各自页面命中判定"的老路。
+唯一可见变化：在配方书区域内滚动时**原版快捷栏不再跟着滚动**（装了 mousewheelie 时本来就是这个表现；
+即旧版 `scrolling.enabled`「把滚轮限制在配方书区域」的语义）。
+
+### ② 兼容自检：`compat/CompatSelfCheck` + `compat/ModPresence`
+
+- `ModPresence`：纯反射（**不引用任何 Minecraft 类**，Mixin 引导阶段可安全调用）——`CompatMixinPlugin`
+  也改用它，判定只有一份。
+- `CompatSelfCheck.run()`（`BetterRecipeBookClientFabric` 的 `CLIENT_STARTED`）：
+  逐个条件兼容打状态行；**目标缺失一律 WARN 进 latest.log**；`Class.forName(..., initialize=false)`
+  保证自检绝不会提前触发目标模组的静态初始化。
+  例：`mousewheelie 1.16.3+mc26.2: triggerScroll ✓ legacyTarget ✓ → 配方书滚轮由 BRBE 接缝认领`
+  或（这次的真实情况）`旧接口 IScrollableRecipeBook 已不存在/…` 的显式提示。
+- `CompatSelfCheck.noteSeamClaim(...)`：**首次接缝认领**时记一行（每次会话一行，且只在与滚轮模组共存时记）
+  ——这是"接缝真的生效、下游被绕过"的运行时证据。
+- RBIP 接缝也自检：`RecipeBookScrollAccess.class.isAssignableFrom(RecipeBookComponent.class)`
+  → 不成立说明 RBIP mixin 没应用，启动即 WARN（标签栏滚轮会失效）。
+
+**1.21.1 未改**：该分支滚轮只有单一入口（`MouseScrollHandler` HEAD + RBIP 走原版
+`mouseScrolled` 分发），没有第二个消费者需要仲裁，也没有装 mousewheelie 的实例，无法验证故不动。
+
+**构建/部署**（原子替换，备份 `20260925-013242`）：26.2-Fabric `396a37314e29f116869231d9b56050f8`
+（部署两个 26.2 实例）、26.3-Fabric `41ccb600704251414e973ed6f50dbdfb`、
+1.21.11-Fabric `69d517aefbcf8d357be31d9228c37d38`；`javap` 核对三个 jar：
+`MouseScrollHandler` 为 HEAD + cancellable 且调用 `RecipeBookGesture.claimScroll`、
+RBIP `MouseMixin` 只转发同一方法、新旧 mixin 类均无 `lambda$`。
+
+**验证方法**：启动后 `brbe-debug.log` 应有三行 `[BRBE-COMPAT]`（mousewheelie 状态 / 接缝状态），
+整合包首滚配方书时再多一行"滚轮接缝生效…"；配方区滚轮 = 平滑翻页 + 音效，标签条滚轮不再切标签。
+
+> 本分支已部署（两个实例），md5 `396a37314e29f116869231d9b56050f8`。
