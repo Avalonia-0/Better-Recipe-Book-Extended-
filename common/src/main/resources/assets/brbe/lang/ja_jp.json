@@ -165,5 +165,16 @@
   "text.autoconfig.brbe.option.recipeViewerColumnLimit": "レシピエリア列数上限",
   "text.autoconfig.brbe.option.usageViewKey.@Tooltip": "そのアイテムを材料・作業台として使用するレシピを照会します。",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "そのアイテムを材料・作業台として使用するレシピを照会します。",
-  "text.autoconfig.brbe.title": "Better Recipe Bookの設定"
+  "text.autoconfig.brbe.title": "Better Recipe Bookの設定",
+  "brbe.command.usage": "BRBE コマンド：/brbe clear …（詳細は /brbe clear）",
+  "brbe.command.clear.header": "/brbe clear サブコマンド：",
+  "brbe.command.clear.configchange": "/brbe clear configchange — すべての設定項目を既定値に戻す",
+  "brbe.command.clear.rbippin": "/brbe clear rbippin — RBIP タブの固定をすべて解除",
+  "brbe.command.clear.recipepin": "/brbe clear recipepin — レシピブックのレシピ固定をすべて解除",
+  "brbe.command.clear.leipin": "/brbe clear leipin — 検索画面（LEI）オブジェクトの固定をすべて解除",
+  "brbe.command.done.configchange": "すべての設定項目を既定値に戻しました",
+  "brbe.command.done.rbippin": "RBIP タブの固定を %s 件解除しました",
+  "brbe.command.done.recipepin": "レシピの固定を %s 件解除しました",
+  "brbe.command.done.leipin": "検索オブジェクトの固定を %s 件解除しました",
+  "brbe.command.failed": "BRBE コマンドが失敗しました：%s"
 }

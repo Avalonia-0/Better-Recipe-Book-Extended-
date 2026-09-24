@@ -69,6 +69,23 @@ public class BetterRecipeBookClientNeoForge {
         // Register platform provider
         PlatformPotionUtilImpl.init();
 
+        // /brbe 客户端指令（clear 子命令）。RegisterClientCommandsEvent 是游戏总线事件；
+        // 指令树与加载器无关，这里只提供源类型适配（CommandSourceStack）。
+        NeoForge.EVENT_BUS.addListener(
+                net.neoforged.neoforge.client.event.RegisterClientCommandsEvent.class, event ->
+                        event.getDispatcher().register(com.alonie.brbe.command.BrbeCommandTree.build(
+                                new com.alonie.brbe.command.BrbeCommandTree.Feedback<net.minecraft.commands.CommandSourceStack>() {
+                                    @Override
+                                    public void success(net.minecraft.commands.CommandSourceStack source, String langKey, Object... args) {
+                                        source.sendSuccess(() -> Component.translatable(langKey, args), false);
+                                    }
+
+                                    @Override
+                                    public void failure(net.minecraft.commands.CommandSourceStack source, String langKey, Object... args) {
+                                        source.sendFailure(Component.translatable(langKey, args));
+                                    }
+                                })));
+
         // Register PotionLoader lifecycle hooks (was in Architectury ClientLifecycleEvent.CLIENT_LEVEL_LOAD)
         NeoForge.EVENT_BUS.addListener(LevelEvent.Load.class, event -> {
             if (event.getLevel().isClientSide() && event.getLevel() instanceof ClientLevel clientLevel) {

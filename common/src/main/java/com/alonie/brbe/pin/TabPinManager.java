@@ -106,6 +106,15 @@ public final class TabPinManager {
         return out;
     }
 
+    /** 清空全部 RBIP 标签固定（{@code /brbe clear rbippin}）。返回清理前的数量。 */
+    public static int clearAll() {
+        ensureLoaded();
+        int cleared = pinnedIds.size();
+        pinnedIds.clear();
+        save();
+        return cleared;
+    }
+
     private static void save() {
         if (path == null) return;
         List<String> snapshot = new ArrayList<>(pinnedIds);

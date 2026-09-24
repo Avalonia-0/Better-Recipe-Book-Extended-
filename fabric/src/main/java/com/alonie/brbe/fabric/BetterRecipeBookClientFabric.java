@@ -15,6 +15,8 @@ import com.alonie.recipebookispain_extended.fabric.FabricPlatform;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientLifecycleEvents;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
+import net.fabricmc.fabric.api.client.command.v2.FabricClientCommandSource;
 import net.fabricmc.fabric.api.client.keybinding.v1.KeyBindingHelper;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.client.screen.v1.ScreenEvents;
@@ -47,6 +49,21 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.RECIPE_VIEW_MAPPING);
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.USAGE_VIEW_MAPPING);
         KeyBindingHelper.registerKeyBinding(BetterRecipeBook.CYCLE_LOCK_MAPPING);
+
+        // /brbe 客户端指令（clear 子命令）。指令树与加载器无关，这里只提供源类型适配。
+        ClientCommandRegistrationCallback.EVENT.register((dispatcher, registryAccess) ->
+                dispatcher.register(com.alonie.brbe.command.BrbeCommandTree.build(
+                        new com.alonie.brbe.command.BrbeCommandTree.Feedback<FabricClientCommandSource>() {
+                            @Override
+                            public void success(FabricClientCommandSource source, String langKey, Object... args) {
+                                source.sendFeedback(Component.translatable(langKey, args));
+                            }
+
+                            @Override
+                            public void failure(FabricClientCommandSource source, String langKey, Object... args) {
+                                source.sendError(Component.translatable(langKey, args));
+                            }
+                        })));
 
         // 拼音搜索：中文语言（zh_*）默认开启（用户仍可手动关闭）；
         // 非中文语言强制关闭（配置界面同时隐藏该选项，见 PinyinSearchGuiRegistrar）。
