@@ -39,6 +39,9 @@ public class BetterRecipeBookClientNeoForge {
 
     private static final Set<Screen> registeredScreens = Collections.newSetFromMap(new WeakHashMap<>());
 
+    /** 拼音搜索的语言默认值只在启动后收敛一次（见 init 的 ClientTickEvent.Post）。 */
+    private static boolean pinyinDefaultsApplied;
+
     public static void init(IEventBus modEventBus) {
 
         // 日志恒写 <gameDir>/logs/brbe-debug.log（没有开关）：BRBE、无头 JEI、
@@ -125,6 +128,9 @@ public class BetterRecipeBookClientNeoForge {
         // 否则配置界面显示为原始文本框（raw 键名未翻译）。
         KeybindingGuiRegistrar.register();
         RecipeViewerGuiRegistrar.register();
+        // 拼音搜索配置项的条件显示（中文语言外隐藏该选项）——本端此前漏注册，
+        // 导致配置界面在所有语言下都显示该项（fabric 端一直有）。
+        com.alonie.brbe.config.PinyinSearchGuiRegistrar.register();
 
         // Initialize RBIP platform (NeoForge)
         RecipeBookIsPain.PLATFORM = new NeoForgePlatform();
@@ -173,6 +179,19 @@ public class BetterRecipeBookClientNeoForge {
             // 1.21.11 同策略。
             if (client.level != null) {
                 com.alonie.brbe.cache.BrbeJeiBridge.refresh();
+            }
+            // 拼音搜索：启动后一次性收敛到语言默认值（中文 = 开 / 其他语言 = 关）。
+            // 本端此前完全没有该逻辑（fabric 端在 CLIENT_STARTED 里做）——NeoForge 无
+            // 与 CLIENT_STARTED 直接对应的事件，首个客户端 tick 是等价的
+            // "初始化完成、只跑一次"时机；判定与 /brbe clear configchange 共用
+            // PinyinSearchDefaults（见 BrbeCommandActions.resetConfig）。
+            if (!pinyinDefaultsApplied) {
+                pinyinDefaultsApplied = true;
+                if (BetterRecipeBook.config != null && BetterRecipeBook.configHolder != null
+                        && com.alonie.brbe.config.PinyinSearchDefaults.applyLanguageDefault(
+                                BetterRecipeBook.config, client)) {
+                    BetterRecipeBook.configHolder.save();
+                }
             }
             if (screen == null || registeredScreens.contains(screen) || !TopLayerOverlayRenderer.hasOverlay(screen)) {
                 return;

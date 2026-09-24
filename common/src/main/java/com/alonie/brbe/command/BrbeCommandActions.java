@@ -3,6 +3,7 @@ package com.alonie.brbe.command;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.config.BrbeConfig;
 import com.alonie.brbe.config.KeybindingGuiRegistrar;
+import com.alonie.brbe.config.PinyinSearchDefaults;
 import com.alonie.brbe.pin.TabPinManager;
 import com.alonie.brbe.pinoverlay.PinOverlayManager;
 import me.shedaniel.autoconfig.ConfigHolder;
@@ -32,11 +33,19 @@ public final class BrbeCommandActions {
     /**
      * {@code /brbe clear configchange}：把配置界面的所有配置项恢复为默认值。
      *
-     * <p>Cloth 的 {@code resetToDefault()} 只替换配置对象（不落盘、不通知监听器），
-     * 因此这里补一次 {@code save()} —— 它会触发 BRBE 注册的保存监听器
-     * （{@code ConfigChanged} → 管线/引擎/UI 刷新）。键位字段还要写回原版
-     * {@code KeyMapping} 并落盘 options.txt，否则运行中的按键仍是旧绑定、
-     * 且下次改键会把旧值写回配置。</p>
+     * <p>Cloth 的 {@code resetToDefault()} 只把 holder 里的配置对象换成
+     * {@code serializer.createDefault()} 的新实例（不落盘、不通知监听器），因此这里：</p>
+     * <ol>
+     *   <li>先对 {@code holder.getConfig()}（<b>新</b>对象，不是启动时缓存的
+     *       {@code BetterRecipeBook.config}）做语言相关默认值收敛——{@code pinyinSearch}
+     *       是语言条件项（中文 = 开、其他语言 = 关，见 {@link PinyinSearchDefaults}），
+     *       只认 POJO 常量默认值会让中文会话"恢复默认"后拼音搜索变成关；</li>
+     *   <li>再 {@code save()} —— 它才会落盘，并以 holder 里的新对象触发保存监听器
+     *       （{@code ConfigChanged} → 管线/引擎/UI 刷新，同时把静态引用换到新对象上）。</li>
+     * </ol>
+     *
+     * <p>另外键位字段还要写回原版 {@code KeyMapping} 并落盘 options.txt，否则运行中的
+     * 按键仍是旧绑定、且下次改键会把旧值写回配置。</p>
      */
     public static Result resetConfig() {
         ConfigHolder<BrbeConfig> holder = BetterRecipeBook.configHolder;
@@ -44,6 +53,7 @@ public final class BrbeCommandActions {
             return Result.fail("brbe.command.failed", "config holder unavailable");
         }
         holder.resetToDefault();
+        PinyinSearchDefaults.applyLanguageDefault(holder.getConfig(), Minecraft.getInstance());
         holder.save();
         KeybindingGuiRegistrar.applyConfigToKeyMappings();
         return Result.ok("brbe.command.done.configchange");
