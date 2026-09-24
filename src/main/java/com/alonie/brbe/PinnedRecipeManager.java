@@ -75,6 +75,18 @@ public class PinnedRecipeManager {
         }
     }
 
+    /** 清空全部配方固定（{@code /brbe clear recipepin}）。返回清理前的数量。 */
+    public int clearAll() {
+        int cleared = pinned == null ? 0 : pinned.size();
+        if (pinned == null) {
+            pinned = new HashSet<>();
+        }
+        pinned.clear();
+        version++;
+        store();
+        return cleared;
+    }
+
     private void store() {
         // Prefer async PinStore (non-blocking) when available
         if (store != null) {

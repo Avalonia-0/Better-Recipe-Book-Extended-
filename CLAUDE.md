@@ -1627,3 +1627,59 @@ if (config != null && !config.showAllRecipesInSurvival) {
 
 **验证方法**：把查询窗口拖到配方书上方（重叠）→ 在窗口的翻页区域滚轮应能翻查询页；
 把指针移到窗口之外的配方书区域滚轮 → 配方书照常翻页（窗口不挡）；实测无误即可。
+
+
+## 2026-09-25（七）：新增 `/brbe` 客户端指令（clear 子命令）
+
+用户需求（四条，26.1.2 除外的四个分支都要做）：
+
+```
+/brbe                        → 用法
+/brbe clear                  → 列出 clear 的全部子命令与功能描述
+/brbe clear configchange     → 一键把配置界面的所有配置项恢复为默认值
+/brbe clear rbippin          → 清除所有 RBIP 标签的 pin
+/brbe clear recipepin        → 清除配方书配方的 pin
+/brbe clear leipin           → 清除查询界面（LEI）对象的 pin
+```
+
+**结构**（与加载器解耦，四个分支共用同一套语义与文案键）：
+
+- `command/BrbeCommandTree`：指令树 + `Feedback<S>` 源适配接口（`success/failure`），
+  树的形状只有一份；动作抛异常只翻成聊天错误、不冒泡。
+- `command/BrbeCommandActions`：四个动作，返回 `Result{ok, langKey, args}`。
+- 注册：Fabric 三个分支与 1.21.1-fabric 用 `ClientCommandRegistrationCallback.EVENT`
+  + `FabricClientCommandSource.sendFeedback/sendError`；1.21.1-neoforge 用**游戏总线**
+  `RegisterClientCommandsEvent` + `CommandSourceStack.sendSuccess/sendFailure`。
+
+**为此新增的底层能力**：
+
+| 位置 | 新增 | 说明 |
+|---|---|---|
+| `PinnedRecipeManager` | `clearAll()` | 清空 + `version++`（管线缓存失效）+ `store()` 落盘（异步 PinStore） |
+| `pin/TabPinManager` | `clearAll()` | 清空 + `save()`（`brbe.tabpins.json`） |
+| `pinoverlay/PinOverlayManager` | `clearAllAndSave()` | 清空 + `save()`（`brbe.pinoverlays.json`） |
+| `config/KeybindingGuiRegistrar` | `applyConfigToKeyMappings()` | 配置→原版 `KeyMapping` + 落盘 options.txt |
+| 各客户端入口 | 指令注册 | Fabric/NeoForge 各一处 |
+
+**两处语义要点（易错）**：
+
+1. Cloth 的 `resetToDefault()` **只替换配置对象**（反编译 `ConfigManager.resetToDefault` 核实：
+   仅 `serializer.createDefault()` + validate，**不落盘、不通知监听器**）→ 必须补一次 `save()`，
+   否则 BRBE 的 `ConfigChanged` 监听（UI/引擎/管线刷新）不会触发；键位字段还要
+   `applyConfigToKeyMappings()` 写回 `KeyMapping`，否则运行中的按键仍是旧绑定
+   （KeyMapping 只持久化在 options.txt，下次改键会把旧值写回配置）。
+2. 清 pin 后调 `updateTabs` + `recipesUpdated()`（1.21.1 走 `RecipeUpdateListener`），
+   让当前打开的配方书**立即**重建（固定顺序/固定标记不用等重开界面）。
+
+**语言**：7 语言 × 11 键 × 4 分支 = 28 个 lang 文件（`brbe.command.*`），JSON 全部校验通过。
+
+**构建/部署**（原子替换，备份 `20260925-025315`）：26.2-Fabric `1dc4a5b2c231123ac9bc126d8fa805a3`
+（部署两个 26.2 实例）、26.3-Fabric `98188c544d6f101fc1ad5790420752e6`、
+1.21.11-Fabric `256bd67e492c91b0db6fe57937f82a3f`；1.21.1 按规则**只构建不部署**：
+fabric `8bc30a8a9fc869dc68aa2dba4adc6ffc`、neoforge `a44cf6c16349dc16a0c7352860373807`。
+核对三个部署 jar：`command/BrbeCommand{Tree,Actions}.class` 在、客户端入口含
+`ClientCommandRegistrationCallback`、jar 内 zh_cn 含 11 个 `brbe.command.*` 键。
+
+**验证方法**：游戏内（或主菜单）执行 `/brbe`、`/brbe clear` 应列出用法/子命令；
+`/brbe clear configchange` 后配置界面各项回到默认值且按键绑定同步回默认键；
+三个 pin 子命令分别清空 RBIP 标签固定 / 配方固定 / 查询对象固定，并给出条数反馈。

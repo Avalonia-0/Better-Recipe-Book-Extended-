@@ -392,6 +392,14 @@ public final class PinOverlayManager {
         pendingSpecs.clear();
     }
 
+    /** 清空全部查询对象 pin 并落盘（{@code /brbe clear leipin}）。返回清理前的数量。 */
+    public static int clearAllAndSave() {
+        int cleared = pins.size();
+        clearAll();
+        save();
+        return cleared;
+    }
+
     // ── Helpers ───────────────────────────────────────────────────────────
 
     /** Last observed search-space hash (menu slots + carried + offhand): the

@@ -168,5 +168,16 @@
   "text.autoconfig.brbe.option.recipeViewerEnabled.@Tooltip": "Najedź na przedmiot lub przepis w księdze przepisów i naciśnij R/U (domyślnie), aby wyświetlić przepisy wytwarzania oraz przepisy, w których przedmiot jest używany jako materiał.\nWyłącz tę opcję lub zmień klawisze, gdy chcesz użyć własnej funkcji wyszukiwania menedżera przedmiotów.",
   "text.autoconfig.brbe.option.recipeViewerEnabled@PrefixText": "§eLikewise Enough Items (menedżer przedmiotów)",
   "text.autoconfig.brbe.option.recipeViewerEnabled@Tooltip": "Najedź na przedmiot lub przepis w księdze przepisów i naciśnij R/U (domyślnie), aby wyświetlić przepisy wytwarzania oraz przepisy, w których przedmiot jest używany jako materiał.\nWyłącz tę opcję lub zmień klawisze, gdy chcesz użyć własnej funkcji wyszukiwania menedżera przedmiotów.",
-  "text.autoconfig.brbe.title": "Konfiguracja Better Recipe Book"
+  "text.autoconfig.brbe.title": "Konfiguracja Better Recipe Book",
+  "brbe.command.usage": "Komendy BRBE: /brbe clear … (/brbe clear — szczegóły)",
+  "brbe.command.clear.header": "Podkomendy /brbe clear:",
+  "brbe.command.clear.configchange": "/brbe clear configchange — przywróć domyślne wszystkie opcje",
+  "brbe.command.clear.rbippin": "/brbe clear rbippin — usuń przypięcia wszystkich zakładek RBIP",
+  "brbe.command.clear.recipepin": "/brbe clear recipepin — usuń przypięcia przepisów książki",
+  "brbe.command.clear.leipin": "/brbe clear leipin — usuń przypięcia obiektów wyszukiwania (LEI)",
+  "brbe.command.done.configchange": "Przywrócono domyślne wartości wszystkich opcji",
+  "brbe.command.done.rbippin": "Usunięto %s przypiętych zakładek RBIP",
+  "brbe.command.done.recipepin": "Usunięto %s przypiętych przepisów",
+  "brbe.command.done.leipin": "Usunięto %s przypiętych obiektów wyszukiwania",
+  "brbe.command.failed": "Komenda BRBE nie powiodła się: %s"
 }

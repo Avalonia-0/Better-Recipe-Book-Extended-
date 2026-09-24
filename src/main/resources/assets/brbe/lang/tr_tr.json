@@ -168,5 +168,16 @@
   "text.autoconfig.brbe.option.recipeViewerEnabled.@Tooltip": "Öğenin veya tarif defterindeki tarifin üzerine gelin ve üretim tarifleri ile materyal olarak kullanıldığı tarifleri görüntülemek için R/U (varsayılan) tuşlarına basın.\nÖğe yöneticisinin kendi arama özelliğini kullanmak istiyorsanız bu işlevi kapatın veya tuşları değiştirin.",
   "text.autoconfig.brbe.option.recipeViewerEnabled@PrefixText": "§eLikewise Enough Items (Eşya Yöneticisi)",
   "text.autoconfig.brbe.option.recipeViewerEnabled@Tooltip": "Öğenin veya tarif defterindeki tarifin üzerine gelin ve üretim tarifleri ile materyal olarak kullanıldığı tarifleri görüntülemek için R/U (varsayılan) tuşlarına basın.\nÖğe yöneticisinin kendi arama özelliğini kullanmak istiyorsanız bu işlevi kapatın veya tuşları değiştirin.",
-  "text.autoconfig.brbe.title": "Daha İyi Tarif Kitabı Yapılandırması"
+  "text.autoconfig.brbe.title": "Daha İyi Tarif Kitabı Yapılandırması",
+  "brbe.command.usage": "BRBE komutları: /brbe clear … (ayrıntı için /brbe clear)",
+  "brbe.command.clear.header": "/brbe clear alt komutları:",
+  "brbe.command.clear.configchange": "/brbe clear configchange — tüm ayarları varsayılana döndür",
+  "brbe.command.clear.rbippin": "/brbe clear rbippin — tüm RBIP sekmesi sabitlemelerini kaldır",
+  "brbe.command.clear.recipepin": "/brbe clear recipepin — tüm tarif kitabı sabitlemelerini kaldır",
+  "brbe.command.clear.leipin": "/brbe clear leipin — tüm sorgu (LEI) nesnesi sabitlemelerini kaldır",
+  "brbe.command.done.configchange": "Tüm ayarlar varsayılan değerlere döndürüldü",
+  "brbe.command.done.rbippin": "%s RBIP sekmesi sabitlemesi kaldırıldı",
+  "brbe.command.done.recipepin": "%s tarif sabitlemesi kaldırıldı",
+  "brbe.command.done.leipin": "%s sorgu nesnesi sabitlemesi kaldırıldı",
+  "brbe.command.failed": "BRBE komutu başarısız: %s"
 }

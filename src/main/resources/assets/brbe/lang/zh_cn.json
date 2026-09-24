@@ -190,5 +190,16 @@
   "text.autoconfig.brbe.option.naturalPageDirection": "在配方区使用自然的翻页方向",
   "text.autoconfig.brbe.option.naturalPageDirection.@Tooltip": "调转鼠标滚轮的翻页方向。",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "查询该物品作为材料、工作站的配方。",
-  "text.autoconfig.brbe.title": "更好的配方书配置"
+  "text.autoconfig.brbe.title": "更好的配方书配置",
+  "brbe.command.usage": "BRBE 指令：/brbe clear …（用 /brbe clear 查看子命令说明）",
+  "brbe.command.clear.header": "/brbe clear 子命令：",
+  "brbe.command.clear.configchange": "/brbe clear configchange — 将所有配置项恢复为默认值",
+  "brbe.command.clear.rbippin": "/brbe clear rbippin — 清除所有 RBIP 标签的固定",
+  "brbe.command.clear.recipepin": "/brbe clear recipepin — 清除配方书配方的固定",
+  "brbe.command.clear.leipin": "/brbe clear leipin — 清除查询界面（LEI）对象的固定",
+  "brbe.command.done.configchange": "已将所有配置项恢复为默认值",
+  "brbe.command.done.rbippin": "已清除 %s 个 RBIP 标签固定",
+  "brbe.command.done.recipepin": "已清除 %s 个配方固定",
+  "brbe.command.done.leipin": "已清除 %s 个查询对象固定",
+  "brbe.command.failed": "BRBE 指令执行失败：%s"
 }

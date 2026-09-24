@@ -168,5 +168,16 @@
   "text.autoconfig.brbe.option.recipeViewerEnabled.@Tooltip": "アイテムまたはレシピ帳のレシピにカーソルを合わせ、R/U（デフォルト）を押すと、クラフトレシピと材料として使われるレシピを照会します。\nアイテムマネージャー自体の照会機能を使いたい場合は、この機能を無効にするかキーを変更してください。",
   "text.autoconfig.brbe.option.recipeViewerEnabled@PrefixText": "§eLikewise Enough Items（アイテムマネージャー）",
   "text.autoconfig.brbe.option.recipeViewerEnabled@Tooltip": "アイテムまたはレシピ帳のレシピにカーソルを合わせ、R/U（デフォルト）を押すと、クラフトレシピと材料として使われるレシピを照会します。\nアイテムマネージャー自体の照会機能を使いたい場合は、この機能を無効にするかキーを変更してください。",
-  "text.autoconfig.brbe.title": "Better Recipe Bookの設定"
+  "text.autoconfig.brbe.title": "Better Recipe Bookの設定",
+  "brbe.command.usage": "BRBE コマンド：/brbe clear …（詳細は /brbe clear）",
+  "brbe.command.clear.header": "/brbe clear サブコマンド：",
+  "brbe.command.clear.configchange": "/brbe clear configchange — すべての設定項目を既定値に戻す",
+  "brbe.command.clear.rbippin": "/brbe clear rbippin — RBIP タブの固定をすべて解除",
+  "brbe.command.clear.recipepin": "/brbe clear recipepin — レシピブックのレシピ固定をすべて解除",
+  "brbe.command.clear.leipin": "/brbe clear leipin — 検索画面（LEI）オブジェクトの固定をすべて解除",
+  "brbe.command.done.configchange": "すべての設定項目を既定値に戻しました",
+  "brbe.command.done.rbippin": "RBIP タブの固定を %s 件解除しました",
+  "brbe.command.done.recipepin": "レシピの固定を %s 件解除しました",
+  "brbe.command.done.leipin": "検索オブジェクトの固定を %s 件解除しました",
+  "brbe.command.failed": "BRBE コマンドが失敗しました：%s"
 }
