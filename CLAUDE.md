@@ -1336,3 +1336,90 @@ transformMethodRef` 处理——与普通 `INVOKEVIRTUAL/INVOKESTATIC` 指令**�
 **验证状态**：静态证据完整（三版本反编译核实两个菜单的 RecipeBookType 相同 + 显示门
 链路）；**实机验证未做**——需要一次实例启动（探针或用户自测）：关掉开关后背包配方书
 不应再有 3×3 配方，从工作台回背包同样不应有。
+
+
+## 2026-09-25：unlockAll 关掉后配方书全空（BRBE 自己删了玩家进度）+ Mouse Wheelie 滚轮冲突
+
+**用户报告（26.2-Fabric 0.19.5-for-test 整合包）**：关掉「自动解锁所有配方」后所有配方书
+标签与配方立刻消失（纯净实例不复现）；另有两项滚轮异常：配方区滚轮不触发翻页动画/音效、
+标签条滚轮会切换选中的标签。
+
+### ① 配方书全空 —— 根因是 BRBE 的"污染修复"误判并删掉了玩家真实进度
+
+实例日志实锤（`logs/2026-09-24-1.log.gz`、`logs/brbe-debug.log`）：
+
+- 该整合包装了 `get-recipes-1.0.2`（其 `ServerRecipeBookMixin` 注入
+  `ServerRecipeBook.sendInitialRecipeBook` HEAD，给玩家解锁**全部**配方 →
+  `GetRecipes: server sent 1568 recipe book entr(ies) (replace=true)`）。
+- 关掉开关那一刻：`unlock-all syncToConfig: unlockAll=false last=true` →
+  `[Server thread/WARN] [BRBE] reset unlock-all-polluted server recipe book: removed 1561
+  known recipes` → `[BRBE-CACHE] rebuild RETURN — known=0` → 配方书（含标签）空白。
+- 旧 `repairPollutedServerBook()` 的判据是「**服务端**配方书已解锁 ≥90% ⇒ 一定是旧版 BRBE
+  污染的」，但"解锁全部"模组/数据包、管理员指令、通关存档都会产生同一状态 —— 它删的是
+  玩家真实进度（服务端数据，且会持久化）。纯净实例只有 126/3300 解锁 → 阈值未命中 →
+  所以只有整合包复现（用户猜"模组冲突"方向正确，但冲突点是 BRBE 的破坏性启发式）。
+- 第二重：`get-recipes` 还会在客户端本地补注入（不经 packet），而 `unlockRecipes()` 把
+  **全部 1568 个 display 都记进 `unlockAllInjected`**（其中绝大多数本来就在 known 里、
+  不是 BRBE 加的）；于是下一次「开→关」时 `revokeUnlockAll()` 按标记删掉 1568 个 →
+  又空一次（`unlock-all revoked: removed 1568 displays, 0 server-unlocked kept`）。
+
+**修复（26.2 / 26.3 / 1.21.11，`util/RecipeUnlockUtil.java`）**
+
+1. **删除破坏性修复**：`repairPollutedServerBook()` → `reportFullyUnlockedServerBook()`，
+   只做**每会话一次**的诊断（服务端 known ≥90% 时 WARN 一行，说明"配方书被 BRBE 以外的
+   东西全解锁了，开关无法隐藏它们"），**不再改动任何服务端数据**。当前实现本就纯客户端，
+   没有需要自动"修复"的东西。
+2. **只标记自己真正加进去的 display**：`unlockRecipes()` 先 `known.containsKey(id)` 判定，
+   已在书里的（服务端解锁 / 其它模组注入）跳过且不记标记 → `revokeUnlockAll()` 只撤销
+   BRBE 自己加的那些。1.21.1 的 unlock 实现是另一套（无污染修复，按"服务端权威集合"
+   回滚），无对应缺陷，未改。
+
+### ② 滚轮无翻页动画/音效 + 滚轮切换选中标签 —— Mouse Wheelie 兼容在 26.x 失效
+
+反编译实例内 `mouse-wheelie-1.16.3+mc26.2.jar` 及其内嵌 `amecs-mouse-inputs` 实锤：
+
+- Mouse Wheelie 的配方书滚轮实现已从 `IScrollableRecipeBook.mouseWheelie_onMouseScrollRecipeBook`
+  （**26.x 中已无人实现 = 死分支**）迁到 `ISpecialScrollableScreen`
+  （`MixinAbstractRecipeBookScreen`）→ `IRecipeBookWidget.mouseWheelie_scrollRecipeBook`
+  （`MixinRecipeBookWidget`）：书矩形内自己翻页；书左侧 30px 标签条内**直接切换选中标签**。
+- 其滚轮键位 `key.mousewheelie.scroll_up/down` 默认绑到
+  `key.amecs_mouse_inputs.scroll.up/down`，属于 amecs **priority** 键位；amecs 在
+  `MouseHandler.onScroll` 内对 priority 命中会 **`ci.cancel()`** —— BRBE 的
+  `MouseScrollHandler`（RETURN 注入）因此收不到滚动 → 翻页动画与音效永不触发，页面由
+  mousewheelie 自己瞬翻。
+- BRBE 原有兼容 `MixinMWClient` 只取消了那条**死分支**的调用 → 26.x 上等于没生效。
+
+**修复**：`MixinMWClient` 增补 `@Inject(HEAD, cancellable = true, require = 0)` —— 光标位于
+配方书矩形或左侧标签条上时 `triggerScroll` 直接返回 `false`（"未处理"）：amecs 不再取消
+原版滚动 → BRBE 正常入队并自己翻页（动画+音效恢复），标签也不会被误切；配方书以外的位置
+（容器槽位、创造物品栏扫物品）行为不变。几何判定抽到普通类 `compat/MouseWheelieCompat`
+（用 `AbstractRecipeBookScreenAccessor` + `RecipeBookComponentAccessor.brbe$invokeGetXOrigin/
+GetYOrigin`；26.x 用 `minecraft.gui.screen()`，1.21.11 用 `minecraft.screen`）。
+**1.21.1 未移植**：该分支实例均无 Mouse Wheelie，且 1.21.1 世代的 mousewheelie 仍走旧接口
+（现有兼容注入即那条活分支），无法验证故不动。
+
+### ③ 顺带修正 RBIP 标签滚动区（三分支 + 1.21.1）
+
+`rbip$isMouseOverAnyVisibleTab` 的上下两条原以标签矩形为中心上下各扩 20px
+（1.21.1 为 `SCROLL_PADDING`），于是下方那条**伸进书体 20px、盖住配方网格最后一行** ——
+在配方区滚动会被当成"滚标签"吃掉（标签页数量 >1 时可见）。改为**余量只加在书体外侧**、
+内侧止于标签自身边缘。
+
+### 构建 / 部署（原子替换，备份 `20260925-010108`）
+
+- 26.2-Fabric `1acc668fd2008d5cd1cc26fa6256c841` —— 部署 `26.2-Fabric` 与
+  `26.2-Fabric 0.19.5-for-test` 两个实例
+- 26.3-Fabric `61017b36af5bd3471fe16b8050ff5a3a`；1.21.11-Fabric `74b2177c3c506f89aa18d4307c22fc28`
+- 1.21.1（按规则只构建不部署）：fabric `ec89a86f7a2d8c03dd279be0dc0d1c36`、
+  neoforge `465ae140deaec2cac7b2e315f714ff9b` —— 本分支只有 ③
+
+### 验证方法（未做，待用户实机）
+
+1. 整合包里关掉「自动解锁所有配方」：配方书不再空白（get-recipes 解锁的配方全部保留）；
+   开→关反复切换同样保留。日志应出现
+   `unlock-all: injected N displays (M already unlocked, left untouched)`，且**不再出现**
+   `reset unlock-all-polluted server recipe book`。
+2. 配方区滚轮 = 平滑翻页动画 + 翻页音效；标签条滚轮不再切换选中标签；槽位上的
+   mousewheelie 物品滚动（滚一个物品进出）不受影响。
+
+> 本分支已部署（两个 26.2 实例），md5 `1acc668fd2008d5cd1cc26fa6256c841`。
