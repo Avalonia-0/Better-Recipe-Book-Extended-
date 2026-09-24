@@ -187,5 +187,16 @@
   "text.autoconfig.brbe.option.recipeViewerEnabled.@Tooltip": "將滑鼠停留在物品或配方書的配方上，按下 R/U（預設）查詢合成配方和作為材料時的配方。\n需要使用物品管理器的查詢功能時需要關閉此功能或調整快捷鍵。",
   "text.autoconfig.brbe.option.recipeViewerEnabled@PrefixText": "§eLikewise Enough Items（物品管理器）",
   "text.autoconfig.brbe.option.recipeViewerEnabled@Tooltip": "將滑鼠停留在物品或配方書的配方上，按下 R/U（預設）查詢合成配方和作為材料時的配方。\n需要使用物品管理器的查詢功能時需要關閉此功能或調整快捷鍵。",
-  "text.autoconfig.brbe.title": "更好的配方書配置"
+  "text.autoconfig.brbe.title": "更好的配方書配置",
+  "brbe.command.usage": "BRBE 指令：/brbe clear …（用 /brbe clear 查看子指令說明）",
+  "brbe.command.clear.header": "/brbe clear 子指令：",
+  "brbe.command.clear.configchange": "/brbe clear configchange — 將所有設定項還原為預設值",
+  "brbe.command.clear.rbippin": "/brbe clear rbippin — 清除所有 RBIP 標籤的固定",
+  "brbe.command.clear.recipepin": "/brbe clear recipepin — 清除配方書配方的固定",
+  "brbe.command.clear.leipin": "/brbe clear leipin — 清除查詢介面（LEI）物件的固定",
+  "brbe.command.done.configchange": "已將所有設定項還原為預設值",
+  "brbe.command.done.rbippin": "已清除 %s 個 RBIP 標籤固定",
+  "brbe.command.done.recipepin": "已清除 %s 個配方固定",
+  "brbe.command.done.leipin": "已清除 %s 個查詢物件固定",
+  "brbe.command.failed": "BRBE 指令執行失敗：%s"
 }

@@ -189,5 +189,16 @@
   "text.autoconfig.brbe.option.naturalPageDirection": "Use Natural Page Turn Direction in the Recipe Area",
   "text.autoconfig.brbe.option.naturalPageDirection.@Tooltip": "Reverses the mouse wheel's page turn direction.",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "Shows the recipes that use this item as a material or workstation.",
-  "text.autoconfig.brbe.title": "Better Recipe Book Configuration"
+  "text.autoconfig.brbe.title": "Better Recipe Book Configuration",
+  "brbe.command.usage": "BRBE commands: /brbe clear … (run /brbe clear for details)",
+  "brbe.command.clear.header": "/brbe clear subcommands:",
+  "brbe.command.clear.configchange": "/brbe clear configchange — reset every config option to its default",
+  "brbe.command.clear.rbippin": "/brbe clear rbippin — clear all pinned RBIP tabs",
+  "brbe.command.clear.recipepin": "/brbe clear recipepin — clear all pinned recipe-book recipes",
+  "brbe.command.clear.leipin": "/brbe clear leipin — clear all pinned query (LEI) objects",
+  "brbe.command.done.configchange": "All config options were reset to their defaults",
+  "brbe.command.done.rbippin": "Cleared %s pinned RBIP tab(s)",
+  "brbe.command.done.recipepin": "Cleared %s pinned recipe(s)",
+  "brbe.command.done.leipin": "Cleared %s pinned query object(s)",
+  "brbe.command.failed": "BRBE command failed: %s"
 }

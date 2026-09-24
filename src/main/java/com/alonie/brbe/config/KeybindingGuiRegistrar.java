@@ -45,6 +45,39 @@ public final class KeybindingGuiRegistrar {
     private KeybindingGuiRegistrar() {
     }
 
+    /**
+     * 把配置里的键位字段写回原版 {@code KeyMapping}（配置为权威）并落盘 options.txt。
+     *
+     * <p>启动时由客户端入口调用；{@code /brbe clear configchange} 恢复默认值后也必须调用，
+     * 否则运行中的按键仍是旧绑定（KeyMapping 只持久化在 options.txt）。</p>
+     */
+    public static void applyConfigToKeyMappings() {
+        if (BetterRecipeBook.config == null) return;
+        for (KeybindingField kb : FIELDS) {
+            if (kb.keyMapping() == null) continue;
+            try {
+                java.lang.reflect.Field field =
+                        BetterRecipeBook.config.getClass().getDeclaredField(kb.fieldName());
+                field.setAccessible(true);
+                Object raw = field.get(BetterRecipeBook.config);
+                if (!(raw instanceof String text)) continue;
+                ModifierKeyCode code = KeybindingCodec.decode(text);
+                if (code == null || code.isUnknown()) continue;
+                kb.keyMapping().setKey(code.getKeyCode());
+            } catch (Throwable ignored) {
+                // 单个键位失败不影响其余
+            }
+        }
+        Minecraft minecraft = Minecraft.getInstance();
+        if (minecraft != null && minecraft.options != null) {
+            try {
+                minecraft.options.save();
+            } catch (Throwable ignored) {
+                // 落盘失败不影响内存绑定
+            }
+        }
+    }
+
     public static void register() {
         try {
             GuiRegistry registry = AutoConfigClient.getGuiRegistry(BrbeConfig.class);
