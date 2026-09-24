@@ -12,8 +12,6 @@ import net.minecraft.world.item.crafting.display.FurnaceRecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplay;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
-import net.minecraft.world.item.crafting.display.ShapedCraftingRecipeDisplay;
-import net.minecraft.world.item.crafting.display.ShapelessCraftingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.SmithingRecipeDisplay;
 import net.minecraft.world.item.crafting.display.StonecutterRecipeDisplay;
 import net.minecraft.world.item.crafting.ExtendedRecipeBookCategory;
@@ -46,23 +44,6 @@ public class ClientRecipeBookMixin {
 
     @Unique
     private static final ContextMap RBIP_EMPTY_CONTEXT = ContextMap.EMPTY;
-
-    /**
-     * Returns true if the given crafting display would be rejected by
-     * CraftingRecipeBookComponent.canDisplay() on a 2×2 grid (survival
-     * inventory).  When showAllRecipesInSurvival is false these recipes
-     * must not appear in creative-tab groups.
-     */
-    @Unique
-    private static boolean rbip$needsLargerGrid(RecipeDisplay display) {
-        if (display instanceof ShapedCraftingRecipeDisplay shaped) {
-            return shaped.width() > 2 || shaped.height() > 2;
-        }
-        if (display instanceof ShapelessCraftingRecipeDisplay shapeless) {
-            return shapeless.ingredients().size() > 4;
-        }
-        return false;
-    }
 
     /**
      * Rebuild Polymer namespace cache at the start of every recipe-book refresh.
@@ -107,14 +88,16 @@ public class ClientRecipeBookMixin {
             if (display instanceof StonecutterRecipeDisplay
                     || display instanceof SmithingRecipeDisplay) continue;
 
-            // When showAllRecipesInSurvival is false, skip crafting recipes that
-            // need more than a 2×2 grid.  They cannot be placed in the survival
-            // inventory crafting grid, and clicking them produces air-placeholder
-            // ghost items in the recipe book.
-            if (com.alonie.brbe.BetterRecipeBook.config != null
-                    && !com.alonie.brbe.BetterRecipeBook.config.showAllRecipesInSurvival) {
-                if (rbip$needsLargerGrid(display)) continue;
-            }
+            // ⚠️ 这里**不得**按网格大小过滤配方（2026-09-25 修正）。
+            // 本方法跑在 ClientRecipeBook.rebuildCollections 时机，只认 known 集合，
+            // **看不到当前打开的是 2×2 背包还是 3×3 工作台**；此前在这里丢掉
+            // "需要更大网格"的配方，导致：① RBIP 标签页在工作台上也永远不显示 3×3
+            // 配方；② 唯一配方是 3×3 的创造标签组（如"刷怪蛋"里的嘎枝之心）整组为空
+            // → 标签直接消失。
+            // 网格可见性由**显示路径**按当前菜单判定：
+            // pipeline/RecipeBookComponentMixin.brbe$applyGridVisibility（Stage 0）
+            // —— 2×2 + showAllRecipesInSurvival=false 时把放不下的配方从
+            // selected/craftable 剔除，3×3 时原样放行；RBIP 的合成组走同一条管线。
 
             if (display instanceof FurnaceRecipeDisplay) {
                 // Determine which furnace type this recipe belongs to via its vanilla category
