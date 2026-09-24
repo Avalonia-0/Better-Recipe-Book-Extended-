@@ -1547,3 +1547,48 @@ RBIP `MouseMixin` 只转发同一方法、新旧 mixin 类均无 `lambda$`。
   新生成的配置文件）；lang tooltip 未写默认值，无需同步。
 - 上一条 2026-09-23「两个开关默认改为关」的记录中，关于 `partialCraftingEnabled` 的部分
   由本轮取代（`showAllRecipesInSurvival` 部分仍然有效）。
+
+
+## 2026-09-25（五）：RBIP 标签页看不到 3×3 配方 + 「刷怪蛋」标签消失（同一根因）
+
+**用户报告（26.2 整合包）**：① 创造标签「刷怪蛋」里的嘎枝之心（`minecraft:creaking_heart`）
+在配方书里没有归到「刷怪蛋」标签 —— 该标签**整个消失**（`unlockAll` 开着），但配方能搜到；
+② RBIP 标签页**完全无法显示 3×3 配方**，即便当前打开的是工作台。
+
+**同一个根因**：`recipebookispain_extended/mixin/groups/ClientRecipeBookMixin`
+（`rbip$refreshCreativeGroups`）里的这段**数据路径**过滤：
+
+```java
+if (config != null && !config.showAllRecipesInSurvival) {
+    if (rbip$needsLargerGrid(display)) continue;   // ← 丢掉"需要更大网格"的配方
+}
+```
+
+它在 `ClientRecipeBook.rebuildCollections` 时机运行，只认 `known` 集合，
+**看不到当前打开的是 2×2 背包还是 3×3 工作台**，于是：
+
+- 工作台上也被丢掉 → RBIP 标签页永远没有 3×3 配方（报告 ②）；
+- 嘎枝之心配方是 `crafting_shaped` 的 `" L ", " R ", " L "`（**3×3**，`data/minecraft/recipe/
+  creaking_heart.json`，反编译核实）；「刷怪蛋」组里它**唯一**有配方的物品 → 该组一个
+  bucket 都建不出来 → `collectionsByTab` 里没有该类别 → `rbip$paginateTabButtons` 按
+  "类别无配方集合"把标签隐藏（报告 ①）；配方本身仍在原版 `crafting_misc` 集合里，故可搜索。
+
+**修复**：删掉这段数据路径过滤（连同 `rbip$needsLargerGrid` 助手与不再使用的两个 import）。
+网格可见性**只由显示路径按当前菜单判定**：`pipeline/RecipeBookComponentMixin
+.brbe$applyGridVisibility`（Stage 0）—— 2×2 + `showAllRecipesInSurvival=false` 时把放不下的
+配方从 `selected`/`craftable` 剔除、放得下时原样放行；RBIP 的合成组走同一条管线，因此
+背包里仍然看不到/点不到 3×3 配方（2026-09-23 的诉求不变），工作台上则正常显示。
+
+> 教训（与「接缝收敛」同一类）：**数据路径的过滤看不见上下文**（这里缺的是"当前网格"），
+> 凡是"按当前界面状态决定显示什么"的逻辑都必须挂在显示路径上，否则会被缓存/时机固化。
+
+**1.21.1 无此问题**：该分支 RBIP 没有这段过滤（无 `rbip$needsLargerGrid`/`showAllRecipesInSurvival`
+引用），未改。
+
+**构建/部署**（原子替换，备份 `20260925-013901`）：26.2-Fabric `32ed9f6048a7ae66df19d806c5281a5c`
+（部署两个 26.2 实例）、26.3-Fabric `c33fd2c1d1b93f8be31f6544812d0f98`、
+1.21.11-Fabric `83c7cb408df5bb6719757a6d02f6a4ae`；核对三个 jar 内
+`ClientRecipeBookMixin.class` 已不含 `needsLargerGrid` / `showAllRecipesInSurvival`。
+
+**验证方法**：工作台 → RBIP 标签（如「建筑方块」）应能看到并点击 3×3 配方；
+「刷怪蛋」标签应重新出现且含嘎枝之心；背包（2×2）里这些 3×3 配方仍不显示、不可点。
