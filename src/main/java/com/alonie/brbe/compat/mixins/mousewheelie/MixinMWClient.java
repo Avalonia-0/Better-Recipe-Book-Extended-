@@ -1,6 +1,6 @@
 package com.alonie.brbe.compat.mixins.mousewheelie;
 
-import com.alonie.brbe.compat.MouseWheelieCompat;
+import com.alonie.brbe.util.RecipeBookGesture;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -39,7 +39,7 @@ public class MixinMWClient {
             at = @At("HEAD"),
             cancellable = true)
     private static void brbe$letBrbeHandleRecipeBookScroll(double mouseX, double mouseY, double scrollY, CallbackInfoReturnable<Boolean> cir) {
-        if (MouseWheelieCompat.brbeOwnsRecipeBookScroll(mouseX, mouseY)) {
+        if (RecipeBookGesture.ownsRecipeBookArea(mouseX, mouseY)) {
             cir.setReturnValue(false);
         }
     }

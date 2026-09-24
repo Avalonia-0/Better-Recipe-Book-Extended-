@@ -96,6 +96,9 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
             // KeyMapping 并经由 KeyMappingSyncMixin 写回配置——这里以 brbe.toml
             // 为准收敛，保证固定/查询键重启后不回退。
             syncConfigKeyMappings(client);
+            // 兼容自检：把条件兼容（mousewheelie / RBIP 接缝）的实际状态写进启动日志，
+            // 让"兼容静默失效"在 latest.log / brbe-debug.log 里就能看到。
+            com.alonie.brbe.compat.CompatSelfCheck.run();
         });
 
         // Register platform-specific providers
