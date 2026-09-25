@@ -94,6 +94,13 @@ public class BrewingRecipeBookComponent extends GenericRecipeBookComponent<Brewi
         }
     }
 
+    /** 悬停预览（用户 2026-09-25）：与点击时的"缺料引导"同一个写入路径，只是不看材料够不够。 */
+    @Override
+    protected void setupHoverGhost(BrewableResult recipe) {
+        if (this.ghostRecipe == null) return;
+        this.setupGhostRecipe(recipe, this.menu.slots);
+    }
+
     @Override
     protected List<BrewingRecipeCollection> getCollectionsForCategory() {
         List<BrewingRecipeCollection> results = new ArrayList<>();
