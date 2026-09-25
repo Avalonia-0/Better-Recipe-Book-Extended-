@@ -125,6 +125,7 @@
   "text.autoconfig.brbe.option.unlockAll@Tooltip": "啟用後自動解鎖所有配方，無需事先發現即可在配方書中檢視。重新進入遊戲生效。",
   "text.autoconfig.brbe.option.pageAnimation.pageAnimationEnabled": "配方書翻頁動畫",
   "text.autoconfig.brbe.option.pageAnimationDuration": "動畫時長",
+  "text.autoconfig.brbe.option.pageFlipSound": "翻頁音效",
   "text.autoconfig.brbe.option.pageFlipVolume": "音效音量",
   "text.autoconfig.brbe.option.partialCraftingEnabled": "最佳化原版配方過濾器",
   "text.autoconfig.brbe.option.partialCraftingEnabled.@Tooltip": "移除僅顯示可合成按鈕，可合成物品將始終置於首頁。",
@@ -189,7 +190,7 @@
   "text.autoconfig.brbe.option.recipeViewerEnabled@PrefixText": "§eLikewise Enough Items（物品管理器）",
   "text.autoconfig.brbe.option.recipeViewerEnabled@Tooltip": "將滑鼠停留在物品或配方書的配方上，按下 R/U（預設）查詢合成配方和作為材料時的配方。\n需要使用物品管理器的查詢功能時需要關閉此功能或調整快捷鍵。",
   "text.autoconfig.brbe.title": "更好的配方書配置",
-  "brbe.command.usage": "BRBE 指令：/brbe clear …（用 /brbe clear 查看子指令說明）",
+  "brbe.command.usage": "BRBE 指令：/brbe clear …、/brbe set …（用 /brbe clear 或 /brbe set 查看子指令說明）",
   "brbe.command.clear.header": "/brbe clear 子指令：",
   "brbe.command.clear.configchange": "/brbe clear configchange — 將所有設定項還原為預設值",
   "brbe.command.clear.rbippin": "/brbe clear rbippin — 清除所有 RBIP 標籤的固定",
@@ -199,5 +200,9 @@
   "brbe.command.done.rbippin": "已清除 %s 個 RBIP 標籤固定",
   "brbe.command.done.recipepin": "已清除 %s 個配方固定",
   "brbe.command.done.leipin": "已清除 %s 個查詢物件固定",
-  "brbe.command.failed": "BRBE 指令執行失敗：%s"
+  "brbe.command.failed": "BRBE 指令執行失敗：%s",
+  "brbe.command.set.header": "/brbe set 子指令：",
+  "brbe.command.set.pagesound.usage": "/brbe set pagesound <音效ID> — 設定 BRBE 全部介面的翻頁音效",
+  "brbe.command.set.pagesound.done": "翻頁音效已設為 %s",
+  "brbe.command.set.pagesound.unknown": "未知的音效 ID：%s（例如 minecraft:ui.button.click）"
 }

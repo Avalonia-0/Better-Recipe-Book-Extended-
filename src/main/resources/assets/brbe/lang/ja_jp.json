@@ -108,6 +108,7 @@
   "text.autoconfig.brbe.option.unlockAll@Tooltip": "有効にすると全てのレシピが自動的に解除され、発見しなくてもレシピ本で閲覧できるようになります。ゲームに再入場すると有効になります。",
   "text.autoconfig.brbe.option.pageAnimation.pageAnimationEnabled": "Page Flip Animation",
   "text.autoconfig.brbe.option.pageAnimationDuration": "Animation Duration",
+  "text.autoconfig.brbe.option.pageFlipSound": "ページ送り音",
   "text.autoconfig.brbe.option.pageFlipVolume": "Sound Volume",
   "text.autoconfig.brbe.option.partialCraftingEnabled": "バニラのレシピフィルターを改善",
   "text.autoconfig.brbe.option.partialCraftingEnabled.@Tooltip": "「クラフト可能のみ表示」ボタンを削除し、クラフト可能なアイテムを常に先頭に表示します。",
@@ -169,7 +170,7 @@
   "text.autoconfig.brbe.option.recipeViewerEnabled@PrefixText": "§eLikewise Enough Items（アイテムマネージャー）",
   "text.autoconfig.brbe.option.recipeViewerEnabled@Tooltip": "アイテムまたはレシピ帳のレシピにカーソルを合わせ、R/U（デフォルト）を押すと、クラフトレシピと材料として使われるレシピを照会します。\nアイテムマネージャー自体の照会機能を使いたい場合は、この機能を無効にするかキーを変更してください。",
   "text.autoconfig.brbe.title": "Better Recipe Bookの設定",
-  "brbe.command.usage": "BRBE コマンド：/brbe clear …（詳細は /brbe clear）",
+  "brbe.command.usage": "BRBE コマンド: /brbe clear …、/brbe set …（それぞれで詳細を表示）",
   "brbe.command.clear.header": "/brbe clear サブコマンド：",
   "brbe.command.clear.configchange": "/brbe clear configchange — すべての設定項目を既定値に戻す",
   "brbe.command.clear.rbippin": "/brbe clear rbippin — RBIP タブの固定をすべて解除",
@@ -179,5 +180,9 @@
   "brbe.command.done.rbippin": "RBIP タブの固定を %s 件解除しました",
   "brbe.command.done.recipepin": "レシピの固定を %s 件解除しました",
   "brbe.command.done.leipin": "検索オブジェクトの固定を %s 件解除しました",
-  "brbe.command.failed": "BRBE コマンドが失敗しました：%s"
+  "brbe.command.failed": "BRBE コマンドが失敗しました：%s",
+  "brbe.command.set.header": "/brbe set のサブコマンド:",
+  "brbe.command.set.pagesound.usage": "/brbe set pagesound <サウンドID> — BRBE 全画面のページ送り音を設定",
+  "brbe.command.set.pagesound.done": "ページ送り音を %s に設定しました",
+  "brbe.command.set.pagesound.unknown": "不明なサウンドID: %s（例: minecraft:ui.button.click）"
 }

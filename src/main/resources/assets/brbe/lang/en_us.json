@@ -125,6 +125,7 @@
   "text.autoconfig.brbe.option.unlockAll@Tooltip": "When enabled, automatically unlocks all recipes, allowing them to be viewed in the recipe book without discovery. Takes effect on the next world load.",
   "text.autoconfig.brbe.option.pageAnimation.pageAnimationEnabled": "Page Flip Animation",
   "text.autoconfig.brbe.option.pageAnimationDuration": "Animation Duration",
+  "text.autoconfig.brbe.option.pageFlipSound": "Page Flip Sound",
   "text.autoconfig.brbe.option.pageFlipVolume": "Sound Volume",
   "text.autoconfig.brbe.option.partialCraftingEnabled": "Improve Vanilla Recipe Filter",
   "text.autoconfig.brbe.option.partialCraftingEnabled.@Tooltip": "Removes the 'Show Craftable Only' button; craftable items will always be placed on the first page.",
@@ -191,7 +192,7 @@
   "text.autoconfig.brbe.option.naturalPageDirection.@Tooltip": "Reverses the mouse wheel's page turn direction.",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "Shows the recipes that use this item as a material or workstation.",
   "text.autoconfig.brbe.title": "Better Recipe Book Configuration",
-  "brbe.command.usage": "BRBE commands: /brbe clear … (run /brbe clear for details)",
+  "brbe.command.usage": "BRBE commands: /brbe clear …, /brbe set … (run either for details)",
   "brbe.command.clear.header": "/brbe clear subcommands:",
   "brbe.command.clear.configchange": "/brbe clear configchange — reset every config option to its default",
   "brbe.command.clear.rbippin": "/brbe clear rbippin — clear all pinned RBIP tabs",
@@ -201,5 +202,9 @@
   "brbe.command.done.rbippin": "Cleared %s pinned RBIP tab(s)",
   "brbe.command.done.recipepin": "Cleared %s pinned recipe(s)",
   "brbe.command.done.leipin": "Cleared %s pinned query object(s)",
-  "brbe.command.failed": "BRBE command failed: %s"
+  "brbe.command.failed": "BRBE command failed: %s",
+  "brbe.command.set.header": "/brbe set subcommands:",
+  "brbe.command.set.pagesound.usage": "/brbe set pagesound <sound id> — set the page-flip sound used by every BRBE screen",
+  "brbe.command.set.pagesound.done": "Page-flip sound set to %s",
+  "brbe.command.set.pagesound.unknown": "Unknown sound id: %s (e.g. minecraft:ui.button.click)"
 }

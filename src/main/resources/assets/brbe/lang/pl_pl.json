@@ -108,6 +108,7 @@
   "text.autoconfig.brbe.option.unlockAll@Tooltip": "Po włączeniu automatycznie odblokowuje wszystkie receptury, dzięki czemu można je przeglądać w księdze bez konieczności ich odkrywania. Wejdzie w życie po ponownym wejściu do gry.",
   "text.autoconfig.brbe.option.pageAnimation.pageAnimationEnabled": "Page Flip Animation",
   "text.autoconfig.brbe.option.pageAnimationDuration": "Animation Duration",
+  "text.autoconfig.brbe.option.pageFlipSound": "Dźwięk przewijania stron",
   "text.autoconfig.brbe.option.pageFlipVolume": "Sound Volume",
   "text.autoconfig.brbe.option.partialCraftingEnabled": "Ulepsz filtr przepisów vanilla",
   "text.autoconfig.brbe.option.partialCraftingEnabled.@Tooltip": "Usuwa przycisk „Pokaż tylko wykonalne\". Wykonalne przedmioty zawsze będą na pierwszej stronie.",
@@ -169,7 +170,7 @@
   "text.autoconfig.brbe.option.recipeViewerEnabled@PrefixText": "§eLikewise Enough Items (menedżer przedmiotów)",
   "text.autoconfig.brbe.option.recipeViewerEnabled@Tooltip": "Najedź na przedmiot lub przepis w księdze przepisów i naciśnij R/U (domyślnie), aby wyświetlić przepisy wytwarzania oraz przepisy, w których przedmiot jest używany jako materiał.\nWyłącz tę opcję lub zmień klawisze, gdy chcesz użyć własnej funkcji wyszukiwania menedżera przedmiotów.",
   "text.autoconfig.brbe.title": "Konfiguracja Better Recipe Book",
-  "brbe.command.usage": "Komendy BRBE: /brbe clear … (/brbe clear — szczegóły)",
+  "brbe.command.usage": "Komendy BRBE: /brbe clear …, /brbe set … (uruchom którąkolwiek po szczegóły)",
   "brbe.command.clear.header": "Podkomendy /brbe clear:",
   "brbe.command.clear.configchange": "/brbe clear configchange — przywróć domyślne wszystkie opcje",
   "brbe.command.clear.rbippin": "/brbe clear rbippin — usuń przypięcia wszystkich zakładek RBIP",
@@ -179,5 +180,9 @@
   "brbe.command.done.rbippin": "Usunięto %s przypiętych zakładek RBIP",
   "brbe.command.done.recipepin": "Usunięto %s przypiętych przepisów",
   "brbe.command.done.leipin": "Usunięto %s przypiętych obiektów wyszukiwania",
-  "brbe.command.failed": "Komenda BRBE nie powiodła się: %s"
+  "brbe.command.failed": "Komenda BRBE nie powiodła się: %s",
+  "brbe.command.set.header": "Podkomendy /brbe set:",
+  "brbe.command.set.pagesound.usage": "/brbe set pagesound <id dźwięku> — ustaw dźwięk przewijania stron we wszystkich ekranach BRBE",
+  "brbe.command.set.pagesound.done": "Dźwięk przewijania stron ustawiono na %s",
+  "brbe.command.set.pagesound.unknown": "Nieznane id dźwięku: %s (np. minecraft:ui.button.click)"
 }
