@@ -1,5 +1,6 @@
 package com.alonie.brbe.util;
 
+import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.mixins.accessors.GhostRecipeAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeButtonAccessor;
@@ -71,6 +72,17 @@ public final class HoverGhostRecipe {
     }
 
     /**
+     * 配置「自动填充幽灵配方」（{@code BrbeConfig.autoFillGhostRecipe}，默认开）：
+     * 关闭时悬停完全不出幽灵，也不会接管任何槽位——已经显示的预览立刻撤下。
+     *
+     * <p>唯一判定入口：合成台（本类）与酿造/锻造台
+     * （{@code GenericRecipeBookComponent.brbe$updateHoverGhost}）共用它。</p>
+     */
+    public static boolean enabled() {
+        return BetterRecipeBook.config != null && BetterRecipeBook.config.autoFillGhostRecipe;
+    }
+
+    /**
      * 逐帧命中：指针下的按钮要预览 {@code recipe} 的幽灵物品。
      *
      * @param book   当前界面的配方书组件
@@ -78,6 +90,10 @@ public final class HoverGhostRecipe {
      * @param recipe 该按钮**当前轮循到**的配方（{@code null} = 释放）
      */
     public static void hover(@Nullable RecipeBookComponent book, Object owner, @Nullable RecipeHolder<?> recipe) {
+        if (!enabled()) {
+            release();
+            return;
+        }
         if (book == null || recipe == null) {
             release();
             return;

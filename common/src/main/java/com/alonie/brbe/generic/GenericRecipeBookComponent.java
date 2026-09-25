@@ -13,6 +13,7 @@ import com.alonie.brbe.search.SearchQuery;
 import com.alonie.brbe.util.BRBHelper;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.CollectionPipeline;
+import com.alonie.brbe.util.HoverGhostRecipe;
 import com.alonie.brbe.layout.BookLayout;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -555,6 +556,14 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
      */
     private void brbe$updateHoverGhost() {
         if (this.recipesPage == null || this.ghostRecipe == null) return;
+        if (!HoverGhostRecipe.enabled()) {
+            // 配置「自动填充幽灵配方」关闭：撤下我们写过的预览；原版点击放置的幽灵不动
+            if (this.brbe$hoverGhostRecipe != null) {
+                this.brbe$hoverGhostRecipe = null;
+                this.ghostRecipe.clear();
+            }
+            return;
+        }
 
         R hovered = this.recipesPage.hoveredButton == null
                 ? null : this.recipesPage.hoveredButton.getCurrentDisplayedRecipe();
