@@ -2244,3 +2244,40 @@ jar 内 zh_cn 键值 = 自动填充幽灵配方。
 3. **锻造台（BRBE 自研书）**：点配方或悬停配方 → 附加材料 / 模板槽出现幽灵物品 → Alt 锁定 +
    滚轮翻动；锁定期间鼠标提示与显示的那一件一致。
 4. 指针不在任何折叠物品上时：滚轮照常翻页（配方书）/ 不被吞掉。
+
+## 2026-09-25（六）：幽灵物品锁定的**真正根因** —— 命中矩形用错坐标系（26.2 / 26.3 / 1.21.11；1.21.1 本就正确）
+
+**用户反馈**：（五）部署后 26.3 实测 **Alt 既锁不住轮循的幽灵物品、也翻不动它**；同一次实测里
+配方书**网格按钮**的锁定 + Alt+滚轮一切正常（"能冻结、也能翻"）。
+
+**诊断链**（临时探针 `LockProbe` 写 `<gameDir>/logs/brbe-debug.log`，定位后已全部删除）：
+
+| 探针 | 实测值 | 含义 |
+|---|---|---|
+| `BRBE-LOCK-KEY` | `isDown=true lalt=true` | 按键判定活着（按钮锁定同源，互证） |
+| `BRBE-LOCK-GHOSTF` | `entries=3` | 幽灵逐槽循环的 `@Redirect` **确实在跑**（挂钩没问题） |
+| `BRBE-LOCK-CTX-Slot` | `MISS rect=(30,17) cursor=(350,118)` | 上下文压进去了，但命中判定失配 |
+| `BRBE-LOCK-SCROLL` | `down=true hovered=null latch=false stepped=false` | claim 从未成功 → 既不冻结也不步进 |
+
+关键推论：`rect=(30,17)` 是**容器相对**坐标，`(350,118)` 是**屏幕**坐标。由同帧日志里的配方书
+按钮矩形 `(171,123)` 反推容器原点 = `(307,101)`（= `leftPos-147+11, topPos-9+31`，与 176×166
+居中公式 `(790-176)/2, (368-166)/2` 完全吻合）→ 该槽位真实屏幕矩形 `(337,118,16,16)`，
+指针 `(350,118)` **正落在里面**：用户指的确实是那一格。（五）把它当屏幕坐标比较 → 永远 MISS。
+
+**根因（字节码实证）**：原版 `AbstractContainerScreen.extractContents`（1.21.11 是 `render`）
+先 `pose.translate(leftPos, topPos)`，再走 `extractSlots → AbstractRecipeBookScreen.extractSlots
+→ RecipeBookComponent.extractGhostRecipe → GhostSlots.extractRenderState`，而
+`lambda$extractRenderState$0` 用 `slot.x/slot.y` 直接 `fill/fakeItem` —— **`Slot.x/y` 是容器相对坐标**。
+
+**修复**：`mixins/cyclelock/GhostSlotsCycleLockMixin` 新增 `@Unique brbe$containerOrigin()`
+（当前界面 `instanceof AbstractContainerScreen` → 复用既有 `AbstractContainerScreenAccessor`
+的 `brbe$getLeftPos/getTopPos`；非容器界面退回 `(0,0)`），`forEach` 与 tooltip 两处压上下文改为
+`origin[0] + slot.x, origin[1] + slot.y`。**同一个坑仓库里已有先例**：`WorkstationTitleTrigger.titleRect`
+的注释「`extractLabels` 在 `pose.translate(leftPos, topPos)` 内绘制标题——绝对屏幕位置 = `leftPos + titleLabelX`」。
+
+**1.21.1 无需修改**：该分支 `GhostRecipe.render(gui, mc, x, y, …)` 的参数里就带渲染原点
+（调用方 `InventoryScreen.render` 传 `renderGhostRecipe(gui, leftPos, topPos, false, f)`），
+`GhostIngredientCycleLockMixin` 一直用 `origin + getX()/getY()`，坐标系本就正确。
+
+**验证**：用户 26.3 实机通过（Alt 冻结 + Alt+滚轮逐格翻动）。26.2（含 `0.19.5-for-test`）与
+1.21.11 同步修改并部署，未单独实机验证（同一份代码、同一坐标系）。

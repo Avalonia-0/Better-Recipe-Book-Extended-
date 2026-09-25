@@ -1,12 +1,16 @@
 package com.alonie.brbe.mixins.cyclelock;
 
+import com.alonie.brbe.mixins.accessors.AbstractContainerScreenAccessor;
 import com.alonie.brbe.util.CycleLock;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectMap;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
+import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.recipebook.GhostSlots;
 import net.minecraft.world.inventory.Slot;
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
@@ -18,25 +22,43 @@ import java.util.function.BiConsumer;
  * 功能方块里**幽灵物品**的逐物品折叠锁（用户 2026-09-13 诉求 2）。
  *
  * <p>幽灵物品与网格按钮共用同一个 {@code SlotSelectTime}（原版把同一个实例交给
- * 两者），而幽灵物品的取值点在 {@code extractRenderState} 的逐槽位循环里——
+ * 两者），而幽灵物品的取值点在 {@code render} 的逐槽位循环里——
  * 循环本体是一个编译器生成的 lambda（名字跨版本不稳），所以这里改
  * {@code @Redirect} 它外层的 {@code Reference2ObjectMap.forEach(...)} 调用：
- * 自己按槽位迭代，每次 accept 前后把该**容器槽位**（它的 {@code x/y} 就是屏幕
- * 坐标）连同矩形压进 {@link CycleLock} 的绘制上下文。共享的
- * {@code SlotSelectTime} 便在取值时逐物品判定：只有指针下这一个幽灵物品返回冻结
- * 下标，其余照常自动轮换。</p>
+ * 自己按槽位迭代，每次 accept 前后把该**容器槽位**连同它的**屏幕**矩形压进
+ * {@link CycleLock} 的绘制上下文。共享的 {@code SlotSelectTime} 便在取值时逐物品
+ * 判定：只有指针下这一个幽灵物品返回冻结下标，其余照常自动轮换。</p>
  *
- * <p>tooltip 路径（{@code extractTooltip}）单独注入：它同样按 {@code Slot} 取值，
+ * <p>⚠️ 槽位的 {@code x/y} 是**容器相对**坐标，必须补上容器原点（{@link #brbe$containerOrigin()}）：
+ * 原版 {@code AbstractContainerScreen.render} 先把 pose 平移 {@code (leftPos, topPos)}
+ * 再画槽位与幽灵物品，而指针是屏幕坐标。2026-09-26 在 26.3 实测未补原点时命中判定
+ * 永远失败——日志里幽灵槽位矩形 {@code (30,17)}、指针 {@code (350,118)}，其实是同一格
+ * （{@code leftPos=307, topPos=101} → 真实屏幕矩形 {@code (337,118,16,16)}），
+ * 于是「Alt 锁不住、也翻不动」。</p>
+ *
+ * <p>tooltip 路径（{@code renderTooltip}）单独注入：它同样按 {@code Slot} 取值，
  * 冻结期间鼠标提示必须与画出来的变体一致。</p>
  */
 @Mixin(GhostSlots.class)
 public abstract class GhostSlotsCycleLockMixin {
+
+    /** 幽灵物品所在容器界面的原点（{@code leftPos/topPos}）；不是容器界面时退回 (0,0)。 */
+    @Unique
+    private static int[] brbe$containerOrigin() {
+        Screen screen = Minecraft.getInstance().screen;
+        if (!(screen instanceof AbstractContainerScreen<?> containerScreen)) {
+            return new int[2];
+        }
+        AbstractContainerScreenAccessor accessor = (AbstractContainerScreenAccessor) containerScreen;
+        return new int[] {accessor.brbe$getLeftPos(), accessor.brbe$getTopPos()};
+    }
 
     /** 幽灵物品逐槽位绘制：每次回调前后压/弹该槽位的绘制上下文。 */
     @Redirect(method = "render", at = @At(value = "INVOKE",
             target = "Lit/unimi/dsi/fastutil/objects/Reference2ObjectMap;forEach(Ljava/util/function/BiConsumer;)V"))
     @SuppressWarnings({"rawtypes", "unchecked"})
     private void brbe$forEachWithCycleContext(Reference2ObjectMap map, BiConsumer consumer) {
+        int[] origin = brbe$containerOrigin();
         for (Object raw : map.reference2ObjectEntrySet()) {
             if (!(raw instanceof Reference2ObjectMap.Entry entry)) continue;
             Slot slot = (Slot) entry.getKey();
@@ -44,7 +66,7 @@ public abstract class GhostSlotsCycleLockMixin {
                 consumer.accept(null, entry.getValue());
                 continue;
             }
-            CycleLock.pushContext(slot, slot.x, slot.y, 16, 16);
+            CycleLock.pushContext(slot, origin[0] + slot.x, origin[1] + slot.y, 16, 16);
             try {
                 consumer.accept(slot, entry.getValue());
             } finally {
@@ -63,7 +85,8 @@ public abstract class GhostSlotsCycleLockMixin {
             CycleLock.pushContext(null, 0, 0, 0, 0);
             return;
         }
-        CycleLock.pushContext(slot, slot.x, slot.y, 16, 16);
+        int[] origin = brbe$containerOrigin();
+        CycleLock.pushContext(slot, origin[0] + slot.x, origin[1] + slot.y, 16, 16);
     }
 
     /**
