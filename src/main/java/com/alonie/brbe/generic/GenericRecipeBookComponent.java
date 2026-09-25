@@ -7,6 +7,7 @@ import com.alonie.brbe.api.BRBBookSettings;
 import com.alonie.brbe.compat.ItemViewCompat;
 import com.alonie.brbe.mixins.accessors.GenericRecipePageAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeBookComponentAccessor;
+import com.alonie.brbe.util.HoverGhostRecipe;
 import com.alonie.brbe.util.RecipeBookPositionMemory;
 import com.alonie.brbe.interfaces.IPinningComponent;
 import com.alonie.brbe.interfaces.ISettingsButton;
@@ -732,6 +733,14 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
      */
     private void brbe$updateHoverGhost() {
         if (this.recipesPage == null || this.ghostRecipe == null) return;
+        if (!HoverGhostRecipe.enabled()) {
+            // 配置「自动填充幽灵配方」关闭：撤下我们写过的预览；原版点击放置的幽灵不动
+            if (this.brbe$hoverGhostRecipe != null) {
+                this.brbe$hoverGhostRecipe = null;
+                this.ghostRecipe.clear();
+            }
+            return;
+        }
 
         R hovered = this.recipesPage.hoveredRecipe;
         if (hovered == this.brbe$hoverGhostRecipe) return;

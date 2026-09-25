@@ -17,6 +17,11 @@ public class BrbeConfig implements ConfigData {
 
     // -- 配方书设置（general 标签）--------------------------------------------
 
+    /** 「自动填充幽灵配方」：鼠标指向配方书中的某个配方时，直接在工作区填充该配方的幽灵
+     *  物品（等价于点击该配方所展示的幽灵物品），鼠标移开则立刻消失。默认开。 */
+    @ConfigEntry.Gui.Tooltip
+    public boolean autoFillGhostRecipe = true;
+
     /** 拼音搜索：在搜索栏输入拼音匹配中文物品名。仅中文语言（zh_*）下显示配置项并默认开启；其他语言强制关闭。 */
     @ConfigEntry.Gui.Tooltip
     public boolean pinyinSearch = false;
