@@ -104,6 +104,12 @@ public final class PopupRenderer {
         return false;
     }
 
+    /** 该按钮当前是否显示**完整配方预览**（否则只画产物图标）：悬停时显示；未悬停且
+     *  开启「仅在悬停时显示替代配方」（或查询界面锁定该设计）时只画产物图标。 */
+    private static boolean revealsFullPreview(boolean hover, boolean lockReveal) {
+        return hover || !(BetterRecipeBook.config.alternativeRecipes.onHover || lockReveal);
+    }
+
     /** Render the recipe's base button (no hover magnify): sprite backdrop
      *  (highlighted when hovered), partial marking and the small slot icons —
      *  used by the query-viewer's buttons, whose popup is drawn by the separate
@@ -126,14 +132,63 @@ public final class PopupRenderer {
         Identifier sprite = hover
                 ? BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE.get(craftable || partial, true)
                 : sprites.get(craftable || partial, false);
+        // 查询界面的按钮**悬停不展开内容**（只换高亮底板，完整界面由 Shift 弹窗给），
+        // 因此内容侧固定传 hover=false。
+        paintButton(gui, id, entry, mode, craftable, partial, slots, selIdx, x, y, w, h,
+                false, lockReveal, sprite);
+    }
+
+    /**
+     * 配方书**替代配方组**浮层的按钮（用户 2026-09-25 诉求 2）：**纹理与内容一致**。
+     *
+     * <ul>
+     *   <li>悬停 → 显示完整**配方预览**（3×3 布局 + 产物，1:1，不再放大），底板用原版
+     *       {@code minecraft:recipe_book/crafting_overlay_highlighted}
+     *       （残缺/可合成）或 {@code ..._disabled_highlighted}（不可合成）；</li>
+     *   <li>未悬停且开启「仅在悬停时显示替代配方」→ 只画产物图标，底板用 BRBE 自有
+     *       {@code brbe:recipe_book/crafting_overlay(_disabled)}；</li>
+     *   <li>未悬停且**关闭**该配置 → 仍显示完整配方，底板用原版
+     *       {@code minecraft:recipe_book/crafting_overlay(_disabled)}。</li>
+     * </ul>
+     *
+     * 熔炉系书（熔炉/鼓风炉/烟熏炉）同规则，只是原版面换成 {@code furnace_overlay} 系、
+     * BRBE 面换成 {@code plain_overlay} 系。
+     */
+    public static void renderAlternativesButton(GuiGraphics gui,
+                                                RecipeDisplayId id, RecipeDisplayEntry entry,
+                                                int mode, boolean craftable, boolean partial,
+                                                List<?> slots, int selIdx,
+                                                int x, int y, int w, int h, boolean hover,
+                                                boolean lockReveal) {
+        boolean fullPreview = revealsFullPreview(hover, lockReveal);
+        WidgetSprites vanilla = mode == PinOverlay.MODE_FURNACE
+                ? BRBTextures.VANILLA_FURNACE_OVERLAY_SPRITE
+                : BRBTextures.VANILLA_CRAFTING_OVERLAY_SPRITE;
+        WidgetSprites brbe = mode == PinOverlay.MODE_FURNACE
+                ? BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE
+                : BRBTextures.RECIPE_BOOK_CRAFTING_OVERLAY_SPRITE;
+        Identifier sprite = fullPreview
+                ? vanilla.get(craftable || partial, hover)
+                : brbe.get(craftable || partial, false);
+        paintButton(gui, id, entry, mode, craftable, partial, slots, selIdx, x, y, w, h,
+                hover, lockReveal, sprite);
+    }
+
+    /** 按钮底板 + 残缺红罩 + 槽位内容（{@code contentHover} 决定内容是否展开为完整预览）。 */
+    private static void paintButton(GuiGraphics gui,
+                                    RecipeDisplayId id, RecipeDisplayEntry entry,
+                                    int mode, boolean craftable, boolean partial,
+                                    List<?> slots, int selIdx,
+                                    int x, int y, int w, int h,
+                                    boolean contentHover, boolean lockReveal, Identifier sprite) {
         new ButtonBackdrop.Sprite(sprite).render(gui, x, y, w, h);
         if (partial) {
             gui.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x60FF3333);
         }
         // 整块按钮就是一件折叠物品（由 OverlayRecipeButtonMixin 登记），
         // 里面的小槽位不再单独抢占：perSlot = false。
-        renderSlotItems(gui, id, entry, mode, slots, selIdx, x, y, w, h, false, null,
-                lockReveal, new SlotCycle(id, x, y, w, h, 1f, false));
+        renderSlotItems(gui, id, entry, mode, slots, selIdx, x, y, w, h, contentHover, null, lockReveal,
+                new SlotCycle(id, x, y, w, h, 1f, false));
     }
 
     private static void renderVanillaPopup(GuiGraphics gui,
@@ -220,7 +275,7 @@ public final class PopupRenderer {
         } else if (mode == PinOverlay.MODE_FURNACE) {
             // 烧炼类别一概不用幽灵遮罩（用户要求）。
             renderFurnace(gui, id, entry, selIdx, x, y, hover, lockReveal, cycle);
-        } else if ((BetterRecipeBook.config.alternativeRecipes.onHover || lockReveal) && !hover) {
+        } else if (!revealsFullPreview(hover, lockReveal)) {
             // The product shown on the button cycles through every result
             // variant (like the smithing category), so multi-product recipes
             // display all of their products instead of only the first.
@@ -280,7 +335,6 @@ public final class PopupRenderer {
             renderGenericCrafting(gui, id, entry, selIdx, x, y, hover, counts, lockReveal, cycle);
             return;
         }
-        boolean onHover = BetterRecipeBook.config.alternativeRecipes.onHover;
         ItemStack first;
         ItemStack second;
         List<ItemStack> inputVariants;
@@ -303,7 +357,7 @@ public final class PopupRenderer {
                 cycle.index(0, x + 2, y + 2, 10, 10, selIdx));
         second = select(resultVariants,
                 cycle.index(1, x + 12, y + 7, 10, 10, selIdx));
-        if ((onHover || lockReveal) && !hover) {
+        if (!revealsFullPreview(hover, lockReveal)) {
             gui.renderItem(second, x + 4, y + 4);
             return;
         }
@@ -321,7 +375,6 @@ public final class PopupRenderer {
                                       RecipeDisplayEntry entry,
                                       int selIdx, int x, int y, boolean hover, boolean lockReveal,
                                       SlotCycle cycle) {
-        boolean onHover = BetterRecipeBook.config.alternativeRecipes.onHover;
         var display = RecipeViewerIndex.asFurnace(entry);
         List<ItemStack> ingredientVariants = display == null ? List.of()
                 : RecipeViewerIndex.resolveSlotDisplay(display.ingredient());
@@ -332,7 +385,7 @@ public final class PopupRenderer {
                 cycle.index(0, x + 2, y + 2, 10, 10, selIdx));
         ItemStack result = select(resultVariants,
                 cycle.index(1, x + 12, y + 7, 10, 10, selIdx));
-        if ((onHover || lockReveal) && !hover) {
+        if (!revealsFullPreview(hover, lockReveal)) {
             gui.renderItem(result, x + 4, y + 4);
             return;
         }
@@ -362,7 +415,7 @@ public final class PopupRenderer {
                                         int x, int y, boolean hover,
                                         Map<Item, Integer> counts, boolean lockReveal,
                                         SlotCycle cycle) {
-        if ((BetterRecipeBook.config.alternativeRecipes.onHover || lockReveal) && !hover) {
+        if (!revealsFullPreview(hover, lockReveal)) {
             ItemStack result = select(resultVariants(entry), selIdx);
             gui.renderItem(result, x + 4, y + 4);
             return;
@@ -555,8 +608,7 @@ public final class PopupRenderer {
                                               int selIdx, int x, int y, boolean hover,
                                               Map<Item, Integer> counts, boolean lockReveal,
                                               SlotCycle cycle) {
-        boolean onHover = BetterRecipeBook.config.alternativeRecipes.onHover;
-        if ((onHover || lockReveal) && !hover) {
+        if (!revealsFullPreview(hover, lockReveal)) {
             ItemStack result = select(resultVariants(entry), selIdx);
             gui.renderItem(result, x + 4, y + 4);
             return;

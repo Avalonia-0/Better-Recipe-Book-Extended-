@@ -151,11 +151,15 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
             return;
         }
 
-        // Recipe book（**替代配方组**浮层）：悬停不再弹任何界面（用户 2026-09-25
-        // 诉求）——只保留普通 hover 高亮，配方内容改由工作区的**幽灵物品**呈现
-        // （见 hoverghost/OverlayRecipeComponentMixin + HoverGhostRecipe）。
+        // Recipe book（**替代配方组**浮层，用户 2026-09-25 诉求 2）：
+        //  * 悬停 → 就地显示**完整配方预览**（3×3 布局 + 产物，1:1，不再弹放大界面），
+        //    底板 = 原版 crafting_overlay_highlighted / _disabled_highlighted；
+        //  * 未悬停 + 开启「仅在悬停时显示替代配方」→ 只画产物图标，底板 = BRBE
+        //    crafting_overlay(_disabled)；
+        //  * 未悬停 + 关闭该配置 → 仍显示完整配方，底板 = 原版 crafting_overlay(_disabled)。
+        // 配方内容改由工作区的**幽灵物品**另外呈现（hoverghost/OverlayRecipeComponentMixin）。
         // 旧行为：悬停做 2x 放大预览；Shift 的 4x 放大已在 2026-09-13 移除。
-        PopupRenderer.renderBaseButton(gui, this.recipe, recipeEntry(), mode,
+        PopupRenderer.renderAlternativesButton(gui, this.recipe, recipeEntry(), mode,
                 this.isCraftable, partial, this.slots, selIdx, x, y, w, h, hover, false);
         ci.cancel();
     }
