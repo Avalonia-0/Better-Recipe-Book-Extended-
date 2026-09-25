@@ -16,6 +16,8 @@ import net.minecraft.network.chat.Component;
  * /brbe clear rbippin                → 清除所有 RBIP 标签的固定
  * /brbe clear recipepin              → 清除配方书配方的固定
  * /brbe clear leipin                 → 清除查询界面（LEI）对象的固定
+ * /brbe set                          → 列出 set 的全部子命令与说明
+ * /brbe set pagesound &lt;声音ID&gt;      → 设置 BRBE 全部界面的翻页音效
  * </pre>
  */
 public final class BrbeCommandTree {
@@ -56,7 +58,36 @@ public final class BrbeCommandTree {
                                         BrbeCommandActions::clearRecipePins)))
                         .then(com.mojang.brigadier.builder.LiteralArgumentBuilder.<S>literal("leipin")
                                 .executes(ctx -> brbe$run(fb, ctx.getSource(),
-                                        BrbeCommandActions::clearViewerPins))));
+                                        BrbeCommandActions::clearViewerPins))))
+                .then(com.mojang.brigadier.builder.LiteralArgumentBuilder.<S>literal("set")
+                        .executes(ctx -> {
+                            S source = ctx.getSource();
+                            fb.success(source, "brbe.command.set.header");
+                            fb.success(source, "brbe.command.set.pagesound.usage");
+                            return 1;
+                        })
+                        .then(com.mojang.brigadier.builder.LiteralArgumentBuilder.<S>literal("pagesound")
+                                .then(com.mojang.brigadier.builder.RequiredArgumentBuilder
+                                        .<S, net.minecraft.resources.ResourceLocation>argument(
+                                                "sound", net.minecraft.commands.arguments.ResourceLocationArgument.id())
+                                        // 声音 ID 补全：列出全部已注册声音（前缀过滤）。
+                                        .suggests((ctx, builder) -> {
+                                            String remaining = builder.getRemainingLowerCase();
+                                            for (net.minecraft.resources.ResourceLocation id
+                                                    : net.minecraft.core.registries.BuiltInRegistries
+                                                            .SOUND_EVENT.keySet()) {
+                                                String value = id.toString();
+                                                if (value.startsWith(remaining)) builder.suggest(value);
+                                            }
+                                            return builder.buildFuture();
+                                        })
+                                        .executes(ctx -> brbe$run(fb, ctx.getSource(),
+                                                // 不能用 ResourceLocationArgument.getId(ctx, …)：它固定收
+                                                // CommandContext<CommandSourceStack>，而本树对源类型泛型。
+                                                () -> BrbeCommandActions.setPageFlipSound(
+                                                        ctx.getArgument("sound",
+                                                                net.minecraft.resources.ResourceLocation.class)
+                                                                .toString()))))));
     }
 
     /** 跑一个动作并把结果翻成聊天反馈；动作抛异常时也只反馈错误、不冒泡。 */

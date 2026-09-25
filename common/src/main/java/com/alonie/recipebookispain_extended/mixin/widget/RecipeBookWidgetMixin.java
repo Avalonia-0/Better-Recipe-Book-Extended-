@@ -345,6 +345,9 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess, R
             if (rbip$isInside(mx, my, pcx, pcy, PAGE_BTN_W, PAGE_BTN_H) && rbip$page > 0) {
                 rbip$page--;
                 this.rbip$applyPagination(false);
+                // 翻页音效：与 26.2/1.21.11 的标签栏翻页箭头一致（本端此前静音），
+                // 音效 ID 来自配置（ClientCompat → PageFlipSound）。
+                com.alonie.brbe.util.ClientCompat.playPageFlipSound(this.minecraft);
                 cir.setReturnValue(true);
                 return;
             }
@@ -352,6 +355,7 @@ public abstract class RecipeBookWidgetMixin implements RecipeBookScrollAccess, R
                     && rbip$page < rbip$pageCount - 1) {
                 rbip$page++;
                 this.rbip$applyPagination(false);
+                com.alonie.brbe.util.ClientCompat.playPageFlipSound(this.minecraft);
                 cir.setReturnValue(true);
                 return;
             }

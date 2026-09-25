@@ -6,6 +6,8 @@ import com.alonie.brbe.config.KeybindingGuiRegistrar;
 import com.alonie.brbe.config.PinyinSearchDefaults;
 import com.alonie.brbe.pin.TabPinManager;
 import com.alonie.brbe.pinoverlay.PinOverlayManager;
+import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.util.PageFlipSound;
 import me.shedaniel.autoconfig.ConfigHolder;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.recipebook.RecipeUpdateListener;
@@ -77,6 +79,29 @@ public final class BrbeCommandActions {
     public static Result clearViewerPins() {
         int cleared = PinOverlayManager.clearAllAndSave();
         return Result.ok("brbe.command.done.leipin", cleared);
+    }
+
+    /**
+     * {@code /brbe set pagesound <声音ID>}：设置 BRBE 全部界面的翻页音效。
+     *
+     * <p>只接受<b>已注册</b>的声音 ID（{@code minecraft:ui.button.click} 这类；命名空间
+     * 可省略，由指令参数补成 {@code minecraft:}），写入配置后落盘并<b>立即试听</b>一声——
+     * 试听与真正的翻页共用 {@link ClientCompat#playPageFlipSound}，因此同样受
+     * 「鼠标滚轮翻页音效」开关与「音效音量」控制。</p>
+     */
+    public static Result setPageFlipSound(String rawId) {
+        ConfigHolder<BrbeConfig> holder = BetterRecipeBook.configHolder;
+        if (holder == null) {
+            return Result.fail("brbe.command.failed", "config holder unavailable");
+        }
+        String id = rawId == null ? "" : rawId.trim();
+        if (!PageFlipSound.exists(id)) {
+            return Result.fail("brbe.command.set.pagesound.unknown", id);
+        }
+        holder.getConfig().pageFlipSound = id;
+        holder.save();
+        ClientCompat.playPageFlipSound(Minecraft.getInstance());
+        return Result.ok("brbe.command.set.pagesound.done", id);
     }
 
     /**

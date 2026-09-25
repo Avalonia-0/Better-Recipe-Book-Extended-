@@ -114,6 +114,7 @@
   "text.autoconfig.brbe.option.newRecipes@PrefixText": "§eНовые рецепты",
   "text.autoconfig.brbe.option.pageAnimation.pageAnimationEnabled": "Page Flip Animation",
   "text.autoconfig.brbe.option.pageAnimationDuration": "Animation Duration",
+  "text.autoconfig.brbe.option.pageFlipSound": "Звук перелистывания",
   "text.autoconfig.brbe.option.pageFlipVolume": "Sound Volume",
   "text.autoconfig.brbe.option.partialCraftingEnabled": "Улучшить ванильный фильтр рецептов",
   "text.autoconfig.brbe.option.partialCraftingEnabled.@Tooltip": "Удаляет кнопку «Только доступные»; доступные предметы всегда будут на первой странице.",
@@ -166,7 +167,7 @@
   "text.autoconfig.brbe.option.usageViewKey.@Tooltip": "Показывает рецепты, где этот предмет используется как материал или станок.",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "Показывает рецепты, где этот предмет используется как материал или станок.",
   "text.autoconfig.brbe.title": "Настройки лучшей книги рецептов",
-  "brbe.command.usage": "Команды BRBE: /brbe clear … (подробнее — /brbe clear)",
+  "brbe.command.usage": "Команды BRBE: /brbe clear …, /brbe set … (запустите любую для подробностей)",
   "brbe.command.clear.header": "Подкоманды /brbe clear:",
   "brbe.command.clear.configchange": "/brbe clear configchange — сбросить все настройки к значениям по умолчанию",
   "brbe.command.clear.rbippin": "/brbe clear rbippin — снять закрепление всех вкладок RBIP",
@@ -176,5 +177,9 @@
   "brbe.command.done.rbippin": "Снято закреплений вкладок RBIP: %s",
   "brbe.command.done.recipepin": "Снято закреплений рецептов: %s",
   "brbe.command.done.leipin": "Снято закреплений объектов поиска: %s",
-  "brbe.command.failed": "Ошибка команды BRBE: %s"
+  "brbe.command.failed": "Ошибка команды BRBE: %s",
+  "brbe.command.set.header": "Подкоманды /brbe set:",
+  "brbe.command.set.pagesound.usage": "/brbe set pagesound <ID звука> — задать звук перелистывания для всех экранов BRBE",
+  "brbe.command.set.pagesound.done": "Звук перелистывания изменён на %s",
+  "brbe.command.set.pagesound.unknown": "Неизвестный ID звука: %s (например minecraft:ui.button.click)"
 }

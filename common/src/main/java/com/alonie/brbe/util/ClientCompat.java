@@ -13,7 +13,6 @@ import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 
@@ -112,7 +111,9 @@ public final class ClientCompat {
      *  toggle and scaled by the page-flip volume setting (0.25 x volume, the
      *  same scaling the recipe book's scroll flips use).  Every paging surface
      *  (query viewer object area / tab strip / station column, RBIP tab area)
-     *  goes through here, so the toggle and the volume slider govern them all. */
+     *  goes through here, so the toggle, the volume slider and the configurable
+     *  sound ID ({@link PageFlipSound}, set via the config screen or
+     *  {@code /brbe set pagesound}) govern them all. */
     /** 翻页音效上次播放时间（毫秒），0.01s 节流——快速滚动不叠音（1.21.11 语义）。 */
     private static long brbe$lastPageFlipSoundTime;
 
@@ -128,7 +129,7 @@ public final class ClientCompat {
             // ⚠️ 2 参 forUI(sound, p) 的 p 是 **pitch** 不是音量——此前把 volume
             // 当 pitch 传入 → 点击音变成低频闷响（"音效源用错了"根因）。
             mc.getSoundManager().play(SimpleSoundInstance.forUI(
-                    SoundEvents.UI_BUTTON_CLICK.value(), 1.0f, volume));
+                    PageFlipSound.resolve(), 1.0f, volume));
         }
     }
 

@@ -122,6 +122,7 @@
   "text.autoconfig.brbe.option.newRecipes@PrefixText": "§e新配方",
   "text.autoconfig.brbe.option.pageAnimation.pageAnimationEnabled": "配方书翻页动画",
   "text.autoconfig.brbe.option.pageAnimationDuration": "动画时长",
+  "text.autoconfig.brbe.option.pageFlipSound": "翻页音效",
   "text.autoconfig.brbe.option.pageFlipVolume": "音效音量",
   "text.autoconfig.brbe.option.partialCraftingEnabled": "优化原版配方过滤器",
   "text.autoconfig.brbe.option.partialCraftingEnabled.@Tooltip": "移除仅显示可合成按钮，可合成物品将始终置于首页。",
@@ -182,7 +183,7 @@
   "text.autoconfig.brbe.option.usageViewKey.@Tooltip": "查询该物品作为材料、工作站的配方。",
   "text.autoconfig.brbe.option.usageViewKey@Tooltip": "查询该物品作为材料、工作站的配方。",
   "text.autoconfig.brbe.title": "更好的配方书配置",
-  "brbe.command.usage": "BRBE 指令：/brbe clear …（用 /brbe clear 查看子命令说明）",
+  "brbe.command.usage": "BRBE 指令：/brbe clear …、/brbe set …（用 /brbe clear 或 /brbe set 查看子命令说明）",
   "brbe.command.clear.header": "/brbe clear 子命令：",
   "brbe.command.clear.configchange": "/brbe clear configchange — 将所有配置项恢复为默认值",
   "brbe.command.clear.rbippin": "/brbe clear rbippin — 清除所有 RBIP 标签的固定",
@@ -192,5 +193,9 @@
   "brbe.command.done.rbippin": "已清除 %s 个 RBIP 标签固定",
   "brbe.command.done.recipepin": "已清除 %s 个配方固定",
   "brbe.command.done.leipin": "已清除 %s 个查询对象固定",
-  "brbe.command.failed": "BRBE 指令执行失败：%s"
+  "brbe.command.failed": "BRBE 指令执行失败：%s",
+  "brbe.command.set.header": "/brbe set 子命令：",
+  "brbe.command.set.pagesound.usage": "/brbe set pagesound <声音ID> — 设置 BRBE 全部界面的翻页音效",
+  "brbe.command.set.pagesound.done": "翻页音效已设为 %s",
+  "brbe.command.set.pagesound.unknown": "未知的声音 ID：%s（例如 minecraft:ui.button.click）"
 }
