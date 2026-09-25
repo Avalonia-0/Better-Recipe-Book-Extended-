@@ -9,6 +9,7 @@ import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * 悬停幽灵预览与**原版幽灵流程**的交界（用户 2026-09-25 诉求）。
@@ -40,7 +41,7 @@ public abstract class RecipeBookComponentMixin {
 
     @Inject(method = "tryPlaceRecipe", at = @At("HEAD"))
     private void brbe$notePlacedRecipe(RecipeCollection collection, RecipeDisplayId recipe,
-                                       boolean useMaxItems, CallbackInfo ci) {
+                                       boolean useMaxItems, CallbackInfoReturnable<Boolean> cir) {
         HoverGhostRecipe.invalidate();
     }
 
