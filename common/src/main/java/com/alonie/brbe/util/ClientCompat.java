@@ -10,7 +10,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.world.item.ItemStack;
@@ -123,14 +122,11 @@ public final class ClientCompat {
         long now = net.minecraft.Util.getMillis();
         if (now - brbe$lastPageFlipSoundTime < 10) return;
         brbe$lastPageFlipSoundTime = now;
-        float volume = 0.25f * BetterRecipeBook.config.pageFlipVolume;
-        if (volume > 0.0f && mc.getSoundManager() != null) {
-            // 3 参重载 (sound, pitch, volume)：pitch=1.0 与按钮点击原声一致。
-            // ⚠️ 2 参 forUI(sound, p) 的 p 是 **pitch** 不是音量——此前把 volume
-            // 当 pitch 传入 → 点击音变成低频闷响（"音效源用错了"根因）。
-            mc.getSoundManager().play(SimpleSoundInstance.forUI(
-                    PageFlipSound.resolve(), 1.0f, volume));
-        }
+        // pitch=1.0 与按钮点击原声一致；音量换算集中在 PageFlipSound.play（0 = 静音）
+        // —— ⚠️ 历史上曾用 2 参 forUI(sound, p)：第 2 参是 **pitch** 不是音量，
+        // 把 volume 当 pitch 传会导致低频闷响（"音效源用错了"根因）。
+        PageFlipSound.play(mc, PageFlipSound.resolve(),
+                0.25f * BetterRecipeBook.config.pageFlipVolume);
     }
 
     /**

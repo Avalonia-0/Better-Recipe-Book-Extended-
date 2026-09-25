@@ -92,8 +92,7 @@ public final class BrbeCommandTree {
 
     /** 跑一个动作并把结果翻成聊天反馈；动作抛异常时也只反馈错误、不冒泡。 */
     private static <S> int brbe$run(Feedback<S> fb, S source,
-                                    java.util.function.Supplier<BrbeCommandActions.Result> action) {
-        try {
+                                    java.util.function.Supplier<BrbeCommandActions.Result> action) {        try {
             BrbeCommandActions.Result result = action.get();
             if (result.ok()) {
                 fb.success(source, result.langKey(), result.args());
@@ -105,5 +104,24 @@ public final class BrbeCommandTree {
             fb.failure(source, "brbe.command.failed", Component.literal(String.valueOf(t)));
             return 0;
         }
+    }
+
+    // -- 指令输入识别（补全条目点击试听用）--------------------------------------
+
+    /** {@code /brbe set pagesound <声音ID>} 的参数位（字面量之后允许空参数或空格分隔）。 */
+    private static final java.util.regex.Pattern PAGE_SOUND_ARGUMENT_INPUT =
+            java.util.regex.Pattern.compile(
+                    "^/\\s*brbe\\s+set\\s+pagesound(\\s|$)",
+                    java.util.regex.Pattern.CASE_INSENSITIVE);
+
+    /**
+     * 输入框文本是否正停在 {@code /brbe set pagesound <声音ID>} 的参数位。
+     *
+     * <p>补全条目的点击试听靠它把"我们的指令"和其它也用声音 ID 的指令（如
+     * {@code /playsound}）区分开——指令字面量只在这里定义，判据也跟着放这里。</p>
+     */
+    public static boolean isPageSoundArgumentInput(String input) {
+        if (input == null) return false;
+        return PAGE_SOUND_ARGUMENT_INPUT.matcher(input.trim()).find();
     }
 }

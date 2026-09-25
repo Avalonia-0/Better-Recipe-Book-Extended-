@@ -1956,3 +1956,75 @@ minecraft:wooden_door"并听到开门声；② 滚轮翻页 / RBIP 标签栏箭�
 ③ 配置界面「快捷键&数值」页：动画时长下方出现「翻页音效」文本框（无 tooltip），改成别的 ID 保存后翻页生效；
 ④ 填一个不存在的 ID（如 `foo:bar`）→ 自动回退默认"哒"声，不静音；⑤ `/brbe set pagesound` 参数处按
 Tab 补全出声音 ID 列表；⑥ `/brbe clear configchange` → 该项回默认 `minecraft:ui.button.click`。
+
+**2026-09-25（四）：指令补全条目「点击试听」翻页音效（四分支同步）**
+
+用户需求：在聊天栏输入 `/brbe set pagesound …` 时，**点补全预选框里的任一条目就能立刻听到那个声音**
+（不必回车执行指令），方便边翻列表边挑音效。
+
+**可行性结论：可以做**，挂点是 vanilla 客户端补全列表 `CommandSuggestions$SuggestionsList.mouseClicked`。
+四个版本的该类结构一致（javap 核实）：`private final String originalContents`（点击**前**的输入文本）、
+`private final List<Suggestion> suggestionList`、`private int current`（当前选中索引）；
+`mouseClicked` 流程 = 命中判定 → `select(索引)` → `useSuggestion()` → 返回 true
+（26.2/26.3/1.21.11 为 `mouseClicked(II)Z`，1.21.1 为 `mouseClicked(III)Z`；外层
+`CommandSuggestions.mouseClicked` 都转调它）。
+
+**实现**：新增 `mixins/command/SuggestionsListMixin`（注册进各分支 `mixins.brbe-common.json`
+的 **`client` 数组**——该配置只有 `client` 段，天然只在客户端应用）：
+
+```
+@Mixin(CommandSuggestions.SuggestionsList.class)
+@Shadow @Final private String originalContents;   // 点击前的输入
+@Shadow @Final private List<Suggestion> suggestionList;
+@Shadow private int current;
+@Inject(method = "mouseClicked", at = @At("RETURN"))  // 1.21.1 多一个 button 参数
+    if (!cir.getReturnValueZ()) return;              // 点在列表外 → 跳过
+    PageFlipSound.previewSuggestion(originalContents, suggestionList.get(current).getText());
+```
+
+**三处设计取舍（都有缘由）**：
+1. **挂 RETURN 而不是 HEAD**：返回 true 才算点中条目，**不用自己重算命中区**
+   （vanilla 用 `(mouseY - rect.y) / 12 + offset`）；且此刻 `current` 已是被点条目、
+   `originalContents` 仍是点击前的文本——正好用来判断"是否停在我们指令的参数位"。
+2. **不碰外层 `CommandSuggestions` 的合成字段**：`this$0`（26.x）/`field_21615`（remap 分支）
+   是编译器合成字段、没有映射名，跨分支写法不通用（历史上 `OverlayRecipeButtonAccessor`
+   就在这上面踩过坑）。改用 `originalContents` 判据，四个版本同一个写法。
+3. **`@Shadow @Final`**：目标两个字段是 final（`RecipeBookPage.buttons` 同款，仓库既有写法），
+   漏 `@Final` 会在运行时校验报错。
+
+**判据集中在指令树**：`BrbeCommandTree.isPageSoundArgumentInput(String)`
+（`^\s*/\s*brbe\s+set\s+pagesound(\s|$)`，忽略大小写）——指令字面量在哪定义、判据就在哪，
+把"我们的指令"与其它也用声音 ID 的指令（如 `/playsound`）区分开。
+
+**试听路径独立于自动翻页声**：`PageFlipSound` 新增
+- `play(Minecraft, SoundEvent, float)`：底层播放（pitch 1.0）；
+- `previewVolume()` = `0.25 ×「音效音量」`；
+- `playPreview(String id)` / `playConfiguredPreview()`：**不受「鼠标滚轮翻页音效」开关影响**
+  （那个开关管的是自动翻页声；试听是显式动作，关掉开关也该听得到），只受「音效音量」控制（0 = 静音）；
+- **试听实例去重**：记住上一次试听的 `SoundInstance`，点下一条目前先 `SoundManager.stop(...)`
+  ——连续点选不会把长音效叠起来（挑音乐唱片类长音时尤其明显）。
+`ClientCompat.playPageFlipSound`（自动翻页路径）与 `BrbeCommandActions.setPageFlipSound`
+（执行指令后的试听）都改为复用这套底层播放。
+
+**范围说明**：只有**鼠标点击**补全条目会试听——键盘 Tab 轮循（vanilla 每按一次就应用下一条建议）
+不试听，避免快速轮循时连续叠音。需要的话可以照做（挂在 `useSuggestion` 上即可覆盖键盘路径）。
+
+**构建/部署**（原子替换，备份 `20260925-135400`）：26.2-Fabric `1b3113be5162ff67a336423962214638`
+（部署两个 26.2 实例）、26.3-Fabric `11581582a5faacf67cbd28eeffeeb828`、
+1.21.11-Fabric `2ee5a5605e15849828e3145ecdf45bbc`；1.21.1 按规则**只构建不部署**：
+fabric `292b73219d472b700bb7a43fae5dd56b`、neoforge `22c8d373a29309788bc7f293265751eb`。
+
+**产物核对（离线可验，未启动游戏）**：
+- 三个 remap 分支的 jar 内 mixin 类字段已被 loom 重映射为 intermediary 名——
+  `field_2768`/`field_25709`/`field_2766`；查 `mappings.tiny`
+  （`CommandSuggestions$SuggestionsList` = `class_4717$class_464`）确认三者正是
+  `originalContents`/`suggestionList`/`current`（描述符依次 `Ljava/lang/String;`/
+  `Ljava/util/List;`/`I`，逐一对应）→ 影子字段解析正确；
+- 处理签名按分支区分：26.2/26.3/1.21.11 = `(int,int,CallbackInfoReturnable)`、
+  1.21.1 = `(int,int,int,CallbackInfoReturnable)`（对应各版本 `mouseClicked` 的参数个数）；
+- mixin 类内 `lambda$` 计数 = 0（仓库规则：mixin 里不写 lambda）。
+
+**验证方法**：聊天栏输入 `/brbe set pagesound `（或 `… bamboo`）→ 点补全列表里的条目
+→ **立即听到该声音**（输入框同时填入该 ID，按回车才真正写入配置）；
+点列表外/点非声音条目（如字面量建议）不发声；`/brbe set pagesound minecraft:wooden_door` 回车
+→ 开门声 + 聊天栏"翻页音效已设为 …"；把「音效音量」拉到 0 → 试听与翻页都静音。

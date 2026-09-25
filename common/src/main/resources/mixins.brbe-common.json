@@ -80,7 +80,8 @@
     "recipeviewer.OverlayRecipeComponentPositionMixin",
     "recipeviewer.RecipeBookPageTooltipMixin",
     "recipeviewer.RecipeBookPageClickMixin",
-    "recipeviewer.ServerPlaceRecipeMixin"
+    "recipeviewer.ServerPlaceRecipeMixin",
+    "command.SuggestionsListMixin"
   ],
   "injectors": {
     "defaultRequire": 1
