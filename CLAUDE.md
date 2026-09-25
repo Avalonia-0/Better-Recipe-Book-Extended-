@@ -2006,3 +2006,4 @@ accessor 值 `hoveredButton`/`parent`/`selectedEntries` 均在；mixin 类内**�
 `d53718f2f3f488c7ddb392e9a4004aab`；1.21.1 按规则**只构建不部署**：fabric
 `cfbd6703342642f91ebf2952389f1d01`、neoforge `9cc23a920f08548f9d5860fa1747607f`。
 备份 tag `20260925-164500`（中间一轮 `20260925-161907`/`20260925-163000`）。
+**提交**：`fc0a9409`（26.2 分支）。
