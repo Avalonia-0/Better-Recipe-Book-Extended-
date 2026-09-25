@@ -43,12 +43,6 @@ public abstract class RecipeBookComponentMixin {
     @Shadow @Final
     protected Minecraft minecraft;
 
-    @Shadow
-    private RecipeDisplayId lastRecipe;
-
-    @Shadow
-    private RecipeCollection lastRecipeCollection;
-
     @Shadow @Final
     private GhostSlots ghostSlots;
 
@@ -425,7 +419,7 @@ public abstract class RecipeBookComponentMixin {
      */
     @Inject(method = "extractGhostRecipe", at = @At("HEAD"))
     private void brbe$preparePartialGhostOverlay(GuiGraphicsExtractor graphics, boolean isResultSlotBig, CallbackInfo ci) {
-        PartialGhostOverlayUtil.prepare(this.lastRecipe, this.lastRecipeCollection, PartialCraftingUtil.searchSpaceSlots(), this.menu.getCarried(), this.ghostSlots);
+        PartialGhostOverlayUtil.prepare(PartialCraftingUtil.searchSpaceSlots(), this.menu.getCarried(), this.ghostSlots);
     }
 
 }

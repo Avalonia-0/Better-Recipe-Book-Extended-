@@ -152,17 +152,12 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
             return;
         }
 
-        // Recipe book（**替代配方组**浮层）：悬停只做普通 2x 放大。Shift 的 4x
-        // 放大已按用户要求移除（2026-09-13）——那是替代配方组的旧特性，与 LEI
-        // 查询界面的 Shift 预览无关（后者是 RecipePopupLayer，走 viewer 分支）。
-        if (hover) {
-            PopupRenderer.renderRecipePopup(gui, this.recipe, recipeEntry(), mode,
-                    this.isCraftable, partial, this.slots, selIdx, x, y, w, h,
-                    true, 2f);
-        } else {
-            PopupRenderer.renderBaseButton(gui, this.recipe, recipeEntry(), mode,
-                    this.isCraftable, partial, this.slots, selIdx, x, y, w, h, false, false);
-        }
+        // Recipe book（**替代配方组**浮层）：悬停不再弹任何界面（用户 2026-09-25
+        // 诉求）——只保留普通 hover 高亮，配方内容改由工作区的**幽灵物品**呈现
+        // （见 hoverghost/OverlayRecipeComponentMixin + HoverGhostRecipe）。
+        // 旧行为：悬停做 2x 放大预览；Shift 的 4x 放大已在 2026-09-13 移除。
+        PopupRenderer.renderBaseButton(gui, this.recipe, recipeEntry(), mode,
+                this.isCraftable, partial, this.slots, selIdx, x, y, w, h, hover, false);
         ci.cancel();
     }
 

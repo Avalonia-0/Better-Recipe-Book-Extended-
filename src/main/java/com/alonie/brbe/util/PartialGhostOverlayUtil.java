@@ -3,12 +3,10 @@ package com.alonie.brbe.util;
 import com.alonie.brbe.mixins.accessors.GhostSlotsAccessor;
 import it.unimi.dsi.fastutil.objects.Reference2ObjectMap;
 import net.minecraft.client.gui.screens.recipebook.GhostSlots;
-import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.core.NonNullList;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import org.jetbrains.annotations.Nullable;
 
 import java.lang.reflect.Method;
@@ -52,12 +50,17 @@ public final class PartialGhostOverlayUtil {
      * 已有材料——完全可合成的配方放置成功不会渲染幽灵，故无需提前返回。
      * 不依赖 partialMarkingEnabled：用户关闭残缺配方标记后配方回到不可合成
      * 状态，幽灵物品红遮罩仍应正确指示缺失材料。
+     *
+     * <p><b>判定只看幽灵槽位本身</b>（用户 2026-09-25 悬停预览）：旧签名要求
+     * {@code lastRecipe}/{@code lastRecipeCollection} 非空（两者都只为判空存在，
+     * 函数体从不使用），而悬停预览的幽灵是客户端直接写的、这两个原版字段仍是
+     * 空的 → 遮罩会退化成"全部缺料"（悬停可合成配方时整格强红）。改为只按即将
+     * 绘制的幽灵内容判定：有槽位就算，字段来源无关。</p>
      */
-    public static void prepare(RecipeDisplayId recipe, RecipeCollection collection,
-                               NonNullList<Slot> menuSlots, ItemStack carried, GhostSlots ghostSlots) {
+    public static void prepare(NonNullList<Slot> menuSlots, ItemStack carried, GhostSlots ghostSlots) {
         active = false;
         noRedMaskSlots.clear();
-        if (recipe == null || collection == null || ghostSlots == null) return;
+        if (ghostSlots == null) return;
 
         // 物品栏各材料总数量（含鼠标拿起物），与 RecipeBookComponentMixin 的统计口径一致。
         Map<Item, Integer> counts = new HashMap<>();

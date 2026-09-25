@@ -24,4 +24,8 @@ public interface RecipeButtonAccessor {
     /** 多配方按钮的结果是否完全相同（原版据此叠加渲染两次图标）。 */
     @Accessor("allRecipesHaveSameResultDisplay")
     boolean brbe$allRecipesHaveSameResultDisplay();
+
+    /** 该按钮当前选中的配方条目（空 = 没有可渲染配方，原版 {@code getCurrentRecipe} 会 /0）。 */
+    @Accessor("selectedEntries")
+    java.util.List<?> brbe$getSelectedEntries();
 }

@@ -2,6 +2,7 @@ package com.alonie.brbe.mixins.accessors;
 
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
+import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
@@ -15,6 +16,14 @@ public interface RecipeBookPageAccessor {
 
     @Accessor("buttons")
     List<RecipeButton> getButtons();
+
+    /** 原版逐帧算出的"指针下按钮"——悬停幽灵预览的命中源。 */
+    @Accessor("hoveredButton")
+    RecipeButton getHoveredButton();
+
+    /** 页所属的配方书组件（写入幽灵物品用）。 */
+    @Accessor("parent")
+    RecipeBookComponent<?> brbe$getParent();
 
     @Accessor("overlay")
     OverlayRecipeComponent getOverlay();
