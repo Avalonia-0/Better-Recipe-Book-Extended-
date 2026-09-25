@@ -12,8 +12,6 @@ import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
@@ -204,19 +202,14 @@ public abstract class RecipeBookPageMixin {
 
                 // Only play the sound when the page actually changed (scrolling
                 // past the first/last page without scroll-around is silent).
-                if (currentPage != oldPage
-                        && BetterRecipeBook.config.scrollPageSound
-                        && Minecraft.getInstance().getSoundManager() != null) {
+                if (currentPage != oldPage && BetterRecipeBook.config.scrollPageSound) {
                     // 0.01s 播放间隔节流，避免快速滚动时音效过密。
                     long now = Util.getMillis();
                     if (now - brbe$lastPageFlipSoundTime >= 10) {
                         brbe$lastPageFlipSoundTime = now;
-                        // pageFlipVolume 0.0–1.5，默认 1.0 = 原生音量（playButtonClickSound 用 0.25）。
-                        float volume = 0.25f * BetterRecipeBook.config.pageFlipVolume;
-                        if (volume > 0.0f) {
-                            Minecraft.getInstance().getSoundManager().play(
-                                    SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK.value(), 1.0f, volume));
-                        }
+                        // 与其余翻页界面走同一条路径：音效 ID 取配置（ClientCompat →
+                        // PageFlipSound）、音量 0.25 x pageFlipVolume。
+                        ClientCompat.playPageFlipSound(Minecraft.getInstance());
                     }
                 }
                 updateButtonsForPage();

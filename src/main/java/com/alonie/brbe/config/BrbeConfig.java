@@ -194,6 +194,17 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Category("keybindings")
     public float pageAnimationDuration = 0.5f;
 
+    /**
+     * 翻页音效：BRBE 全部界面翻页时播放的声音资源 ID（如
+     * {@code minecraft:ui.button.click}）。
+     *
+     * <p>这里是字符串，填任意 ID 都不会报错——未注册/非法的 ID 在播放时回退默认
+     * 音效（见 {@link com.alonie.brbe.util.PageFlipSound}）；带校验的设置途径是
+     * {@code /brbe set pagesound <声音ID>}。</p>
+     */
+    @ConfigEntry.Category("keybindings")
+    public String pageFlipSound = com.alonie.brbe.util.PageFlipSound.DEFAULT_ID;
+
     // -- 杂项（miscellaneous 标签）--------------------------------------------
 
     /** 隐藏配置界面的Tips：打开时隐藏「功能」页面顶部的轮循提示行。 */

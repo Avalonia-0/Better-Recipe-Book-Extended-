@@ -20,7 +20,6 @@ import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
 
@@ -146,14 +145,16 @@ public final class ClientCompat {
      *  toggle and scaled by the page-flip volume setting (0.25 x volume, the
      *  same scaling the recipe book's scroll flips use).  Every paging surface
      *  (query viewer object area / tab strip / station column, RBIP tab area)
-     *  goes through here, so the toggle and the volume slider govern them all. */
+     *  goes through here, so the toggle, the volume slider and the configurable
+     *  sound ID ({@link PageFlipSound}, set via the config screen or
+     *  {@code /brbe set pagesound}) govern them all. */
     public static void playPageFlipSound(Minecraft mc) {
         if (!BetterRecipeBook.config.scrollPageSound) return;
         if (mc == null || mc.getSoundManager() == null) return;
         float volume = 0.25f * BetterRecipeBook.config.pageFlipVolume;
         if (volume > 0.0f) {
             mc.getSoundManager().play(SimpleSoundInstance.forUI(
-                    SoundEvents.UI_BUTTON_CLICK.value(), 1.0f, volume));
+                    PageFlipSound.resolve(), 1.0f, volume));
         }
     }
 
