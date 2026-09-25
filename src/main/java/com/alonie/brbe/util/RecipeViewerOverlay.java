@@ -618,10 +618,25 @@ public final class RecipeViewerOverlay {
         return handled;
     }
 
+    /** 点击放置（BRBE 自绘区域用：pin 浮层等——补一声按钮点击音）。 */
     public static boolean placeRecipe(MouseButtonEvent event, AbstractContainerScreen<?> screen,
                                       RecipeDisplayId recipe, RecipeCollection collection) {
+        return placeRecipe(event, screen, recipe, collection, true);
+    }
+
+    /**
+     * 点击放置（带音效开关）。
+     *
+     * @param playClickSound 是否补播按钮点击音：{@code true} 用于 BRBE 自绘区域
+     *                       （pin 浮层、Shift 预览弹窗——点击不经过任何 vanilla widget）；
+     *                       {@code false} 用于查询窗口里的配方按钮——那一击已经由
+     *                       vanilla {@code OverlayRecipeButton} 自己响过，再补会叠音。
+     */
+    public static boolean placeRecipe(MouseButtonEvent event, AbstractContainerScreen<?> screen,
+                                      RecipeDisplayId recipe, RecipeCollection collection,
+                                      boolean playClickSound) {
         ViewerInstance w = topmost();
-        return w != null && w.placeRecipe(event, screen, recipe, collection);
+        return w != null && w.placeRecipe(event, screen, recipe, collection, playClickSound);
     }
 
     /** Scroll handling for the query windows, the LEI preview popup and the pin
@@ -1391,8 +1406,10 @@ public final class RecipeViewerOverlay {
             if (RecipePopupLayer.contains(event.x(), event.y())
                     && event.button() == 0
                     && RecipePopupLayer.button() instanceof OverlayRecipeButtonAccessor oba) {
+                // 预览弹窗是 BRBE 自绘的，点击不会经过任何 widget →
+                // 这声点击音要自己补（playClickSound = true）。
                 placeRecipe(event, screen, oba.brbe$getRecipe(),
-                        oba.brbe$getOuterComponent().getRecipeCollection());
+                        oba.brbe$getOuterComponent().getRecipeCollection(), true);
             }
             return true;
         }
@@ -1419,8 +1436,12 @@ public final class RecipeViewerOverlay {
             // crafting recipe clicked inside a furnace must not fill items or
             // ghost slots of the wrong station.  Non-matching clicks are only
             // consumed.
+            // playClickSound = false：上面 overlay.mouseClicked 已经经由 vanilla 的
+            // OverlayRecipeButton（AbstractWidget.mouseClicked → playDownSound）响过
+            // 一声点击音，这里再补一声会叠成两倍音量（用户 2026-09-25 反馈：
+            // "查询界面的配方点击音效比其他按钮响一档"）。
             placeRecipe(event, screen, overlay.getLastRecipeClicked(),
-                    overlay.getRecipeCollection());
+                    overlay.getRecipeCollection(), false);
             return true;
         }
 
@@ -1481,11 +1502,21 @@ public final class RecipeViewerOverlay {
      *  inherit the same click behaviour. */
     public boolean placeRecipe(MouseButtonEvent event, AbstractContainerScreen<?> screen,
                                RecipeDisplayId id, RecipeCollection collection) {
+        return placeRecipe(event, screen, id, collection, true);
+    }
+
+    /** {@link #placeRecipe(MouseButtonEvent, AbstractContainerScreen, RecipeDisplayId,
+     *  RecipeCollection)} 的带音效开关版本：{@code playClickSound=false} 时假定
+     *  这一击的按钮音已经由 vanilla widget 响过（查询窗口的配方按钮就是如此），
+     *  不再补声——否则同一声响两遍，听感比其它按钮大一档。 */
+    public boolean placeRecipe(MouseButtonEvent event, AbstractContainerScreen<?> screen,
+                               RecipeDisplayId id, RecipeCollection collection,
+                               boolean playClickSound) {
         // Click feedback plays for every consumed click (even one that cannot
         // transfer anything — the invalid click must still sound).
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.getSoundManager() != null) {
-            AbstractWidget.playButtonClickSound(mc.getSoundManager());
+        if (playClickSound) {
+            Minecraft mc = Minecraft.getInstance();
+            ClientCompat.playButtonClickSound(mc);
         }
         if (id == null || collection == null || currentCategory == null) return false;
         if (!ViewerTransfer.isFullyCraftable(collection, id)) {
@@ -2447,7 +2478,9 @@ public final class RecipeViewerOverlay {
                 RecipeViewerCategory cat = cats.get(i);
                 Minecraft mc = Minecraft.getInstance();
                 if (cat != currentCategory) {
-                    ClientCompat.playPageFlipSound(mc);
+                    // 普通按钮点击声（不是翻页音效）：切类别是"按按钮"，不是翻页
+                    // （用户 2026-09-25 反馈）。
+                    ClientCompat.playButtonClickSound(mc);
                     switchCategory(cat);
                 }
                 // Clicking the ALREADY-SELECTED tab does nothing any more
@@ -3860,7 +3893,9 @@ public final class RecipeViewerOverlay {
         if (fire) {
             net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
             if (mc != null) {
-                ClientCompat.playPageFlipSound(mc);
+                // 标题条 = 「浏览全部」按钮：播普通按钮点击声，不是翻页音效
+                // （用户 2026-09-25 反馈：点标题不该响滚动音效）。
+                ClientCompat.playButtonClickSound(mc);
                 toggleBrowseAll();
             }
         }

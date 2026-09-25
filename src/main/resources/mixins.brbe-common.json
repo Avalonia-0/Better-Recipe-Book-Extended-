@@ -61,6 +61,7 @@
     "pins.RecipeButtonMixin",
     "pins.OverlayRecipeButtonMixin",
     "scrollablepages.RecipeBookPageMixin",
+    "scrollablepages.PageTurnArrowSoundMixin",
     "scrollablepages.RecipeBookPageAnimationMixin",
     "cyclelock.RecipeBookComponentCycleLockMixin",
     "cyclelock.RecipeButtonCycleLockMixin",
