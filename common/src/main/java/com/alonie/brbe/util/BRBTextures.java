@@ -90,6 +90,24 @@ public class BRBTextures {
             ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/plain_overlay_disabled_highlighted")
     );
 
+    // ── 原版替代配方按钮纹理（用户 2026-09-25 诉求 2）───────────────────────────
+    // 配方书「替代配方组」浮层的按钮**纹理跟随内容**：显示完整配方预览时用原版纹理面
+    // （悬停 → *_highlighted；可合成/残缺 → 启用面，不可合成 → 禁用面），只画产物图标
+    // （开启「仅在悬停时显示替代配方」且未悬停）时才用 BRBE 自有 crafting_overlay 面。
+    public static final WidgetSprites VANILLA_CRAFTING_OVERLAY_SPRITE = new WidgetSprites(
+            ResourceLocation.withDefaultNamespace("recipe_book/crafting_overlay"),
+            ResourceLocation.withDefaultNamespace("recipe_book/crafting_overlay_disabled"),
+            ResourceLocation.withDefaultNamespace("recipe_book/crafting_overlay_highlighted"),
+            ResourceLocation.withDefaultNamespace("recipe_book/crafting_overlay_disabled_highlighted")
+    );
+
+    public static final WidgetSprites VANILLA_FURNACE_OVERLAY_SPRITE = new WidgetSprites(
+            ResourceLocation.withDefaultNamespace("recipe_book/furnace_overlay"),
+            ResourceLocation.withDefaultNamespace("recipe_book/furnace_overlay_disabled"),
+            ResourceLocation.withDefaultNamespace("recipe_book/furnace_overlay_highlighted"),
+            ResourceLocation.withDefaultNamespace("recipe_book/furnace_overlay_disabled_highlighted")
+    );
+
     public static final WidgetSprites SETTINGS_BUTTON_SPRITES = new WidgetSprites(
             ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/button_settings"),
             ResourceLocation.fromNamespaceAndPath(NS, "recipe_book/button_settings_highlighted")

@@ -57,11 +57,25 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
             // Furnace books (furnace / blast furnace / smoker) have no partial state.
             partial = false;
         }
+        boolean hovered = this.isHoveredOrFocused();
         boolean effectiveCraftable = this.isCraftable || partial;
-        ResourceLocation resourceLocation = (furnaceBook
-                ? BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE
-                : BRBTextures.RECIPE_BOOK_CRAFTING_OVERLAY_SPRITE)
-                .get(effectiveCraftable, isHoveredOrFocused());
+        // 纹理与内容一致（用户 2026-09-25 诉求 2）：
+        //  * 显示完整配方预览（悬停，或关闭「仅在悬停时显示替代配方」）→ 原版纹理面，
+        //    悬停 = *_highlighted（可合成/残缺 → 启用面，不可合成 → 禁用面）；
+        //  * 只画产物图标（开启该配置且未悬停）→ BRBE 自有 crafting_overlay(_disabled)。
+        // 熔炉系书（熔炉/鼓风炉/烟熏炉）同规则：原版面换成 furnace_overlay 系、
+        // BRBE 面换成 plain_overlay 系。
+        boolean fullPreview = hovered
+                || !BetterRecipeBook.ctx().config().alternativeRecipes.onHover;
+        ResourceLocation resourceLocation = fullPreview
+                ? (furnaceBook
+                        ? BRBTextures.VANILLA_FURNACE_OVERLAY_SPRITE
+                        : BRBTextures.VANILLA_CRAFTING_OVERLAY_SPRITE)
+                        .get(effectiveCraftable, hovered)
+                : (furnaceBook
+                        ? BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE
+                        : BRBTextures.RECIPE_BOOK_CRAFTING_OVERLAY_SPRITE)
+                        .get(effectiveCraftable, false);
 
         gui.blitSprite(resourceLocation, getX(), getY(), this.width, this.height);
 
@@ -73,7 +87,7 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         }
 
         gui.pose().pushPose();
-        if (BetterRecipeBook.ctx().config().alternativeRecipes.onHover && !this.isHoveredOrFocused()) { // if show alternatives recipe is enabled and recipe is not hovered, show the result item
+        if (!fullPreview) { // 只画产物图标（开启「仅在悬停时显示替代配方」且未悬停）
             ItemStack recipeOutput = this.recipe.value().getResultItem(field_3113.getRecipeCollection().registryAccess());
             gui.renderItem(recipeOutput, getX() + 4, getY() + 4);
         } else { // otherwise display the crafting recipe
