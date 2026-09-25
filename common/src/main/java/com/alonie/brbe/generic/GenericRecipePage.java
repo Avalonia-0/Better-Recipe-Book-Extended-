@@ -7,6 +7,7 @@ import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.layout.BookLayout;
 import com.alonie.brbe.layout.GridSpec;
 import com.alonie.brbe.util.BRBTextures;
+import com.alonie.brbe.util.CycleLock;
 import com.alonie.brbe.util.PageTurnArrows;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
@@ -196,8 +197,14 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         // Process queued scroll — captured by MouseScrollHandler at the
         // GLFW level and stored in BetterRecipeBook.queuedScroll.  Processed
         // at render time (same as scrollablepages/RecipeBookPageMixin).
+        // 「锁定折叠物品」键 + 滚轮：先试**逐格翻动指针下那一件折叠物品**（功能方块
+        // 里的幽灵物品 / 网格按钮），翻到了就不翻页（用户 2026-09-26 诉求：幽灵物品
+        // 也能锁定 + 滚轮翻动）。BRBE 自研配方书（酿造台/锻造台）的幽灵物品走
+        // GenericGhostRecipe 自己的轮循，不经过原版 SlotSelectTime，所以这里用
+        // CycleLock 的统一判定。
         int queued = BetterRecipeBook.getQueuedScroll();
-        if (queued != 0 && totalPages > 1 && isMouseOverRecipeBookPage(mouseX, mouseY, blitX, blitY)) {
+        if (queued != 0 && !CycleLock.consumeQueuedScroll()
+                && totalPages > 1 && isMouseOverRecipeBookPage(mouseX, mouseY, blitX, blitY)) {
             currentPage += queued;
             if (currentPage >= totalPages) {
                 currentPage = BetterRecipeBook.config.scrolling.scrollAround ? currentPage % totalPages : totalPages - 1;

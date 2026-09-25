@@ -1,5 +1,7 @@
 package com.alonie.brbe.util;
 
+import com.alonie.brbe.BetterRecipeBook;
+
 import java.util.HashMap;
 import java.util.Map;
 
@@ -196,6 +198,28 @@ public final class CycleLock {
         latch.index = Math.max(0, latch.index + delta);
         // 这次步进就是最新的意图：别让紧随其后的绘制把它当成过期冻结重量。
         latch.claimedAt = System.currentTimeMillis();
+        return true;
+    }
+
+    /**
+     * 消费**排队中的那次滚轮**（{@code BetterRecipeBook.queuedScroll}）：锁定键按住、
+     * 指针下有一件折叠物品时把它逐格翻动，翻到了就清空队列并返回 {@code true}。
+     *
+     * <p>为什么要单独有这样一个入口：配方书页只在**书体可见**时绘制，而幽灵物品在
+     * 书体收起后依然显示——原版点一下配方就会把书体收起（工作台上「幽灵物品留在
+     * 合成格里」正是书体收起的状态）。于是"指针停在幽灵物品上按锁定键+滚轮"在书体
+     * 收起时没有任何人消费队列（用户 2026-09-26 反馈：能锁定、滚轮翻不动）。
+     * 修复：**幽灵物品自己的绘制路径**（每帧都跑）也调用这里，与配方书页的同类分支
+     * 共用同一份判定——谁先跑到谁消费，队列清空后另一个自然不再重复步进。</p>
+     */
+    public static boolean consumeQueuedScroll() {
+        int queued = BetterRecipeBook.getQueuedScroll();
+        if (queued == 0 || !isDown()) return false;
+        // 与 claimScreen 同口径：指针被 LEI 查询窗口/pin/预览挡住时不插手——那些浮层
+        // 的折叠槽位由它们自己的滚轮分发器步进（它们不往 queuedScroll 里排队）。
+        if (RecipeViewerOverlay.modalMaskOwnsCursor(cursorX(), cursorY())) return false;
+        if (!step(queued)) return false;
+        BetterRecipeBook.setQueuedScroll(0);
         return true;
     }
 
