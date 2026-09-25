@@ -88,6 +88,7 @@
     "recipeviewer.ViewerOverlayTooltipMixin",
     "recipebookposition.RecipeBookComponentMixin",
     "recipebookposition.GenericRecipeBookComponentMixin",
+    "command.SuggestionsListMixin",
     "keybinding.KeyMappingSyncMixin",
     "pausescreen.PauseScreenConfigButtonMixin",
     "recipebook.RecipeBookToggleFocusMixin"
