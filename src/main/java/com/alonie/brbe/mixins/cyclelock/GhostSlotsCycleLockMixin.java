@@ -71,4 +71,22 @@ public abstract class GhostSlotsCycleLockMixin {
                                         int mouseX, int mouseY, Slot slot, CallbackInfo ci) {
         CycleLock.popContext();
     }
+
+    /**
+     * 幽灵物品绘制结束：消费排队中的滚轮（锁定键 + 滚轮 → 逐格翻动指针下的幽灵物品）。
+     *
+     * <p>⚠️ 为什么不能只靠配方书页那一条分支（{@code scrollablepages/RecipeBookPageMixin}）：
+     * 配方书页只在**书体可见**时绘制（{@code RecipeBookComponent.extractRenderState}
+     * 开头就 {@code if (!isVisible()) return;}），而幽灵物品在书体收起后照样显示——
+     * 原版 {@code AbstractRecipeBookScreen.extractSlots} 调 {@code extractGhostRecipe}
+     * 是无条件的，而点击配方时原版又正好会把书体收起（{@code setVisible(false)}）。
+     * 于是"指针停在幽灵物品上按锁定键+滚轮"在书体收起时完全没人消费队列（用户
+     * 2026-09-26 反馈：幽灵物品锁得住、滚轮翻不动）。这里跟着幽灵物品的绘制一起跑，
+     * 与配方书页那条分支共用 {@link CycleLock#consumeQueuedScroll()}，谁先跑到谁消费。</p>
+     */
+    @Inject(method = "extractRenderState", at = @At("RETURN"))
+    private void brbe$consumeQueuedScroll(GuiGraphicsExtractor gui, Minecraft minecraft,
+                                          boolean bl, CallbackInfo ci) {
+        CycleLock.consumeQueuedScroll();
+    }
 }

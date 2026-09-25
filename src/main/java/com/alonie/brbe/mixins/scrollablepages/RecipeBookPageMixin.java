@@ -179,13 +179,13 @@ public abstract class RecipeBookPageMixin {
 
         // 「锁定折叠物品」键按住时滚轮改为**逐格翻动指针下那一件折叠物品**（配方书
         // 网格按钮的配方图标 / 功能方块里的幽灵物品），不翻页（用户 2026-09-13
-        // 诉求 1+2）。判定放在这里而不是 MouseScrollHandler：本方法每帧都跑、又能
-        // 拿到光标，且上面的 modalMaskOwnsCursor 已经把「光标在查询界面/pin/预览上」
-        // 的情形排除掉了（那里由查询窗口自己处理滚轮）。没有物品被指着时不消费
-        // 滚轮，照常翻页。
-        if (BetterRecipeBook.queuedScroll != 0 && CycleLock.isDown()
-                && CycleLock.step(BetterRecipeBook.queuedScroll)) {
-            BetterRecipeBook.queuedScroll = 0;
+        // 诉求 1+2）。没有物品被指着时不消费滚轮，照常翻页。
+        //
+        // ⚠️ 本方法只在**书体可见**时跑，而幽灵物品在书体收起后（点击配方后原版就会
+        // 收起书体）依然显示 —— 那条路径由 {@code GhostSlotsCycleLockMixin} 在幽灵物品
+        // 自己的绘制结束时消费同一个队列（用户 2026-09-26 反馈：幽灵物品锁得住、
+        // 滚轮翻不动）。两边共用 {@link CycleLock#consumeQueuedScroll()}：谁先跑到谁消费。
+        if (CycleLock.consumeQueuedScroll()) {
             return;
         }
 
