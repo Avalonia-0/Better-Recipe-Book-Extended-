@@ -107,6 +107,13 @@ public class SmithingRecipeBookComponent extends GenericRecipeBookComponent<Smit
         return this.ghostRecipe != null && this.ghostRecipe.size() > 0;
     }
 
+    /** 悬停预览（用户 2026-09-25）：与点击时的"缺料引导"同一个写入路径，只是不看材料够不够。 */
+    @Override
+    protected void setupHoverGhost(BRBSmithingRecipe recipe) {
+        if (this.ghostRecipe == null) return;
+        this.setupGhostRecipe(recipe, this.menu.slots);
+    }
+
     @Override
     protected List<SmithingRecipeCollection> getCollectionsForCategory() {
         if (this.minecraft.player == null || this.minecraft.level == null) {

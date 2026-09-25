@@ -92,7 +92,10 @@
     "command.SuggestionsListMixin",
     "keybinding.KeyMappingSyncMixin",
     "pausescreen.PauseScreenConfigButtonMixin",
-    "recipebook.RecipeBookToggleFocusMixin"
+    "recipebook.RecipeBookToggleFocusMixin",
+    "hoverghost.RecipeBookComponentMixin",
+    "hoverghost.RecipeBookPageMixin",
+    "hoverghost.OverlayRecipeComponentMixin"
   ],
   "injectors": {
     "defaultRequire": 1
