@@ -95,6 +95,13 @@ public class SmithingRecipeBookComponent extends GenericRecipeBookComponent<Smit
         this.ghostRecipe.addIngredient(SmithingMenu.BASE_SLOT, Ingredient.of(result.getBase()), SmithingMenu.BASE_SLOT_X_PLACEMENT, SmithingMenu.SLOT_Y_PLACEMENT);
     }
 
+    /** 悬停预览（用户 2026-09-25）：与点击时的"缺料引导"同一个写入路径，只是不看材料够不够。 */
+    @Override
+    protected void setupHoverGhost(BRBSmithingRecipe recipe) {
+        if (this.ghostRecipe == null) return;
+        this.setupGhostRecipe(recipe, this.menu.slots);
+    }
+
     public boolean isShowingGhostRecipe() {
         return this.ghostRecipe != null && this.ghostRecipe.size() > 0;
     }

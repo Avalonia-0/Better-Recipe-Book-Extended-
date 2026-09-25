@@ -82,7 +82,10 @@
     "recipeviewer.RecipeBookPageTooltipMixin",
     "recipeviewer.RecipeBookPageClickMixin",
     "recipeviewer.ServerPlaceRecipeMixin",
-    "command.SuggestionsListMixin"
+    "command.SuggestionsListMixin",
+    "hoverghost.RecipeBookComponentMixin",
+    "hoverghost.RecipeBookPageMixin",
+    "hoverghost.OverlayRecipeComponentMixin"
   ],
   "injectors": {
     "defaultRequire": 1

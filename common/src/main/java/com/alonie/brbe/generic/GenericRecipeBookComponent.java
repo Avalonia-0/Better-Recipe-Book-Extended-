@@ -73,6 +73,14 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     @Nullable
     private ItemStack brbe$lastHoveredGhostItem;
 
+    /**
+     * 悬停预览正在展示的配方（用户 2026-09-25 诉求）。与页面当前悬停配方比较：
+     * 只有"指针换了一个配方"时才重写幽灵物品，因此点击（{@code handlePlaceRecipe}
+     * 自己写/清幽灵）不会被下一帧的悬停覆盖。
+     */
+    @Nullable
+    private R brbe$hoverGhostRecipe;
+
     protected GenericRecipeBookComponent() {
     }
 
@@ -189,6 +197,9 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
         // render the recipe book page contents
         this.recipesPage.render(gui, blitX, blitY, mouseX, mouseY, delta);
+
+        // 悬停即预览：页面渲染后 hoveredButton 已是本帧光标下的按钮
+        this.brbe$updateHoverGhost();
     }
 
     @Override
@@ -348,6 +359,10 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     protected void setVisible(boolean visible) {
         BRBBookSettings.setOpen(getRecipeBookType(), visible);
         this.visible = visible;
+        if (!visible) {
+            // 收起配方书 = 悬停结束（幽灵物品的渲染本就只在书可见时进行）
+            this.brbe$hoverGhostRecipe = null;
+        }
     }
 
     public boolean isVisible() {
@@ -527,6 +542,33 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
 
         this.ghostRecipe.render(guiGraphics, this.minecraft, x, y, bl, delta, selectedTab.getCategory());
     }
+
+    /**
+     * 悬停即预览（用户 2026-09-25 诉求）：指针停在配方按钮上就把该配方的幽灵物品
+     * 直接放进工作区（酿造台/锻造台槽位），移开立刻清掉。
+     *
+     * <p>与工作台（原版配方书）同语义：<b>可合成配方也显示</b>幽灵物品——酿造/锻造的
+     * 幽灵渲染谓词只画空槽位，所以已经放好的材料不会被盖住。</p>
+     *
+     * <p>只在"光标下的配方换了"时重写：点击放置（{@code handlePlaceRecipe}）自己
+     * 写/清幽灵之后，同一按钮上的悬停不再插手（否则会把点击留下的缺料引导顶掉）。</p>
+     */
+    private void brbe$updateHoverGhost() {
+        if (this.recipesPage == null || this.ghostRecipe == null) return;
+
+        R hovered = this.recipesPage.hoveredButton == null
+                ? null : this.recipesPage.hoveredButton.getCurrentDisplayedRecipe();
+        if (hovered == this.brbe$hoverGhostRecipe) return;
+
+        this.brbe$hoverGhostRecipe = hovered;
+        this.ghostRecipe.clear();
+        if (hovered != null) {
+            this.setupHoverGhost(hovered);
+        }
+    }
+
+    /** 把 {@code recipe} 的幽灵物品写进工作区（子类按各自槽位布局实现）。 */
+    protected abstract void setupHoverGhost(R recipe);
 
     protected abstract List<C> getCollectionsForCategory();
 
