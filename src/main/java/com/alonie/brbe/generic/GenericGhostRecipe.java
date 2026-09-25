@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.util.CycleLock;
 import com.alonie.brbe.util.ModNameUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.PartialGhostOverlayUtil;
@@ -143,7 +144,7 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
                 }
             }
 
-            ItemStack itemStack = ghostIngredient.getItem();
+            ItemStack itemStack = ghostIngredient.getDisplayStack(l, m);
             if (shouldRenderItem) {
                 guiGraphics.fakeItem(itemStack, l, m);
             }
@@ -192,7 +193,8 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
 
             // don't render tooltip if cursor is not over item or predicate returns false
             if (mouseX >= j && mouseY >= k && mouseX < j + 16 && mouseY < k + 16 && (renderingPredicate == null || renderingPredicate.test(GhostRenderType.TOOLTIP, ingredient))) {
-                itemStack = ingredient.getItem();
+                // 用显示体（而非自动轮换体）：锁定期间鼠标提示必须与画出来的那一件一致
+                itemStack = ingredient.getDisplayStack(j, k);
             }
         }
 
@@ -253,6 +255,33 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
         public ItemStack getItem() {
             ItemStack[] displayStacks = this.itemStacks != null ? this.itemStacks : ClientCompat.ingredientItems(this.ingredient);
             return displayStacks.length == 0 ? ItemStack.EMPTY : displayStacks[Mth.floor(GenericGhostRecipe.this.time / 30.0F) % displayStacks.length];
+        }
+
+        /**
+         * 该槽位**这一帧应显示**的物品：逐物品折叠锁（用户 2026-09-26 诉求）。
+         *
+         * <p>{@code screenX/screenY} 是它在屏幕上的位置（渲染原点 + 本槽位相对坐标，
+         * 与 {@code render}/{@code drawTooltip} 画它的坐标是同一组）。指针停在这件
+         * 幽灵物品上、且锁定键（默认 Alt）按住 → 冻结在**当下看到的**那一个变体上，
+         * 锁定键+滚轮逐格翻动（{@link CycleLock#consumeQueuedScroll()} 在幽灵物品的
+         * 绘制路径里消费排队的那次滚轮）；没被指着 → 照常按 {@code time} 自动轮换。</p>
+         *
+         * <p>单变体槽位不是折叠物品，直接原样返回（不去 claim，免得占着"指针下的物品"
+         * 让滚轮翻不动它旁边真正的折叠物品）。</p>
+         */
+        public ItemStack getDisplayStack(int screenX, int screenY) {
+            ItemStack[] displayStacks = this.itemStacks != null ? this.itemStacks : ClientCompat.ingredientItems(this.ingredient);
+            if (displayStacks.length <= 1) {
+                return displayStacks.length == 0 ? ItemStack.EMPTY : displayStacks[0];
+            }
+            Object key = this;
+            if (!CycleLock.claimScreen(key, screenX, screenY, 16, 16)) {
+                CycleLock.release(key);
+                return displayStacks[Mth.floor(GenericGhostRecipe.this.time / 30.0F) % displayStacks.length];
+            }
+            int auto = Math.floorMod(Mth.floor(GenericGhostRecipe.this.time / 30.0F), displayStacks.length);
+            int index = CycleLock.indexFor(key, auto);
+            return displayStacks[Math.floorMod(index, displayStacks.length)];
         }
 
         /** 该槽位的全部候选物品（轮循显示的变体；缺料判定用——"拥有任意一个即不缺料"）。 */

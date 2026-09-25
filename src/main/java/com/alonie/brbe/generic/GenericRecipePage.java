@@ -6,6 +6,7 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.util.CycleLock;
 import com.alonie.brbe.util.PageFlipDirection;
 import com.alonie.brbe.util.PageTurnArrows;
 import com.alonie.brbe.widget.StateSwitchingButton;
@@ -189,7 +190,13 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         this.frameCounter++;
 
         if (BetterRecipeBook.queuedScroll != 0) {
-            if (isMouseOverRecipeBookPage(mouseX, mouseY, blitX, blitY) && totalPages > 1) {
+            // 「锁定折叠物品」键 + 滚轮：先试**逐格翻动指针下那一件折叠物品**（功能方块
+            // 里的幽灵物品 / 网格按钮），翻到了就不翻页（用户 2026-09-26 诉求：幽灵物品
+            // 也能锁定 + 滚轮翻动）。BRBE 自研配方书（酿造台/锻造台）的幽灵物品走
+            // GenericGhostRecipe 自己的轮循，不经过原版 SlotSelectTime，所以这里用
+            // CycleLock 的统一判定。
+            if (!CycleLock.consumeQueuedScroll()
+                    && isMouseOverRecipeBookPage(mouseX, mouseY, blitX, blitY) && totalPages > 1) {
                 int target = currentPage + BetterRecipeBook.queuedScroll;
                 if (target >= totalPages) {
                     target = BetterRecipeBook.config.scrolling.scrollAround ? target % totalPages : totalPages - 1;

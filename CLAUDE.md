@@ -2166,3 +2166,85 @@ jar 内 zh_cn 键值 = 自动填充幽灵配方。
 酿造台 / 锻造台配方书同样受该开关控制。
 
 （本分支取值点 = `recipesPage.hoveredRecipe`。）
+
+## 2026-09-25（五）：折叠**幽灵物品**的锁定 + 滚轮翻动（四分支同步）
+
+用户需求：「我之前不久给「锁定」（默认 Alt 键）做了泛用性的定义及实现，现在我希望添加其对
+折叠幽灵物品的支持，也就是用 Alt 锁定正在轮循的幽灵物品，且使用滚轮翻动物品。」
+
+盘点后是**两处真实断点**（不是"幽灵物品没纳入锁定设计"，而是它在这个状态下压根没生效）：
+
+### ① 原版配方书：书体收起后没人消费滚轮（"锁得住、翻不动"）
+
+- 幽灵物品的**绘制**与原版书体的可见性无关：`AbstractRecipeBookScreen.extractSlots`
+  （1.21.11 是 `renderSlots`）**无条件**调用 `extractGhostRecipe`/`renderGhostRecipe`
+  → `GhostSlots.extractRenderState`（1.21.1 是 `GhostRecipe.render`）**每帧都跑**，
+  所以"指针停在幽灵物品上按 Alt"能 claim、能 latch（锁得住）。
+- 但**消费排队滚轮**的那条分支写在配方书**页**的绘制里
+  （`scrollablepages/RecipeBookPageMixin`），而页只在**书体可见**时绘制
+  （`RecipeBookComponent.extractRenderState|render` 开头 `if (!isVisible()) return;`）。
+- **而原版点击配方就会把书体收起**：`RecipeBookComponent.mouseClicked` 里
+  `tryPlaceRecipe` 返回 false（材料不全 → 只写幽灵物品）之后
+  `if (!isOffsetNextToMainGUI()) setVisible(false);` —— 工作台/熔炉这类整屏容器恒为 true
+  （只有背包 2×2 那种贴边界面才 `isOffsetNextToMainGUI()`）。也就是说
+  **"合成格里留着幽灵物品"恰恰就是书体收起的状态**，滚轮翻动在它最常见的状态下无人消费。
+- **修复**：新增 `CycleLock.consumeQueuedScroll()`（锁定键 + 排队滚轮 → `step` 指针下那一件，
+  成功则清队列），**配方书页与幽灵物品绘制路径共用它**，谁先跑到谁消费（队列清空后另一个
+  自然不再重复步进）。幽灵侧挂钩：
+  - 26.2 / 26.3：`cyclelock/GhostSlotsCycleLockMixin` 新增
+    `@Inject(method = "extractRenderState", at = @At("RETURN"))`；
+  - 1.21.11：同一 mixin，`method = "render"`（remap 后 `method_62033`）；
+  - 1.21.1：`cyclelock/GhostRecipeCycleLockMixin` 新增 `@Inject(method = "render", at = @At("RETURN"))`
+    （`method_2567`；与既有 HEAD「记录渲染原点」同方法、互不干扰）。
+  - 与 `claimScreen` 同口径：指针被 LEI 查询窗口 / pin / 预览挡住时不插手（那些浮层的折叠
+    槽位由它们自己的滚轮分发器步进，且不往 `queuedScroll` 排队）。
+  - 挂在 RETURN（本帧幽灵 claim **之后**）比页上那条更"新鲜"：把指针移上去后**第一次**滚轮
+    就能翻动，不用等下一帧。
+
+### ② BRBE 自研配方书（酿造台 / 锻造台）：幽灵物品根本没接锁定
+
+- 这两本书的幽灵是 BRBE 自己的 `GenericGhostRecipe`（变体由它自己的 `time` 驱动：
+  `items[floor(time / 30) % n]`），**不经过**原版 `SlotSelectTime` → `CycleLockSlotSelectTime`
+  那套对它无效；页面滚轮也只有翻页一条路（而且 `GenericRecipePage.render` 会把
+  `queuedScroll` **无条件清零**）。
+- 实测哪本书真的有折叠幽灵：**锻造台**——`SmithingRecipeBookComponent.setupGhostRecipe` 用
+  `addIngredient(slot, Ingredient, x, y)` 加**附加材料 / 模板**（整套 Ingredient，多候选择 →
+  轮循）；酿造台的原料槽走 `ClientCompat.firstIngredientItem(...)`（单候选，本就不是折叠物品
+  → `getDisplayStack` 直接跳过，不会占着"指针下的物品"害得旁边的折叠物品翻不动）。
+- **修复**（`generic/GenericGhostRecipe`）：
+  - 新增 `GenericGhostIngredient.getDisplayStack(screenX, screenY)`：单变体原样返回；多候选时
+    屏幕矩形 = 渲染原点 + 该槽位相对坐标（16×16）→ `CycleLock.claimScreen` +
+    `indexFor(key = 该 ingredient 实例, auto = floor(time/30) 取模)`；指针离开 `release`。
+    `render` 与 `drawTooltip` 都改用它——**锁定期间鼠标提示与画出来的那一件一致**。
+  - `GenericRecipePage.render`：翻页前先 `CycleLock.consumeQueuedScroll()`
+    （`!consume && 鼠标在配方区 && totalPages > 1` 才翻页），其余行为不变。
+
+### 统一入口
+
+`CycleLock` 新增 `consumeQueuedScroll()`（26.x / 1.21.11 读 `BetterRecipeBook.queuedScroll`；
+1.21.1 走 `getQueuedScroll()/setQueuedScroll()`），配方书页那条内联分支改为调用它——
+步进语义与 2026-09-13 那轮完全一致，只是多了一个"每帧都跑"的消费点。
+
+**构建/部署**（原子替换，备份 `20260925-191824`）：26.2-Fabric `99e4081993def106a345d7a4300ec0b6`
+（两个 26.2 实例）、26.3-Fabric `edcd779b35306881ecd1d50dbaac0c95`、1.21.11-Fabric
+`28450f3a04488fd6e35dbbb3706dd7e8`；1.21.1 只构建不部署：fabric
+`f724bd561bbf5143f89cd73409f859e9`、neoforge `531ef73231276124ad451af259579dbb`。
+四分支 `tools/mixin-check` 全 `[OK]`（含新增的 @Inject 目标与回调类型）。
+
+**字节码核对**（`javap -p -c/-v`）：
+- `CycleLock.consumeQueuedScroll()` = `getstatic BetterRecipeBook.queuedScroll`（1.21.1 是
+  `invokestatic getQueuedScroll`）→ `isDown` → `modalMaskOwnsCursor(cursorX, cursorY)` → `step`；
+- 幽灵侧注入：26.2/26.3 `@Inject(method=["extractRenderState"], at=RETURN)`；1.21.11
+  `method=["method_62033"]`；1.21.1 `method=["method_2567"]` HEAD（**既有**）+ RETURN（**新增**）；
+  参数类型在 remap 分支是 `class_332`/`class_310`（GuiGraphics / Minecraft）；
+- `GenericGhostRecipe` 里对 `getItem()` 的调用 **0** 处、`getDisplayStack` **2** 处
+  （render + drawTooltip）；`GenericRecipePage` 调 `consumeQueuedScroll` **1** 处。
+
+**验证方法**：
+1. **工作台（原版书）**：点一个材料不全的配方 → 书体自动收起、合成格里留下幽灵物品 → 指针移到
+   某个**折叠**幽灵物品上（多候选的槽，例如"任意木板"类）→ 按住 Alt：该槽停住、其余槽照常轮换；
+   **Alt + 滚轮逐格翻动它**；移开指针恢复自动轮换。
+2. **熔炉 / 背包**：同上（背包 2×2 界面书体不会自动收起，两种状态都该能翻）。
+3. **锻造台（BRBE 自研书）**：点配方或悬停配方 → 附加材料 / 模板槽出现幽灵物品 → Alt 锁定 +
+   滚轮翻动；锁定期间鼠标提示与显示的那一件一致。
+4. 指针不在任何折叠物品上时：滚轮照常翻页（配方书）/ 不被吞掉。
