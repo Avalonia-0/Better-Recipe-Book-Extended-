@@ -4,9 +4,10 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
-import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBTextures;
+import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.PageFlipDirection;
+import com.alonie.brbe.util.PageTurnArrows;
 import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.client.Minecraft;
 import com.alonie.brbe.widget.StateSwitchingButton;
@@ -95,6 +96,9 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         this.backButton = new StateSwitchingButton(parentLeft + 38, parentTop + 137, 12, 17, false);
         this.backButton.initTextureValues(BRBTextures.RECIPE_BOOK_PAGE_BACKWARD_SPRITES);
         this.backButton.active = true;
+        // 登记翻页箭头：按下时播「翻页音效」而不是原版点击声（PageTurnArrowSoundMixin）。
+        // 酿造台/锻造台书的翻页音效本已由 flipTo 播放——不登记的话这里会再叠一声原版点击声。
+        PageTurnArrows.register(this.forwardButton, this.backButton);
 
         for (int k = 0; k < this.buttons.size(); ++k) {
             this.buttons.get(k).setPosition(parentLeft + 11 + 25 * (k % 5), parentTop + 31 + 25 * (k / 5));
