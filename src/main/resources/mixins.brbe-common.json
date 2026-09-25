@@ -51,6 +51,7 @@
     "instantcraft.MultiPlayerGameModeMixin",
     "instantcraft.PlaceRecipeCarriedMixin",
     "instantcraft.RecipeBookComponentMixin",
+    "command.SuggestionsListMixin",
     "keybinding.KeyMappingSyncMixin",
     "modname.RecipeButtonMixin",
     "modname.GhostRecipeTooltipMixin",
