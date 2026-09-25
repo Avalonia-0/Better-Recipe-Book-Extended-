@@ -17,7 +17,6 @@ import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.input.MouseButtonInfo;
 import net.minecraft.client.renderer.RenderPipelines;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
@@ -129,12 +128,8 @@ public final class ClientCompat {
      *  {@code /brbe set pagesound}) govern them all. */
     public static void playPageFlipSound(Minecraft mc) {
         if (!BetterRecipeBook.config.scrollPageSound) return;
-        if (mc == null || mc.getSoundManager() == null) return;
-        float volume = 0.25f * BetterRecipeBook.config.pageFlipVolume;
-        if (volume > 0.0f) {
-            mc.getSoundManager().play(SimpleSoundInstance.forUI(
-                    PageFlipSound.resolve(), 1.0f, volume));
-        }
+        PageFlipSound.play(mc, PageFlipSound.resolve(),
+                0.25f * BetterRecipeBook.config.pageFlipVolume);
     }
 
     /**
