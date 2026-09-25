@@ -3,6 +3,7 @@ package com.alonie.brbe.mixins.scrollablepages;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.cache.RecipeViewerIndex;
 import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.util.PageTurnArrows;
 import com.alonie.brbe.util.CycleLock;
 import com.alonie.brbe.util.RecipeBookPageAnimBridge;
 import com.alonie.brbe.util.RecipeViewerOverlay;
@@ -229,6 +230,9 @@ public abstract class RecipeBookPageMixin {
 
     @Inject(method = "updateArrowButtons", at = @At("RETURN"))
     private void updateArrowButtons(CallbackInfo ci) {
+        // 登记翻页箭头：按下时播「翻页音效」而不是原版点击声
+        // （见 PageTurnArrowSoundMixin；刷新箭头是唯一的登记时机，且幂等）。
+        PageTurnArrows.register(forwardButton, backButton);
         if (BetterRecipeBook.config.scrolling.scrollAround && totalPages > 1) {
             forwardButton.visible = true;
             backButton.visible = true;
