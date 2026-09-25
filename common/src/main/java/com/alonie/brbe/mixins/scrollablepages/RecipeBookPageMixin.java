@@ -3,6 +3,7 @@ package com.alonie.brbe.mixins.scrollablepages;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.layout.BookLayout;
 import com.alonie.brbe.util.ClientCompat;
+import com.alonie.brbe.util.PageTurnArrows;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.StateSwitchingButton;
@@ -39,6 +40,9 @@ public abstract class RecipeBookPageMixin {
     @Inject(method = "updateButtonsForPage", at = @At("RETURN"))
     private void brbe$closeOverlayOnPageChange(CallbackInfo ci) {
         this.overlay.setVisible(false);
+        // 登记翻页箭头：按下时播「翻页音效」而不是原版点击声
+        // （见 PageTurnArrowSoundMixin；刷新箭头是唯一的登记时机，且幂等）。
+        PageTurnArrows.register(this.forwardButton, this.backButton);
     }
 
     /**

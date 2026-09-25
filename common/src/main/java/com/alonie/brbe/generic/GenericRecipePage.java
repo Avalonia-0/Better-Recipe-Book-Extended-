@@ -7,6 +7,7 @@ import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.layout.BookLayout;
 import com.alonie.brbe.layout.GridSpec;
 import com.alonie.brbe.util.BRBTextures;
+import com.alonie.brbe.util.PageTurnArrows;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.StateSwitchingButton;
@@ -95,6 +96,9 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         this.forwardButton.initTextureValues(BRBTextures.RECIPE_BOOK_PAGE_FORWARD_SPRITES);
         this.backButton = new StateSwitchingButton(backX, parentTop + BookLayout.ARROW_Y_OFFSET, 12, 17, true);
         this.backButton.initTextureValues(BRBTextures.RECIPE_BOOK_PAGE_BACKWARD_SPRITES);
+        // 登记翻页箭头：按下时播「翻页音效」而不是原版点击声（PageTurnArrowSoundMixin）。
+        // 酿造台/锻造台书的翻页音效本已由 flipTo 播放——不登记的话这里会再叠一声原版点击声。
+        PageTurnArrows.register(this.forwardButton, this.backButton);
 
         for (int k = 0; k < this.buttons.size(); ++k) {
             this.buttons.get(k).setPosition(

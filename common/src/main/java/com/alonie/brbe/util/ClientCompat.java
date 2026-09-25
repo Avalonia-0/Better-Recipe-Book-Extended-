@@ -130,6 +130,28 @@ public final class ClientCompat {
     }
 
     /**
+     * 普通按钮的点击声：**原版** UI 点击音（音量 0.25，与
+     * {@code AbstractWidget.playButtonClickSound} 完全一致），
+     * <b>不受</b>「翻页音效」配置与「鼠标滚轮翻页音效」开关影响。
+     *
+     * <p>用途：BRBE 自绘的按钮（查询窗口的底部类别标签等）不是 vanilla widget，
+     * 点击反馈要自己补——这些"非翻页"动作应当只响普通的按钮声，不能借用翻页音效
+     * （用户 2026-09-25 反馈：点标题/标签播成了滚动音效）。本分支没有静态的
+     * {@code AbstractWidget.playButtonClickSound}，直接按同音源/同音量构造。</p>
+     */
+    public static void playButtonClickSound() {
+        Minecraft mc = Minecraft.getInstance();
+        playButtonClickSound(mc);
+    }
+
+    /** {@link #playButtonClickSound()} 的显式 mc 版本（音频引擎缺失时静默）。 */
+    public static void playButtonClickSound(Minecraft mc) {
+        if (mc == null || mc.getSoundManager() == null) return;
+        mc.getSoundManager().play(net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(
+                net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value(), 1.0f, 0.25f));
+    }
+
+    /**
      * Matches the "pin" (固定) key binding — shared by the recipe-book
      * pinning, the query-object pin overlay and the RBIP tab pinning.  The
      * vanilla KeyMapping is the single source; the Cloth Config entry and

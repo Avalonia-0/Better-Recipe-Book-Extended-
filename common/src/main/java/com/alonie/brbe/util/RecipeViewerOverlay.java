@@ -1170,12 +1170,14 @@ public final class RecipeViewerOverlay {
             if (inside(mx, my, tabX(i - start), tabY, TAB_WIDTH, TAB_HEIGHT)) {
                 RecipeViewerCategory cat = cats.get(i);
                 Minecraft mc = Minecraft.getInstance();
+                // 普通按钮点击声（不是翻页音效）：点标签是"按按钮"，不是翻页
+                // （用户 2026-09-25 反馈）。
                 if (cat != currentCategory) {
-                    ClientCompat.playPageFlipSound(mc);
+                    ClientCompat.playButtonClickSound(mc);
                     switchCategory(cat);
                 } else {
                     // 点击已选标签 = 浏览全部切换（1.21.11 语义）
-                    ClientCompat.playPageFlipSound(mc);
+                    ClientCompat.playButtonClickSound(mc);
                     toggleBrowseAll();
                 }
                 return true;
