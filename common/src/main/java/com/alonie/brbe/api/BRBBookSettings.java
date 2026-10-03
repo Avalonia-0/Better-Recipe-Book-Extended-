@@ -30,11 +30,28 @@ public class BRBBookSettings {
         settings.open = bl;
     }
 
+    /**
+     * 自研书（锻造台 / 酿造台）的过滤状态 —— **有效**状态，不是原始按钮状态。
+     *
+     * <p>开启「优化原版配方过滤器」（{@code partialCraftingEnabled}，用户 2026-09-27 诉求）时
+     * 恒为 {@code false}：过滤按钮隐藏（见 {@code GenericRecipeBookComponent#initVisuals}）、
+     * 配方全显示，优先级只由 {@code CollectionPipeline.applyPartialSortGeneric}
+     * 的「可合成 → 残缺 → 其余」排序表达 —— 与原版书同一套语义
+     * （原版侧见 {@code mixins/DisableCraftableFilter} + {@code ungroup/RecipeBookComponentMixin}）。</p>
+     */
     public static boolean isFiltering(BRBHelper.Book book) {
         if (book == null) return false;
+        if (partialFilterMode()) return false;
         TypeSettings settings = states.get(book.resourceLocation);
         if (settings == null) return false;
         return settings.filtering;
+    }
+
+    /** 「优化原版配方过滤器」是否开启（配置项 {@code partialCraftingEnabled}）：自研书据此
+     *  隐藏过滤按钮、加宽搜索栏并恒做「可合成置顶」排序。 */
+    public static boolean partialFilterMode() {
+        return BetterRecipeBook.ctx() != null && BetterRecipeBook.ctx().config() != null
+                && BetterRecipeBook.ctx().config().partialCraftingEnabled;
     }
 
     public static void setFiltering(BRBHelper.Book book, boolean bl) {

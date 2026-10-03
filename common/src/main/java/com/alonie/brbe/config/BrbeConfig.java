@@ -39,17 +39,81 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.Tooltip
     public boolean recipeViewerEnabled = true;
 
-    /** 隐藏无配方书工作站所属的查询对象：开启后，查询结果中所有工作站都没有配方书体系的
-     *  对象被隐藏；若对象还包含有配方书体系的工作站则保留对象本身，仅 tooltip 隐藏非法
-     *  工作站图标。默认关闭。 */
-    public boolean hideNoRecipeBookStationObjects = false;
+    /** 「查询范围」（用户 2026-10-03：显示名由「配方书模式」改来，类型由布尔改为枚举）：
+     *  {@link QueryScope#RECIPE_BOOK_ONLY} = 仅限配方书（原 {@code true}）；
+     *  {@link QueryScope#ALL_CATEGORIES} = 全类别（原 {@code false}，默认）。
+     *  语义与旧布尔完全一致：仅限配方书时，配方书体系的工作站（合成/烧炼/锻造/酿造——BRBE 自带
+     *  酿造配方书）与配方书驱动的模组类别保留，无配方书体系的工作站（切石/铁砧/研磨）与信息行
+     *  类别（燃料/堆肥/信息）整体隐藏，对象的 tooltip 也过滤非法工作站图标。
+     *  旧 TOML 布尔键 {@code hideNoRecipeBookStationObjects} 由配置加载前的
+     *  {@code migrateLegacyConfigValuesInToml()} 迁移。 */
+    @ConfigEntry.Gui.Tooltip(count = 2)
+    // 两行说明（排版对齐「标签模式」）：…@Tooltip[0] / [1]。
+    // ⚠️ 必需（理由同 pageFlipDirection）：AutoConfig 对**没有这个注解**的枚举字段生成的是
+    // 可搜索下拉框（DropdownBoxEntry，实测候选只剩当前档位）；带上才走枚举切换按钮
+    // （SelectionListEntry，与「标签模式」同一条 provider 路径）。
+    @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
+    public QueryScope queryScope = QueryScope.ALL_CATEGORIES;
 
-    /** 「在配方区使用自然的翻页方向」：开启时鼠标滚轮向前（上滚）＝往后翻页；
-     *  关闭（默认）时是旧方向（上滚＝往前翻页）。只作用于**查询窗口配方区**的翻页——
-     *  标签条翻页、Alt+滚轮轮循、配方书自身的翻页都不受影响。默认关闭。
-     *  （1.21.1 没有「预览模式」，本项直接排在查询浮层开关簇末尾。） */
-    @ConfigEntry.Gui.Tooltip
-    public boolean naturalPageDirection = false;
+    /** 「查询范围」的**两档**。档位名走 {@code text.autoconfig.brbe.option.queryScope.<常量名>}。 */
+    public enum QueryScope implements me.shedaniel.clothconfig2.gui.entries.SelectionListEntry.Translatable {
+        /** 仅限配方书：只显示配方书体系内的对象（原布尔 {@code hideNoRecipeBookStationObjects=true}）。 */
+        RECIPE_BOOK_ONLY,
+        /** 全类别：不按配方书体系过滤（原布尔 {@code =false}，默认）。 */
+        ALL_CATEGORIES;
+
+        @Override
+        public String getKey() {
+            return "text.autoconfig.brbe.option.queryScope." + name();
+        }
+
+        /** 便捷判断（核心代码用它，避免直接耦合枚举）。 */
+        public boolean recipeBookOnly() {
+            return this == RECIPE_BOOK_ONLY;
+        }
+    }
+
+    /** 旧布尔 {@code hideNoRecipeBookStationObjects} 的读取点统一改用它
+     *  （字段缺失 / 为 null 时按默认的「全类别」）。 */
+    public boolean recipeBookOnly() {
+        return queryScope == QueryScope.RECIPE_BOOK_ONLY;
+    }
+
+    /** 「配方区翻页方向」（用户 2026-10-03：由布尔项改为枚举，并改名）：
+     *  {@link PageFlipDirection#NATURAL} = 自然（鼠标滚轮向前 / 上滚＝往后翻页，原 {@code true}）；
+     *  {@link PageFlipDirection#REGULAR} = 常规（旧方向：上滚＝往前翻页，原 {@code false}，默认）。
+     *  只作用于**查询窗口配方区**的翻页——标签条翻页、Alt+滚轮轮循、配方书自身的翻页都不受影响。
+     *  旧 TOML 布尔键 {@code naturalPageDirection} 由配置加载前的
+     *  {@code migrateLegacyConfigValuesInToml()} 迁移成 {@code pageFlipDirection = "NATURAL"|"REGULAR"}。 */
+    @ConfigEntry.Gui.Tooltip(count = 2)
+    // 两行说明（排版对齐「标签模式」）：Cloth 的 @Tooltip(count = N) 读 …@Tooltip[0] / [1]。
+    // ⚠️ 这个注解是**必需**的（用户 2026-10-03 实测："这一项只有一个『常规』可选"）：
+    // AutoConfig 的 DefaultGuiProviders 对枚举字段注册了**两条**路径 ——
+    //   ① 带本注解 → startSelector(...) → SelectionListEntry＝**枚举切换按钮**（点一下切下一档）；
+    //   ② 不带    → startDropdownMenu(...) → DropdownBoxEntry＝可搜索下拉框（候选只剩当前档位）。
+    // 注册顺序 ① 在前、GuiRegistry 取 findFirst → 带注解才走切换按钮（「标签模式」走的正是 ①）。
+    @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
+    public PageFlipDirection pageFlipDirection = PageFlipDirection.REGULAR;
+
+    /** 「配方区翻页方向」的**两档**。AutoConfig 的枚举选择器按
+     *  {@link me.shedaniel.clothconfig2.gui.entries.SelectionListEntry.Translatable#getKey()} 取显示名，
+     *  即 {@code text.autoconfig.brbe.option.pageFlipDirection.<常量名>}。 */
+    public enum PageFlipDirection implements me.shedaniel.clothconfig2.gui.entries.SelectionListEntry.Translatable {
+        /** 自然：鼠标滚轮向前（上滚）＝往后翻页（原布尔项 {@code true}）。 */
+        NATURAL,
+        /** 常规：旧方向，上滚＝往前翻页（原布尔项 {@code false}，默认）。 */
+        REGULAR;
+
+        @Override
+        public String getKey() {
+            return "text.autoconfig.brbe.option.pageFlipDirection." + name();
+        }
+
+        /** 便捷判断（核心代码用它，避免直接耦合枚举）。 */
+        public boolean natural() {
+            return this == NATURAL;
+        }
+    }
 
     @ConfigEntry.Gui.TransitiveObject
     public RecipeBookIsPain rbip = new RecipeBookIsPain();

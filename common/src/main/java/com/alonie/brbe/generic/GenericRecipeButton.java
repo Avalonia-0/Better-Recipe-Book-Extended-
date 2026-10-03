@@ -5,6 +5,7 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.layout.BookLayout;
 import com.alonie.brbe.util.BRBTextures;
+import com.alonie.brbe.util.RecipeCellTooltips;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -81,7 +82,8 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
             gui.fill(getX() + 1, getY() + 1, getX() + this.width - 1, getY() + this.height - 1, 0x60FF3333);
         }
 
-        ItemStack result = getCurrentDisplayedRecipe().getResult(registryAccess, category);
+        // 展示物品走 getDisplayedStack：默认 = 当前轮循配方的产物，子类可整格换（纹饰组 → 模板）
+        ItemStack result = this.getDisplayedStack(category);
 
         // render ingredient item (on top of red overlay)
         int offset = BookLayout.PIN_SPRITE_OFFSET;
@@ -105,6 +107,14 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
 
     public boolean isOnlyOption() {
         return this.getOrderedRecipes().size() == 1;
+    }
+
+    /**
+     * 本格是否参与「悬停即预览幽灵配方」：默认参与。子类可以声明不参与
+     * （锻造台纹饰组——那一格展示的是模板、内部不轮循，悬停它不该往工作区写任何东西）。
+     */
+    public boolean providesHoverPreview() {
+        return true;
     }
 
     public List<R> getOrderedRecipes() {
@@ -143,11 +153,29 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
     }
 
     public List<Component> getTooltipText() {
-        List<Component> list = Lists.newArrayList();
+        return this.getTooltipFor(this.getDisplayedStack(this.category));
+    }
 
-        var tipCtx = Item.TooltipContext.of(registryAccess);
-        list.addAll(getCurrentDisplayedRecipe().getResult(registryAccess, category).getTooltipLines(tipCtx, Minecraft.getInstance().player, TooltipFlag.NORMAL));
+    /** 由**展示物品**构建单元格 tooltip（子类可整格换展示，见 {@link #getDisplayedStack}）。 */
+    protected List<Component> getTooltipFor(ItemStack result) {
+        // 与原版一致（`RecipeButton#getTooltipText`：hasMultipleRecipes() → MORE_RECIPES_TOOLTIP）：
+        // 这一格是"多个替代配方"的组、右键能展开更多时补一行提示。用户 2026-09-26 反馈：
+        // 酿造台/锻造台的自研配方书漏了这一行。
+        // 行内容与**替代配方组浮层**里的格子共用（RecipeCellTooltips），保证两边格式一致；
+        // 该 helper 同时补齐模组名行——与另三个分支的同名方法一致（原先只有本分支缺）。
+        return RecipeCellTooltips.forStack(this.registryAccess, result, this.getOrderedRecipes().size() > 1);
+    }
 
-        return list;
+    /**
+     * 单元格**画出来**的那件物品（默认 = 当前轮循配方的产物）。
+     *
+     * <p>锻造台的**纹饰组**覆写它：原版一条 {@code smithing_trim} 配方的 base 是
+     * {@code #minecraft:trimmable_armor} 标签，展开成"每种可纹饰装备一件"的一整组，
+     * 折叠时轮循各件装备没有信息量——整组共用的**纹饰模板**才是这一组的 identity
+     * （用户 2026-09-26 诉求）。</p>
+     */
+    protected ItemStack getDisplayedStack(BRBBookCategories.Category category) {
+        R current = this.getCurrentDisplayedRecipe();
+        return current == null ? ItemStack.EMPTY : current.getResult(this.registryAccess, category);
     }
 }

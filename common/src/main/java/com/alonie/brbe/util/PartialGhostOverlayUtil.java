@@ -50,11 +50,11 @@ public final class PartialGhostOverlayUtil {
      * @param ghostRecipe 幽灵配方实例
      * @param renderX     配方书原点 x（幽灵槽坐标是相对坐标）
      * @param renderY     配方书原点 y
-     * @param bigSlot     结果槽是否大格子（{@code renderGhostRecipe} 的 boolean 参数）
+     * @param resultSlotIndex 菜单结果槽下标（{@code RecipeBookMenu.getResultSlotIndex()}；&lt; 0 = 无）
      */
     public static void prepare(@Nullable RecipeHolder<?> recipe, RecipeCollection collection,
                                NonNullList<Slot> menuSlots, ItemStack carried,
-                               GhostRecipe ghostRecipe, int renderX, int renderY, boolean bigSlot) {
+                               GhostRecipe ghostRecipe, int renderX, int renderY, int resultSlotIndex) {
         active = false;
         noRedMaskSlots.clear();
         if (recipe == null || collection == null || ghostRecipe == null) return;
@@ -74,17 +74,33 @@ public final class PartialGhostOverlayUtil {
         // 幽灵槽位按渲染坐标 (y, x) 排序 = 从上到下、从左到右，即玩家感知的槽位顺序。
         List<GhostRecipe.GhostIngredient> ingredients =
                 ((GhostRecipeAccessor) ghostRecipe).getIngredients();
+        // 结果槽（产物）在**容器坐标**里的位置：幽灵里的产物槽按位置识别——原版与 mod 的
+        // setupGhostRecipe 都把产物写进菜单结果槽的坐标（1.21.1 的合成与熔炉两处
+        // setupGhostRecipe 字节码已核实），比"必定是第 0 个"稳。
+        int resultX = Integer.MIN_VALUE;
+        int resultY = Integer.MIN_VALUE;
+        if (resultSlotIndex >= 0 && resultSlotIndex < menuSlots.size()) {
+            Slot resultSlot = menuSlots.get(resultSlotIndex);
+            resultX = resultSlot.x;
+            resultY = resultSlot.y;
+        }
         List<int[]> ordered = new ArrayList<>();
+        // 结果槽（产物）的渲染坐标：先记下，材料槽判完再决定它的遮罩（见下方）。
+        long resultKey = Long.MIN_VALUE;
         for (int i = 0; i < ingredients.size(); i++) {
             GhostRecipe.GhostIngredient ing = ingredients.get(i);
-            // 结果槽（index 0 且大格子）不参与材料扣除，始终保留红遮罩。
-            if (i == 0 && bigSlot) continue;
+            if (ing.getX() == resultX && ing.getY() == resultY) {
+                // 结果槽（产物）不是"要凑的材料"：不参与数量扣除，遮罩等材料槽判完再定
+                resultKey = key(ing.getX() + renderX, ing.getY() + renderY);
+                continue;
+            }
             ordered.add(new int[]{ing.getX() + renderX, ing.getY() + renderY, i});
         }
         ordered.sort(Comparator.comparingInt((int[] a) -> a[1]).thenComparingInt(a -> a[0]));
 
         // 逐个扣除：库存中还有该材料则移除该槽位红遮罩，并扣减剩余数量。
         active = true;
+        boolean allMaterialsOwned = true;
         for (int[] entry : ordered) {
             ItemStack stack = ingredients.get(entry[2]).getItem();
             if (stack == null || stack.isEmpty()) continue;
@@ -93,7 +109,17 @@ public final class PartialGhostOverlayUtil {
             if (available > 0) {
                 noRedMaskSlots.add(key(entry[0], entry[1]));
                 counts.put(item, available - 1);
+            } else {
+                allMaterialsOwned = false;
             }
+        }
+        // 产物槽的红/白遮罩（用户 2026-09-26 修正）：
+        //   · 材料**全齐**（= 可合成）→ 整槽不画遮罩：产物本来就不该在物品栏里，红罩/白罩
+        //     只会被读成"还缺产物"（用户 2026-09-25 诉求）；
+        //   · 材料没齐（残缺 / 不可合成）→ 遮罩照原版画。
+        // 此前是**无条件**跳过结果槽遮罩，把残缺/不可合成的产物槽一起洗白了（用户反馈的回归）。
+        if (resultKey != Long.MIN_VALUE && allMaterialsOwned) {
+            noRedMaskSlots.add(resultKey);
         }
     }
 

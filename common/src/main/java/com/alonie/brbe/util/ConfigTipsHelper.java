@@ -176,6 +176,14 @@ public final class ConfigTipsHelper {
     private static final String SETTINGS_BUTTON_OPTION_KEY = "text.autoconfig.brbe.option.settingsButton";
     private static final String ENABLE_BOOK_OPTION_KEY = "text.autoconfig.brbe.option.enableBook";
     private static final String RECIPE_SETTINGS_CATEGORY_KEY = "text.autoconfig.brbe.category.recipeSettings";
+
+    /** 「行为」页（类别 id 仍是 {@code recipeSettings}，显示名 2026-10-02 由「配方」改为「行为」）
+     *  顶部的三个条目，**按此顺序**（用户 2026-10-02 指定）。三者原本都在「功能」页
+     *  （前两个是无 {@code @Category} 的顶层字段，第三个是 {@code scrolling} 子对象的字段）。 */
+    private static final List<String> BEHAVIOR_TOP_OPTION_KEYS = List.of(
+            "text.autoconfig.brbe.option.autoFillGhostRecipe",
+            "text.autoconfig.brbe.option.saveRecipeBookPosition",
+            "text.autoconfig.brbe.option.scrolling.scrollAround");
     /** 「启用解锁弹跳动画」：搬到「配方书翻页动画」（{@code pageAnimation.pageAnimationEnabled}）之后。
      *  ⚠️ 该字段三分支不同 —— 26.2/1.21.11 是顶层 {@code enableBounce}，1.21.1 仍在
      *  {@code newRecipes} 子对象里（{@code newRecipes.enableBounce}）。子对象条目跟随
@@ -250,6 +258,16 @@ public final class ConfigTipsHelper {
                 builder.getOrCreateCategory(Component.translatable(RECIPE_SETTINGS_CATEGORY_KEY)).getEntries();
         moveAfterFirstFound(List.of(defaultEntries, uiEntries, recipeEntries),
                 ENABLE_BOUNCE_OPTION_KEYS, PAGE_ANIMATION_ENABLED_OPTION_KEY);
+        // 7 「自动填充幽灵配方」「保存配方书浏览记录」「循环滚动」→「行为」页顶部，
+        //     相对顺序不变（用户 2026-10-02 指定）。条目可能还在「功能」页，所以两张列表都要找；
+        //     addAll(0, …) 保证它们成为该页最前面的三条，且内部顺序 = 常量里的顺序。
+        List<Object> behaviorTop = new ArrayList<>();
+        for (String key : BEHAVIOR_TOP_OPTION_KEYS) {
+            Object entry = removeByFieldName(defaultEntries, Component.translatable(key));
+            if (entry == null) entry = removeByFieldName(recipeEntries, Component.translatable(key));
+            if (entry != null) behaviorTop.add(entry);
+        }
+        recipeEntries.addAll(0, behaviorTop);
     }
 
     /** 把 {@code optionKey} 的条目挪到 {@code anchorKey} 条目之前；{@code skipTextRowAbove} 为真时

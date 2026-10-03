@@ -62,7 +62,51 @@ public final class AppContext {
     private final BRBBookCategories.Category smithingTransform;
     private final BRBBookCategories.Category smithingTrim;
 
+    /**
+     * 配置加载前的 TOML 预处理（2026-10-03）：把**三个**旧布尔项改写成枚举值 ——
+     * {@code naturalPageDirection} → {@code pageFlipDirection = "NATURAL"|"REGULAR"}、
+     * {@code hideNoRecipeBookStationObjects} → {@code queryScope = "RECIPE_BOOK_ONLY"|"ALL_CATEGORIES"}、
+     * {@code noGrouped} → {@code splitMode = "FULL"|"SELECTIVE"}。
+     *
+     * <p>字段类型换掉后旧值反序列化会抛异常 → Cloth 的 register 整体失败（玩家的其余设置一起丢），
+     * 所以必须在 {@code AutoConfig.register} 之前把文件里那一行改掉。
+     * 文件不存在 / 不含旧键时什么都不做。</p>
+     */
+    private static void migrateLegacyConfigValuesInToml() {
+        try {
+            net.minecraft.client.Minecraft minecraft = net.minecraft.client.Minecraft.getInstance();
+            if (minecraft == null || minecraft.gameDirectory == null) return;
+            java.nio.file.Path path = minecraft.gameDirectory.toPath()
+                    .resolve("config").resolve("brbe.toml");
+            if (!java.nio.file.Files.isRegularFile(path)) return;
+            String text = java.nio.file.Files.readString(path, java.nio.charset.StandardCharsets.UTF_8);
+            String updated = text
+                    .replaceAll("(?m)^(\\s*)naturalPageDirection\\s*=\\s*true\\b",
+                            "$1pageFlipDirection = \"NATURAL\"")
+                    .replaceAll("(?m)^(\\s*)naturalPageDirection\\s*=\\s*false\\b",
+                            "$1pageFlipDirection = \"REGULAR\"")
+                    .replaceAll("(?m)^(\\s*)hideNoRecipeBookStationObjects\\s*=\\s*true\\b",
+                            "$1queryScope = \"RECIPE_BOOK_ONLY\"")
+                    .replaceAll("(?m)^(\\s*)hideNoRecipeBookStationObjects\\s*=\\s*false\\b",
+                            "$1queryScope = \"ALL_CATEGORIES\"")
+                    .replaceAll("(?m)^(\\s*)noGrouped\\s*=\\s*true\\b",
+                            "$1splitMode = \"FULL\"")
+                    .replaceAll("(?m)^(\\s*)noGrouped\\s*=\\s*false\\b",
+                            "$1splitMode = \"SELECTIVE\"");
+            if (updated.equals(text)) return;
+            java.nio.file.Files.writeString(path, updated, java.nio.charset.StandardCharsets.UTF_8);
+            BetterRecipeBook.LOGGER.info("[BRBE] Migrated brbe.toml legacy boolean options to enums");
+        } catch (Exception e) {
+            BetterRecipeBook.LOGGER.warn("[BRBE] legacy option TOML migration failed: {}", e.getMessage());
+        }
+    }
+
     private AppContext() {
+        // 配置加载前的 TOML 预处理（2026-10-03）：两个旧布尔项 → 枚举值
+        // （`naturalPageDirection` / `hideNoRecipeBookStationObjects` / `noGrouped`；枚举化必须的一次性搬运，
+        //  必须早于 AutoConfig.register，否则旧布尔值会让整份配置反序列化失败）。
+        migrateLegacyConfigValuesInToml();
+
         // Register config first so we have a config snapshot to pass around.
         AutoConfig.register(BrbeConfig.class, Toml4jConfigSerializer::new);
         this.configHolder = AutoConfig.getConfigHolder(BrbeConfig.class);
@@ -81,7 +125,10 @@ public final class AppContext {
         this.brewingPotion = brewing.createCategory(new ItemStack(Items.POTION));
         this.brewingSplashPotion = brewing.createCategory(new ItemStack(Items.SPLASH_POTION));
         this.brewingLingeringPotion = brewing.createCategory(new ItemStack(Items.LINGERING_POTION));
-        this.smithingSearch = smithing.createSearch();
+        // 锻造台标签页 = 「升级模板 / 纹饰模板」两页（用户 2026-09-28 诉求：去掉"搜索"页）。
+        // 本分支的标签列表取自 BetterRecipeBook 的静态类别（本 AppContext 里的 Book 是
+        // 另一个对象、仅供诊断读取），两处保持一致：搜索类别不登记为标签页。
+        this.smithingSearch = smithing.createUnlistedSearch();
         this.smithingTransform = smithing.createCategory(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE));
         this.smithingTrim = smithing.createCategory(new ItemStack(Items.NETHERITE_CHESTPLATE));
 

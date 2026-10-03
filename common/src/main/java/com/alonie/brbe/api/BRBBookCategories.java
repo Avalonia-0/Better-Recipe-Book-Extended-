@@ -37,6 +37,19 @@ public class BRBBookCategories {
         return createCategory(book, Category.Type.SEARCH, new ItemStack(Items.COMPASS));
     }
 
+    /**
+     * **不登记为标签页**的"搜索/全部"类别（用户 2026-09-28 诉求：锻造台去掉"搜索"页，
+     * 只留「升级模板 / 纹饰模板」两页；与 26.3/26.2/1.21.11 同步）。
+     *
+     * <p>类别对象仍然有用——锻造台的替代配方组浮层拿 {@code SMITHING_SEARCH} 当
+     * {@code getResult(registryAccess, category)} 的类别参数（锻造配方的产物与类别无关），
+     * {@code shouldInclude(...)} 里也留着"搜索页 = 全部配方"的判定。只是**不进
+     * {@link #getCategories} 的标签列表** → 界面上没有这一页。</p>
+     */
+    public static Category createUnlistedSearch() {
+        return new Category(Category.Type.SEARCH, new ItemStack(Items.COMPASS));
+    }
+
     public static class Category {
         private final List<ItemStack> itemIcons;
         private final Type type;

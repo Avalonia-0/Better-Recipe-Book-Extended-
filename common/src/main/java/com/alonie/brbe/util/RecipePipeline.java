@@ -263,6 +263,13 @@ public final class RecipePipeline {
                     ctx.showAllRecipesInSurvival);
         }
 
+        // -- Stage 2.6: 同产物合并 -------------------------------------
+        // 产物 = 物品 + 组件（忽略数量）相同的集合并成一个替代配方组（用户 2026-09-28 诉求，
+        // 配置 alternativeRecipes.mergeSameResult）；取消分组开启时本项不生效。
+        // 合并组照旧参与下面的排序与 pin 剥离；残缺标记由 Stage 6b 统一重放（在其之前运行）。
+        CollectionPipeline.MergeResult merge = CollectionPipeline.applyResultMerge(visible);
+        visible = merge.list();
+
         // -- Sorting ---------------------------------------------------
         List<RecipeCollection> result = applySorting(visible, ctx);
 
@@ -278,7 +285,8 @@ public final class RecipePipeline {
         // 幂等（PIN_COPIES 先清旧重打包组）。生成的新组是全新 RecipeCollection
         // 对象，其残缺标记由 Stage 6b（reapplyPartialMarking）重放。
         // BRBE/vanilla 两种排序路径都执行提取（pin 置顶语义全局一致）
-        CollectionPipeline.applyPinCopyGroups(result);
+        // 副本"两边都脱离父组"时在提取阶段合二为一（只留专用格那一条，用户 2026-09-28 定）
+        CollectionPipeline.applyPinCopyGroups(result, merge);
 
         // -- Stage 6b: reapply partial marking on repacked packs ------
         // 新组（rest/pin 包）无残缺标记（按对象身份记录）——重放标记，

@@ -13,6 +13,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.StateSwitchingButton;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import org.jetbrains.annotations.Nullable;
 
@@ -40,6 +41,15 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         return buttons;
     }
     protected GenericRecipeButton<C, R, M> hoveredButton;
+    /** 本帧光标下的配方变体（网格按钮，或**替代配方组浮层**内的按钮——见
+     *  {@code SmithingRecipeBookPage}）：tooltip / R-U 查询读它。 */
+    protected R hoveredRecipe;
+    /**
+     * **幽灵预览**专用的悬停配方（可与 {@link #hoveredRecipe} 不同）：只喂
+     * 「自动填充幽灵配方」。不提供预览的格子（{@link GenericRecipeButton#providesHoverPreview()}
+     * = false，例如锻造台纹饰组）在这里是 {@code null} → 不写幽灵（用户 2026-09-26 诉求）。
+     */
+    protected R hoverGhostRecipe;
 
     public GenericRecipePage(RegistryAccess registryAccess, Supplier<GenericRecipeButton<C, R, M>> recipeButtonSupplier) {
         this.registryAccess = registryAccess;
@@ -113,7 +123,14 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         return false;
     }
 
-    protected void initOverlay(C recipeCollection, int x, int y, RegistryAccess registryAccess) {
+    /**
+     * 展开替代配方组浮层（默认无浮层）。
+     *
+     * <p>{@code anchorX/anchorY} = **被右键点击的那个组按钮**的屏幕坐标：浮层贴着它展开
+     * （原版合成书的落位规则，见 {@link com.alonie.brbe.util.AlternativeOverlayLayout#placeBox}）。</p>
+     */
+    protected void initOverlay(C recipeCollection, int anchorX, int anchorY,
+                               int x, int y, RegistryAccess registryAccess) {
     }
 
     public boolean mouseClicked(double mouseX, double mouseY, int button, int j, int k, int l, int m) {
@@ -143,7 +160,8 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
                     this.lastClickedRecipe = recipeButton.getCurrentDisplayedRecipe();
                     this.lastClickedRecipeCollection = recipeButton.getCollection();
                 } else if (button == 1 && !overlayIsVisible() && !recipeButton.isOnlyOption()) {
-                    this.initOverlay(recipeButton.getCollection(), this.parentLeft, this.parentTop, registryAccess);
+                    this.initOverlay(recipeButton.getCollection(), recipeButton.getX(), recipeButton.getY(),
+                            this.parentLeft, this.parentTop, registryAccess);
                 }
                 return true;
             }
@@ -189,6 +207,29 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         return false;
     }
 
+    /**
+     * 替代配方组浮层里**被悬停的那一格**的 tooltip（{@code null} = 没有悬停任何格子）。
+     *
+     * <p>浮层打开时格子由页面自己画（{@code suppressGridHover()} 把 {@code hoveredButton}
+     * 压成 null），tooltip 就得由浮层自己给：锻造台/酿造台页面覆写本方法，行内容与该书的
+     * 普通配方格同款（用户 2026-09-27 诉求）。通用页面没有浮层，默认 {@code null}。</p>
+     */
+    @Nullable
+    public List<Component> overlayTooltip() {
+        return null;
+    }
+
+    /**
+     * 替代配方组浮层打开时，**网格不再参与悬停判定**（原版合成书就是这个语义：
+     * {@code hoverghost/RecipeBookPageMixin} 在 {@code overlay.isVisible()} 时直接 return）。
+     *
+     * <p>不抑制的话，鼠标落在浮层的面板/间隙上时命中判定会**透过浮层**命中底下的网格按钮 →
+     * 触发那格的幽灵预览与 tooltip（用户 2026-09-26 反馈的"透过替代配方组界面触发幽灵配方"）。</p>
+     */
+    protected boolean suppressGridHover() {
+        return false;
+    }
+
     protected void render(GuiGraphics gui, int blitX, int blitY, int mouseX, int mouseY, float delta) {
         // Guard: if initialize() was never called (e.g. book closed on screen
         // init), every field is null — bail out cleanly.
@@ -222,11 +263,16 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         }
 
         this.hoveredButton = null;
+        this.hoveredRecipe = null;
+        this.hoverGhostRecipe = null;
 
         for (var button : this.buttons) {
             button.render(gui, mouseX, mouseY, delta);
-            if (button.visible && button.isHoveredOrFocused()) {
+            if (!this.suppressGridHover() && button.visible && button.isHoveredOrFocused()) {
                 this.hoveredButton = button;
+                this.hoveredRecipe = button.getCurrentDisplayedRecipe();
+                // 幽灵预览：格子可以声明"不提供"（纹饰组）——悬停它不写幽灵、也不暂隐工作区
+                this.hoverGhostRecipe = button.providesHoverPreview() ? this.hoveredRecipe : null;
             }
         }
 

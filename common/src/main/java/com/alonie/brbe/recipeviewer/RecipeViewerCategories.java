@@ -78,7 +78,7 @@ public final class RecipeViewerCategories {
                 if (!category.appliesToStation(target)) continue;
                 // hide 开关切断非法站的站类别连接（grid 类别豁免——
                 // 燃料站仍显示其可烧燃料，1.21.11 语义）
-                if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+                if (BetterRecipeBook.config.recipeBookOnly()
                         && !category.isGridCategory()
                         && !com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine.isRecipeBookStation(target)) {
                     continue;

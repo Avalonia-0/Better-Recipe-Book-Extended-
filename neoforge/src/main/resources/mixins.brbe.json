@@ -1,9 +1,10 @@
 {
-  "required": true,
-  "minVersion": "0.8",
-  "package": "com.alonie.brbe.neoforge.Mixins",
-  "compatibilityLevel": "JAVA_16",
-  "client": [
-    "Accessors.NeoForgePotionBrewingAccessor"
-  ]
+    "required": true,
+    "minVersion": "0.8",
+    "package": "com.alonie.brbe.neoforge.Mixins",
+    "compatibilityLevel": "JAVA_16",
+    "client": [
+        "Accessors.NeoForgePotionBrewingAccessor",
+        "hoverghost.AbstractContainerScreenSlotContentsMixin"
+    ]
 }

@@ -1,20 +1,21 @@
-package com.alonie.brbe.smithingtable;
+package com.alonie.brbe.brewingstand;
 
-import com.alonie.brbe.generic.GenericRecipeButton;
 import com.alonie.brbe.generic.GenericRecipePage;
-import com.alonie.brbe.recipe.BRBSmithingRecipe;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.core.RegistryAccess;
-import net.minecraft.world.inventory.SmithingMenu;
+import net.minecraft.world.inventory.BrewingStandMenu;
 
 import java.util.function.Supplier;
 
-public class SmithingRecipeBookPage extends GenericRecipePage<SmithingMenu, SmithingRecipeCollection, BRBSmithingRecipe> {
-    public final SmithingOverlayRecipeComponent overlay = new SmithingOverlayRecipeComponent();
+/**
+ * 酿造台配方书的页面：比通用页面多一个**替代配方组浮层**
+ * （{@link BrewingOverlayRecipeComponent}，用户 2026-09-26 诉求）。
+ */
+public class BrewingRecipeBookPage extends GenericRecipePage<BrewingStandMenu, BrewingRecipeCollection, BrewableResult> {
+    public final BrewingOverlayRecipeComponent overlay = new BrewingOverlayRecipeComponent();
 
-    public SmithingRecipeBookPage(RegistryAccess registryAccess, Supplier<Boolean> filteringSupplier) {
-        // SmithingRecipeButton：纹饰组的折叠单元格显示该组的纹饰模板（而不是轮循各件装备）
-        super(registryAccess, () -> new SmithingRecipeButton(registryAccess, filteringSupplier));
+    public BrewingRecipeBookPage(RegistryAccess registryAccess, Supplier<Boolean> filteringSupplier) {
+        super(registryAccess, () -> new BrewableRecipeButton(registryAccess, filteringSupplier));
     }
 
     @Override
@@ -29,10 +30,12 @@ public class SmithingRecipeBookPage extends GenericRecipePage<SmithingMenu, Smit
     }
 
     @Override
-    protected void initOverlay(SmithingRecipeCollection recipeCollection, int anchorX, int anchorY,
+    protected void initOverlay(BrewingRecipeCollection recipeCollection, int anchorX, int anchorY,
                                int x, int y, RegistryAccess registryAccess) {
         // 位置按**被点击的组按钮** + 书面板原点算（原版规则，见 AlternativeOverlayLayout#placeBox）
-        this.overlay.init(recipeCollection, anchorX, anchorY, this.parentLeft, this.parentTop, registryAccess);
+        // category/menu 一并传进浮层：组内格子的 tooltip 要按它们取产物形态与"背包里有没有"的配色
+        this.overlay.init(recipeCollection, this.category, this.menu, anchorX, anchorY,
+                this.parentLeft, this.parentTop, registryAccess);
     }
 
     @Override
@@ -41,11 +44,9 @@ public class SmithingRecipeBookPage extends GenericRecipePage<SmithingMenu, Smit
 
         this.overlay.render(gui, mouseX, mouseY, delta);
 
-        // 组浮层内的悬停变体补进页面的 hovered* 状态：浮层盖在网格上，网格按钮不再
-        // 报告悬停，于是「自动填充幽灵配方」在组内配方上失效（用户 2026-09-25 反馈：
-        // 锻造台替代配方组里的配方无法触发自动填充幽灵配方）。组件在其后读
-        // hoveredRecipe 决定是否写幽灵。
-        SmithingOverlayRecipeComponent.OverlayRecipeButton overlayHovered = this.overlay.hoveredButton();
+        // 浮层内的悬停路线补进页面的 hovered* 状态：浮层盖在网格上，网格按钮不再报告悬停，
+        // 于是「自动填充幽灵配方」在组内路线上失效——这里补回来（与锻造台浮层同一处理）。
+        BrewingOverlayRecipeComponent.RouteButton overlayHovered = this.overlay.hoveredButton();
         if (overlayHovered != null) {
             this.hoveredRecipe = overlayHovered.getRecipe();
             this.hoverGhostRecipe = this.hoveredRecipe;
@@ -63,7 +64,7 @@ public class SmithingRecipeBookPage extends GenericRecipePage<SmithingMenu, Smit
      */
     @Override
     public java.util.List<net.minecraft.network.chat.Component> overlayTooltip() {
-        SmithingOverlayRecipeComponent.OverlayRecipeButton hovered = this.overlay.hoveredButton();
+        BrewingOverlayRecipeComponent.RouteButton hovered = this.overlay.hoveredButton();
         return hovered == null ? null : hovered.getTooltipText();
     }
 

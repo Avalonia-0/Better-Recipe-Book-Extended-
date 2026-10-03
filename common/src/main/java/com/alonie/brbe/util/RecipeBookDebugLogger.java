@@ -248,12 +248,12 @@ public final class RecipeBookDebugLogger {
 
         BrbeLogger.log("BRBE-DEBUG",
                 "══ Config ══ " +
-                "partialCrafting={} partialMarking={} noGrouped={} onHover={} " +
+                "partialCrafting={} partialMarking={} splitMode={} onHover={} " +
                 "enablePinning={} instantCraft={} showAllSurvival={} keepCentered={} " +
                 "scrolling={} rbip={}",
                 BetterRecipeBook.ctx().config().partialCraftingEnabled,
                 BetterRecipeBook.ctx().config().partialMarkingEnabled,
-                BetterRecipeBook.ctx().config().alternativeRecipes.noGrouped,
+                BetterRecipeBook.ctx().config().alternativeRecipes.splitMode,
                 BetterRecipeBook.ctx().config().alternativeRecipes.onHover,
                 true,
                 BetterRecipeBook.ctx().config().instantCraft.enabled,

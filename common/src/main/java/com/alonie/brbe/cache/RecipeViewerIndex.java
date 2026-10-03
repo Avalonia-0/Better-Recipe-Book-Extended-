@@ -217,7 +217,7 @@ public final class RecipeViewerIndex {
         }
         // hide 开关源级过滤：无配方书站（config/external 全为 false + 内建切石机/铁砧/酿造/研磨/堆肥）
         // 从整个查询系统前置移除（1.21.11 语义）。
-        if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+        if (BetterRecipeBook.config.recipeBookOnly()) {
             List<Workstation> filtered = new ArrayList<>();
             for (Workstation station : cached) {
                 if (station.recipeBook()) filtered.add(station);
@@ -362,7 +362,7 @@ public final class RecipeViewerIndex {
         }
         // hide 源级：无配方书站（切石机/铁砧/酿造/研磨/堆肥）在 workstations() 已剔除，
         // 但其 JEI 通道数据仍在——按隐藏类别清掉（否则 defaultFor 绕过过滤打开类别）。
-        if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+        if (BetterRecipeBook.config.recipeBookOnly()) {
             for (String uid : List.of("minecraft:anvil", "minecraft:brewing",
                     "minecraft:grindstone", "minecraft:compostable")) {
                 RecipeViewerEngine.clearType(uid);

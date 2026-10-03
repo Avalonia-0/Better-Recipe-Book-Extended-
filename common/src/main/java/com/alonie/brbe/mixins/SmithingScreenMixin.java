@@ -104,7 +104,9 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     protected void slotClicked(Slot slot, int x, int y, ClickType clickType) {
         // clear ghost recipe if an empty ingredient slot is clicked with no items
         if (BetterRecipeBook.ctx().config().enableBook && slot != null && slot.index < 4 && menu.getCarried().isEmpty() && menu.slots.get(slot.index).getItem().isEmpty()) {
-            _$recipeBookComponent.ghostRecipe.clear();
+            // 外部清空 = 点击留下的缺料引导**结束**（否则下次悬停结束会把这份引导又写回来，
+            // 玩家看到"来源无规律"的持久幽灵 —— 用户 2026-09-26 反馈）
+            _$recipeBookComponent.brbe$endGhostGuide();
         }
 
         super.slotClicked(slot, x, y, clickType);
@@ -168,7 +170,9 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     @Inject(method = "slotChanged", at = @At(value = "HEAD"))
     public void slotChanged(AbstractContainerMenu abstractContainerMenu, int i, ItemStack itemStack, CallbackInfo ci) {
         if (i == SmithingMenu.BASE_SLOT || i == SmithingMenu.ADDITIONAL_SLOT || i == SmithingMenu.TEMPLATE_SLOT || i == SmithingMenu.RESULT_SLOT) {
-            _$recipeBookComponent.ghostRecipe.clear();
+            // 外部清空 = 点击留下的缺料引导**结束**（否则下次悬停结束会把这份引导又写回来，
+            // 玩家看到"来源无规律"的持久幽灵 —— 用户 2026-09-26 反馈）
+            _$recipeBookComponent.brbe$endGhostGuide();
         }
     }
 

@@ -1,9 +1,10 @@
 {
-  "required": true,
-  "minVersion": "0.8",
-  "package": "com.alonie.brbe.fabric.Mixins",
-  "compatibilityLevel": "JAVA_16",
-  "client": [
-    "Accessors.FabricPotionBrewingAccessor"
-  ]
+    "required": true,
+    "minVersion": "0.8",
+    "package": "com.alonie.brbe.fabric.Mixins",
+    "compatibilityLevel": "JAVA_16",
+    "client": [
+        "Accessors.FabricPotionBrewingAccessor",
+        "hoverghost.AbstractContainerScreenSlotMixin"
+    ]
 }

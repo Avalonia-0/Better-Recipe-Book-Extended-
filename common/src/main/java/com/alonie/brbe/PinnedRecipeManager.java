@@ -132,19 +132,26 @@ public class PinnedRecipeManager {
         this.store();
     }
 
+    /**
+     * 固定 / 取消固定一个**自研配方书集合**（酿造台、锻造台）。
+     *
+     * <p>⚠️ 必须**整组一起**切换：一个集合可能包含多条配方——锻造台的纹饰组是
+     * "每种可纹饰装备一条"、酿造台的一个产物是"同产物的多条酿造路线"。旧实现对每个
+     * 已 pin 的 id 只删掉**第一个命中**就 {@code return}：组内其余 id 仍是 pin 状态 →
+     * 集合仍被判为"已固定"（{@code has()} → 排序继续把它顶到最前），而且这个"半 pin"
+     * 状态会写进 {@code brbe.pins}（用户 2026-09-26 反馈：固定后取消固定，排序不恢复，
+     * 且重启后依然如此）。取消时删**组内全部** id；固定时加**组内全部** id（与
+     * {@link #addOrRemoveFavourite(PinnableRecipeCollection)} 的 {@code removeIf} 同义）。</p>
+     */
     public <R extends GenericRecipe, M extends AbstractContainerMenu> void addOrRemoveFavourite(GenericRecipeBookCollection<R, M> target) {
-        for (ResourceLocation identifier : this.pinned) {
-            for (R recipe : target.getRecipes()) {
-                if (recipe.id().equals(identifier)) {
-                    this.pinned.remove(identifier);
-                    version++;
-                    this.store();
-                    return;
-                }
-            }
+        List<ResourceLocation> ids = target.getRecipes().stream().map(R::id).distinct().toList();
+
+        if (ids.stream().anyMatch(this.pinned::contains)) {
+            this.pinned.removeAll(ids);
+        } else {
+            this.pinned.addAll(ids);
         }
 
-        this.pinned.addAll(target.getRecipes().stream().map(R::id).toList());
         version++;
         this.store();
     }

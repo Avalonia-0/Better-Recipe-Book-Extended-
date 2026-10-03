@@ -1,5 +1,6 @@
 package com.alonie.brbe.mixins.cyclelock;
 
+import com.alonie.brbe.interfaces.GhostRecipeOrigin;
 import com.alonie.brbe.util.CycleLock;
 import net.minecraft.client.gui.screens.recipebook.GhostRecipe;
 import net.minecraft.world.item.ItemStack;

@@ -137,7 +137,7 @@ Uses **Cloth Config / AutoConfig** with TOML serialization (`brbe.toml`). Config
 | `enableRecipeBookIsPain` | Enables RBIP creative-mode tabs in recipe book | Hidden from GUI (`@ConfigEntry.Gui.Excluded`), edited in `brbe.toml`, hot-reloaded via `reloadIfChanged()` |
 | `enablePinning` | Pin recipes | `PinnedRecipeManager` |
 | `instantCraft.enabled` | Shift-click instant craft | `InstantCraftingManager` |
-| `alternativeRecipes.noGrouped` | Ungroup recipe variants | `ungroup/RecipeBookComponentMixin` |
+| `alternativeRecipes.splitMode`（枚举三档：`FULL` 完全 / `SELECTIVE` 选择性（默认）/ `OFF` 关闭） | 完全 = 替代配方组拆成单配方格；⚠️ 1.21.1 **无** Stage 2.5「按排序原因剥离」，故「选择性」与「关闭」在本分支行为相同 | `ungroup/RecipeBookComponentMixin` + `ungroup/ClientRecipeBookMixin` |
 | `partialCraftingEnabled` | Show partially craftable recipes | `incompletecrafting/` mixins |
 | `keepCentered` | Center the recipe book | `centered/RecipeBookComponentMixin` |
 | `showModName` | Display source mod name in tooltip | `modname/RecipeButtonMixin` + `modname/GhostRecipeTooltipMixin` |
@@ -2419,3 +2419,1171 @@ jar 内 zh_cn 键值 = 自动填充幽灵配方。
 3. **锻造台（BRBE 自研书）**：点配方或悬停配方 → 附加材料 / 模板槽出现幽灵物品 → Alt 锁定 +
    滚轮翻动；锁定期间鼠标提示与显示的那一件一致。
 4. 指针不在任何折叠物品上时：滚轮照常翻页（配方书）/ 不被吞掉。
+
+## 2026-09-26：悬停预览**整片隐藏工作区真实物品**（四分支同步，26.3 先行）
+
+**用户反馈（设计缺陷）**："自动填充幽灵配方时，如果某个真实物品放在了幽灵配方覆盖不到的地方
+（比方说幽灵只占左上角一格，用户把物品放在了别的格子），幽灵就会和真实物品混在一起。
+我的想法是：通过此功能显示幽灵配方时，**不管有没有覆盖到，都暂时隐藏工作区的真实物品**。"
+
+**根因**：2026-09-25 那次修复留下的过度限制——为修"锻造台工作区槽位整格空白"（幽灵渲染谓词
+只画空槽位），当时把隐藏范围收窄为"**本次幽灵会画到的槽位**"（1.21.1 走
+`GhostRecipeAccessor` 的位置匹配 + 自研书上报的覆盖槽位集合）→ 幽灵没覆盖的槽位里的真实物品
+原样显示，与幽灵混排。
+
+**修复**（`HoverGhostRecipe#hidesRealItemIn` 判定简化为一条，本分支的"原版路径怎么查幽灵槽位"
+那一段一并删掉）：
+
+```java
+if (slot == null || !isPreviewing()) return false;
+return !(slot.container instanceof Inventory);   // 非玩家背包 = 工作区 → 预览期间一律隐藏
+```
+
+覆盖到的槽位显示幽灵、没覆盖的槽位保持空白；玩家背包/快捷栏/护甲/副手不受影响。
+**敢整片隐藏的前提**：幽灵绘制不再依赖"槽位为空"——原版 `GhostRecipe` 渲染本来就不看空槽，
+自研书由 `GenericGhostRecipe.render` 的 `hoverPreview` 忽略渲染谓词强制画。
+
+**顺带清掉的死代码**：`HoverGhostRecipe.genericPreviewSlots` 字段、
+`setGenericPreviewing(boolean, Set)` 的第二参数、`GenericGhostRecipe#coveredContainerSlots()`、
+`GenericRecipeBookComponent.brbe$hoverGhostSlots` 字段（`GhostRecipeAccessor` import 随之不再被本类使用）。
+
+**部署**：1.21.1-Fabric md5 `140ac05c3c00fda148f2bf71d8242ab3`、1.21.1-NeoForge
+`f9d2f6592e9b7d2f7b864bad28472fa9`（备份 `20260926-1525`）；mixin-check 通过（remap 后
+`hidesRealItemIn` 的字节码 = `isPreviewing` + `!(field_7871 instanceof class_1661)`）。
+26.3 / 26.2 / 1.21.11 同步（同一套判定）。
+
+## 2026-09-26（二）：产物槽遮罩被误伤 —— 只该对**可合成**配方移除
+
+**用户反馈**："残缺配方和不可合成配方的幽灵配方中产物槽的红色遮罩和白色遮罩也被移除了
+（之前尝试移除可合成配方的幽灵配方里的产物的红白遮罩，也许是误将残缺配方和不可合成配方也进行了修改）。"
+
+**根因**：上一轮「显示幽灵配方时产物格不该有红/白罩」是**无条件**跳过结果槽遮罩——
+`PartialGhostOverlayUtil.prepare` 一见到结果槽（本分支按位置匹配 `resultSlotIndex` 的槽坐标）
+就 `noRedMaskSlots.add(...)` + `continue`；本分支的 `GhostRecipe` 遮罩重定向同样用
+`shouldShowRedMask` 同时门控红罩与白罩，于是残缺/不可合成配方的产物槽也被一起洗白。
+
+**修复**（`prepare`）：结果槽的 key **先记下**（`resultKey`），材料槽判完再决定——
+
+```java
+if (resultKey != Long.MIN_VALUE && allMaterialsOwned) {   // 材料全齐 = 可合成 → 不画遮罩
+    noRedMaskSlots.add(resultKey);
+}
+```
+
+可合成 → 产物格无红/白罩（2026-09-25 诉求保持）；残缺 / 不可合成 → 产物格遮罩照原版画。
+"齐没齐"直接取材料槽本轮有没有被标进 `noRedMaskSlots`，与逐槽红罩同源；结果槽仍不参与数量扣除。
+
+**部署**：1.21.1-Fabric md5 `f826f8ab77c80c787218926f8239e7a1`、1.21.1-NeoForge
+`c4d9ad4b58c25f0d7cdf8210f092597a`（备份 `20260926-1550`）；四分支 `mixin-check` 全通过。
+26.3 / 26.2 / 1.21.11 同步。
+
+## 2026-09-26（三）：点击配方的**缺料引导**被悬停逻辑抹掉（四分支同步）
+
+**用户反馈**："酿造台的配方点击后无法填充幽灵配方（是原版方式填充），只能靠鼠标悬停来临时填充
+幽灵配方。锻造台也有相同问题。"
+
+**根因**：`GenericRecipeBookComponent#brbe$updateHoverGhost` 每帧跑，"指针下没有配方"时无条件
+`ghostRecipe.clear()`——悬停 R → 点击 R（`handlePlaceRecipe` 写入缺料引导）→ **指针一移开**
+（点击后必然要移向工作区放材料）`hovered == null` → 引导当场被抹掉。观感即"点击不填充幽灵配方，
+只有悬停才临时出现"。工作台（原版书）不受影响：那条路径由服务端 `fillGhostRecipe` 写入，
+`HoverGhostRecipe.invalidate()` 已把所有权交回原版。
+
+**修复**：`GenericRecipeBookComponent` 新增 `brbe$placedGhostRecipe`（点击引导）与
+`brbe$showPlacedGhost(R)` / `brbe$clearPlacedGhost()`；酿造/锻造的 `handlePlaceRecipe` 在"材料不齐"
+分支登记引导、在"材料齐、直接放置"分支撤销登记；`brbe$updateHoverGhost` 指针离开按钮时**还原点击
+引导**（悬停预览只是临时盖在其上）；配置「自动填充幽灵配方」关闭时同样保留点击引导
+（用 `ghostRecipe.size()==0` 判断当前显示的是不是悬停预览，避免每帧 clear+重写把轮循计时清零）。
+详见 26.3 同日（八）。
+
+**部署**：1.21.1-Fabric md5 `54b6686969a7999446a4d986dfcb50dc`、1.21.1-NeoForge
+`9fab99d47f58c71a6e9db378af6820e3`（备份 `20260926-1705`）；四分支 `mixin-check` 全通过。
+
+## 2026-09-26（九）：点击缺料配方时**先把工作区里的真实物品退回背包**（四分支同步）
+
+**用户反馈**："当工作区槽位里有真实物品了，此时点击缺失材料的配方并填充幽灵物品后并不会将此真实物品
+放入背包，而是任其留在工作区内。原版配方书的做法是将其移回背包。"
+
+**原版语义（26.3 jar 字节码核实，`net.minecraft.recipebook.ServerPlaceRecipe`）**：
+
+```java
+static PostPlaceAction placeRecipe(..., boolean bl /* 允许无视清格检查 */) {
+    ServerPlaceRecipe spr = new ServerPlaceRecipe(...);
+    if (!bl && !spr.testClearGrid()) return NOTHING;   // 网格塞不回背包 → 连幽灵都不出
+    StackedItemContents contents = inventory + craftSlots;
+    return spr.tryPlaceRecipe(recipe, contents);
+}
+private PostPlaceAction tryPlaceRecipe(recipe, contents) {
+    if (contents.canCraft(recipe, null)) { placeRecipe(recipe, contents); return NOTHING; }
+    clearGrid();                                       // ← 缺料：先把网格物品退回背包
+    return PLACE_GHOST_RECIPE;                         // 再发幽灵
+}
+private void clearGrid() {
+    for (Slot s : slotsToClear) {
+        ItemStack stack = s.getItem().copy();
+        inventory.placeItemBackInInventory(stack, false, SERVER_ONLY);
+        s.set(stack);
+    }
+    menu.clearCraftingContent();
+}
+```
+
+即：**缺料分支（PLACE_GHOST_RECIPE）在原版里本来就包含"清空工作区、物品退回背包"这一步**；
+BRBE 的自研书（酿造台/锻造台）只做了"写幽灵"，少了这一步 → 工作区里的旧物品留在原地和幽灵叠在一起。
+
+**实现**（四分支同步；客户端放置路径没有服务端 `placeItemBackInInventory`，用已有的
+`ClientInventoryUtil.storeItem`（PICKUP 点击序列）等价实现）：
+
+- `ClientInventoryUtil.canReturnSlotsToInventory(menu, workspaceSlot)` —— vanilla `testClearGrid()`
+  的等价判定：用"背包现状模型"（可合并的同类堆 + 剩余空格数）逐堆模拟 `storeItem` 的落点；手上的东西
+  （`menu.getCarried()`）会被 `storeItem` 先放进背包，所以**先按它占位**；任何一堆放不下即 false。
+- `ClientInventoryUtil.returnSlotsToInventory(menu, workspaceSlot)` —— 逐槽
+  `storeItem(i, 玩家背包槽)`。⚠️ 传的是**菜单槽位序号**（= `handleContainerInput` 的 slotId /
+  `menu.slots` 下标），不是 `Slot#index`（那是槽位在它自己容器里的序号，玩家背包槽两者并不相同）。
+- 酿造台 / 锻造台 `handlePlaceRecipe` 的缺料分支：`canReturn…` 为 false → **直接 return
+  （连幽灵都不写，= vanilla 的 NOTHING；宁可什么都不做，也不要把物品挤到光标上/地上）**；
+  否则先 `returnSlotsToInventory` 再 `brbe$showPlacedGhost(result)`。
+- 工作区槽位（`brbe$isWorkspaceSlot`）：酿造台 = 三个瓶子槽（0..2）+ 材料槽（3），**不含燃料槽**；
+  锻造台 = 模板/基底/附加材料，**不含结果槽**（与 vanilla `slotsToClear` 只清配方输入槽同义）。
+
+**验证方法**：酿造台/锻造台工作区先放几件真实物品 → 点一个**材料不齐**的配方 → 工作区应被清空、
+物品回到背包，随后显示缺料幽灵引导；背包塞不下时点击不产生任何变化（vanilla 同款）。
+
+**部署**（备份 `20260926-2045`，原子替换）：1.21.1 fabric `aabb1b22bf91b161eddf36b1bef6f2c1` /
+neoforge `694b93c07fcffc4689b2d6eab1ba86b2`；`javap` 核对部署 jar：`canReturnSlotsToInventory` /
+`returnSlotsToInventory` / `insertIntoInventoryModel` / `isPlayerInventorySlot` +
+两个组件的 `brbe$isWorkspaceSlot` 均在。**本分支差异**：`ClientInventoryUtil.storeItem` 返回 `void`
+（另两分支返回 `boolean`），新代码不取返回值；点击走 `handleInventoryMouseClick` + `ClickType.PICKUP`。
+
+## 2026-09-26（十）：纹饰组显示模板 + 「右键获取更多信息」行 + 酿造台同产物路线合并成组（四分支同步）
+
+**用户反馈（两条）**：
+① "MC 的锻造模板分为升级模板和纹理（纹饰）模板配方，按当前锻造台配方书的设定，使用相同纹理模板的
+会通过替代配方组折叠起来，不过未展开时呈现为各个产物的轮循。所以我希望它们在未展开时将对应单元格的
+展示物品改为这个组所使用的纹理模板。"
+② "在锻造台和酿造台中，替代配方组的 tooltip 没有加上原版配方书的「单击鼠标右键获取更多信息」。请完善它。"
+
+### ① 纹饰组折叠单元格 → 显示该组共用的模板
+
+**数据事实**（26.3 jar 内 `data/minecraft/recipe/*_armor_trim_smithing_template_smithing_trim.json`）：
+原版 18 条纹饰配方的 {@code base} 是 {@code #minecraft:trimmable_armor} **标签** →
+`BRBSmithingTrimRecipe#from` 把 `display.base().resolveForStacks(ctx)` 展开成"每种可纹饰装备一件"
+的一整组（头盔/胸甲/护腿/靴子/马铠…）→ 折叠单元格原本按 `time/30` 轮循这些产物。
+"升级组"（`BRBSmithingTransformRecipe`，如下界合金升级）的 base 是具体物品、组内只有一条 → 不受影响。
+
+**实现**：
+- `GenericRecipeButton` 新增受保护钩子 `getDisplayedStack(category)`（默认 = 当前轮循配方的产物），
+  `extractWidgetRenderState` / `renderSquashed` 的取物品改走它；tooltip 拆出
+  `getTooltipFor(ItemStack)`（物品行 + 右键提示行 + 模组名行）。
+- 新增 `smithingtable/SmithingRecipeButton`：`showCollection` 时（**只在换了集合时**重算，`showCollection`
+  每帧都会被页面调用）判定"整组都是纹饰配方且共用同一模板物品" → 展示该模板、tooltip 也换成模板的
+  （否则会出现"画着模板、写的是某件装备"）。
+- `SmithingRecipeBookPage` 改用 `SmithingRecipeButton`。
+- **只改展示**：内部"当前配方"照旧轮循 → 左键放置的仍是轮循到的那件、悬停幽灵预览照旧显示当前变体、
+  右键展开的浮层里每个变体仍各自显示自己的产物（选装备部位的地方）。
+
+### ② 「单击鼠标右键获取更多信息」行
+
+**原版判据**（javap 26.3 `net.minecraft.client.gui.screens.recipebook.RecipeButton`）：
+
+```java
+public List<Component> getTooltipText(ItemStack stack) {
+    List<Component> list = new ArrayList<>(Screen.getTooltipFromItem(Minecraft.getInstance(), stack));
+    if (hasMultipleRecipes()) list.add(MORE_RECIPES_TOOLTIP);   // gui.recipebook.moreRecipes
+    return list;
+}
+private boolean hasMultipleRecipes() { return selectedEntries.size() > 1; }
+```
+
+**实现**：`GenericRecipeButton.getTooltipFor(ItemStack)` 在物品行之后、模组名行之前插入
+`Component.translatable("gui.recipebook.moreRecipes")`，条件 `getOrderedRecipes().size() > 1`
+（与原版 `hasMultipleRecipes()` 同义，= `!isOnlyOption()`，即右键能展开）。行序与合成书
+（原版 `RecipeButton` + BRBE 的 `modname/RecipeButtonMixin`）完全一致：物品行 → 右键提示 → 空行 + 模组名。
+自研书的 tooltip 走的是页面的 `hoveredButton.getTooltipText(recipe, category)`（1.21.1 是无参重载），
+两处都在同一个 `getTooltipFor` 里，因此两个分支形态一致。
+
+### ③ 酿造台：同一瓶药水的多条路线合并成替代配方组（用户选定）
+
+**数据事实**（26.3 jar `data/minecraft/recipe/brewing/` 279 条配方解析）：
+**只有 134 个唯一产物，其中 94 个产物有两条路线**——例：滞留型治疗药水既能
+"滞留型粗制药水 + 闪烁的西瓜片"，也能"治疗药水 + 龙息"（两条的输出物品+药水完全相同）。
+而 `BrewingRecipeBookComponent#getCollectionsForCategory` 此前是 **一条配方一个集合**
+（`new BrewingRecipeCollection(List.of(potion), ...)`，四分支皆然），于是：
+
+- 配方书里同一瓶药水出现**两个一模一样的格子**；
+- 每个格子都只有一条配方 → `isOnlyOption()` 恒 true → 酿造台**根本没有替代配方组**，
+  右键无反应，也就永远看不到"单击鼠标右键获取更多信息"那一行（用户反馈②里的酿造台部分）。
+
+**实现**（四分支；请示用户后选择"合并 + 新建组浮层"）：
+
+- `getCollectionsForCategory` 改为按 `BrewableResult#id()`（= 产物药水 id，与 pin 标识同源）分组，
+  一个产物一个 `BrewingRecipeCollection`（组内 = 该产物的各条路线）。
+- 新增 `brewingstand/BrewingOverlayRecipeComponent`：右键组格 → 展开路线格（结构照抄各分支自己的
+  `SmithingOverlayRecipeComponent`，含"必须调**外层** render/extractRenderState 才会刷新悬停标记"
+  那条踩坑注释）。**格子画的是该路线的酿造材料**（reagent；一组的产物都一样，材料才是区别），
+  悬停时由页面把该路线补进 `hoveredRecipe` → 工作区照常显示这条路线要放什么的幽灵预览（含输入药水形态）。
+  路线数极少（原版最多 2 条）→ 无分页、无滚轮翻页区。
+- 新增 `brewingstand/BrewingRecipeBookPage`（`GenericRecipePage` 子类）：`initOverlay` /
+  `overlayMouseClicked` / `render`（画浮层 + 补 hovered）/ `overlayIsVisible`（26.3 另有 `hideOverlay`）。
+  `BrewingRecipeBookComponent` 改用它。右键点击组格 → 浮层选路线 → 左键点击 → 走既有的
+  `handlePlaceRecipe`（`getCurrentClickedRecipe()` 由页面的 `lastClickedRecipe` 提供）→ 放该路线的材料。
+- 顺带收益：pin 现在按"一个产物"生效（此前同产物的两条路线是两个可分别 pin 的格子）。
+
+**部署**（备份 `20260926-2120`，原子替换）：26.3 `d288115abb59efd727fcc46ad4b5aa6e`、
+26.2 `3e36f45f2a2a482bf99daf42c7526c02`（两实例）、1.21.11 `77eb508519a046065f93f595ab8c1c2e`、
+1.21.1 fabric `1df4672c237dc90317f32a1e2e9aa247` / neoforge `d7452457461c53c17b6235f8052700e7`；
+五个部署 jar 的 `javap` 核对：`SmithingRecipeButton`（`getDisplayedStack`/`brbe$resolveTrimTemplate`）、
+`GenericRecipeButton`（`getDisplayedStack`/`getTooltipFor`）、`BrewingOverlayRecipeComponent`（`RouteButton`/`hoveredButton`）、
+`BrewingRecipeBookPage`（`overlay`）均在。
+
+**验证方法**：① 锻造台纹饰标签页 → 折叠格应显示**纹饰模板**（如"bolt 盔甲纹饰"）而不是轮循各件装备，
+tooltip 为模板说明 +「单击鼠标右键获取更多信息」；右键展开 → 各变体各自显示装备；
+升级标签页（下界合金）行为不变。② 酿造台 → 同产物只应有一个格子（如滞留型治疗药水从 2 个变 1 个），
+tooltip 带右键提示行，右键 → 浮层显示两条路线的材料（闪烁的西瓜片 / 龙息），选中后左键放置该路线。
+
+## 2026-09-26（十一）：悬停穿透修复 + 纹饰组去交互 + pin 半固定修复 + 酿造台浮层收进书体（四分支同步）
+
+用户一次报了四个问题，逐个定位如下。
+
+### ① 幽灵预览**透过替代配方组浮层**触发
+
+**根因**：`GenericRecipePage.renderButtonGrid` 的命中判定只看"按钮矩形 + 光标"，不看浮层——
+浮层打开时鼠标落在浮层的面板/间隙上，底下那格的网格按钮照样被判为悬停 → 写幽灵 + 出 tooltip。
+原版合成书没这个问题：`hoverghost/RecipeBookPageMixin` 在 `overlay.isVisible()` 时**直接 return**，
+整片网格不参与悬停判定。
+
+**修复**：`GenericRecipePage` 新增 `suppressGridHover()`（默认 false），
+`SmithingRecipeBookPage` / `BrewingRecipeBookPage` 覆写为 `overlayIsVisible()`；
+命中判定加 `!suppressGridHover()`。浮层打开时网格不再产生 hovered*，
+悬停浮层格子仍由页面的浮层分支单独喂（见下）→ 幽灵预览只属于浮层本身。
+
+### ② 纹饰组：去掉"悬停预览幽灵 / 左键点击（含音效）"，并停止组内轮循
+
+用户观察：展示虽然换成了模板，**逻辑上仍在轮循组内配方**（合成状态/边框/幽灵会随轮循抖）。
+三处一起收口（`SmithingRecipeButton`）：
+
+- `getCurrentDisplayedRecipe()` 覆写 → 纹饰组恒取 `getOrderedRecipes().get(0)`（不再按 `time/30` 轮循）；
+- `GenericRecipeButton` 新增钩子 `providesHoverPreview()`（默认 true），纹饰组返回 false；
+  `GenericRecipePage` 新增字段 `hoverGhostRecipe`（**幽灵预览专用**的悬停配方，每帧重置）：
+  网格命中时 = `providesHoverPreview() ? hoveredRecipe : null`，浮层内悬停时 = 该变体。
+  `GenericRecipeBookComponent.brbe$updateHoverGhost` 改读 `hoverGhostRecipe`（`hoveredRecipe`
+  继续服务 tooltip / R-U 查询）→ 悬停纹饰组不写幽灵、也不"暂隐工作区真实物品"。
+- `mouseClicked` 覆写：纹饰组的**左键直接返回 false**（`AbstractWidget.mouseClicked` 在
+  `playDownSound` 之前判定 → 不放置、不放点击音效）；组内变体只能在右键展开的浮层里点选。
+
+### ③ pin 后取消固定，排序不恢复且**持久化**
+
+**根因**（`PinnedRecipeManager#addOrRemoveFavourite(GenericRecipeBookCollection)`）：旧实现对每个
+已 pin 的 id 只删掉**第一个命中**就 `return`：
+
+```java
+for (Identifier id : this.pinned) for (R r : target.getRecipes()) if (r.id().equals(id)) { this.pinned.remove(id); this.store(); return; }
+```
+
+一个集合可能包含**多条**配方——锻造台纹饰组 = 每种可纹饰装备一条、酿造台一个产物 = 多条酿造路线。
+于是取消固定只清掉一个 id，组内其余 id 仍是 pin 状态 → `has(collection)` 仍为 true → 排序继续把它
+顶到最前；这个"半 pin"状态又被 `store()` 写进 `brbe.pins` → **重启后依然如此**（用户看到的"持久化"）。
+
+**修复**：整组一起切换（取消 = `removeAll(组内全部 id)`；固定 = `addAll`），与另一重载
+`addOrRemoveFavourite(PinnableRecipeCollection)` 的 `removeIf(target::has)` 同义；补 `version++`。
+⚠️ 存量半 pin 状态：对那个组**再按一次固定键**即整组清掉（修复后的行为），或删 `brbe.pins` 里对应条目。
+（查看器"单变体 pin"走另一重载，语义不变。）
+
+### ④ 酿造台组浮层：越出书体 + 点书外关不掉
+
+- **越界**：`placeBox` 只保证不越出**屏幕**（`clampToScreen` 的 30px 边距），不保证留在书体内。
+  新增 `AlternativeOverlayLayout#clampToBook(x, y, boxW, boxH, panelLeft, panelTop)`
+  （`BOOK_WIDTH/HEIGHT` 提为 public），酿造台浮层在定位后再按面板夹一次（放不下时贴面板左上角，
+  宁可压住配方格也不出书）；按钮随位移重排。
+- **关不掉**：锻造台屏幕实现了 `TopLayerOverlayProvider` 并在 `mouseClicked` 里把点击**优先路由**给
+  配方书组件（`brbe$clickTopLayerOverlay`）→ 点到浮层格子 = 选路线、点到别处 = 关浮层。
+  酿造台屏幕此前没有这套 → 点到书外时点击被容器槽位吃掉，浮层永不关。现在照抄同一套
+  （`implements TopLayerOverlayProvider` + `brbe$hasTopLayerOverlay`/`brbe$renderTopLayerOverlay`/
+  `brbe$clickTopLayerOverlay`/`brbe$getTopLayerOverlayBounds` + `mouseClicked` 路由；1.21.1 用
+  `(double,double,int)` 签名），浮层同时改为**顶层绘制**（与锻造台一致，落在 carried item 之上）。
+
+**部署**（备份 `20260926-2205`，原子替换）：26.3 `d995233de90757e3ad6b1864fe9e2400`、
+26.2 `539d4e6f2d3008208ae683b36923632f`（两实例）、1.21.11 `f333f17c2f0124b999bf97511821fa0f`、
+1.21.1 fabric `c2d3d07dbc437236480ded60d09cff05` / neoforge `b7ee40e235da3d98a7c609ff04282cc3`；
+`javap` 核对部署 jar：`GenericRecipeButton.providesHoverPreview`、`GenericRecipePage.hoverGhostRecipe/
+suppressGridHover`、`SmithingRecipeButton.getCurrentDisplayedRecipe/mouseClicked`、
+`BrewingRecipeBookPage.suppressGridHover`、`BrewingStandScreenMixin.brbe$hasTopLayerOverlay/
+brbe$clickTopLayerOverlay`、`AlternativeOverlayLayout.clampToBook` 均在
+（1.21.11/1.21.1 fabric 走 intermediary 重映射，vanilla 覆写如 `mouseClicked` 显示为 `method_25402`）。
+
+**验证方法**：① 打开组浮层 → 鼠标停在浮层面板（非格子）上：工作区**不应**出现幽灵、也不应出 tooltip；
+② 锻造台纹饰组：折叠格显示模板、无轮循、悬停不出幽灵、左键无反应（无音效），右键仍能展开并在浮层里点选；
+③ 任意自研书组（纹饰组 / 酿造台同产物路线）按固定键两次 → 排序应恢复原状，重启后也不再"粘"在最前；
+④ 酿造台右键展开组 → 浮层完全落在书体内；点击书外的槽位/空处 → 浮层关闭（与锻造台一致）。
+
+## 2026-09-26（十二）：点击引导**复活**根治 —— 外部清空即结束 + 停留预览取代引导（四分支同步）
+
+**用户反馈**："酿造台出现了锻造台之前踩过的坑：悬停配方触发的幽灵配方在展示结束后会留下一个持久化
+幽灵配方（这个配方的来源无规律）。"
+
+**实机日志实证**（26.3 上一轮部署的 `BRBE-GHOST` 追踪，`logs/brbe-debug.log`）：
+
+```
+[21:35:44.256] guide-registered BrewableResult[滞留型水肺药水]#2e3aabbe (ghostSize=4)   ← 用户点了这格（缺料）
+[21:35:58.930] external-clear:brewing-slotClicked slot=1 ghostSize=4                   ← 玩家点了酿造槽：幽灵被清
+[21:35:59.374] hover - -> BrewableResult[滞留型水肺药水]#2e3aabbe (ghostSize=0 guide=...)
+[21:35:56/21:36:17] ghost-add slot=3 dragon_breath ... setupGhostRecipe:103             ← 悬停结束时**引导又被写回来**
+```
+
+`orphan-cleared` 那一大串同理（每轮悬停预览结束都会把早先点击留下的引导还原一次）。
+即：用户看到的那份"来源无规律"的幽灵 = **早先点击留下的缺料引导**，而不是刚悬停的配方。
+
+### 修复 A：幽灵被外部清空 = 引导就此结束（日志实证的那个 bug）
+
+新增 `GenericRecipeBookComponent#brbe$endGhostGuide()`（清登记 + 清预览守卫 + 清幽灵），
+三处外部清空点由 `ghostRecipe.clear()` 改为调用它：
+
+| 分支/文件 | 位置 |
+|---|---|
+| `BrewingStandScreenMixin` | `slotClicked`（点空槽且手上没东西） |
+| `SmithingScreenMixin` | `slotClicked`（同上） / `slotChanged`（0..3 槽变化） |
+
+不结束的话，这份**已被玩家处理掉**的引导会在下一次"指针离开悬停配方"时被还原 → 工作区自己冒出幽灵。
+语义与工作台那条路径的 `HoverGhostRecipe.invalidate()`（原版流程接管幽灵 → 放弃还原权）一致。
+
+### 修复 B：在别的配方上**停留**过 → 悬停预览取代点击引导
+
+只在 A 修完还不够：引导若一直没被清（点完一直没放材料），每次悬停别人再移开都会把它还原回来，
+观感仍是"来源无规律"。但**不能**简单地"一悬停就取消引导"——鼠标从被点的格子移向工作区时会**掠过**
+别的格子，那样又会回到"点击后引导被鼠标移开抹掉"的老问题（用户 2026-09-26 早先反馈）。
+
+因此 `brbe$updateHoverGhost` 的释放分支改成分三种情况（`GUIDE_SUPERSEDE_MS = 300ms`）：
+
+| 离开时的情况 | 行为 |
+|---|---|
+| 离开的就是引导自己那条（同一组各条路线 `id()` 相同） | 还原引导（内容本来一样） |
+| 只是**掠过**别的格子（停留 < 300ms） | 还原引导（"点击后移向工作区"的路径不被破坏） |
+| 在**别的**配方上停留 ≥ 300ms | 引导**就此结束**，工作区保持干净 |
+
+计时从"预览开始"那一刻起算（同一格内轮循换配方**不**重置——酿造台一个格子 = 同产物的一组路线，
+每 1.5s 换一条，重置的话"停留"永远算不出来）；`brbe$showPlacedGhost` 里点击即刷新计时，
+所以"点完马上移开"绝不会被算成"停留看过"。
+另外把无主幽灵自愈收窄为"连预览守卫也为 null"才算孤儿（此前它会把正常的释放路径也吞掉，日志因此
+把每次正常释放都记成 `orphan-cleared`）。
+
+**部署**（备份 `20260926-2240`，原子替换）：26.3 `925f0cd7d7ab7026d6b1ed781fb99715`、
+26.2 `b81720e8246c8df532375e4d8977a099`（两实例）、1.21.11 `d67223a20ce0ec8d84569370c18b9c44`、
+1.21.1 fabric `0d800a4e51c5135cd359d04c5164f79d` / neoforge `f27ae019f504fcef543fe89bfa2ede1b`；
+`javap` 核对：五份 jar 的 `GenericRecipeBookComponent` 都有 `brbe$endGhostGuide` +
+`GUIDE_SUPERSEDE_MS`/`brbe$hoverStartedAt`/`brbe$sameRecipeId`，两个屏幕 mixin 的
+`brbe$endGhostGuide` 调用点为 brewing 1 处 / smithing 2 处。
+
+**验证方法**：① 点一个缺料配方（引导出现）→ 往工作区放一件材料（引导消失）→ 再随便悬停几个配方并
+移开 → 工作区**不应**再冒出那份引导；② 点一个缺料配方 → 直接移向工作区（路上掠过其他格子）→
+引导**应保留**（老行为不变）；③ 点一个缺料配方 → 在**别的**配方上停一会儿（>0.3s）再移开 →
+引导结束、工作区干净；④ 同一格悬停（含酿造台一组多路线轮循）移开后不留任何幽灵。
+
+## 2026-09-27：替代配方组浮层里的配方格加上 tooltip（四分支同步）
+
+用户诉求："为替代配方组里的配方加上 tooltip（就像普通配方那样），锻造台、酿造台的配方书也要做。"
+（AskUserQuestion 确认取 **A 方案**：只显示该格代表物品，格式与普通配方格一致。）
+
+**为什么此前没有**：浮层打开时两处 tooltip 通路都被主动关掉——
+① 自研书（锻造台/酿造台）：`GenericRecipeBookComponent.drawTooltip` 的 `if (!recipesPage.overlayIsVisible())`
+直接不问页面（浮层盖住网格，网格 tooltip 会穿透）；
+② 原版书（合成台/熔炉系）：`RecipeBookPage.renderTooltip` 的判定是
+`hoveredButton != null && !overlay.isVisible()` —— 浮层打开时什么都不画。
+
+**实现**（四分支同构）：
+- 新增 `util/RecipeCellTooltips.forStack(registryAccess, stack, moreRecipes)`：与
+  `GenericRecipeButton#getTooltipFor` **共用同一套行构造**（物品行 → 可选「单击鼠标右键获取更多信息」
+  → 空行 + 模组名，模组名走本分支的 config 访问），后者改为委托它——两边格式永不漂移。
+  **格子不带 moreRecipes**：格子本身就是展开后的单个变体，右键不再展开。
+- 自研书：`GenericRecipePage.overlayTooltip()`（默认 {@code null}）新钩子；`SmithingRecipeBookPage` /
+  `BrewingRecipeBookPage` 覆写它，从浮层 `hoveredButton()` 取行内容；`GenericRecipeBookComponent.drawTooltip`
+  改为"先问浮层格子，再走原来的网格/设置按钮分支"。
+- 原版书：`OverlayRecipeButtonMixin` 在浮层渲染路径里缓存**本帧画出来的那件产物**
+  （直接取 `recipe.value().getResultItem(registryAccess)`（本分支无 RecipeDisplay 体系）），并实现新接口 `interfaces/IOverlayCellTooltip`；新增 mixin
+  `alternativerecipes/RecipeBookPageOverlayTooltipMixin` 注入 `RecipeBookPage.renderTooltip` HEAD——那里才是
+  原版配方书 tooltip 的正规出口（容器槽位 tooltip 先注册、会被它盖掉），据此补上格子 tooltip 并
+  `ci.cancel()` 一并挡掉"格子底下那格"的 tooltip。查询窗口/pin 盖住指针时一律不出
+  （`modalMaskOwnsCursor` / `isViewerActive` + `PinOverlayManager.covers`）。
+- 酿造台格子 tooltip 与 `BrewableRecipeButton#getTooltipText()` **同款行序**（产物药水 + 效果 +
+  空行 + 「材料 ↓ 输入药水」，白/灰 = 背包里有没有），只是用**本路线自己的**材料与输入药水；
+  为此 `BrewingOverlayRecipeComponent.init` 增参传入标签页与菜单。锻造台格子 = 该变体产物行 + 模组名。
+
+**1.21.1 顺带对齐**：该分支 `GenericRecipeButton#getTooltipFor` 原先漏了模组名行（另三分支都有），
+本轮统一走 `RecipeCellTooltips` 后补齐（`showModName` 开关照旧）。
+
+**验证**：四分支 `compileJava`/`build` 通过；`tools/mixin-check` 四分支全绿；javap 核对部署 jar
+（`RecipeCellTooltips` / `IOverlayCellTooltip` / 新 mixin 的 `implements` 与注入目标、两个浮层格子的
+`getTooltipText`、`GenericRecipePage.overlayTooltip`；1.21.11/1.21.1 的 mixin 目标已 remap 为
+`method_2628`）。已原子替换部署六实例（备份 20260926-2232）：26.3-Fabric
+`6dcd36c2a9fa28e97ac50ba7c551b4d0`、26.2-Fabric ×2 `a7155ee5bec5484dd9261d06fa9b36dd`、
+1.21.11-Fabric `39339d1b2790372d7b1972f7da0720f4`、1.21.1-Fabric
+`5c720d6d0687a239ccc17e44064adbfd`、1.21.1-NeoForge `0f37035feba483d0a778b8ea3e14f232`。
+
+**验证方法**：右键展开任一替代配方组 → 悬停组内任一格：合成台/熔炉系显示产物物品行（+ 模组名）；
+锻造台显示该变体装备名（纹饰组 = 带纹饰的那件装备）；酿造台显示"药水名 + 效果 + 材料 ↓ 输入药水"
+（缺料为灰字）。同一组里合成书各格 tooltip 相同（产物一致），锻造台/酿造台各格不同。
+
+### 组内格子 tooltip 的层级结论（2026-09-27，供移植参考）
+
+替代配方组浮层在上述分支里会被**画两遍**，第二遍在帧末的顶层重绘（`TopLayerOverlayRenderer`）里、
+**在帧末 tooltip 刷新之后**——所以浮层格子自己的 tooltip 不能走延迟注册（`setComponentTooltipForNextFrame`），
+必须在那一遍里就地画。本分支的顶层重绘时机晚于 tooltip（见对应轮次记录），故无需该处理；将来若把
+顶层重绘改到"帧末/tooltip 之后"，必须同步搬 26.x 的 `redrawsOverlayOnTop` + `drawComponentTooltipNow` 方案。
+
+## 2026-09-27：移植 26.3 两条（替代配方格子按书种类分派 + 自研书支持「优化原版配方过滤器」）
+
+**用户指示**："可以移植了，然后再为锻造台和酿造台加上「优化原版配方过滤器」功能的支持"
+（移植范围：26.2 + 1.21.11 + 1.21.1，两条一起做）。本分支按 1.21.1 的旧 API 改写，非逐行照搬。
+
+**一、替代配方组格子按**配方书种类**分派**（用户 2026-09-27 诉求）：
+- 新增 `util/RecipeBookKind`（`CRAFTING` / `FURNACE` / `OTHER`）。⚠️ **本分支的判定方式与
+  26.x 不同**：1.21.1 没有 1.21.5+ 的 `CraftingRecipeBookComponent`（合成书由
+  `RecipeBookComponent` 本体承担），因此熔炉类按基类 `AbstractFurnaceRecipeBookComponent` 判、
+  合成类按**原版合成界面**（`CraftingScreen` / `InventoryScreen`）判，其余一律算"模组自建"。
+  组件取 `HoverGhostRecipe.currentBook()`（本分支返回 `RecipeBookComponent`，非泛型）。
+- `mixins/alternativerecipes/OverlayRecipeButtonMixin.renderWidget`（本分支的替代配方格子是
+  **自成一体的 renderWidget 替换**，没有 26.x 的 `PopupRenderer.renderAlternativesButton`）：
+  按 `kind` 分派——合成类走原有"微缩配方 / 悬停完整预览"两条分支；`FURNACE` / `OTHER` 走新的
+  "一个底板 + 一件展示物品"分支（`kind.showsMicroRecipe() == false`），不画任何配方布局。
+  底板：`FURNACE` = `VANILLA_FURNACE_OVERLAY_SPRITE`（悬停 `_highlighted`）、
+  `OTHER` = `RECIPE_BOOK_PLAIN_OVERLAY_SPRITE`。
+- 新增 `@Unique brbe$alternativesCellStack(kind)`：熔炉类取**本格已解析的输入**
+  （`ingredientPos` 里第一个 `Pos` 的 `ingredients`，多候选项按时间轮循 `floor(time/30)`），
+  其余取产物（`recipe.value().getResultItem(registryAccess)`）；`brbe$drawnProduct`
+  （格子 tooltip 的"画出来的那件东西"）改取它——**画着什么就写什么**。
+
+**二、锻造台 / 酿造台支持「优化原版配方过滤器」**（`partialCraftingEnabled`）：
+- 本分支的 `GenericRecipeBookComponent.updateCollections` **原本已有**
+  `shouldSort = partialCraftingEnabled || isFiltering`（复用 `CollectionPipeline.applyPartialSortGeneric`，
+  含 pin 优先的三段排序），缺的是"无按钮模式"本身：
+- `api/BRBBookSettings` 新增 `partialFilterMode()`（读 `BetterRecipeBook.ctx().config().partialCraftingEnabled`，
+  ctx/config 未就绪时 false）；`isFiltering(book)` 改为**有效**状态（开启该配置时恒 false）——
+  一处改动即让 `applyFilterToggleGeneric` 不再过滤、`GenericRecipeButton` 的 `filteringSupplier`
+  取全量；
+- `generic/GenericRecipeBookComponent`：`initVisuals` 隐藏过滤按钮（`visible/active = false`）
+  + 搜索栏加宽到 97（居中）；渲染（`filterButton.render`）/ 点击按 `visible` 守卫；
+  `toggleFiltering()` 在该模式下恒归零并返回 false。
+
+**验证方法**：① 熔炉 / 高炉 / 烟熏炉书展开替代配方组 → 每格 = furnace 底 + **材料**图标
+（多候选材料会轮循），格与格靠材料区分，不再有微缩配方；② 工作台 / 背包组浮层行为与改动前
+完全一致；③ 开启「优化原版配方过滤器」→ 锻造台 / 酿造台配方书无过滤按钮、可合成项恒在首页；
+关闭 → 原行为回归；④ 装了自建配方书的模组时那种书只画产物、不画配方布局。
+
+**构建部署**：`:common:compileJava` / `build`（fabric + neoforge）通过；javap 核对部署 jar
+（`RecipeBookKind` 三枚举常量、`BRBBookSettings.partialFilterMode` / `isFiltering`）。
+原子替换部署双端（备份 `*.jar.bak.20260927-0505`）：1.21.1-Fabric md5
+`d2e99fd35973981968b9488d0b910e3e`、1.21.1-NeoForge md5 `261b44aa94ba17321744e3f6806ec64f`。
+`tools/mixin-check --branch 1.21.1` 全部通过。
+
+## 2026-09-27（二）：移植 —— 自研书搜索两处缺陷修复（纹饰组按模板名查不到 + lastSearch 初始化）
+
+**用户反馈**：① 锻造台 / 酿造台配方书搜索**必须切标签才刷新结果**；② 锻造台**纹饰组**无法按
+**模板名**搜索（用户指出原版机制 = 搜索替代配方组内的配方，原版没有"组级展示物品"这回事）。
+
+**一、搜索不刷新（NPE）—— 本分支不中招**：26.x 的 `checkSearchStringUpdate` 里有
+`this.lastSearch.isEmpty()`，而字段从未初始化 → NPE 被原版 `KeyboardHandler` 吞掉（只写日志），
+表现为"输入框有字、配方区不动"。本分支的该方法是简化版（只有 `!string.equals(lastSearch)`），
+不会 NPE；本轮仍把字段初始化为 `""` 保持三分支语义一致（并附注释说明 26.x 的坑）。
+
+**二、搜索语料对齐原版（本分支确有该缺陷）**：BRBE 只匹配产物**物品名**；原版配方书搜索
+（`SessionSearchTrees.recipes()`）索引的是产物物品的**全部 tooltip 行**——纹饰产物 tooltip 含
+`ArmorTrim.addToTooltip` 无条件加的三行（"盔甲纹饰升级" + 纹饰名 + 材质名），原版因此能按
+"海岸"查到整组纹饰配方。修复：`SearchCache` 新增 `tooltipFallback` 开关；`TextArgument.matches`
+名字未命中时再在 tooltip 全文里找一次（拼音分支抽成 `matchesText` 复用）；
+`GenericRecipeBookComponent.updateCollections` 的搜索谓词 `cache.setTooltipFallback(true)`
+（**只给自研书**，原版书管线搜索未动）。
+
+**验证方法**：① 锻造台 / 酿造台输入框逐字输入 → 结果实时刷新；② 锻造台"纹饰"页搜"海岸" /
+`coast` / 拼音 `haian` → 该纹饰组留在列表；③ 清空搜索恢复完整列表与页码。
+
+**构建部署**：`:common:compileJava` / `build`（fabric + neoforge）通过；javap 核对部署 jar
+（`SearchCache.tooltipFallback`、`TextArgument.matchesText`）。原子替换部署双端（备份
+`*.jar.bak.20260927-0555`）：1.21.1-Fabric md5 `0aa89fa1c89982ba543c51a94b3ceeac`、
+1.21.1-NeoForge md5 `27bd6ba97f5f7138a66e5b3a07f0dd7f`。
+`tools/mixin-check --branch 1.21.1` 全部通过。
+
+## 2026-09-27：幽灵配方收尾 —— 工作区已摆好该配方时悬停不再预览（四分支同步）
+
+**用户诉求**（26.3 实测提出）：「为自动填充幽灵配方做一个收尾——工作区已经摆好某个可合成配方的
+配方时，再悬停该配方就不展示幽灵了。」**为什么**：悬停会写入幽灵 + **藏掉工作区真实物品**，
+配方已摆好时悬停 = 实物被藏、换成一份补不进任何东西的同款幽灵。
+
+**本分支的特殊点（1.21.1 是旧幽灵模型）**：`GhostRecipe$GhostIngredient` **不存槽位引用**，只有
+`(x, y)` 与 `getItem()`（按 `time` 轮循的单个展示物品）。因此：
+- 新增 `mixins/accessors/GhostIngredientAccessor`（`@Mixin(targets="...GhostRecipe$GhostIngredient")`
+  + `@Accessor("ingredient")`）拿到整个 `Ingredient` 的候选列表（`getItem()` 只是一件，判"够不够"
+  必须用候选集）；已注册进 `mixins.brbe-common.json`，javap 核对部署 jar 内已 remap
+  （`targets=["net/minecraft/class_505$class_506"]`、`value="field_3082"`）。
+- 槽位靠 **"坐标 → 槽位"反查**（`Slot.x/y` 与幽灵条目坐标同源：原版 `PlaceRecipe` 就是传
+  `slot.x/slot.y` 进 `addIngredient`）。
+- **结果条目跳过两条**：① 原版 `setupGhostRecipe` **最先**加入结果条目、位置取 `slots.get(0)`
+  → 直接跳过索引 0；② 落在 `RecipeBookMenu.getResultSlotIndex()` 上的条目也跳过（熔炉结果要等
+  烧炼完成）。
+- `HoverGhostRecipe`：新增 `suppressed` 状态 + `workspaceHasRecipe/slotAt/satisfies`，并把原来
+  内联在 `endPreview()` 里的还原逻辑抽成 `restoreSnapshot()` 供两条路径共用；
+  `invalidate()` 清 `suppressed`。
+- 自研书（锻造/酿造）：`GenericGhostRecipe.isLaidOutInWorkspace(menu)` +
+  `GenericGhostIngredient.getVariants()`（1.21.1 该 inner class 原本只有 `getItem()`），
+  `GenericRecipeBookComponent` 的悬停心跳改 `hovered != null && !suppressed` 并跳过
+  `setupHoverGhost`。
+
+**构建部署**：`:fabric:build :neoforge:build` 通过；`tools/mixin-check --branch 1.21.1` 全部通过；
+原子替换部署双端（备份 `20260927-0610`）：1.21.1-Fabric md5 `7dd223dd3835f0ac6a596065fecb978a`、
+1.21.1-NeoForge md5 `60408c306605fa93ea43ce4c113c4f2f`。
+⚠️ **本条是本分支唯一落地的"幽灵收尾"**：上一轮（2026-09-27 二）的**排序原因剥离机制仍未移植**
+（RecipeHolder 模型，逐条 API 需重写）——即 1.21.1 仍是"整组前移"的旧排序语义。
+
+## 2026-09-27（二）：点击放置后真实物品消失修复 —— 预览当场结束并"交接给原版"（四分支同步）
+
+**用户实测反馈（26.3）**：点击可合成配方填充真实物品时，真实物品**当场消失**（鼠标未离开
+单元格），拿开再移回才正常。
+
+**根因**：客户端点击先把幽灵清掉再发放置包，服务端只有**材料不齐**时才回幽灵包——材料齐全时
+没有幽灵回包。于是"幽灵空 + 悬停态仍算 previewing" ⇒ 真实物品被
+`hoverghost/AbstractContainerScreenSlotMixin` 全藏（`invalidate()` 此前只置 `overridden`，
+没结束预览本体），而 `hover()` 的身份短路让状态永不重判。
+
+**修复（1.21.1 的食谱身份是 `RecipeHolder`）**：`invalidate()` 结束预览并记
+`handedOver` + `handedOverRecipe = shown`；`hover()` 在"同一格**或同一配方对象**"时直接短路；
+`endPreview()` 清交接。自研书在 `brbe$showPlacedGhost`/`brbe$clearPlacedGhost` 登记交接，
+心跳与预览分支排除交接态，"同 id 的等价对象"（`brbe$sameRecipeId`）不清交接/不清幽灵。
+
+**构建部署**：`:fabric:build :neoforge:build` 通过；`tools/mixin-check --branch 1.21.1` 全部通过；
+原子替换部署双端（备份 `20260927-1426`）：1.21.1-Fabric md5 `31dcc15361d97978a3380446704f1bed`、
+1.21.1-NeoForge md5 `6905e86a7b0cb9410ea406c17de6f081`。
+
+## 2026-09-27（三）：Tier 0 冒烟验证 —— 抓出并修复 2 个启动级崩溃（双端已部署）
+
+**背景**：1.21.1 自 8-30 起没上过机，而 9 月落了近 20 轮移植。Tier 0 = 离线验证 + 实机冒烟。
+离线部分：三模块 build 通过；构建产物与实例 jar **逐字节一致**（说明实例跑的就是最新代码）；
+`tools/mixin-check --branch 1.21.1` 全绿；`verify_mixin_targets.py`（3 条）与 `mixin-audit/audit.py`（2 条）
+共 5 条报警**逐条 javap 核实为误报**。
+
+**崩溃 ①（Fabric 实测；共享接口落在 mixin 包）**：用户附的
+`disconnect-2026-09-27_16.12.16-client.txt` 即此。`IllegalClassLoadError:
+com.alonie.brbe.mixins.cyclelock.GhostRecipeOrigin is in a defined mixin package … cannot be referenced directly`
+—— 2026-09-13「折叠锁逐物品」轮次新增的共享接口 `GhostRecipeOrigin` 被放在 **mixin 包**
+`com.alonie.brbe.mixins.cyclelock` 里，Mixin 禁止直接引用该包内的类 → 构造配方书（InventoryScreen）时崩。
+**修复**：移到 `com.alonie.brbe.interfaces.GhostRecipeOrigin`（两个 cyclelock mixin 加 import）。
+**同类隐患全分支扫描**：四分支 mixin 包内"非 mixin 类"现均为 0（唯一一处已消）。
+
+**崩溃 ②（NeoForge 专属）**：`Critical injection failure: Redirector brbe$hideRealItem … in
+mixins.brbe-common.json:hoverghost.AbstractContainerScreenSlotMixin … Scanned 0 target(s)`。
+根因（javap 双边字节码实证）：**NeoForge 21.1 把原版 `AbstractContainerScreen.renderSlot` 里的物品绘制
+抽成了 `renderSlotContents(GuiGraphics, ItemStack, Slot, String)`** ——
+`renderFakeItem`/`renderItem`/`renderItemDecorations` 三条调用在原版 `renderSlot` 偏移 444/458/473，
+在 NeoForge 上位于 `renderSlotContents` 偏移 57/72/88。悬停幽灵的三个 `@Redirect` 按原版结构写在
+**common 配置**里 → NeoForge 侧扫不到目标 → 启动即崩（Fabric 正常）。
+**修复（按加载器拆两个 mixin，各自挂正确宿主）**：
+- Fabric：`com.alonie.brbe.fabric.Mixins.hoverghost.AbstractContainerScreenSlotMixin`（从 common 迁到
+  fabric 模块）+ 注册进 `fabric/src/main/resources/mixins.brbe.json`；
+- NeoForge：新增 `com.alonie.brbe.neoforge.Mixins.hoverghost.AbstractContainerScreenSlotContentsMixin`
+  （三个 `@Redirect` 挂 `renderSlotContents`，槽位跟踪仍挂 `renderSlot`）+ 注册进 `neoforge/.../mixins.brbe.json`；
+- `mixins.brbe-common.json` 移除该条目（common 配置两端都加载，放这必然在一边崩）。
+
+**冒烟方法（已沉淀到 `tools/brbe-screen-selftest/README-1.21.1.md`）**：临时探针（Fabric 入口 /
+NeoForge `ClientTickEvent.Post`）进世界后自动开 物品栏→工作台→锻造台→酿造台 再 `mc.stop()`；
+触发用游戏目录下 `brbe-selftest.flag`（`-Dbrbe.selftest=1` 在本机实例**不生效**，日志实测 `prop=false`）；
+输出读 `logs/brbe-debug.log` 的 `[BRBE-SELFTEST]` 行；启动脚本从实例版本 json 生成，
+**NeoForge 的 `${...}` 必须按 shell 风格替换**（用 `str.format` 会吃掉 `$` → 模块路径损坏 →
+`InaccessibleObjectException: java.lang.invoke`）。
+
+**结果**：两个加载器探针均 `OK ×4 → ALL STEPS DONE`、无注入失败（NeoForge 实例带真实 JEI + Create +
+Farmer's Delight + SmoothScroll）。清理探针后重建部署（原子替换）：Fabric
+`68efa9a787d82b409b721f9bf231484e`、NeoForge `b5a178e3af21033b4671331efec53349`；
+`mixin-check --branch 1.21.1` 全绿。**待用户实机按 Tier 0 清单（P0→P1→P2）走一遍交互类功能**
+（报告见 `docs/1.21.1-Tier0-验证报告与实测清单.md`）。
+
+**2026-09-28：锻造台去掉「搜索」标签页**（与 26.3/26.2/1.21.11 同步的用户诉求：只留升级模板 / 纹饰模板两页）
+
+- `api/BRBBookCategories#createUnlistedSearch()`（新）+ `util/BRBHelper.Book#createUnlistedSearch()`：
+  只 `new Category(SEARCH, 罗盘)`，**不走 `createCategory(...)`**（后者才登记进标签列表）。
+- 生效点：`BetterRecipeBook` 的静态字段 `SMITHING_SEARCH = SMITHING.createUnlistedSearch()`
+  （本分支的标签列表取自 `BRBBookCategories.getCategories(BetterRecipeBook.SMITHING)`，
+  见 `SmithingRecipeBookComponent#getRecipeBookType`）；`config/AppContext` 里那份
+  **同 identifier 但不同 Book 对象**的注册也一并改成不登记版（它仅供诊断读取，改掉避免留下"再来一个搜索页"的地雷）。
+- 搜索类别对象保留：组浮层拿它当 `getResult(registryAccess, category)` 的参数；
+  `shouldInclude` 的搜索页分支保留（不可达）。
+- 部署：1.21.1-Fabric `84447064c48b8210aebbad7b599885e0`、1.21.1-NeoForge
+  `3819e233e58ce847bcbbbd5f7181ffe4`（备份 `20260928-005343` 与 `20260928-005405`）。
+
+**2026-09-28（二）：锻造台盔甲架预览残留修复**（与 26.3/26.2/1.21.11 同步的用户反馈）
+
+- 根因与修复同 26.3（见 `docs/26.3-锻造台盔甲架预览残留.md`）：原版只在**结果槽**变化时刷新盔甲架
+  （`SmithingScreen#slotChanged(menu, 3, stack)`）；BRBE 幽灵每帧写幽灵产物、收起时没复位。
+- 本分支落地：`GenericGhostRecipe`（`setOnGhostRelease` / `releaseExternalPreview` / `clear()` 复位 /
+  `render` 置标记）、`SmithingRecipeBookComponent`（留住 `onGhostRecipeUpdate` 并注册
+  `brbe$restoreArmorStandPreview`，复位值 = `menu.getSlot(SmithingMenu.RESULT_SLOT)`；本分支 init 形态
+  不同，钩子接在 `setDefaultRenderingPredicate` 之后）、`GenericRecipeBookComponent#setVisible(false)`
+  也复位一次。
+- 部署：1.21.1-Fabric `34a43dd025cadfebe13cf47b718c4223`、1.21.1-NeoForge
+  `f09809e0f2cb82058344befec9dd2603`（备份 `20260928-013101`）。
+
+**2026-09-28（三）：替代配方组浮层改按"被点击的组按钮"落位**（与 26.3/26.2/1.21.11 同步）
+
+用户反馈（在 26.2 上观察）："酿造台的替代配方组直接生成在了配方书左上部分（每次都是如此）"。
+根因是酿造台浮层写死了 `面板 +7,+26`（正是配方格左上角）。**本分支更彻底**：它从来没做过 26.x 的
+"锚点"接线，两个浮层（锻造台 + 酿造台）都是 `x + 7, y + 26`，所以两个书都是同一个毛病。
+
+本轮补齐（对齐 26.3 的架构）：
+
+- `util/AlternativeOverlayLayout`：采用 26.3 超集（新增 `placeBox` / `clampToScreen` / `pageCenterX` /
+  `pageCenterY` / `CELL` / `SCREEN_MARGIN`；原有 `columnsFor` / `clampToBook` 逐字节不变）。
+- `generic/GenericRecipePage`：`initOverlay` 4 参 → **6 参**（多 `anchorX/anchorY`），右键展开时传
+  `recipeButton.getX()/getY()`（与另三个分支同签名）。
+- `brewingstand/BrewingRecipeBookPage` + `smithingtable/SmithingRecipeBookPage`：覆写同步为 6 参，
+  把锚点交给各自的浮层。
+- `brewingstand/BrewingOverlayRecipeComponent` + `smithingtable/SmithingOverlayRecipeComponent`：
+  `init(...)` 收 `(anchorX, anchorY, panelLeft, panelTop, ...)`，位置改走
+  `placeBox`（原版公式）→ `clampToBook`（夹进书体），删掉写死的 `+7/+26` 与随后的按钮位移块。
+
+部署：1.21.1-Fabric `485ba55f9c36a2442a583a825feee9511`、1.21.1-NeoForge
+`ba7d1fb54ce9701013074dc78607a4c7`（备份 `20260928-014717`）。字节码核对：两个浮层都有 `placeBox`、
+旧 `bipush 7/26` 偏移消失。
+
+**仍未移植（本分支）**：26.x 的"浮层内容随结果集刷新"（`brbe$refreshOpenOverlay`，修 pin 后的镜像）
+与锻造台浮层分页——两者都依赖 `PinnableRecipeCollection`/`RecipeExtraction` 那套，属另一批。
+
+**2026-09-28（四）：新功能「强制合并相同产物的配方」（本分支为 RecipeHolder 版实现）**
+
+用户设想的同产物合并（语义见 `docs/同产物配方合并.md`：只原版书、物品+组件忽略数量、
+取消分组优先、合并组仍可被排序剥离、默认关）。本分支结构与 26.x 不同，按自己的管线落地：
+
+- `util/CollectionPipeline` 新增 `applyResultMerge(List<RecipeCollection>)`：产物取
+  `holder.value().getResultItem(registryAccess)`（`Minecraft.getInstance().level`），
+  `copyWithCount(1)` 归一化；集合内产物必须一致才参与；合并组复用**既有的** `buildPack`
+  （`new RecipeCollection(registryAccess, entries)` + `canCraft` + `updateKnownRecipes`，
+  与 pin 剥离同一套）+ `IncompatibleCraftingUtil.markIncompatibleRecipes(pack)`。
+- `util/RecipePipeline.prepareDisplay`：`applyVisibility` → **合并** → `applySorting` → pin 提取；
+  新组的残缺标记由既有 **Stage 6b**（`markPartialMaterials`）统一重放，无需另接回调。
+- `mixins/incompletecrafting/RecipeBookComponentMixin#brbe$configKey()` 加 `mergeSameResult`
+  （本分支的显示缓存键，不加则开关切换不生效）+ 配置 `AlternativeRecipes.mergeSameResult` +
+  7 语言两键。
+- 部署：1.21.1-Fabric `ea6de01514377bc8a3f9ccb09b8caee9`、1.21.1-NeoForge
+  `88bc53531fa41a5292dd7db456341495`，备份 `20260928-165523`；字节码核对
+  `CollectionPipeline.applyResultMerge`（2 处）与 `AlternativeRecipes.mergeSameResult` 字段在、
+  jar 内 zh_cn 含新键。
+
+
+**2026-09-28（七）：同产物合并改为"专用收纳格"口径（复制而非移动）**
+
+用户定稿（见 `docs/同产物配方合并.md` §1）：**混合配方组里的同产物配方复制一份进专用收纳格、原组一条不动**；
+**非混合格**（独立格/全同产物组）里的同产物配方**搬进**收纳格（唯一非混合格则原地当专用格）；
+产物只在一个格子里出现 → 不处理；**两份同时脱离父组时合二为一**（保留专用格那一份）；**搜索时副本不重复显示**。
+
+- 本分支是 RecipeHolder 版：`util/CollectionPipeline.applyResultMerge(List)` 重写为"产物结构 → 来源集合 → 逐个产物建收纳格"，
+  并返回 `MergeResult`（`dedicated` 专用格血统 + `copied` 副本索引，均按集合身份）。
+  源集合**不被修改**（搬 = 从输出列表去掉原格）→ 管线反复运行幂等。
+- `util/RecipeExtraction`：`Plan#onSubgroupPack` 回调补上父集合参数 `(parent, pack)`。
+- `generic/GenericRecipeBookComponent`：`onSubgroupPack(C parent, C pack)`（自研书行为不变）。
+- `mixins/pipeline/RecipeBookComponentMixin`：主路径持有 `MergeResult` 并传给 Stage 2.5；
+  诊断路径丢弃它（不重放标记）。
+- 本分支无通用排序剥离 → 副本去重落在 `applyPinCopyGroups(list, merge)`（pin 组同样继承血统、
+  组间按同一规则去重）；**搜索去重未实现**（本分支搜索不按条目过滤，不存在该重复）。
+- 配置 tooltip 与 javadoc 改写为复制口径（7 语言）。
+
+**数据**（随仓库原版配方集 1007 格 / 40 混合组）：291 种产物跨格 → 243 种有非混合来源（净 −355 格）、
+48 种只在混合组里（净 +48 格）→ **合计净 −307 格，混合组成员一条不少**。
+
+## 2026-09-28（二）：同产物合并 —— 修复"同一混合组多个产物互相覆盖" + 新增路线族拼接（已部署）
+
+**用户实测**："多了一个黄色挽具的专用收纳组（奇怪的是只多了黄色组这一个，其他颜色没有），
+原版的两个挽具组纹丝不动（预期行为）。"
+
+**① bug（`insertBefore` 下标覆盖）**：`CollectionPipeline.applyResultMerge` 的待插入清单曾是
+`Map<格子下标, 条目列表>`，而同一混合组里多个产物（16 色挽具）的"第一个来源"是**同一个下标**
+→ `put` 互相覆盖 → 只剩最后一个产物（原版遍历顺序里最后一个颜色恰好是黄色 → `yellow_harness`；
+地毯/床同理各剩一个黄色格）。次要症状：`copied` 索引照样登记了另外 15 色的副本 → 搜索这些颜色时
+副本在原组里被隐藏（"收纳格已收录"）而收纳格并不存在 → 搜索结果缺失。
+**修复**：值改为 `List<List<条目>>`，组装输出时按顺序逐个插入
+（`insertBefore.computeIfAbsent(mixed.get(0), k -> new ArrayList<>()).add(entries)`）。
+
+> ⚠️ 更正上一轮的数据：上轮写的"净 −307 格（243 非混合 + 48 混合组）"是**设计语义**的模型值；
+> 部署的 jar 因该 bug 实际只有 **−354 格、三族各剩 1 个黄色格**。修复后 = −309 格（三族各 16 格）。
+
+**② 新功能：路线族拼接**（`coalesceRouteFamilies`，Stage 2.6 的**第 0 步**，在 `applyResultMerge` 内）：
+互为"平行路线"的两个混合组先拼成**一个**组，产物因此不再跨组 → 不再各建收纳格。判据是**结构式**的
+（与 group 命名无关）：两侧产物都可解、各 ≥2 个、**每个产物在各自组内只出现一次**、
+**小侧产物全被大侧包含**、交集 ≥2；三条以上路线用**并查集**连锁成一组。拼接 = 字面拼接
+（先出现的组的条目在前），位置取族内**最靠前**的那一格；源集合不被修改（幂等），新组并入
+`newPacks`（不兼容标记就地补做 + 残缺标记交调用方重放）。
+原版命中且**只**命中三对：`harness`+`harness_dye`、`carpet`+`carpet_dye`（18 ⊇ 16，苔藓地毯留在组里）、
+`bed`+`bed_dye` —— 39 个混合组 / 741 个两两组合里 **0 误报**；`stained_glass_pane`（两条路线本来
+同组）、`wool`/`banner`/`stained_glass`/`concrete_powder`（另一条路线是无组独立配方，不是混合组）
+都不会被并入。
+
+**数据**（随仓库配方集 1585 文件 → 1027 格 / 40 混合组）：跨格产物 293 种 = 245 种含非混合来源
+（净 −357）+ 48 种只在混合组里（就是那三个族）；修复 bug = 718 格（−309）；
+**加拼接 = 667 格（−360）**、混合组 40 → 37、三族各 2 格 → 1 格（harness 32 配方/16 产物、
+carpet 34/18、bed 32/16）。
+
+**落地**：`util/CollectionPipeline.java`（1.21.11 / 26.2 / 26.3 **字节一致**，源码 md5 `da0fab28…`）；
+配置 tooltip 追加一句（7 语言）。
+
+**本分支差异**（RecipeHolder 版同算法）：`ResultKey.of(holder, registryAccess)`；
+`buildPack(entries, template)` 取 `template.registryAccess()`；拼接组由 **Stage 6b**
+（`prepareDisplay` 里对 result 全量 `markPartialMaterials`，wasChecked 让原组跳过）重放残缺标记，
+不引入 `remarkPacks` 回调；副本去重仍落在 `applyPinCopyGroups(list, merge)`（pin 组继承血统、
+组间按同一规则去重）；**搜索去重未实现**（本分支搜索不按条目过滤）。
+
+**部署**：备份 `20260928-221144`；1.21.1-Fabric md5 `498969311815e2cbd4c32a24c24b53a9`、
+1.21.1-NeoForge md5 `b76962cdfb2a40effd46e613687e6851`（双端已原子替换）。
+javap 核对两端：`coalesceRouteFamilies` / `isParallelRoute` / `ROUTE_FAMILY_MIN_SHARED` 在位。
+
+**待实测**：挽具/地毯/床 = **一个组**；散格收纳 / 混合组不动 / pin 剥离合一 / 关掉开关即恢复 均不变。
+
+## 2026-09-29：路线族判据修正 —— 产物多重性不再否决成族 + 比例保护（已部署）
+
+**用户实测（1.21.11 + Aerial Hell）**："模组为每个床添加了一些配方（AH 加的是羊毛线）……
+原版状态是 AH 的床配方和原版床配方合在一起、床的交叉染色线独立。开启合并后我预想的是合到一个组里，
+但实际上配方书里罗列了 16 个床配方组（BRBE 收纳组），每个组各含 1 条原版羊毛线 + 1 条 AH + 1 条原版
+交叉染色线；那个 AH + 原版羊毛线大组则原封不动。"
+
+**根因**：AH 把 16 条床配方写进 **vanilla 的 `bed` 组**（`group:"bed"`，产物 = `minecraft:*_bed`），
+该组变成"16 产物 × 每产物 2 条"；上一轮判据里的"**每个产物在各自组内只出现一次**"（保守起见加的）
+把整族判成非路线族 → 不拼接 → 回落成按产物建收纳格 = **16 格 × 3 条**，两个混合组按"只复制不动"不变。
+旁证：AH 一共往 **12 个 vanilla 组名**里塞配方（bed 16、planks 22、hanging_sign 9、sign 8、
+stained_glass 4、stained_glass_pane 8、wooden_button/door/fence/fence_gate/pressure_plate/trapdoor 8–14），
+实机 51 个混合组里有 5 个"同产物多条配方"（planks 最多 5 条/产物）——多重性在整合包里是常态。
+
+**用户拍板（2026-09-29）**：① 床终态 = 一个组（48 配方/16 产物）；② 模组自建组名时也并（结构优先）；
+③ 小侧 ⊆ 大侧 → 并、互不包含 → 不并；④ 加比例保护（大侧 ≤ 2×小侧）。
+
+**改动**（`util/CollectionPipeline.coalesceRouteFamilies` / `isParallelRoute`）：产物集合改取
+`counts.keySet()`（**不再要求多重性为 1**）；新增 `ROUTE_FAMILY_MAX_RATIO = 2`；判据 =
+两侧产物可解且各 ≥2 + 小侧 ⊆ 大侧 + 大侧 ≤ 2×小侧（命名不参与）。
+
+**实测**（实机数据集 vanilla + AH 721 + FD 339 = 1195 格 / 51 混合组）：旧判据 2 对（carpet/harness）
+→ 16 个"只在混合组里"的收纳格；新判据 3 对（+bed）→ **0 个**，床 = 1 组（48 配方/16 产物）；
+AH/FD 的上千条配方**无新增误并**（1195 → 1192 格）。参考配方集（不随 jar 发布）里
+`hanging_sign`(20) 与 `wooden_hanging_sign`(12)（比例 1.67）也会成族。
+
+**本分支差异**（RecipeHolder 版同算法）：产物集合同样改取 `counts.keySet()`、同样加
+`ROUTE_FAMILY_MAX_RATIO = 2`；拼接组仍由 Stage 6b 重放残缺标记；搜索去重仍不实现。
+
+**部署**：备份 `20260929-153049`；1.21.1-Fabric md5 `df9c3dabcc5fa971ae0298e2d59135a9`、
+1.21.1-NeoForge md5 `f1ad39a02585eddaab542cc081abd737`（双端原子替换）。
+javap 核对两端：`ROUTE_FAMILY_MAX_RATIO` 在位、`coalesceRouteFamilies` 体内无 `entrySet`/`getValue`、
+有 `keySet`，`isParallelRoute` 含 `imul`（2×）与 `containsAll`。
+
+## 2026-09-29（二）：组内同产物相邻 —— 调整组里的配方排序（已部署）
+
+**用户要求**："我希望每个组里的同产物配方都能放在一起，而不是一前一后中间夹着其他配方，
+也就是调整组里的配方排序。"
+
+**问题**：路线族拼接是字面拼接（A 组全部在前、B 组全部在后）→ 同一产物的多条做法被拉开
+（床：原版羊毛线 …16 条… AH 木板线 …16 条… 原版交叉染色）；模组往 vanilla 组里追加配方
+（AH 的 planks / hanging_sign / stained_glass_pane / black_dye）同理。
+
+**实现**（`util/CollectionPipeline` 第 0.5 步，26.x/1.21.11 与 1.21.1 同算法）：
+- `applyResultClustering(collections, …, newPacks)`：逐集合把同一产物的条目聚拢；**产物按首次出现
+  顺序**排列、**同一产物内部保持原相对顺序**（原组在前、追加在后）→ 黑床（羊毛线 → 木板线 →
+  交叉染色）→ 蓝床 → …；
+- `clusteredEntries(entries, …)`：产物只有一条的组**原样返回入参**（不重建、不复制）；
+  解不出产物的条目留在原位；只有顺序真的变了才返回新列表；
+- 顺序会变的组用 `buildPack` 重建并并入 `newPacks`（不兼容标记就地补做 + 残缺标记交调用方重放）；
+  **源集合不被修改** → 关掉开关立刻恢复原顺序；
+- 族组在 `coalesceRouteFamilies` 内就地对齐（字面拼接后先聚拢再 `buildPack`），其余集合（含未被动过的
+  vanilla 混合组）在第 0.5 步统一处理。
+
+**效果**：床族 48 配方 / 16 产物 → `black(AH, 原版羊毛, 原版染色) | blue(…) | … | yellow(…)`。
+
+**本分支差异**（RecipeHolder 版同算法）：`applyResultClustering(collections, registryAccess, newPacks)` /
+`clusteredEntries(entries, registryAccess)`；重建组的残缺标记由 Stage 6b 统一重放。
+
+**部署**：备份 `20260929-162228`；1.21.1-Fabric md5 `3adeadae550a395836a0d52737cf6278`、
+1.21.1-NeoForge md5 `941e267f1d6c38ce5c52324fd0f0b5ce`（双端原子替换）。
+javap 核对两端：两个助手在位、`applyResultMerge` 体内调用。
+
+**待实测**：组内同产物做法相邻；每产物只有一条的组顺序不变；关掉开关顺序恢复。
+
+## 2026-09-29：**待办** —— 同产物同形融合（用户决定本分支暂缓）
+
+其余三个维护分支已实现"同产物 + 同形 → 合为一条、差异材料轮循"（见它们各自的 2026-09-29（三）轮次与
+`docs/同产物配方合并.md` §十）；**1.21.1 本轮不动**，原因：该分支没有 `RecipeDisplay`/`SlotDisplay` 体系。
+
+要在本分支落地需要另做：
+1. **融合条目**：新建一条"合并版 `Recipe`"（`ShapedRecipe`/`ShapelessRecipe` + 逐槽 `Ingredient` 并集；
+   shaped 取裁剪空行空列后的图案），用主成员的真实 `RecipeHolder.id`（`ResourceLocation`）包成 `RecipeHolder`，
+   放进对应集合（`RecipeCollection` 构造/`canCraft` 走既有 `buildPack`）。
+2. **差异轮循**：1.21.1 的原料轮循来自 `Ingredient` 多物品 + 按钮/浮层的轮循计时（`CycleLockSlotSelectTime`），
+   并集 `Ingredient` 即可轮循显示（浮层里是否轮循需要实测）。
+3. **放置替换**：1.21.1 的点击放置路径不同（客户端 `RecipeBookMenu.handlePlacement` /
+   `ServerPlaceRecipe.recipeClicked`，本分支已有 `ServerPlaceRecipeMixin`）——需要在发包前把 id/配方换成
+   "成员里当前物品栏真能做的那一条"。
+4. **pin 跟随**：本分支 pin 键是 `RecipeHolder.id()`（不是 display 散列）→ 融合条目直接沿用主成员 id 即可
+   天然跟随，比 1.21.11/26.x 更简单。
+5. **积覆盖判据**、形状判据（去空行空列）、状态优先级：与另三分支同算法，可照搬
+   `CollectionPipeline` 里的 `FusionShape`/`AlignedMember`/`productCovered` 逻辑（换 `RecipeDisplayEntry` →
+   `RecipeHolder` + `Recipe`）。
+
+---
+
+## 2026-10-02（五）：配置界面 —— 类别「配方」改名「行为」+ 三个条目置顶（四分支同步，已部署）
+
+**用户指令**："将类别「配方」改为「行为」；然后将「自动填充幽灵配方」「保存配方书浏览记录」
+「循环滚动」这三个配置项移动到行为类别的顶部，相对顺序不变。"
+
+**实现**（`util/ConfigTipsHelper.java`，四个分支同步）：
+
+1. **改名只改显示文本**：`text.autoconfig.brbe.category.recipeSettings` 的 7 语言值
+   zh_cn 配方→**行为**、zh_tw 配方→**行為**、en_us Recipes→**Behavior**、ja_jp レシピ→**挙動**、
+   pl_pl Receptury→**Zachowanie**、ru_ru Рецепты→**Поведение**、tr_tr Tarifler→**Davranış**。
+   ⚠️ **类别 id（`recipeSettings`）、`@ConfigEntry.Category` 注解、字段名、TOML 路径一律不动** ——
+   Cloth 的 category 只影响 GUI 分组，序列化按字段名走，所以**没有配置迁移问题**；
+   代码/文档里看到 id 仍是 `recipeSettings` 属正常（注释已标注显示名）。
+2. **三个条目置顶**：`relocateEntries` 新增一步（26.3/26.2/1.21.11 = 第 6 步，1.21.1 = 第 7 步）——
+   按新常量 `BEHAVIOR_TOP_OPTION_KEYS`
+   （`…option.autoFillGhostRecipe` → `…option.saveRecipeBookPosition` → `…option.scrolling.scrollAround`）
+   依次从**「功能」页**（前两个是无 `@Category` 的顶层字段，第三个是 `scrolling` 子对象字段）
+   摘出条目对象，再 `recipeEntries.addAll(0, …)` 放进该页最前 —— 相对顺序 = 常量顺序。
+   三者在原文里本来就被 `pinyinSearch` / `showModName` 等隔开（不是连续的），所以是逐条摘取。
+
+**位置细节**：`@PrefixText` 黄字行由 AutoConfig 插在**该字段自己那一组**的第 0 位
+（反编译 `DefaultGuiTransformers`：`ArrayList.add(I, Object)`），所以「行为」页原本以
+`unlockAll` 的黄字行「§e更好的过滤器」开头；本次按"顶部"的字面语义把三条插在**该黄字行之上**。
+若希望它们落在黄字行下面，把 `addAll(0, …)` 的下标改成 1 即可（一行）。
+
+**验证**：四分支 `compileJava` / `build` 全绿；7 语言 JSON 解析通过；
+部署 jar 内实测 zh_cn 的 `category.recipeSettings` = **行为**，且 `ConfigTipsHelper.class` 的常量池里
+三个 option key 与 `BEHAVIOR_TOP_OPTION_KEYS` 均在；`tools/mixin-check/check.py` 四个分支**全部通过**。
+
+**部署**（备份 tag `20261002-215030`，六个实例原子替换）：
+26.3 `264e29716844cd71029da49a928eb0dd`、26.2 `a5da06a3253d5887e9f9c1493a4c8657`、
+1.21.11 `a92e69636765d62dc730df56767c92a6`、1.21.1-Fabric `97fc8752ad2f2d82833fc80352e4b747`、
+1.21.1-NeoForge `52446064213412c402264e0cfc98a16d`。
+**界面观感待用户验证**（打开配置界面：「行为」页最上面三条依次为 自动填充幽灵配方 /
+保存配方书浏览记录 / 循环滚动，其后才是「§e更好的过滤器」黄字行与原有选项）。
+
+---
+
+## 2026-10-03（九）：配置项「配方区翻页方向」—— 布尔改枚举（自然 / 常规）+ 旧值迁移（四分支同步，已部署）
+
+**用户指令**："将「在配方区使用自然的翻页方向」改为「配方区翻页方向」；然后把配置项类型改为
+枚举模式，设两个模式，一个是自然，一个是常规，常规对应原来的 false，自然对应原来的 true。"
+
+**语义（与旧布尔一一对应）**
+
+| 枚举值 | 显示名 | 含义 | 旧值 |
+|---|---|---|---|
+| `NATURAL` | 自然 | 鼠标滚轮向前（上滚）＝往后翻页 | `true` |
+| `REGULAR` | 常规 | 旧方向：上滚＝往前翻页（**默认**） | `false` |
+
+**落地**（`26.3` / `26.2` / `1.21.11` / `1.21.1` 四分支同步）：
+
+1. **配置字段**：`BrbeConfig.naturalPageDirection`（boolean）→
+   **`BrbeConfig.pageFlipDirection`**（新枚举 `BrbeConfig.PageFlipDirection { NATURAL, REGULAR }`，
+   默认 `REGULAR`）。枚举实现 `SelectionListEntry.Translatable#getKey()` 返回
+   `text.autoconfig.brbe.option.pageFlipDirection.<常量名>` —— **实证** Cloth 的
+   `DefaultGuiProviders.DEFAULT_NAME_PROVIDER` 对 `instanceof SelectionListEntry.Translatable`
+   走 `getKey()`（`javap -c` 字节码），所以 AutoConfig 内置的枚举选择器就够用，
+   **不需要**像 `tabMode` 那样写自定义 provider / transformer。
+2. **旧 TOML 迁移**：新增 `migrateLegacyPageFlipDirectionInToml()`，在 **AutoConfig 注册之前**把
+   `naturalPageDirection = true|false` 正则改写成 `pageFlipDirection = "NATURAL"|"REGULAR"`。
+   挂点：26.x 在 `BetterRecipeBook.init()`（紧接 `migrateLegacyTabModeInToml()`）；
+   **1.21.1 在 `config/AppContext` 构造器**（该分支的 `AutoConfig.register` 在那里）。
+   ⚠️ 不做迁移的话旧布尔值会让枚举反序列化抛异常 → Cloth 的 register 整体失败 → **整份配置丢失**
+   （与 `tabMode = "COMPACT"` 同源，见 §7 的教训）。迁移失败只记一行 WARN。
+3. **取值处**：`RecipeViewerOverlay.naturalPageDirection()` 改读枚举
+   （`config == null` → 自然；字段为 null → 自然；否则 `direction.natural()`），调用点
+   `int delta = (vertical > 0) == naturalPageDirection() ? 1 : -1;` **未变** —— 行为与改动前一致。
+4. **语言**（4 分支 × 7 语言）：键 `…option.naturalPageDirection` / `…@Tooltip` 改名为
+   `…option.pageFlipDirection` / `…@Tooltip`，并新增两档名 `…pageFlipDirection.NATURAL` /
+   `…pageFlipDirection.REGULAR`。文案：标题 zh_cn「配方区翻页方向」/ zh_tw「配方區翻頁方向」/
+   en「Recipe Area Page Turn Direction」/ ja「レシピエリアのページ送り方向」/
+   pl「Kierunek przewracania stron w obszarze przepisów」/ ru「Направление перелистывания в области рецептов」/
+   tr「Tarif alanında sayfa çevirme yönü」；两档名 自然·常规 / 自然·常規 / Natural·Regular /
+   自然·通常 / Naturalny·Zwykły / Естественное·Обычное / Doğal·Normal；
+   tooltip 改成描述两档（「自然：滚轮上滚＝往后翻页；常规：滚轮下滚＝往后翻页。」等 7 语言）。
+
+**验证**：四分支 `compileJava` / `build` 全绿；`javap` 核对部署 jar 内有
+`BrbeConfig$PageFlipDirection` 类、字段 `pageFlipDirection` 与常量 `NATURAL`/`REGULAR`/`getKey()`/`natural()`；
+jar 内 `assets/brbe/lang/zh_cn.json` 的 `…pageFlipDirection` = 「配方区翻页方向」、
+`.NATURAL` = 「自然」、`.REGULAR` = 「常规」；28 个语言文件 JSON 解析通过且旧键已消失；
+`tools/mixin-check` **四分支全部通过**（本轮未改 mixin）。
+
+**部署**（备份 tag `20261003-134740`，六实例原子替换）：
+26.3 `b50e73d0e0434c05f0812bf778d62a11`、26.2 `64e10682dbee63fc9e24bc21e5c41fd8`、
+1.21.11 `11b93b0408fb568abf41c39777d58e33`、1.21.1-Fabric `bc0b7d82fd553e7c1b63e2bdafab1173`、
+1.21.1-NeoForge `e6dcc012a6eec53f3173ac1706790905`。
+**实机待用户验证**：配置界面该行应是枚举选择器（自然 / 常规），旧 `brbe.toml` 里若原本是
+`naturalPageDirection = true`，首次启动会看到日志
+`[BRBE] Migrated brbe.toml page direction: naturalPageDirection -> pageFlipDirection`
+且该行变成 `pageFlipDirection = "NATURAL"`。
+
+> 说明：2026-09-13（五十三）那条轮次记录里的字段名 / 类型（`boolean naturalPageDirection`）
+> 已被本轮取代，仅作历史存档。
+
+---
+
+## 2026-10-03（十）：枚举项「只有一个档位」的根因 —— 缺 `@EnumHandler(BUTTON)`（四分支同步，已部署）
+
+**用户反馈**："枚举模式不应该就是「标签模式」配置项那样吗？「配方区翻页方向」采用了什么配置类型？"
+以及"「配方区翻页方向」只有「常规」一个项"。
+
+**根因（Cloth Config `DefaultGuiProviders` 字节码实证）**：AutoConfig 给**枚举字段**注册了**两条** GUI 路径 ——
+
+| 路径 | 谓词 | Builder | 控件 |
+|---|---|---|---|
+| ① `lambda$apply$16` | `lambda$apply$19`：`isEnum()` **且** 字段带 `@ConfigEntry.Gui.EnumHandler` 且 `option()==BUTTON` | `startSelector(...)` | **`SelectionListEntry`＝枚举切换按钮**（点一下切下一档） |
+| ② `lambda$apply$20` | `lambda$apply$24`：**只要求 `isEnum()`** | `startDropdownMenu(...).setSelections(...)` | **`DropdownBoxEntry`＝可搜索下拉框** |
+
+① 在 `apply()` 里**先注册**（offset 144）② 在后（offset 158/179），而 `GuiRegistry` 取值用 `findFirst`
+→ **带注解的枚举字段走切换按钮，不带的落到下拉框**。
+
+「标签模式」（`rbip.tabMode`）一直带着
+`@ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)`；
+本轮（九）新加的 `pageFlipDirection` **漏了这个注解** → 走 ② —— 实测下拉框的候选只剩**当前档位**
+（用户看到的"只有『常规』一个项"，无法选到「自然」）。
+
+> 四种在用的 Cloth（1.21.1 的 `15.0.140`、1.21.11 的 `21.11.153`、26.2 的 `26.2.155`、
+> 26.3 的 `26.3.158`）**结构完全一致**：`startSelector` ×1、`startDropdownMenu` ×1、
+> `EnumDisplayOption.BUTTON` 常量都在 —— 所以该注解是**跨分支通用**的修法。
+> （`startEnumSelector` / `EnumListEntry` 在 AutoConfig 里**从未被调用**，只是 Cloth 的公开 API。）
+
+**修复**：`BrbeConfig.pageFlipDirection` 补上
+`@ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)`
+（与 `tabMode` 逐字一致），并加注释说明"漏了它会退化成下拉框"。
+验证：`javap -v` 部署 jar 内 `BrbeConfig.class` 的 `pageFlipDirection` 字段
+`RuntimeVisibleAnnotations` 已含 `ConfigEntry$Gui$Tooltip` + `ConfigEntry$Gui$EnumHandler(option=BUTTON)`。
+
+> 订正（九）里"不需要自定义 provider / transformer"的说法：**结论仍成立**（带注解后
+> AutoConfig 自己就生成与「标签模式」**同一个控件类** `SelectionListEntry`），但当时**漏掉了
+> 那个必需的注解** —— 「标签模式」之所以正常，正是因为它带着 `@EnumHandler(BUTTON)`。
+
+**部署**（备份 tag `20261003-141341`，六实例原子替换）：
+26.3 `b2b07351e24970e4fcd072a503422ebf`、26.2 `f434dc4fc0b445af8e35ece859113738`、
+1.21.11 `f2cf69a82293e6f8a076881890026b53`、1.21.1-Fabric `cce60b227e4ca0815ce7aea0cf3f395f`、
+1.21.1-NeoForge `1e2c65c9c3f11de816ac9f2180bcfb82`；`tools/mixin-check` 四分支全部通过。
+
+**实机待验证**：配置界面「配方区翻页方向」应是一个**切换按钮**（显示当前档「常规」），
+点一下变成「自然」、再点回「常规」，与「标签模式」的交互完全一致。
+
+---
+
+## 2026-10-03（十一）：两项布尔 → 枚举 ——「预览模式」→「窗口模式」、「配方书模式」→「查询范围」（四分支同步，已部署）
+
+**用户指令**：① 「预览模式」改为「窗口模式」，类型改为枚举，两档「持久」（原 `false`）/「预览」（原 `true`）；
+② 「配方书模式」改为「查询范围」，类型改为枚举，两档「仅限配方书」（原 `true`）/「全类别」（原 `false`）。
+
+| 旧字段（布尔） | 新字段（枚举） | 档位（旧值） | 默认 |
+|---|---|---|---|
+| `previewMode` | `windowMode`（`WindowMode`） | `PERSISTENT`＝持久（`false`）· `PREVIEW`＝预览（`true`） | 持久 |
+| `hideNoRecipeBookStationObjects` | `queryScope`（`QueryScope`） | `RECIPE_BOOK_ONLY`＝仅限配方书（`true`）· `ALL_CATEGORIES`＝全类别（`false`） | 全类别 |
+
+**落地**（26.3 / 26.2 / 1.21.11 / 1.21.1；1.21.1 无 `previewMode`，只做 `queryScope`）：
+
+1. **配置字段**：`BrbeConfig` 新增嵌套枚举 `WindowMode` / `QueryScope`（都实现
+   `SelectionListEntry.Translatable#getKey()`，档位名键 `…option.windowMode.<常量>` /
+   `…option.queryScope.<常量>`）。两者都带
+   `@ConfigEntry.Gui.EnumHandler(option = BUTTON)` —— **（十）的教训**：不带它 AutoConfig 会生成
+   `DropdownBoxEntry` 可搜索下拉框（候选只剩当前档位），带上才走枚举切换按钮（`SelectionListEntry`）。
+2. **读取点**：字段改名为 `windowMode` / `queryScope`，所有读取点机械替换为
+   `BetterRecipeBook.config.previewMode()` / `recipeBookOnly()`（`BrbeConfig` 上的便捷方法，
+   语义与旧布尔一致；字段缺失/为 null 时按各自默认档）。替换处数：26.x / 1.21.11 各 3 + 16，1.21.1 12。
+3. **1.21.1 特有坑：`RecipeViewerGuiRegistrar`**（26.x/1.21.11 没有这个类）——它用 predicate
+   provider 接管 `recipeViewerEnabled` 与旧 `hideNoRecipeBookStationObjects` 的渲染（`brbe.disableRecipeViewer`
+   屏蔽时**整段隐藏**，含"查询合成/用途"标题行）。字段一旦变成枚举，它的
+   `field.getBoolean/setBoolean` 会抛 `IllegalArgumentException`（被 catch 后静默 fallback = 那一行
+   变成点不动的开关）。修复：`VIEWER_BOOLEAN_FIELDS` → `VIEWER_FIELDS`，并在 provider 里为
+   `queryScope`（新常量 `QUERY_SCOPE_FIELD`）**单独造同款 `startSelector` 选择器** ——
+   既保住"屏蔽时整段隐藏"的门控，又避免被 AutoConfig 内置枚举 provider 抢回去。
+4. **TOML 迁移**：`migrateLegacyPageFlipDirectionInToml()` 改名 **`migrateLegacyConfigValuesInToml()`**，
+   一次处理三个布尔项 → 枚举值（26.x 三条；1.21.1 两条）。仍然必须在 `AutoConfig.register` **之前**
+   跑（旧布尔值会让枚举反序列化失败 → 整份配置丢失），日志改为
+   `Migrated brbe.toml legacy boolean options to enums` / 失败 `legacy option TOML migration failed`。
+5. **语言**（4 分支 × 7 语言）：键 `…option.hideNoRecipeBookStationObjects` →
+   `…option.queryScope`、`…option.previewMode` → `…option.windowMode`，各自新增两档名，tooltip 改成
+   **描述两档**（如「仅限配方书：只显示配方书内的对象；全类别：不按配方书体系过滤。」、
+   「持久：重新开启界面时查询窗口恢复；预览：不再恢复，与其他元素交互时也会关闭查询窗口。」）。
+   26.x/1.21.11 里那个旧式无点重复键（`…hideNoRecipeBookStationObjects@Tooltip`）一并改名。
+   ⚠️ **1.21.1 的显示名对齐（披露）**：该分支这一项原本叫「隐藏无配方书工作站所属的对象」且
+   **没有 tooltip**（字段没带 `@ConfigEntry.Gui.Tooltip`）——本轮为跨分支一致，统一成
+   「查询范围」+ 两档名 + 新 tooltip（补上 `@ConfigEntry.Gui.Tooltip` 注解）。如要保留 1.21.1 旧名，改 7 个
+   `option.queryScope` 的值即可。
+
+**验证**：四分支 `compileJava` / `build` 全绿；`javap -v` 逐个核对部署 jar 内 `BrbeConfig` 的
+`pageFlipDirection` / `queryScope` / `windowMode` 字段都带 `EnumHandler(option=BUTTON)`，
+且 `BrbeConfig$QueryScope` / `BrbeConfig$WindowMode` 类都在；28 个语言文件 JSON 解析通过、
+旧键（`hideNoRecipeBookStationObjects` / `previewMode`）已全部消失、新键齐全；
+`tools/mixin-check` 四分支全部通过（本轮未改 mixin）。
+
+**部署**（备份 tag `20261003-151809`，六实例原子替换）：
+26.3 `91831bb4514d778b1cf58867f51da1e5`、26.2 `329fa7afb149ce5385e27d92baff31d6`、
+1.21.11 `8fd3ce97b7cc6201ff5f08edbfb3a670`、1.21.1-Fabric `e42923aecf9f8ae69822df568cb5cb34`、
+1.21.1-NeoForge `95096256ee301438591123b34d7264b8`。
+
+**实机待用户验证**：配置界面「窗口模式」是切换按钮（持久 ⇄ 预览）、「查询范围」是切换按钮
+（仅限配方书 ⇄ 全类别），与「标签模式 / 配方区翻页方向」交互一致；旧 `brbe.toml` 里的
+`previewMode` / `hideNoRecipeBookStationObjects` 首次启动会被改写成 `windowMode = "…"` /
+`queryScope = "…"`（值不丢）。
+
+---
+
+## 2026-10-03（十二）：「完全拆散替代配方组」→「拆散替代配方组」+ 三档枚举（完全 / 选择性 / 关闭）（四分支同步，已部署）
+
+**用户指令**：「完全拆散替代配方组」改为「拆散替代配方组」，类型改为枚举，三档「完全」（原 `true`）、
+「选择性」（原 `false`），**新增「关闭」** —— "关闭则是把选择性拆散替代配方组（根据替代配方组内配方的
+选中状态来拆分，比如不同配方状态的配方要拆开，被搜索选中的配方也要拆开，还有被pin的配方也要被拆开）
+也关掉"。
+
+| 枚举值 | 显示名 | 含义 | 旧值 |
+|---|---|---|---|
+| `FULL` | 完全 | 每个替代配方组拆成单配方格（`ungroup/ClientRecipeBookMixin` + `CollectionPipeline.applyUngroup`），并优先于「自动收纳同产物配方」 | `noGrouped=true` |
+| `SELECTIVE` | 选择性 | Stage 2.5 `CollectionPipeline.applySortExtraction`：按变体状态（pin / 可合成 / 残缺 / 搜索命中）把变体剥出去参与排序 | `noGrouped=false`（**默认**） |
+| `OFF` | 关闭 | **两者都不做**：Stage 2.5 跳过、也不拆散 —— 替代配方组整体保持原样，组内变体在同一按钮上轮循 | 新增 |
+
+**落地**（26.3 / 26.2 / 1.21.11 / 1.21.1）：
+
+1. **配置**：`AlternativeRecipes.noGrouped`（boolean）→ **`AlternativeRecipes.splitMode`**
+   （新枚举 `SplitMode`，默认 `SELECTIVE`），带 `@ConfigEntry.Gui.EnumHandler(option = BUTTON)`
+   —— 同（十）的教训，不带它 AutoConfig 会生成候选只剩当前档位的下拉框。读取点新增
+   `noGrouped()`（= 完全档）与 `selectiveSplitEnabled()`（= 选择性档）两个便捷方法，
+   全部老读取点机械替换（26.x 各 4 个文件、1.21.1 5 个文件）。
+2. **「关闭」的两处闸门**（26.x / 1.21.11）：
+   - `mixins/pipeline/RecipeBookComponentMixin`：Stage 2.5 `applySortExtraction(...)` 调用包在
+     `if (selectiveSplitEnabled())` 里 —— 这是"不同状态 / 搜索命中 / pin 变体被拆开"的唯一来源；
+   - `generic/GenericRecipeBookComponent`（BRBE 自研的酿造台 / 锻造台书）：`brbe$extractBySortReason`
+     同样被该开关闸住（与原版书行为一致）。
+   - 未受影响：Stage 3 `applyPins`（整体全 pin 的组仍置顶）、Stage 2.6 收纳（由
+     `mergeSameResult` 自己管）、Stage 4 排序（只排集合、不拆组）。
+   - **缓存键分位**：`brbe$configMask()` 里「选择性＝0 位 / 完全＝bit4 / 关闭＝bit16」——
+     三档必须分开，否则档位切换不改变缓存键（与 2026-09-30 那次"开关压成 OR"同源的坑）。
+3. **1.21.1 的差异（披露）**：该分支**没有** Stage 2.5「按排序原因剥离」，组内变体从来不按状态
+   拆出去 —— 所以 1.21.1 上「选择性」与「关闭」行为相同（保留 OFF 档只为跨分支配置/界面一致）。
+4. **TOML 迁移**：`migrateLegacyConfigValuesInToml()` 追加
+   `noGrouped = true|false` → `splitMode = "FULL"|"SELECTIVE"`（26.x 现共四条、1.21.1 三条），
+   仍在 `AutoConfig.register` 之前执行。
+5. **语言**（4 分支 × 7 语言）：`…option.alternativeRecipes.noGrouped` →
+   `…option.alternativeRecipes.splitMode`，标题「拆散替代配方组」，新增 `.FULL` / `.SELECTIVE` /
+   `.OFF` 三档名，tooltip 改为描述三档（「完全：将所有替代配方组拆散成单配方格（并禁用「自动收纳
+   同产物配方」）；选择性：按变体状态拆散（被pin、可合成、残缺、被搜索选中的配方会拆出来）；
+   关闭：不做任何拆散，替代配方组保持原样。」）。⚠️ 1.21.1 该字段原本**没有 tooltip**（无
+   `@ConfigEntry.Gui.Tooltip`），本轮补上注解与键（与其他分支一致）。
+
+**验证**：四分支 `compileJava` / `build` 全绿；`javap -v` 核对部署 jar 内
+`AlternativeRecipes$SplitMode` 类存在、`splitMode` 字段带 `EnumHandler(option=BUTTON)`；
+28 个语言文件 JSON 解析通过、旧键 `…noGrouped` 已消失、新键（含三档名）齐全；
+`tools/mixin-check` 四分支全部通过（本轮未改 mixin 注册）。
+
+**部署**（备份 tag `20261003-154251`，六实例原子替换）：
+26.3 `c6296236de39edb78668d0b84301fb2c`、26.2 `e0d45d3bd42af76de7e8ccda0baa3cce`、
+1.21.11 `9d822bc6151fb2c262a4f3177e0658c3`、1.21.1-Fabric `9f8e0cb0a36ffe1e2c32183a2c3ed866`、
+1.21.1-NeoForge `ba9a424cc8a56344b788673305e1aec7`。
+
+**实机待用户验证**：配置界面「拆散替代配方组」是切换按钮（完全 ⇄ 选择性 ⇄ 关闭）；
+「关闭」档下替代配方组整体不动（组内变体轮循），pin / 搜索命中不再把组内变体单独拎出来
+（这是"关闭"的预期代价）；旧 `brbe.toml` 的 `noGrouped` 首次启动会被改写成
+`splitMode = "FULL"|"SELECTIVE"`（值不丢）。
+
+---
+
+## 2026-10-03（十三）：四个枚举配置项的 tooltip 排版对齐「标签模式」（多行，四分支同步，已部署）
+
+**用户指令**：「请把现在的枚举配置项的 tooltip 的排版风格向「标签模式」对齐」。
+
+**「标签模式」的原排版**（照抄的目标）：注解 `@ConfigEntry.Gui.Tooltip(count = N)` +
+语言键 `…@Tooltip[0]` / `[1]` / `[2]`，**每行一个档位**，行首是档位名的引号形式
+（zh_cn `“命名空间”：…`），**不是**用换行符拼一坨。机制实证：Cloth 的
+`DefaultGuiTransformers` 读 `Tooltip.count()`，`count == 1` 时取 `…@Tooltip`、
+`count > 1` 时按 `%s.%s[%d]` 拼出 `…@Tooltip[i]`（`javap -c` 里能看到 `@Tooltip` 与 `%s.%s[%d]` 两个字面量）。
+
+**改动**（四个枚举项，四分支）：
+
+| 配置项 | 行数 | 语言键 |
+|---|---|---|
+| `pageFlipDirection`（配方区翻页方向） | 2 | `…pageFlipDirection.@Tooltip[0]/[1]`：自然 / 常规 |
+| `windowMode`（窗口模式） | 2 | `…windowMode.@Tooltip[0]/[1]`：持久 / 预览 |
+| `queryScope`（查询范围） | 2 | `…queryScope.@Tooltip[0]/[1]`：仅限配方书 / 全类别 |
+| `alternativeRecipes.splitMode`（拆散替代配方组） | 3 | `…splitMode.@Tooltip[0]/[1]/[2]`：完全 / 选择性 / 关闭 |
+
+- 注解：`@ConfigEntry.Gui.Tooltip` → `@ConfigEntry.Gui.Tooltip(count = 2)`（splitMode 为 `3`），
+  与 `rbip.tabMode` 的 `count = 3` 同一写法；每处旁边补了一行注释说明"两行/三行说明（排版对齐
+  「标签模式」）"。旧单行键 `…@Tooltip` **已删除**（留着会与 `count > 1` 的新键并存、误导以后改文案的人）。
+- 语言：7 语言全部改写为逐档一行（引号风格跟各语言既有习惯：zh_cn `“”`、zh_tw/ja `「」`、
+  en/tr `" "`、pl `„ ”`、ru `« »`）。
+  **1.21.1 的「关闭」行**额外带一句括号说明（该分支没有 Stage 2.5，本档与「选择性」行为相同）。
+- **1.21.1 的 `RecipeViewerGuiRegistrar`**（`queryScope` 的 GUI 由它自造选择器）：原先只读单行
+  `…@Tooltip` 键 → 改为按 `QUERY_SCOPE_TOOLTIP_LINES = 2` 循环取 `…@Tooltip[0]/[1]`，
+  与 `TabModeGuiRegistrar` 的 `TOOLTIP_LINES` 同一写法（常量 + 注释要求与注解上的 N 保持一致）。
+
+**验证**：四分支 `compileJava` / `build` 全绿；`javap -v` 核对部署 jar 内
+`BrbeConfig` 的 `pageFlipDirection` / `queryScope` / `windowMode` 与 `AlternativeRecipes` 的
+`splitMode` 四个字段的 `Tooltip` 注解分别带 `count=2/2/2/3`（且仍带 `EnumHandler(option=BUTTON)`）；
+28 个语言文件 JSON 解析通过、旧单行键已消失、`…@Tooltip[i]` 行数分别为 2/2/2/3；
+`tools/mixin-check` 四分支全部通过。
+
+**部署**（备份 tag `20261003-160850`，六实例原子替换）：
+26.3 `fd00d0d3e279e151202e00b9c1c08393`、26.2 `4d038cbcb5975615b9b2bb1ac0abe376`、
+1.21.11 `b52c4bafbcd196a9339080623d64aea2`、1.21.1-Fabric `746e1b585479089e0c447ac9e78478d9`、
+1.21.1-NeoForge `f3b7a72b1b4c279a11d372bfa6bf6279`。
+
+**实机待用户验证**：四项的 tooltip 现在应是**多行**（每档一行，行首“档位名”：说明），
+排版与「标签模式」一致；1.21.1 的「查询范围」同样多行（走的是自造选择器那条路径）。
+
+---
+
+## 2026-10-03（十四）：附魔台不出词条 → 事故根因：BRBE 写进存档的 `brbe_progress` 数据包是坏包（26.3/26.2/1.21.11 三个分支，已部署）
+
+**用户报告**：「安装 BRBE 后 Enchanting Infuser 的两个附魔台都无法附魔，把装备塞进去不跳附魔词条，
+经验足够也不行；原版附魔台同样；卸载 BRBE 就恢复。」用户随后确认：**修好本轮问题后附魔台稳定出词条**
+（即该症状是本轮数据包事故的连带表现，不是附魔逻辑本身被 BRBE 改坏）。
+
+**排查手段（新增两个可复用的回路，见下）**：
+1. `tools/brbe-screen-selftest/BrbeEnchantProbe.java` —— 真实实例里的附魔探针：给玩家 30 级 + 钻石剑 +
+   青金石 → 在服务端开 `EnchantmentMenu`（真实 `ContainerLevelAccess`）→ 等 `EnchantmentScreen` 打开 →
+   用**真实界面点击路径**（`AbstractContainerScreen.mouseClicked`，也就是 BRBE 的 HEAD 注入层）把剑点进
+   附魔槽，点不进去再退回 `handleContainerInput(QUICK_MOVE)` → 打印客户端/服务端 `costs`、`enchantClue`、
+   附魔注册表规模、BRBE 浮层状态，最后 `mc.stop()` 自动退出。跑法：
+   `TEST_SRC=BrbeEnchantProbe.java TEST_ENTRY=brbeselftest.BrbeEnchantProbe TEST_ID=brbe_eprobe \
+    TEST_NAME="BRBE Enchant Probe" TEST_JAR=brbe-eprobe.jar GREP_TAG=BRBE-ENCHPROBE bash run-cbtest.sh 110`
+2. `tools/brbe-progress-pack-check/check.py` —— 静态校验进度包 JSON 模板（从 `RecipeUnlockTracker.java`
+   的字符串拼接还原成品 JSON 再 `json.loads`），1 秒出结论，不必进游戏。
+
+**探针结论（BRBE 没改坏附魔逻辑的正面证据）**：客户端与服务端 `costs` 一致且非 0（`[1,2,7]`）、
+`enchantClue=[69,44,80]`、附魔注册表 87 条 / `#minecraft:in_enchanting_table` 36 条、
+`RecipeViewerOverlay.isActive()=false` / `ownsPoint=false` / `pin=null`（浮层没有吞点击）。
+即"装备进槽 → 两侧各自本地算词条"这条链在 BRBE 存在时是通的。
+
+**真正的根因：`brbe_progress` 进度包写坏 → 26.3 的 loader 直接拒绝加载注册表**：
+```
+java.lang.IllegalStateException: Failed to parse brbe:recipe/advancednetherite/netherite_iron_helmet_smithing from pack file/brbe_progress
+Caused by: ... Advancement completion requirements did not exactly match specified criteria. Missing: []. Unknown: [has_the_recipe]
+Caused by: java.lang.IllegalStateException: Failed to load registries due to errors
+```
+三个缺陷叠加（都在 `brewingstand/RecipeUnlockTracker.java`）：
+
+| # | 缺陷 | 证据 / 影响 |
+|---|---|---|
+| ① | 锻造触发器的条件键写成 `"conditions":{"recipe":…}`，而 **26.3 改名为 `recipes`** | `javap -c` 实证：26.3 `RecipeUnlockedTrigger$TriggerInstance` 常量池是 `"recipes"`；26.2 / 1.21.11 / 1.21.1 是 `"recipe"`（所以**只有 26.3 要改**）。42 个文件全部解析失败 → `Failed to load registries due to errors` → **整个世界打不开**（实例日志 17:42，44 条 parse 错误 + 游戏退回标题界面） |
+| ② | `pack.mcmeta` 只写 `pack_format`，缺 `min_format`/`max_format` | data pack 格式跨过 `PackFormat.lastPreMinorVersion(SERVER_DATA)`（=81）后这两个字段是**强制**的（26.3=121、26.2=107、1.21.11=94 都超）。26.3：`WARN Error reading pack metadata, attempting fallback type`；**1.21.11：`ERROR Couldn't load file/brbe_progress pack metadata`**（包整个不生效）。修法：`progressPackMeta()` 按 `format.major() > lastPreMinorVersion(SERVER_DATA)` 决定是否补 `min_format`/`max_format`（数组形式 `[major,minor]`，与内置资源包一致） |
+| ③ | `requirements` 写成 `[[a],[b]]`（**AND**），与类注释"镜像原版语义 / 任一满足"矛盾 | 奖励本身就是"解锁该配方"，AND 之下模组锻造配方**永远解锁不了**。改为原版同款单组 OR：`[["has_the_recipe","has_addition"]]` |
+
+配套改动：
+- **指纹加版本尾巴**（`.materials.fingerprint` → `…|brew-v3`、`.recipes.fingerprint` → `…|vanilla-native|adv-v3`）：
+  否则指纹不变 → 老世界里的坏包**永远不会被重写**，改完代码也救不回来。
+- **落盘前自校验**：`writePackJson()`（原 `writeBrewJson`）先 `JsonParser.parseString` 再写；
+  校验失败记 `WARN [BRBE-RECIPE-PROGRESS] refusing to write invalid JSON to …` 并**删掉同名旧文件**
+  （老版本写坏的残留文件留着照样锁死世界）。⚠️ 教训：**本轮我第一次补丁少写了一个 `}`**，
+  生成的 42 个文件全是非法 JSON（靠"校验生成物"抓到，游戏里当时没报错是因为那一次加载根本没读这个包）；
+  有了这道闸门，这类手写 JSON 事故以后最多是"少写一个文件 + 一行 WARN"，不会再锁死世界。
+
+**验证**：
+- 修复前（红）：世界加载失败 —— 44 条 `Failed to parse brbe:…` + `Failed to load registries due to errors`。
+- 修复后（绿）：世界正常加载；日志 0 条 `Failed to parse brbe` / 0 条 `Error reading pack metadata` /
+  0 条 `Failed to load registries`；世界内进度包 **67/67 个 JSON 全部合法**，42 个锻造触发器都是
+  `conditions.recipes` + `requirements=[["has_the_recipe", …]]`；`pack.mcmeta` =
+  `{"pack":{"pack_format":121,"min_format":[121,0],"max_format":[121,0],…}}`；
+  附魔探针 `VERDICT=PASS`（客户端 `costs=[1,2,7]`）；用户实机确认附魔台稳定出词条。
+- `tools/brbe-progress-pack-check/check.py` 三分支**全部合法**；`tools/mixin-check` 四分支全部通过。
+
+**已部署**（备份 tag `20261003-181114`，原子替换）：26.3 `94cdd4a74951768f9a85bd1c74eaa0d0`、
+26.2 `aa89da95cf6f500264ca874c16fdb5e7`、1.21.11 `b3f7d761424b9c8cec251f1a7dcbf546`。
+**1.21.1 未改也未重部署**：该分支没有进度包写入器（无 `RecipeUnlockTracker`），无此缺陷。
+
+**用户存档的清理（已做）**：
+- `saves/新的世界`：坏包先移到世界根目录备份（`brbe_progress.broken-20261003`、`brbe_progress.v2broken-20261003`，
+  都在 `datapacks/` **之外**、不会被加载），随后由新构建重写出合法包；现包 67 个文件全合法。
+- `saves/新的世界 (4)`：含 42 个非法文件的坏包移到 `<world>/brbe_progress.broken-20261003`（否则该世界打不开）。
+- `新的世界 (1)(2)(3)`：只有酿造包、无非法文件，但 `pack.mcmeta` 是旧格式 → 下次打开时会被
+  `brew-v3`/`adv-v3` 指纹强制重写为合规格式。
+- ⚠️ 探针在 `新的世界` 里留了痕迹（供后续排查参考）：在 `25,65,-76` 放了附魔台方块、
+  给玩家塞了钻石剑 + 16 青金石、每次运行 +30 经验等级（共 5 次 ≈ +150 级）。

@@ -336,7 +336,7 @@ public final class RecipeViewerOverlay {
                     target.getHoverName().getString(), usage);
             // 1.21.11 语义：BRBE 引擎无命中 → 回退外部 viewer（JEI/REI）；
             // hide 开启时抑制回退（BRBE 无法判定的对象不泄漏给外部 viewer）。
-            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+            if (BetterRecipeBook.config.recipeBookOnly()) {
                 return false;
             }
             return fallbackToViewer(target, usage);
@@ -355,7 +355,7 @@ public final class RecipeViewerOverlay {
             if (alt == null) {
                 BrbeLogger.log("BRBE-VIEWER", "open refused: empty content cat={} item={} usage={}",
                         cat.id(), target.getHoverName().getString(), usage);
-                if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+                if (BetterRecipeBook.config.recipeBookOnly()) {
                     return false;
                 }
                 return fallbackToViewer(target, usage);
@@ -996,12 +996,12 @@ public final class RecipeViewerOverlay {
         Set<String> hidden = hiddenCategoryIds();
         List<RecipeViewerCategory> out = new ArrayList<>();
         for (RecipeViewerCategory cat : RecipeViewerCategories.all()) {
-            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+            if (BetterRecipeBook.config.recipeBookOnly()
                     && hidden.contains(cat.id())) {
                 continue;
             }
             // 站类别连接被切（非法站 + hide 开）不显示 tab（grid 类别豁免）
-            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+            if (BetterRecipeBook.config.recipeBookOnly()
                     && !cat.isGridCategory()
                     && cat.appliesToStation(queryTarget)
                     && !RecipeViewerEngine.isRecipeBookStation(queryTarget)) {
@@ -1437,7 +1437,7 @@ public final class RecipeViewerOverlay {
             for (RecipeViewerEngine.JeiEntry j : cat.queryJei(queryTarget, queryUsage)) hits.add(DisplayEntry.of(j));
         }
         // hideNoRecipeBookStationObjects 对象级过滤（1.21.11 链）
-        if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+        if (BetterRecipeBook.config.recipeBookOnly()) {
             hits = filterByRecipeBookStations(hits, cat);
         }
         // pin 置顶（命中 >1 时才重排）
@@ -1696,7 +1696,7 @@ public final class RecipeViewerOverlay {
     private static void switchCategory(RecipeViewerCategory category) {
         if (category == null || category == currentCategory) return;
         // hide 开关的站类别切连：非法站不浮出其配方（grid 类别豁免）
-        if (!browseAllMode && BetterRecipeBook.config.hideNoRecipeBookStationObjects
+        if (!browseAllMode && BetterRecipeBook.config.recipeBookOnly()
                 && queryUsage && queryTarget != null && !queryTarget.isEmpty()
                 && category.appliesToStation(queryTarget)
                 && !RecipeViewerEngine.isRecipeBookStation(queryTarget)) {
@@ -2188,7 +2188,7 @@ public final class RecipeViewerOverlay {
     /** 对象级过滤：hide 开时仅保留有配方书工作站的条目。 */
     private static List<DisplayEntry> filterByRecipeBookStations(List<DisplayEntry> hits,
                                                                  RecipeViewerCategory category) {
-        if (!BetterRecipeBook.config.hideNoRecipeBookStationObjects) return hits;
+        if (!BetterRecipeBook.config.recipeBookOnly()) return hits;
         if (hits.isEmpty()) return hits;
         List<DisplayEntry> out = new ArrayList<>();
         for (DisplayEntry entry : hits) {
@@ -2341,7 +2341,7 @@ public final class RecipeViewerOverlay {
                         stationMatches(si, furnaceStn, blastStn, smokerStn));
                 List<ItemStack> icons = RecipeViewerIndex.workstationsIconsForPrefix(
                         furnaceStationPrefix(si));
-                if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+                if (BetterRecipeBook.config.recipeBookOnly()) {
                     List<ItemStack> filtered = new ArrayList<>();
                     for (ItemStack icon : icons) {
                         if (RecipeViewerEngine.isRecipeBookStation(icon)) filtered.add(icon);
@@ -2426,7 +2426,7 @@ public final class RecipeViewerOverlay {
         } else {
             icons.addAll(RecipeViewerIndex.stationColumnItemsFor(category.id()));
         }
-        if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+        if (BetterRecipeBook.config.recipeBookOnly()) {
             List<ItemStack> filtered = new ArrayList<>();
             for (ItemStack icon : icons) {
                 if (RecipeViewerEngine.isRecipeBookStation(icon)) filtered.add(icon);
@@ -2445,11 +2445,15 @@ public final class RecipeViewerOverlay {
 
     // ── 配方书 / 功能方块幽灵物品的折叠锁（1.21.1 的轮换 = 各实例自己的 time 字段）──
 
-    /** 「在配方区使用自然的翻页方向」（默认开）：{@code true} = 鼠标滚轮向前
-     *  （上滚）往后翻页；{@code false} = 旧方向（上滚往前翻页）。只作用于
-     *  <b>配方区</b>的翻页——标签条翻页与 Alt+滚轮轮循走各自的方向。 */
+    /** 「配方区翻页方向」：{@code NATURAL}（自然）= 鼠标滚轮向前（上滚）往后翻页；
+     *  {@code REGULAR}（常规）= 旧方向（上滚往前翻页）。只作用于
+     *  <b>配方区</b>的翻页——标签条翻页与 Alt+滚轮轮循走各自的方向。
+     *  配置缺席 / 字段为 null 时按「自然」处理（与改动前的 {@code config == null} 兜底一致）。 */
     private static boolean naturalPageDirection() {
-        return BetterRecipeBook.config == null || BetterRecipeBook.config.naturalPageDirection;
+        if (BetterRecipeBook.config == null) return true;
+        com.alonie.brbe.config.BrbeConfig.PageFlipDirection direction =
+                BetterRecipeBook.config.pageFlipDirection;
+        return direction == null || direction.natural();
     }
 
     /** Shift 弹窗内光标所在槽位的物品（阶段一 #3；经 PopupGeometry.itemAt

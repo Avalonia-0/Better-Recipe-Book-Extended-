@@ -97,7 +97,9 @@ public class BetterRecipeBook {
     public static BRBBookCategories.Category BREWING_POTION = BREWING.createCategory(new ItemStack(Items.POTION));
     public static BRBBookCategories.Category BREWING_SPLASH_POTION = BREWING.createCategory(new ItemStack(Items.SPLASH_POTION));
     public static BRBBookCategories.Category BREWING_LINGERING_POTION = BREWING.createCategory(new ItemStack(Items.LINGERING_POTION));
-    public static BRBBookCategories.Category SMITHING_SEARCH = SMITHING.createSearch();
+    // 锻造台标签页 = 「升级模板 / 纹饰模板」两页（用户 2026-09-28 诉求：去掉"搜索"页）。
+    // 搜索类别**仍要建**（不登记为标签页）：组浮层拿它当取产物的类别参数用。
+    public static BRBBookCategories.Category SMITHING_SEARCH = SMITHING.createUnlistedSearch();
     public static BRBBookCategories.Category SMITHING_TRANSFORM = SMITHING.createCategory(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE));
     public static BRBBookCategories.Category SMITHING_TRIM = SMITHING.createCategory(new ItemStack(Items.NETHERITE_CHESTPLATE));
 

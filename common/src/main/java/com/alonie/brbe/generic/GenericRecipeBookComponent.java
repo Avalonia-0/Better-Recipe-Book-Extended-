@@ -49,7 +49,14 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     protected boolean ignoreTextInput;
     protected Minecraft minecraft;
     protected EditBox searchBox;
-    private String lastSearch;
+    /**
+     * 上一次已应用的搜索词。
+     *
+     * <p>本分支的 {@code checkSearchStringUpdate} 没有 26.x 那句 {@code lastSearch.isEmpty()}
+     * （因此没有那个 {@code NullPointerException}），但字段仍然必须初始化——判等语义与
+     * 26.x 各分支保持一致（用户 2026-09-27 反馈的"搜索要切标签才刷新"即该 NPE 所致）。</p>
+     */
+    private String lastSearch = "";
     protected int xOffset;
     protected boolean widthTooNarrow;
     protected int width;
@@ -81,6 +88,83 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
      */
     @Nullable
     private R brbe$hoverGhostRecipe;
+
+    /**
+     * **点击配方留下的缺料引导**（用户 2026-09-26）：点击是"持续引导"、悬停是"临时预览"，
+     * 两者的幽灵内容可以相同，但生命周期不同——指针离开配方按钮后要**还原点击留下的引导**，
+     * 而不是把工作区清空。
+     *
+     * <p>此前的缺陷：悬停逻辑在"指针下没有配方"时无条件 {@code ghostRecipe.clear()}，
+     * 于是点击写入的引导在鼠标一移开就被抹掉 → 玩家观感"点击根本不填充幽灵配方，
+     * 只有悬停时才临时出现"（用户反馈，酿造台与锻造台同病）。</p>
+     *
+     * <p>子类在点击放置的"材料不齐"分支调用 {@link #brbe$showPlacedGhost} 登记，
+     * 在"材料齐、直接放置"分支调用 {@link #brbe$clearPlacedGhost} 撤销。</p>
+     */
+    @Nullable
+    private R brbe$placedGhostRecipe;
+
+    /**
+     * 悬停的这条配方**工作区里已经摆好了** → 本次悬停不预览（用户 2026-09-27 收尾诉求）。
+     * 判定见 {@link #brbe$recipeLaidOutInWorkspace}；解析见 {@link #brbe$updateHoverGhost}。
+     */
+    private boolean brbe$hoverSuppressed;
+
+    /**
+     * 「在别的配方上**停留**多久算'已经预览过它'」：达到它，悬停预览结束时**点击留下的缺料引导
+     * 就此结束**（不再还原）。用户 2026-09-26 反馈：悬停展示结束后会留下一个持久幽灵，
+     * 来源"无规律"——实为早先点击留下的引导被还原（26.3 实机日志 BRBE-GHOST 实证）。
+     * 但鼠标从被点的格子移向工作区时会**掠过**别的格子，那种"路过"（< 300ms）必须保留引导，
+     * 否则又回到"点击后引导被鼠标移开抹掉"的老问题。见 {@link #brbe$updateHoverGhost}。
+     */
+    private static final long GUIDE_SUPERSEDE_MS = 300L;
+    /** 本次悬停预览的起始时刻（同一格内轮循换配方不重置）。 */
+    private long brbe$hoverStartedAt;
+
+    /** 点击配方、材料不齐：写入幽灵引导并登记为"点击留下的引导"（与悬停预览同一写入路径）。 */
+    protected final void brbe$showPlacedGhost(R recipe) {
+        this.brbe$placedGhostRecipe = recipe;
+        // 点击即刷新"停留"计时：随后的离开不该被算成"在别的配方上停留看过"
+        this.brbe$hoverStartedAt = System.currentTimeMillis();
+        this.setupHoverGhost(recipe);
+        // 幽灵的所有权交给原版（点击引导）→ 鼠标停在原格时不再叠加悬停预览，否则刚写好的引导
+        // 会被预览的"暂隐工作区真实物品"盖成一片空白（用户 2026-09-27 实测）。
+        HoverGhostRecipe.markHandedOver();
+    }
+
+    /** 材料齐、配方已放置：撤销登记（幽灵已被 {@code handlePlaceRecipe} 清空，不能再被还原）。 */
+    protected final void brbe$clearPlacedGhost() {
+        this.brbe$placedGhostRecipe = null;
+        // 真实物品刚被放进工作区 → 本格上不再预览（同 {@link HoverGhostRecipe#invalidate()}）
+        HoverGhostRecipe.markHandedOver();
+    }
+
+    /**
+     * 幽灵被**外部**清空（玩家点空槽 / 槽位变化 / 服务端回包）：点击留下的缺料引导**随之结束**。
+     *
+     * <p>不结束的话，这份已被玩家处理掉的引导会在指针下一次离开悬停的配方时被"还原"回工作区——
+     * 玩家看到的是"我明明没再点击，工作区自己冒出一份幽灵，而且配方跟我刚悬停的那个没关系"
+     * （用户 2026-09-26 反馈；26.3 实机日志 BRBE-GHOST 实证：guide 注册 → slotClicked 清空 →
+     * 下一次悬停结束时又把那份引导写回来）。与工作台那条路径的
+     * {@code HoverGhostRecipe.invalidate()}（原版流程接管幽灵 → 放弃还原权）同义。</p>
+     */
+    public void brbe$endGhostGuide() {
+        this.brbe$placedGhostRecipe = null;
+        this.brbe$hoverGhostRecipe = null;
+        this.brbe$hoverStartedAt = 0L;
+        if (this.ghostRecipe != null) {
+            this.ghostRecipe.clear();
+        }
+    }
+
+    /** 两条配方是不是"同一个"（按 {@link GenericRecipe#id()} 比：同一组的各条路线 id 相同）。 */
+    private boolean brbe$sameRecipeId(@Nullable R a, @Nullable R b) {
+        if (a == null || b == null) {
+            return false;
+        }
+        return a.id() != null && a.id().equals(b.id());
+    }
+
 
     protected GenericRecipeBookComponent() {
     }
@@ -142,6 +226,13 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
                 BRBBookSettings.isFiltering(this.getRecipeBookType()));
         this.updateFilterButtonTooltip();
         this.filterButton.initTextureValues(BRBTextures.filterButtonFor(this.getRecipeBookType()));
+        // 「优化原版配方过滤器」（用户 2026-09-27 诉求）：与原版书同一套处理——按钮隐藏
+        // （配方全显示，优先级交给「可合成置顶」排序），搜索栏加宽到 97 居中占位（左右各距书缘 25）。
+        if (BRBBookSettings.partialFilterMode()) {
+            this.filterButton.visible = false;
+            this.filterButton.active = false;
+            this.searchBox.setWidth(97);
+        }
 
         List<BRBBookCategories.Category> categories = BRBBookCategories.getCategories(this.getRecipeBookType());
 
@@ -192,7 +283,10 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             widget.render(gui, mouseX, mouseY, delta);
         }
 
-        this.filterButton.render(gui, mouseX, mouseY, delta);
+        // 过滤按钮隐藏时不画（「优化原版配方过滤器」开启 = 无按钮模式）
+        if (this.filterButton.visible) {
+            this.filterButton.render(gui, mouseX, mouseY, delta);
+        }
 
         ISettingsButton.super.renderSettingsButton(this.settingsButton, gui, mouseX, mouseY, delta);
 
@@ -304,6 +398,11 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         if (!string.isEmpty()) {
             SearchQuery query = SearchQuery.parse(string);
             SearchCache cache = new SearchCache();
+            // 「纯文本也匹配 tooltip 全文」——原版配方书搜索的语料就是产物物品的全部 tooltip 行
+            // （SessionSearchTrees.recipes()），于是"海岸盔甲纹饰"这种只出现在 tooltip 里的文字
+            // 在原版能查到锻造台纹饰组的配方；BRBE 先前只匹配物品名 → 查不到（用户 2026-09-27 诉求）。
+            // 只在自研书打开：语料小（锻造/酿造几十个集合），tooltip 生成 + 缓存的开销可控。
+            cache.setTooltipFallback(true);
             results.removeIf(collection -> !matchesSearch(collection, query, cache));
         }
 
@@ -363,6 +462,11 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         if (!visible) {
             // 收起配方书 = 悬停结束（幽灵物品的渲染本就只在书可见时进行）
             this.brbe$hoverGhostRecipe = null;
+            // 收起配方书 = 幽灵**不再显示** → 外部预览（锻造台界面的盔甲架）此刻复位。
+            // 幽灵对象本身按原设计保留（点击留下的缺料引导不因收书而结束），只是不再占着外部预览。
+            if (this.ghostRecipe != null) {
+                this.ghostRecipe.releaseExternalPreview();
+            }
         }
     }
 
@@ -433,7 +537,7 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
         searchBox.setFocused(false);
         ignoreTextInput = false;
 
-        if (this.filterButton.mouseClicked(mouseX, mouseY, button)) {
+        if (this.filterButton.visible && this.filterButton.mouseClicked(mouseX, mouseY, button)) {
             boolean bl = this.toggleFiltering();
             this.filterButton.setStateTriggered(bl);
             this.updateFilterButtonTooltip();
@@ -475,6 +579,12 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
     }
 
     protected boolean toggleFiltering() {
+        // 「优化原版配方过滤器」开启时按钮已隐藏：过滤状态恒关，不允许切回
+        //（配方全显示，优先级交给「可合成置顶」排序）。
+        if (BRBBookSettings.partialFilterMode()) {
+            BRBBookSettings.setFiltering(this.getRecipeBookType(), false);
+            return false;
+        }
         boolean bl = !BRBBookSettings.isFiltering(this.getRecipeBookType());
         BRBBookSettings.setFiltering(this.getRecipeBookType(), bl);
 
@@ -514,7 +624,13 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
             return;
         }
 
-        if (!this.recipesPage.overlayIsVisible()) {
+        // 替代配方组浮层打开时，普通配方格的 tooltip 会透过浮层冒出来，所以原样保留
+        // 「浮层打开就不问页面」的判定；但**浮层里自己那一格**的 tooltip 要给出
+        // （用户 2026-09-27 诉求：组内格子的 tooltip 与普通配方格同款）。
+        java.util.List<net.minecraft.network.chat.Component> overlayTip = this.recipesPage.overlayTooltip();
+        if (overlayTip != null && !overlayTip.isEmpty()) {
+            gui.renderComponentTooltip(Minecraft.getInstance().font, overlayTip, mouseX, mouseY);
+        } else if (!this.recipesPage.overlayIsVisible()) {
             this.recipesPage.drawTooltip(gui, mouseX, mouseY);
 
             ISettingsButton.super.renderSettingsButtonTooltip(this.settingsButton, gui, mouseX, mouseY);
@@ -553,31 +669,118 @@ public abstract class GenericRecipeBookComponent<M extends AbstractContainerMenu
      *
      * <p>只在"光标下的配方换了"时重写：点击放置（{@code handlePlaceRecipe}）自己
      * 写/清幽灵之后，同一按钮上的悬停不再插手（否则会把点击留下的缺料引导顶掉）。</p>
+     *
+     * <p>指针**离开**按钮时不再一律清空：若工作区里还留着点击写入的缺料引导
+     * （{@link #brbe$placedGhostRecipe}），把它还原回来——点击引导是持续的，
+     * 悬停预览只是临时盖在它上面（用户 2026-09-26 反馈：点击后引导被鼠标移开抹掉，
+     * 看起来像"点击不填充幽灵配方"）。</p>
      */
     private void brbe$updateHoverGhost() {
         if (this.recipesPage == null || this.ghostRecipe == null) return;
         if (!HoverGhostRecipe.enabled()) {
-            // 配置「自动填充幽灵配方」关闭：撤下我们写过的预览；原版点击放置的幽灵不动
-            if (this.brbe$hoverGhostRecipe != null) {
-                this.brbe$hoverGhostRecipe = null;
+            // 配置「自动填充幽灵配方」关闭：撤下**悬停预览**（点击放置的引导属于原版语义，保留）。
+            // 用 size()==0 判断"当前显示的是不是悬停预览"，避免每帧 clear+重写把轮循计时清零。
+            this.brbe$hoverGhostRecipe = null;
+            if (this.ghostRecipe.size() > 0) {
                 this.ghostRecipe.clear();
+            }
+            if (this.brbe$placedGhostRecipe != null && this.ghostRecipe.size() == 0) {
+                this.setupHoverGhost(this.brbe$placedGhostRecipe);
             }
             return;
         }
 
-        R hovered = this.recipesPage.hoveredButton == null
-                ? null : this.recipesPage.hoveredButton.getCurrentDisplayedRecipe();
+        // 幽灵预览源 = hoverGhostRecipe（而不是 hoveredRecipe）：不提供预览的格子在那里是 null
+        R hovered = this.recipesPage.hoverGhostRecipe;
+        // 悬停目标变了 → 清掉"本目标已交给原版"（点击放置后）并重算「工作区已经摆好这条配方」
+        // （探针：写一次幽灵→逐格比对→清掉）；抑制期间**心跳也要关**，否则"暂隐工作区真实物品"
+        // 会把摆好的材料整片藏掉。
+        if (hovered != this.brbe$hoverGhostRecipe) {
+            // 同一条配方的**等价对象**（页面因槽位变化重建、同格轮循换出新实例）不算换了目标：
+            // 交接标记与工作区里的幽灵都保持原样——否则点击放置后的第一帧会把刚放好的真实物品
+            // 又藏起来 / 把点击留下的缺料引导清掉（用户 2026-09-27 实测）。
+            if (HoverGhostRecipe.isHandedOver() && this.brbe$sameRecipeId(hovered, this.brbe$hoverGhostRecipe)) {
+                this.brbe$hoverGhostRecipe = hovered;
+                return;
+            }
+            HoverGhostRecipe.clearHandedOver();
+            this.brbe$hoverSuppressed = hovered != null && this.brbe$recipeLaidOutInWorkspace(hovered);
+        }
+        // 点击放置（材料齐 → 真实物品进工作区 / 材料不齐 → 原版缺料引导）后**鼠标还停在原格**时
+        // 不再预览：否则"暂隐工作区真实物品"会把刚放好的真实物品当场藏起来（用户 2026-09-27 实测）。
+        boolean handedOver = HoverGhostRecipe.isHandedOver();
+        // 「暂隐工作区真实物品」心跳：本方法在书体可见时每帧跑，所以这里就是"预览是否在
+        // 显示"的权威信号（界面关闭后不再有心跳，HoverGhostRecipe 侧超时自动失效）。
+        // 预览显示期间**工作区真实物品一律隐藏**（幽灵覆盖不到的位置也藏——用户 2026-09-26：
+        // 否则那些格子里的真实物品会和幽灵混在一起）。
+        HoverGhostRecipe.setGenericPreviewing(hovered != null && !this.brbe$hoverSuppressed && !handedOver);
+
+        // **真正的**无主幽灵：指针不在配方上、既没有点击引导、也没有正在显示的预览，幽灵却非空
+        // （书收起再打开、外部清空后的残留）→ 清掉。
+        if (hovered == null && this.brbe$placedGhostRecipe == null && this.brbe$hoverGhostRecipe == null
+                && this.ghostRecipe.size() > 0) {
+            this.ghostRecipe.clear();
+            return;
+        }
+
         if (hovered == this.brbe$hoverGhostRecipe) return;
+
+        // 悬停预览**开始**（从"没有预览"进入）：记下起始时刻。同一格内轮循换配方不重置——
+        // 酿造台一个格子就是"同产物的一组路线"，每 1.5s 换一条，重置的话"停留"永远算不出来。
+        if (hovered != null && this.brbe$hoverGhostRecipe == null) {
+            this.brbe$hoverStartedAt = System.currentTimeMillis();
+        }
+        long previewMs = this.brbe$hoverGhostRecipe == null
+                ? 0L
+                : System.currentTimeMillis() - this.brbe$hoverStartedAt;
+        R leftRecipe = this.brbe$hoverGhostRecipe;
 
         this.brbe$hoverGhostRecipe = hovered;
         this.ghostRecipe.clear();
         if (hovered != null) {
+            if (this.brbe$hoverSuppressed || handedOver) {
+                // 工作区已经摆好这条配方 / 本目标已交给原版 → 不预览（用户 2026-09-27）：
+                // 不写幽灵、不藏真实物品
+                return;
+            }
             this.setupHoverGhost(hovered);
+            return;
         }
+
+        // 指针离开了配方：点击留下的缺料引导怎么办？
+        if (this.brbe$placedGhostRecipe == null) {
+            return;
+        }
+        // ① 离开的就是引导自己那条（同一组的各条路线 id 相同）→ 照旧还原（内容本来一样）
+        // ② 只是**掠过**别的格子（鼠标从被点的格子移向工作区，< 300ms）→ 还原，
+        //    否则又回到"点击后引导被鼠标移开抹掉"的老问题
+        // ③ 在别的配方上**停留**过（≥ 300ms）→ 玩家已经在浏览别的配方：引导就此结束，
+        //    离开后工作区保持干净（用户 2026-09-26 反馈："来源无规律"的持久幽灵）
+        boolean sameAsGuide = this.brbe$sameRecipeId(leftRecipe, this.brbe$placedGhostRecipe);
+        if (!sameAsGuide && previewMs >= GUIDE_SUPERSEDE_MS) {
+            this.brbe$placedGhostRecipe = null;
+            return;
+        }
+        this.setupHoverGhost(this.brbe$placedGhostRecipe);
     }
 
     /** 把 {@code recipe} 的幽灵物品写进工作区（子类按各自槽位布局实现）。 */
     protected abstract void setupHoverGhost(R recipe);
+
+    /**
+     * 这条配方在**工作区里已经摆好**了吗（用户 2026-09-27 收尾诉求）。
+     *
+     * <p>做法是**探针**：把配方写进幽灵（{@link #setupHoverGhost}）→ 逐格与工作区实物比对
+     * （{@link GenericGhostRecipe#isLaidOutInWorkspace}）→ 立刻 {@code clear()}；调用方随后
+     * 照常 {@code setupHoverGhost} 或按抑制处理。只在悬停目标变化时调用，不是每帧开销。</p>
+     */
+    private boolean brbe$recipeLaidOutInWorkspace(R recipe) {
+        if (this.ghostRecipe == null) return false;
+        this.setupHoverGhost(recipe);
+        boolean laidOut = this.ghostRecipe.isLaidOutInWorkspace(this.menu);
+        this.ghostRecipe.clear();
+        return laidOut;
+    }
 
     protected abstract List<C> getCollectionsForCategory();
 

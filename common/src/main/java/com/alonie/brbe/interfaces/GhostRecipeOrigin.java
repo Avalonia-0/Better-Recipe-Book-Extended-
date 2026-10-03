@@ -1,7 +1,7 @@
-package com.alonie.brbe.mixins.cyclelock;
+package com.alonie.brbe.interfaces;
 
 /**
- * 幽灵物品所属 {@code GhostRecipe} 暴露的**渲染原点**（容器左上角）。
+ * <b>（1.21.1 专属）</b>幽灵物品所属 {@code GhostRecipe} 暴露的**渲染原点**（容器左上角）。
  *
  * <p>1.21.1 的幽灵物品位置是「容器相对坐标」（{@code GhostIngredient.getX/Y} 来自
  * {@code Slot.x/y}），真正的屏幕坐标 = 渲染原点 + 它 —— 原点只在

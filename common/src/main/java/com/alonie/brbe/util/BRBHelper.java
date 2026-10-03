@@ -39,5 +39,10 @@ public class BRBHelper {
         public BRBBookCategories.Category createSearch() {
             return BRBBookCategories.createSearch(this);
         }
+
+        /** 见 {@link BRBBookCategories#createUnlistedSearch()}：不占标签页的"搜索/全部"类别。 */
+        public BRBBookCategories.Category createUnlistedSearch() {
+            return BRBBookCategories.createUnlistedSearch();
+        }
     }
 }

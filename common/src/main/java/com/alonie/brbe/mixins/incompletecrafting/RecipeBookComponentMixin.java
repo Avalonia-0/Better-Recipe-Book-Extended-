@@ -109,7 +109,10 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
                 || BetterRecipeBook.ctx().config() == null) return false;
         return BetterRecipeBook.ctx().config().partialCraftingEnabled
                 || BetterRecipeBook.ctx().config().partialMarkingEnabled
-                || BetterRecipeBook.ctx().config().alternativeRecipes.noGrouped;
+                || BetterRecipeBook.ctx().config().alternativeRecipes.noGrouped()
+                || !BetterRecipeBook.ctx().config().alternativeRecipes.selectiveSplitEnabled()
+                // 同产物合并会改变显示列表的分组 → 必须进缓存键，否则开关切换不生效
+                || BetterRecipeBook.ctx().config().alternativeRecipes.mergeSameResult;
     }
 
     /**
@@ -400,7 +403,7 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
                     "pageUpdateRedirect: prepareDisplay returned EMPTY! "
                     + "inputSize={} onInventory={} isFiltering={} noGrouped={}",
                     list.size(), onInventory, isFiltering,
-                    BetterRecipeBook.ctx().config().alternativeRecipes.noGrouped);
+                    BetterRecipeBook.ctx().config().alternativeRecipes.noGrouped());
         }
 
         page.updateCollections(result, resetPageNumber);
@@ -533,7 +536,7 @@ public abstract class RecipeBookComponentMixin implements RecipeBookComponentAcc
         RecipeCollection collection = brbe$findGhostRecipeCollection(recipe);
         if (collection == null) return;
         PartialGhostOverlayUtil.prepare(recipe, collection, this.menu.slots, this.menu.getCarried(),
-                this.ghostRecipe, x, y, bigSlot);
+                this.ghostRecipe, x, y, this.menu.getResultSlotIndex());
     }
 
     /** 从当前标签页的配方集合中定位幽灵配方所属的集合。 */

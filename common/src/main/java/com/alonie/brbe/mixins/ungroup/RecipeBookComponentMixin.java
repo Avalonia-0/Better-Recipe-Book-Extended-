@@ -31,7 +31,7 @@ import java.util.Set;
  * and {@code ci.cancel()} — not {@code @Redirect} — to avoid conflicts
  * with other mixins on the same {@code page.updateCollections} call.
  *
- * <p>When {@code noGrouped} is true, this mixin replaces the vanilla
+ * <p>When {@code splitMode == FULL} (旧 {@code noGrouped}), this mixin replaces the vanilla
  * search/filter/sort logic entirely.  When false, it does nothing and
  * vanilla proceeds normally.
  */
@@ -69,7 +69,7 @@ public class RecipeBookComponentMixin {
                                       List<RecipeCollection> list,
                                       List<RecipeCollection> list2,
                                       String string) {
-        if (!BetterRecipeBook.ctx().config().alternativeRecipes.noGrouped) {
+        if (!BetterRecipeBook.ctx().config().alternativeRecipes.noGrouped()) {
             return;
         }
 
