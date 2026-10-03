@@ -12,6 +12,7 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.gui.screens.inventory.AbstractRecipeBookScreen;
 import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 
@@ -20,6 +21,25 @@ public final class TopLayerOverlayRenderer {
     }
 
     public static boolean hasOverlay(Screen screen) {
+        if (screen instanceof TopLayerOverlayProvider provider) {
+            return provider.brbe$hasTopLayerOverlay();
+        }
+
+        return getVanillaOverlay(screen) != null;
+    }
+
+    /**
+     * 该屏幕的组浮层是否会被 {@link #render} 在 afterExtract 里**再画一遍**。
+     *
+     * <p>那一遍在帧末的 tooltip 刷新（{@code Screen.extractRenderStateWithTooltipAndSubtitles}
+     * 里的 {@code extractDeferredElements}）**之后**执行，所以受影响的 tooltip（浮层格子的
+     * tooltip）不能再走延迟注册——必须改到那一遍里就地画，否则会被重画的浮层压住
+     * （用户 2026-09-27 反馈）。判定条件与 {@link #render} 的两个分支严格一致。</p>
+     */
+    public static boolean redrawsOverlayOnTop(@Nullable Screen screen) {
+        if (screen == null || RecipeViewerOverlay.isActive()) {
+            return false;
+        }
         if (screen instanceof TopLayerOverlayProvider provider) {
             return provider.brbe$hasTopLayerOverlay();
         }
@@ -44,6 +64,12 @@ public final class TopLayerOverlayRenderer {
             if (provider.brbe$hasTopLayerOverlay()) {
                 guiGraphics.nextStratum();
                 provider.brbe$renderTopLayerOverlay(guiGraphics, mouseX, mouseY, partialTick);
+                // 浮层格子的 tooltip 画在刚重画的浮层之上（帧末 tooltip 刷新已经过去，
+                // 这里只能就地画）。用户 2026-09-27：格子 tooltip 被浮层压住。
+                // pin / 查询窗口盖住指针时不出（它们在这一遍之前画过自己的 tooltip）。
+                if (!OverlayCellTooltips.blockedByOverlay(mouseX, mouseY)) {
+                    provider.brbe$renderTopLayerTooltip(guiGraphics, mouseX, mouseY);
+                }
             }
             return;
         }
@@ -52,6 +78,11 @@ public final class TopLayerOverlayRenderer {
         if (overlay != null) {
             guiGraphics.nextStratum();
             overlay.extractRenderState(guiGraphics, mouseX, mouseY, partialTick);
+            // 原版书（合成台/熔炉系）同上：格子 tooltip 跟着顶层那一遍画。
+            if (!OverlayCellTooltips.blockedByOverlay(mouseX, mouseY)) {
+                ClientCompat.drawComponentTooltipNow(guiGraphics, OverlayCellTooltips.hoveredLines(overlay),
+                        mouseX, mouseY);
+            }
         }
     }
 

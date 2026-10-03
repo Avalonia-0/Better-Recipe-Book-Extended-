@@ -51,14 +51,19 @@ public class BrewableResult implements GenericRecipe {
      * 该配方是否属于给定标签页。
      *
      * <p>26.3 的酿造配方表把三种物品形态（普通/喷溅/滞留药水）放在同一份
-     * {@code minecraft:brewing} 配方里，必须按基底物品过滤才不会在同一个标签页里
+     * {@code minecraft:brewing} 配方里，必须按形态过滤才不会在同一个标签页里
      * 列出三份一模一样的配方。本分支的 data（{@code PotionBrewing.Mix}）不含物品
-     * 形态——形态完全由标签页决定——所以 {@link #inputItem()} 返回 null，
+     * 形态——形态完全由标签页决定——所以 {@link #outputItem()} 返回 null，
      * 这里恒 true，<b>行为与历史版本完全一致</b>。</p>
+     *
+     * <p>判据用<b>产物形态</b>而不是基底形态（26.3 侧的用户反馈：火药/龙息会改变
+     * 形态——{@code potion + 火药 → splash_potion}、{@code splash_potion + 龙息 →
+     * lingering_potion}；按基底归属会把喷溅产物列进饮用型、滞留产物列进喷溅型）。
+     * 本分支两种取值都是 null，仅为与 26.3 保持同一套写法。</p>
      */
     public boolean belongsToTab(BRBBookCategories.Category category) {
-        Item input = inputItem();
-        return input == null || input == category.getItemIcons().getFirst().getItem();
+        Item output = outputItem();
+        return output == null || output == category.getItemIcons().getFirst().getItem();
     }
 
     /** 输入物品形态：优先配方自带（26.3），否则用标签页物品（本分支语义）。 */

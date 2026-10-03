@@ -1,6 +1,7 @@
 package com.alonie.brbe.mixins.alternativerecipes;
 
 import com.alonie.brbe.cache.RecipeViewerIndex;
+import com.alonie.brbe.interfaces.IOverlayCellTooltip;
 import com.alonie.brbe.mixins.accessors.ClientRecipeBookAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeButtonAccessor;
 import com.alonie.brbe.mixins.accessors.OverlayRecipeComponentAccessor;
@@ -10,6 +11,8 @@ import com.alonie.brbe.recipeviewer.engine.RecipeViewerEngine;
 import com.alonie.brbe.render.PopupRenderer;
 import com.alonie.brbe.util.CycleLock;
 import com.alonie.brbe.util.PartialCraftingUtil;
+import com.alonie.brbe.util.RecipeBookKind;
+import com.alonie.brbe.util.RecipeCellTooltips;
 import com.alonie.brbe.util.RecipePopupLayer;
 import com.alonie.brbe.util.RecipeViewerOverlay;
 import net.minecraft.client.Minecraft;
@@ -18,21 +21,24 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.List;
 import com.alonie.brbe.util.BrbeLogger;
 
 
 @Mixin(targets = "net.minecraft.client.gui.screens.recipebook.OverlayRecipeComponent$OverlayRecipeButton")
-public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
+public abstract class OverlayRecipeButtonMixin extends AbstractWidget implements IOverlayCellTooltip {
 
     @Final
     @Shadow
@@ -76,6 +82,9 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
 
         boolean pin = PinButtonRenderOverride.active();
         boolean viewer = RecipeViewerIndex.isViewerCollection(collection);
+        // 只有**配方书浮层**这一条渲染路径会重新填它（见方法末尾）：查询窗口 / pin 的浮层
+        // 渲染过后它保持空 → 那里的格子不出 tooltip（各自有 tooltip 通路）。
+        this.brbe$drawnProduct = ItemStack.EMPTY;
         boolean hover = isHoveredOrFocused() || pin;
         // Window-scoped mode / variant index: a bottom window's buttons must
         // render with ITS OWN window's category mode and Alt-pause state (the
@@ -142,7 +151,7 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         // state); the enlarged preview (Shift) is the only zoom feedback.  The
         // popup is drawn by the independent popup layer, which is triggered and
         // kept alive by RecipeViewerOverlay.  lockReveal=true: the query viewer
-        // LOCKS the "只在悬停时显示替代配方" hover-reveal design (product icon
+        // LOCKS the "只在悬停时显示微缩配方" hover-reveal design (product icon
         // until hovered, full layout on hover) — the toggle's current value
         // governs the recipe book's buttons only.
         if (viewer) {
@@ -155,14 +164,44 @@ public abstract class OverlayRecipeButtonMixin extends AbstractWidget {
         // Recipe book（**替代配方组**浮层，用户 2026-09-25 诉求 2）：
         //  * 悬停 → 就地显示**完整配方预览**（3×3 布局 + 产物，1:1，不再弹放大界面），
         //    底板 = 原版 crafting_overlay_highlighted / _disabled_highlighted；
-        //  * 未悬停 + 开启「仅在悬停时显示替代配方」→ 只画产物图标，底板 = BRBE
+        //  * 未悬停 + 开启「只在悬停时显示微缩配方」→ 只画产物图标，底板 = BRBE
         //    crafting_overlay(_disabled)；
         //  * 未悬停 + 关闭该配置 → 仍显示完整配方，底板 = 原版 crafting_overlay(_disabled)。
         // 配方内容改由工作区的**幽灵物品**另外呈现（hoverghost/OverlayRecipeComponentMixin）。
         // 旧行为：悬停做 2x 放大预览；Shift 的 4x 放大已在 2026-09-13 移除。
-        PopupRenderer.renderAlternativesButton(gui, this.recipe, recipeEntry(), mode,
-                this.isCraftable, partial, this.slots, selIdx, x, y, w, h, hover, false);
+        //
+        // 2026-09-27（用户诉求）：上面这套只留给**合成类**书。格子内容按配方书种类分派
+        // （util/RecipeBookKind）：熔炉类书的格子改画**材料**当展示物品（代替原版的微缩
+        // 配方），熔炉类/合成类以外的书（模组自建配方书，含调用原版 API 拿到本浮层的那种）
+        // 统一不画微缩配方，只画展示物品——与酿造台 / 锻造台已有行为一致。
+        // 种类取自**本界面实际的配方书组件**，不再拿查询窗口的全局熔炉状态顶替
+        // （旧写法在熔炉书里 mode 恒为 MODE_CRAFTING → 底面板与内容都按合成书走）。
+        //
+        // 顺手缓存"这一格画出来的产物"：格子 tooltip（用户 2026-09-27 诉求）在
+        // RecipeBookPage.extractTooltip 里取它——那才是原版配方书 tooltip 的正规出口
+        // （槽位 tooltip 早于它注册，会被它盖掉；见 RecipeBookPageOverlayTooltipMixin）。
+        RecipeBookKind kind = RecipeBookKind.current(furnaceBook);
+        int bookMode = kind == RecipeBookKind.FURNACE ? PinOverlay.MODE_FURNACE : PinOverlay.MODE_CRAFTING;
+        this.brbe$drawnProduct = PopupRenderer.alternativesCellItem(recipeEntry(), selIdx, kind);
+        PopupRenderer.renderAlternativesButton(gui, this.recipe, recipeEntry(), bookMode,
+                this.isCraftable, partial, this.slots, selIdx, x, y, w, h, hover, false, kind);
         ci.cancel();
+    }
+
+    /**
+     * 本帧这一格**画出来的**展示物品（{@link IOverlayCellTooltip}）：配方书浮层格子渲染时逐帧刷新
+     * ——合成类 = 产物，熔炉类 = 材料，其余书 = 产物（见 {@code RecipeBookKind}）；
+     * 查询窗口 / pin 的浮层里恒为空（那些通路各自有 tooltip）。
+     */
+    @Unique
+    private ItemStack brbe$drawnProduct = ItemStack.EMPTY;
+
+    @Nullable
+    @Override
+    public List<Component> brbe$cellTooltip() {
+        return this.brbe$drawnProduct.isEmpty()
+                ? null
+                : RecipeCellTooltips.forStack(null, this.brbe$drawnProduct, false);
     }
 
     private boolean computePartial(OverlayRecipeComponent outer, RecipeCollection collection,

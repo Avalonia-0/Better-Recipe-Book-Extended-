@@ -49,20 +49,20 @@ public final class AppContext {
     private boolean cachedPartialCraftingEnabled;
     private boolean cachedPartialMarkingEnabled;
     private boolean cachedShowAllRecipesInSurvival;
-    private boolean cachedNoGrouped;
+    private AlternativeRecipes.SplitMode cachedSplitMode;
 
     private void snapshotRecipeConfig(BrbeConfig cfg) {
         this.cachedPartialCraftingEnabled = cfg.partialCraftingEnabled;
         this.cachedPartialMarkingEnabled = cfg.partialMarkingEnabled;
         this.cachedShowAllRecipesInSurvival = cfg.showAllRecipesInSurvival;
-        this.cachedNoGrouped = cfg.alternativeRecipes.noGrouped;
+        this.cachedSplitMode = cfg.alternativeRecipes.splitMode;
     }
 
     private boolean recipeRelevantChanged(BrbeConfig cfg) {
         return cfg.partialCraftingEnabled != this.cachedPartialCraftingEnabled
             || cfg.partialMarkingEnabled != this.cachedPartialMarkingEnabled
             || cfg.showAllRecipesInSurvival != this.cachedShowAllRecipesInSurvival
-            || cfg.alternativeRecipes.noGrouped != this.cachedNoGrouped;
+            || cfg.alternativeRecipes.splitMode != this.cachedSplitMode;
     }
 
     private volatile BRBBookCategories.Category brewingPotion;
@@ -97,6 +97,13 @@ public final class AppContext {
         // Wire config save listener through the event bus
         configHolder.registerSaveListener((holder, cfg) -> {
             BrbeLogger.log("BRBE", "config save listener fired; unlockAll={}", cfg.unlockAll);
+            // 同产物合并的开关状态：每次保存/启动都留一条。用户报"看不到融合"时，开关到底
+            // 开没开是三种可能原因之一（开关没开 / 没建收纳格 / 全被判据挡下），而当时
+            // 没有任何日志证据可查（2026-09-29）。
+            if (cfg.alternativeRecipes != null) {
+                BrbeLogger.log("BRBE-MERGE", "config: splitMode={} mergeSameResult={}",
+                        cfg.alternativeRecipes.splitMode, cfg.alternativeRecipes.mergeSameResult);
+            }
             this.config = cfg;
             events.publish(new ConfigEventBus.ConfigChanged(cfg));
             events.publish(new ConfigEventBus.PartialCraftingChanged(
@@ -147,7 +154,10 @@ public final class AppContext {
         this.brewingSplashPotion.setTitle(net.minecraft.network.chat.Component.translatable("brbe.gui.tab.brewing.splash"));
         this.brewingLingeringPotion = brewing.createCategory(new ItemStack(Items.LINGERING_POTION));
         this.brewingLingeringPotion.setTitle(net.minecraft.network.chat.Component.translatable("brbe.gui.tab.brewing.lingering"));
-        this.smithingSearch = smithing.createSearch();
+        // 锻造台标签页 = 「升级模板 / 纹饰模板」两页（用户 2026-09-28 诉求：去掉"搜索"页）。
+        // ⚠️ 搜索类别**仍要建**（不登记为标签页）：组浮层拿它当取产物的类别参数、shouldInclude
+        // 里也留着"搜索页 = 全部配方"的判定；只是不进 getCategories() → 界面上没有这一页。
+        this.smithingSearch = smithing.createUnlistedSearch();
         this.smithingSearch.setTitle(net.minecraft.network.chat.Component.translatable("brbe.gui.tab.search"));
         this.smithingTransform = smithing.createCategory(new ItemStack(Items.NETHERITE_UPGRADE_SMITHING_TEMPLATE));
         this.smithingTransform.setTitle(net.minecraft.network.chat.Component.translatable("brbe.gui.tab.upgrade"));

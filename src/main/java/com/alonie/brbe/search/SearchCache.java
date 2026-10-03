@@ -33,6 +33,27 @@ public class SearchCache {
 
     private Item.TooltipContext tooltipContext;
 
+    /**
+     * 纯文本搜索是否也匹配 **tooltip 全文**（原版语料对齐，用户 2026-09-27 诉求）。
+     *
+     * <p>原版配方书搜索走 {@code SessionSearchTrees.recipes()}——索引的是每条配方
+     * <b>产物物品的全部 tooltip 行</b>，所以只出现在 tooltip 里的文字（例：锻造台纹饰产物
+     * 的 {@code ArmorTrim.addToTooltip} 行"海岸盔甲纹饰"）在原版能查到所属的替代配方组，
+     * 而 BRBE 先前只匹配物品名 → 查不到。</p>
+     *
+     * <p>默认关：tooltip 生成有开销，只在语料小的自研书（锻造台 / 酿造台）打开；
+     * 命中名字就不建 tooltip（tooltip 按 stack 缓存）。</p>
+     */
+    private boolean tooltipFallback;
+
+    public void setTooltipFallback(boolean enabled) {
+        this.tooltipFallback = enabled;
+    }
+
+    public boolean tooltipFallback() {
+        return this.tooltipFallback;
+    }
+
     private void ensureTooltipContext() {
         if (tooltipContext == null) {
             var level = Minecraft.getInstance().level;

@@ -77,13 +77,31 @@ public final class PartialGhostOverlayUtil {
 
         // 逐个扣除：库存中还有该材料则移除该槽位红遮罩，并扣减剩余数量。
         active = true;
+        Slot resultSlot = null;
+        boolean allMaterialsOwned = true;
         for (Slot slot : ordered) {
             Object ghost = ingredients.get(slot);
-            if (isResultSlot(ghost)) continue;
+            if (isResultSlot(ghost)) {
+                // 结果槽（产物）不是"要凑的材料"：不参与数量扣除，遮罩等到材料槽判完再定
+                resultSlot = slot;
+                continue;
+            }
             Item owned = findOwnedItem(ghost, counts);
-            if (owned == null) continue;
+            if (owned == null) {
+                allMaterialsOwned = false;
+                continue;
+            }
             noRedMaskSlots.add(key(slot.x, slot.y));
             counts.put(owned, counts.getOrDefault(owned, 0) - 1);
+        }
+        // 产物槽的红/白遮罩（用户 2026-09-26 修正）：
+        //   · 材料**全齐**（= 可合成）→ 整槽不画遮罩：产物本来就不该在物品栏里，红罩/白罩
+        //     只会被读成"还缺产物"（用户 2026-09-25 诉求）；
+        //   · 材料没齐（残缺 / 不可合成）→ 遮罩照原版画。
+        // 此前是**无条件**跳过结果槽遮罩，把残缺/不可合成的产物槽一起洗白了（用户反馈的回归）。
+        // "材料齐没齐"直接取材料槽本轮有没有被标记，与逐槽红罩同源，不引入第二套判定。
+        if (resultSlot != null && allMaterialsOwned) {
+            noRedMaskSlots.add(key(resultSlot.x, resultSlot.y));
         }
     }
 
@@ -183,7 +201,8 @@ public final class PartialGhostOverlayUtil {
 
     /**
      * GhostSlot record 的 {@code isResultSlot()} 访问器。
-     * 结果槽不参与材料扣除，始终保留红遮罩（原版行为）。
+     * 结果槽（产物）不参与材料数量扣除；它的红/白遮罩由 {@link #prepare} 按
+     * "材料是否全齐"统一决定（全齐 = 可合成 → 不画；否则照原版画）。
      */
     private static boolean isResultSlot(Object ghost) {
         Method m = isResultMethod;

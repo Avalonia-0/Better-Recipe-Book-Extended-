@@ -210,20 +210,23 @@ public final class RecipeUnlockTracker {
                                               Map<Identifier, Set<Identifier>> results) {
         if (results == null || results.isEmpty()) return;
         try {
+            // 指纹尾部带"包结构版本"：结构（pack.mcmeta 架构、触发器键名）改过之后
+            // 必须强制重写老包——否则指纹不变会被跳过，旧的不合规 pack.mcmeta 永远留着
+            // （26.3 每次加载都会 WARN "Error reading pack metadata"，1.21.11 更会直接
+            // ERROR 读不出元数据、整个进度包不生效）。
             String fingerprint = results.keySet().stream()
                     .map(Object::toString).sorted()
-                    .collect(java.util.stream.Collectors.joining(","));
+                    .collect(java.util.stream.Collectors.joining(",")) + "|brew-v3";
             java.nio.file.Path fp = packRoot.resolve(".materials.fingerprint");
             if (java.nio.file.Files.exists(fp)
                     && fingerprint.equals(java.nio.file.Files.readString(fp))) {
                 return; // 内容未变——无需重写
             }
-            String mcmeta = "{\"pack\":{\"pack_format\":" + currentDataPackFormat()
-                    + ",\"description\":\"BRBE progress triggers\"}}";
+            String mcmeta = progressPackMeta();
             java.nio.file.Files.createDirectories(packRoot);
-            java.nio.file.Files.writeString(packRoot.resolve("pack.mcmeta"), mcmeta);
+            writePackJson(packRoot.resolve("pack.mcmeta"), mcmeta);
             java.nio.file.Path advDir = packRoot.resolve("data/brbe/advancement/brew");
-            writeBrewJson(advDir.resolve("root.json"),
+            writePackJson(advDir.resolve("root.json"),
                     "{\"criteria\":{\"base\":{\"trigger\":\"minecraft:tick\"}}}");
             for (Identifier material : results.keySet()) {
                 String ns = material.getNamespace();
@@ -233,7 +236,7 @@ public final class RecipeUnlockTracker {
                         + "\"minecraft:inventory_changed\",\"conditions\":"
                         + "{\"items\":[{\"items\":[\"" + material
                         + "\"]}]}}}}";
-                writeBrewJson(advDir.resolve(ns + "-" + path + ".json"), adv);
+                writePackJson(advDir.resolve(ns + "-" + path + ".json"), adv);
             }
             java.nio.file.Files.writeString(fp, fingerprint);
             BrbeLogger.log("BRBE-RECIPE-PROGRESS", "wrote brew progress pack to {} ({} materials)", packRoot, results.size());
@@ -243,19 +246,60 @@ public final class RecipeUnlockTracker {
         }
     }
 
-    private static void writeBrewJson(java.nio.file.Path file, String content) throws Exception {
+    /** 写数据包 JSON：<b>落盘前先自己解析一遍</b>。
+     *
+     *  <p>2026-10-03 事故的教训：进度包里的 JSON 由手写字符串拼出来，一旦拼错
+     *  （当时是 26.3 把 {@code minecraft:recipe_unlocked} 的条件键从 {@code recipe}
+     *  改成 {@code recipes}，键名对不上 → 每个文件解析失败）loader 就会
+     *  {@code Failed to load registries due to errors}——<b>整个世界打不开</b>。
+     *  代价太大，所以这里宁可少写一个文件也不写坏包：校验失败记 WARN，并
+     *  <b>删掉同名旧文件</b>（上一版可能已经留下过坏文件，留着照样锁死世界）。</p>
+     *
+     *  <p>注意：只保证"是合法 JSON"，不保证 schema 正确（{@code pack.mcmeta} 的
+     *  {@code min_format}/{@code max_format} 那种属于 schema，仍需改代码时自行核对）。</p> */
+    private static void writePackJson(java.nio.file.Path file, String content) throws Exception {
         java.nio.file.Files.createDirectories(file.getParent());
+        try {
+            com.google.gson.JsonParser.parseString(content);
+        } catch (Exception e) {
+            BetterRecipeBook.LOGGER.warn(
+                    "[BRBE-RECIPE-PROGRESS] refusing to write invalid JSON to {}: {}",
+                    file, e.toString());
+            try {
+                java.nio.file.Files.deleteIfExists(file);
+            } catch (Exception ignored) {
+                // 删不掉就留着——至少不会写进新的坏内容
+            }
+            return;
+        }
         java.nio.file.Files.writeString(file, content);
     }
 
-    private static int currentDataPackFormat() {
-        try {
-            return net.minecraft.SharedConstants.getCurrentVersion()
-                    .packVersion(net.minecraft.server.packs.PackType.SERVER_DATA)
-                    .major();
-        } catch (Exception | LinkageError e) {
-            return -1;
+    /** 进度包的 {@code pack.mcmeta}。
+     *
+     *  <p><b>为什么不能只写 {@code pack_format}</b>（2026-10-03 实机事故）：
+     *  data pack 格式跨过 {@link net.minecraft.server.packs.metadata.pack.PackFormat#lastPreMinorVersion}
+     *  之后，loader <b>强制要求</b>同时声明 {@code min_format} / {@code max_format}，
+     *  否则整个包的元数据读不出来——
+     *  26.3：{@code WARN Error reading pack metadata, attempting fallback type}；
+     *  1.21.11：{@code ERROR Couldn't load file/brbe_progress pack metadata}；
+     *  即进度包要么被当成"未知类型"回退、要么根本不被加载（触发器失效）。
+     *  低格式（≤ 阈值）不写这两个键，避免老 loader 见到陌生字段。</p> */
+    private static String progressPackMeta() {
+        net.minecraft.server.packs.metadata.pack.PackFormat format =
+                net.minecraft.SharedConstants.getCurrentVersion().packVersion(
+                        net.minecraft.server.packs.PackType.SERVER_DATA);
+        int lastPreMinor = net.minecraft.server.packs.metadata.pack.PackFormat
+                .lastPreMinorVersion(net.minecraft.server.packs.PackType.SERVER_DATA);
+        String description = "BRBE progress triggers";
+        if (format.major() > lastPreMinor) {
+            return "{\"pack\":{\"pack_format\":" + format.major()
+                    + ",\"min_format\":[" + format.major() + "," + format.minor() + "]"
+                    + ",\"max_format\":[" + format.major() + "," + format.minor() + "]"
+                    + ",\"description\":\"" + description + "\"}}";
         }
+        return "{\"pack\":{\"pack_format\":" + format.major()
+                + ",\"description\":\"" + description + "\"}}";
     }
 
     // ------------------------------------------------------------------
@@ -309,18 +353,16 @@ public final class RecipeUnlockTracker {
                     .map(h -> h.id().identifier() + "|" + String.join("+",
                             criterionItemsOf((net.minecraft.world.item.crafting.SmithingRecipe) h.value())))
                     .sorted()
-                    .collect(java.util.stream.Collectors.joining(",")) + "|vanilla-native";
+                    .collect(java.util.stream.Collectors.joining(",")) + "|vanilla-native|adv-v3";
             java.nio.file.Path fp = packRoot.resolve(".recipes.fingerprint");
             if (java.nio.file.Files.exists(fp)
                     && fingerprint.equals(java.nio.file.Files.readString(fp))) {
                 return; // 内容未变——无需重写
             }
             java.nio.file.Files.createDirectories(packRoot);
-            java.nio.file.Files.writeString(packRoot.resolve("pack.mcmeta"),
-                    "{\"pack\":{\"pack_format\":" + currentDataPackFormat()
-                            + ",\"description\":\"BRBE progress triggers\"}}");
+            writePackJson(packRoot.resolve("pack.mcmeta"), progressPackMeta());
             java.nio.file.Path advDir = packRoot.resolve("data/brbe/advancement/recipe");
-            writeBrewJson(advDir.resolve("root.json"),
+            writePackJson(advDir.resolve("root.json"),
                     "{\"criteria\":{\"base\":{\"trigger\":\"minecraft:tick\"}}}");
             int written = 0;
             for (net.minecraft.world.item.crafting.RecipeHolder<?> holder : smithing) {
@@ -350,11 +392,18 @@ public final class RecipeUnlockTracker {
                         + "\"criteria\":{\"" + criteriaName + "\":{\"trigger\":"
                         + "\"minecraft:inventory_changed\",\"conditions\":"
                         + "{\"items\":[{\"items\":[\"" + itemsJson + "\"]}]}},"
+                        // 26.3 把该触发器的条件键从 recipe 改名为 recipes（javap 实证：
+                        // RecipeUnlockedTrigger$TriggerInstance 的 codec 常量是 "recipes"）；
+                        // 用错键名 = 每个文件解析失败 → "Failed to load registries due to errors"
+                        // → 整个世界打不开（2026-10-03 实机事故）。
                         + "\"has_the_recipe\":{\"trigger\":\"minecraft:recipe_unlocked\","
                         + "\"conditions\":{\"recipe\":\"" + id + "\"}}},"
-                        + "\"requirements\":[[\"has_the_recipe\"],[\"" + criteriaName + "\"]],"
+                        // requirements = 单个 OR 组（原版同款）：解锁配方"或"拿到判定材料，
+                        // 任一满足即完成。旧写法 [[a],[b]] 是 AND——而奖励本身就是解锁该
+                        // 配方，于是模组锻造配方永远解锁不了（与类注释"镜像原版语义"矛盾）。
+                        + "\"requirements\":[[\"has_the_recipe\",\"" + criteriaName + "\"]],"
                         + "\"rewards\":{\"recipes\":[\"" + id + "\"]}}";
-                writeBrewJson(advDir.resolve(id.getNamespace())
+                writePackJson(advDir.resolve(id.getNamespace())
                         .resolve(id.getPath() + ".json"), adv);
                 written++;
             }

@@ -40,6 +40,23 @@ import java.util.WeakHashMap;
  * collection objects, and any collection not yet fully evaluated (new
  * objects, or a grid/screen change that invalidates the {@code selected}
  * predicate) is always re-evaluated.
+ *
+ * <p><b>The index must cover every collection the recipe book actually walks
+ * ({@link #INDEXED}).</b>  "Not in the index" must never be read as "not
+ * affected by the inventory change" — doing so silently cancels
+ * {@code selectRecipes} and freezes that collection's {@code craftable} /
+ * {@code selected} sets while everything else (partial marking, tooltips)
+ * keeps using the live inventory.  That mismatch was the 2026-09-30 RBIP bug:
+ * the index was built from {@code ClientRecipeBook.getCollections()} (vanilla's
+ * own {@code allCollections}), while RBIP replaces {@code collectionsByTab}
+ * with <b>newly created</b> {@code RecipeCollection} objects (one per creative
+ * tab, plus the filtered vanilla-tab copies in compact mode) that never appear
+ * in {@code allCollections} → those collections were skipped → crafting an iron
+ * nugget from the last iron ingot left the recipe "craftable" with every
+ * material marked missing, and only on RBIP tabs (the search tab uses vanilla
+ * collections, which are indexed).  Hence: callers index the union of the
+ * displayed tab collections, and {@link #shouldSkip} fails open for anything
+ * the index does not know.
  */
 public final class RecipeCraftingIndex {
 
@@ -54,6 +71,12 @@ public final class RecipeCraftingIndex {
     /** Collections already fully evaluated (craftable + selected populated)
      *  in the current generation.  Weak: dropped when collections GC. */
     private static final WeakHashMap<RecipeCollection, Boolean> COMPUTED = new WeakHashMap<>();
+
+    /** Collections the last {@link #rebuild} was given.  A collection outside
+     *  this set is unknown to the index, so {@link #shouldSkip} must refuse to
+     *  skip it (see the class javadoc).  Weak: dropped when collections GC. */
+    private static final Set<RecipeCollection> INDEXED =
+            java.util.Collections.newSetFromMap(new WeakHashMap<>());
 
     /** Snapshot of the last inventory amounts (item → count). */
     private static Reference2IntOpenHashMap<Holder<Item>> lastAmounts =
@@ -82,12 +105,14 @@ public final class RecipeCraftingIndex {
     public static void rebuild(List<RecipeCollection> allCollections) {
         INDEX.clear();
         COMPUTED.clear();
+        INDEXED.clear();
         lastAmounts = new Reference2IntOpenHashMap<>();
         changedItems = Set.of();
         GENERATION++;
         VERSION++;
         PipelineEpoch.bump();          // 集合对象全部重建 = 管线输入变了
         for (RecipeCollection collection : allCollections) {
+            INDEXED.add(collection);
             for (RecipeDisplayEntry entry : collection.getRecipes()) {
                 entry.craftingRequirements().ifPresent(ingredients -> {
                     for (Ingredient ingredient : ingredients) {
@@ -144,10 +169,15 @@ public final class RecipeCraftingIndex {
         lastAmounts = current;
     }
 
-    /** True if {@code collection} can be skipped: already fully evaluated and
-     *  none of its ingredients reference any changed item. */
+    /** True if {@code collection} can be skipped: already fully evaluated, known
+     *  to the index, and none of its ingredients reference any changed item. */
     public static boolean shouldSkip(RecipeCollection collection) {
         if (!COMPUTED.containsKey(collection)) {
+            return false;
+        }
+        if (!INDEXED.contains(collection)) {
+            // 该集合不是索引建立时的输入（如 RBIP 为标签页新建的集合）：无法证明它
+            // 不受库存变化影响 → 一律重算（宁慢勿错，见类注释的 2026-09-30 记录）。
             return false;
         }
         if (changedItems.isEmpty()) {

@@ -27,6 +27,25 @@ import java.util.List;
 public final class ClientCompat {
     public static final RenderPipeline GUI_TEXTURED = RenderPipelines.GUI_TEXTURED;
 
+    // ------------------------------------------------------------------
+    // 鼠标键号：26.2 及更早是 GLFW 约定（左=0、中=2、右=1）
+    //（26.3 起改用 SDL3：左=1、中=2、右=3 —— **左键与右键整好换位**）
+    // 硬编码键号一律改用下面的常量/谓词，别再写字面量 0/1/2。
+    // ------------------------------------------------------------------
+    public static final int MOUSE_LEFT = 0;
+    public static final int MOUSE_MIDDLE = 2;
+    public static final int MOUSE_RIGHT = 1;
+
+    /** 左键点击（GLFW 键号 0）。 */
+    public static boolean isLeftClick(MouseButtonEvent event) {
+        return event.button() == MOUSE_LEFT;
+    }
+
+    /** 右键点击（GLFW 键号 1）。 */
+    public static boolean isRightClick(MouseButtonEvent event) {
+        return event.button() == MOUSE_RIGHT;
+    }
+
     /** 查询系统（R/U viewer + pin）tooltip 的自定义背景样式：解析为
      *  {@code brbe:tooltip/viewer_background} / {@code viewer_frame}
      *  sprite（textures/gui/sprites/tooltip/ 下，背景 alpha 已调淡为 160）。
@@ -181,6 +200,36 @@ public final class ClientCompat {
 
     public static void setComponentTooltipForNextFrame(GuiGraphicsExtractor gui, List<Component> tooltip, int mouseX, int mouseY) {
         gui.setComponentTooltipForNextFrame(Minecraft.getInstance().font, tooltip, mouseX, mouseY);
+    }
+
+    /**
+     * **立即**绘制组件 tooltip（不经"帧末刷新"）。
+     *
+     * <p>原版的 {@code setComponentTooltipForNextFrame} 只是把 tooltip 排进 {@code deferredTooltip}，
+     * 由 {@code Screen.extractRenderStateWithTooltipAndSubtitles} 在**屏幕提取之后**统一画一遍；
+     * 而 BRBE 的替代配方组浮层还会被 {@link TopLayerOverlayRenderer} 在 Fabric 的
+     * {@code ScreenEvents.afterExtract} 里**再画一遍**（那一遍在帧末 tooltip 刷新**之后**）——
+     * 于是浮层格子 tooltip 会被自己那一遍浮层压住（用户 2026-09-27 反馈）。
+     * 那一遍里只能用本方法就地画，延迟注册要等到下一帧。</p>
+     */
+    public static void drawComponentTooltipNow(GuiGraphicsExtractor gui, List<Component> tooltip, int mouseX, int mouseY) {
+        if (tooltip == null || tooltip.isEmpty()) {
+            return;
+        }
+
+        List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
+                new java.util.ArrayList<>(tooltip.size());
+        for (Component line : tooltip) {
+            components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                    .create(line.getVisualOrderText()));
+        }
+
+        // 与原版 setComponentTooltipForNextFrame 的延迟体同一条绘制链：
+        // DefaultTooltipPositioner.INSTANCE + style=null（26.2 的 tooltip(...) 还没有 26.3
+        // 末尾那个 boolean 参数）。
+        gui.tooltip(Minecraft.getInstance().font, components, mouseX, mouseY,
+                net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner.INSTANCE,
+                null);
     }
 
     public static ItemStack[] ingredientItems(Ingredient ingredient) {
