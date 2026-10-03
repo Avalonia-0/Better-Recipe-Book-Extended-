@@ -204,6 +204,35 @@ public final class ClientCompat {
         gui.setComponentTooltipForNextFrame(Minecraft.getInstance().font, tooltip, mouseX, mouseY);
     }
 
+    /**
+     * **立即**绘制组件 tooltip（不经"帧末刷新"）。
+     *
+     * <p>原版的 {@code setComponentTooltipForNextFrame} 只是把 tooltip 排进 {@code deferredTooltip}，
+     * 由 {@code Screen.extractRenderStateWithTooltipAndSubtitles} 在**屏幕提取之后**统一画一遍；
+     * 而 BRBE 的替代配方组浮层还会被 {@link TopLayerOverlayRenderer} 在 Fabric 的
+     * {@code ScreenEvents.afterExtract} 里**再画一遍**（那一遍在帧末 tooltip 刷新**之后**）——
+     * 于是浮层格子 tooltip 会被自己那一遍浮层压住（用户 2026-09-27 反馈）。
+     * 那一遍里只能用本方法就地画，延迟注册要等到下一帧。</p>
+     */
+    public static void drawComponentTooltipNow(GuiGraphicsExtractor gui, List<Component> tooltip, int mouseX, int mouseY) {
+        if (tooltip == null || tooltip.isEmpty()) {
+            return;
+        }
+
+        List<net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent> components =
+                new java.util.ArrayList<>(tooltip.size());
+        for (Component line : tooltip) {
+            components.add(net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                    .create(line.getVisualOrderText()));
+        }
+
+        // 与原版 setComponentTooltipForNextFrame 的延迟体同一条绘制链（javap 26.3）：
+        // DefaultTooltipPositioner.INSTANCE + style=null + 末位 false。
+        gui.tooltip(Minecraft.getInstance().font, components, mouseX, mouseY,
+                net.minecraft.client.gui.screens.inventory.tooltip.DefaultTooltipPositioner.INSTANCE,
+                null, false);
+    }
+
     public static ItemStack[] ingredientItems(Ingredient ingredient) {
         return ingredient.items()
                 .map(holder -> holder.value().getDefaultInstance())

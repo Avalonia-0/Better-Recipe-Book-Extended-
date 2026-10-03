@@ -11,6 +11,7 @@ import com.alonie.brbe.util.BRBTextures;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.CycleLock;
 import com.alonie.brbe.util.PartialGhostOverlayUtil;
+import com.alonie.brbe.util.RecipeBookKind;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.WidgetSprites;
@@ -20,6 +21,7 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.display.RecipeDisplayEntry;
 import net.minecraft.world.item.crafting.display.RecipeDisplayId;
 import net.minecraft.world.item.crafting.display.SlotDisplayContext;
+import org.jetbrains.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -102,7 +104,7 @@ public final class PopupRenderer {
     }
 
     /** 该按钮当前是否显示**完整配方预览**（否则只画产物图标）：悬停时显示；未悬停且
-     *  开启「仅在悬停时显示替代配方」（或查询界面锁定该设计）时只画产物图标。 */
+     *  开启「只在悬停时显示微缩配方」（或查询界面锁定该设计）时只画产物图标。 */
     private static boolean revealsFullPreview(boolean hover, boolean lockReveal) {
         return hover || !(BetterRecipeBook.config.alternativeRecipes.onHover || lockReveal);
     }
@@ -142,21 +144,34 @@ public final class PopupRenderer {
      *   <li>悬停 → 显示完整**配方预览**（3×3 布局 + 产物，1:1，不再放大），底板用原版
      *       {@code minecraft:recipe_book/crafting_overlay_highlighted}
      *       （残缺/可合成）或 {@code ..._disabled_highlighted}（不可合成）；</li>
-     *   <li>未悬停且开启「仅在悬停时显示替代配方」→ 只画产物图标，底板用 BRBE 自有
+     *   <li>未悬停且开启「只在悬停时显示微缩配方」→ 只画产物图标，底板用 BRBE 自有
      *       {@code brbe:recipe_book/crafting_overlay(_disabled)}；</li>
      *   <li>未悬停且**关闭**该配置 → 仍显示完整配方，底板用原版
      *       {@code minecraft:recipe_book/crafting_overlay(_disabled)}。</li>
      * </ul>
      *
-     * 熔炉系书（熔炉/鼓风炉/烟熏炉）同规则，只是原版面换成 {@code furnace_overlay} 系、
-     * BRBE 面换成 {@code plain_overlay} 系。
+     * <p><b>内容按配方书种类分派</b>（{@link RecipeBookKind}，用户 2026-09-27 诉求）：</p>
+     *
+     * <ul>
+     *   <li>{@link RecipeBookKind#CRAFTING} 合成类 —— 上面的三条规则原样不动；</li>
+     *   <li>{@link RecipeBookKind#FURNACE} 熔炉类 —— 只画**材料**（配方输入）当展示物品，
+     *       不再画微缩配方（同组各变体产物相同，产物分不出谁是谁）；底板 = 原版
+     *       {@code furnace_overlay} 系，悬停走 {@code _highlighted} 面；</li>
+     *   <li>{@link RecipeBookKind#OTHER} 其余配方书（模组自建）—— 只画展示物品（产物），
+     *       同样不画微缩配方（与酿造台 / 锻造台已有行为一致）；底板 = BRBE
+     *       {@code plain_overlay} 系。</li>
+     * </ul>
      */
     public static void renderAlternativesButton(GuiGraphicsExtractor gui,
                                                 RecipeDisplayId id, RecipeDisplayEntry entry,
                                                 int mode, boolean craftable, boolean partial,
                                                 List<?> slots, int selIdx,
                                                 int x, int y, int w, int h, boolean hover,
-                                                boolean lockReveal) {
+                                                boolean lockReveal, RecipeBookKind kind) {
+        if (!kind.showsMicroRecipe()) {
+            renderItemOnlyButton(gui, entry, kind, craftable, partial, selIdx, x, y, w, h, hover);
+            return;
+        }
         boolean fullPreview = revealsFullPreview(hover, lockReveal);
         WidgetSprites vanilla = mode == PinOverlay.MODE_FURNACE
                 ? BRBTextures.VANILLA_FURNACE_OVERLAY_SPRITE
@@ -169,6 +184,37 @@ public final class PopupRenderer {
                 : brbe.get(craftable || partial, false);
         paintButton(gui, id, entry, mode, craftable, partial, slots, selIdx, x, y, w, h,
                 hover, lockReveal, sprite);
+    }
+
+    /**
+     * 熔炉类 / 其余配方书的替代配方格子（用户 2026-09-27 诉求）：**一个底板 + 一件展示物品**，
+     * 不画任何微缩配方。底板按种类取面（都跟随可合成/残缺与悬停）：
+     *
+     * <ul>
+     *   <li>{@link RecipeBookKind#FURNACE} → 原版 {@code furnace_overlay} 系
+     *       （= 原版熔炉书本来那张底，只是内容不再是微缩配方）；</li>
+     *   <li>{@link RecipeBookKind#OTHER} → BRBE {@code plain_overlay} 系
+     *       （与酿造台 / 锻造台格子同款中性底）。</li>
+     * </ul>
+     *
+     * 展示物品取 {@link #alternativesCellItem}：熔炉 = **材料**，其余 = 产物。
+     */
+    private static void renderItemOnlyButton(GuiGraphicsExtractor gui,
+                                             RecipeDisplayEntry entry, RecipeBookKind kind,
+                                             boolean craftable, boolean partial, int selIdx,
+                                             int x, int y, int w, int h, boolean hover) {
+        WidgetSprites sprites = kind == RecipeBookKind.FURNACE
+                ? BRBTextures.VANILLA_FURNACE_OVERLAY_SPRITE
+                : BRBTextures.RECIPE_BOOK_PLAIN_OVERLAY_SPRITE;
+        Identifier sprite = sprites.get(craftable || partial, hover);
+        new ButtonBackdrop.Sprite(sprite).render(gui, x, y, w, h);
+        if (partial) {
+            gui.fill(x + 1, y + 1, x + w - 1, y + h - 1, 0x60FF3333);
+        }
+        ItemStack stack = alternativesCellItem(entry, selIdx, kind);
+        if (!stack.isEmpty()) {
+            gui.item(stack, x + 4, y + 4);
+        }
     }
 
     /** 按钮底板 + 残缺红罩 + 槽位内容（{@code contentHover} 决定内容是否展开为完整预览）。 */
@@ -537,6 +583,32 @@ public final class PopupRenderer {
     /** Pick the variant shown for the current slot-select cycle. */
     private static ItemStack select(List<ItemStack> stacks, int selIdx) {
         return stacks.isEmpty() ? ItemStack.EMPTY : stacks.get(selIdx % stacks.size());
+    }
+
+    /**
+     * 替代配方格子**画出来的那件展示物品**（用户 2026-09-27 诉求）：熔炉类 = 配方**材料**
+     * （输入，逐变体轮循），其余 = 产物（合成类未展开预览时画的也是它）。
+     *
+     * <p>格子 tooltip 也取它（{@code OverlayRecipeButtonMixin.brbe$drawnProduct}）——与锻造台
+     * 配方格同一条约定：**画着什么，tooltip 就写着什么**。解不出返回 {@link ItemStack#EMPTY}。</p>
+     */
+    public static ItemStack alternativesCellItem(@Nullable RecipeDisplayEntry entry, int selIdx, RecipeBookKind kind) {
+        if (entry == null) {
+            return ItemStack.EMPTY;
+        }
+        if (kind == RecipeBookKind.FURNACE) {
+            ItemStack material = select(materialVariants(entry), Math.max(0, selIdx));
+            if (!material.isEmpty()) {
+                return material;
+            }
+        }
+        return select(resultVariants(entry), Math.max(0, selIdx));
+    }
+
+    /** 熔炉系配方的**材料**（输入）候选表；非熔炉配方 = 空表。 */
+    private static List<ItemStack> materialVariants(RecipeDisplayEntry entry) {
+        var display = RecipeViewerIndex.asFurnace(entry);
+        return display == null ? List.of() : RecipeViewerIndex.resolveSlotDisplay(display.ingredient());
     }
 
     /** 逐槽位的循环下标解算（用户 2026-09-13 诉求 2）：锁定键按住、且指针落在

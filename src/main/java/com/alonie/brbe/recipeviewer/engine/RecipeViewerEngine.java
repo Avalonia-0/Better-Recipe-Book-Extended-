@@ -1,5 +1,6 @@
 package com.alonie.brbe.recipeviewer.engine;
 
+import com.alonie.brbe.util.StackIdentity;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -22,6 +23,12 @@ import java.util.concurrent.CopyOnWriteArrayList;
  * O(n) full-scan of {@code ClientRecipeBook.known}.  R (recipe) lookups hit the
  * OUTPUT index, U (usage) lookups hit the INPUT index (with the JEI
  * workstation short-circuit — a workstation block returns the whole type).
+ *
+ * <p><b>索引粒度是"物品栈"而不是"物品"</b>（用户 2026-10-02）：数据包物品普遍是
+ * "原版物品 id + 组件"（Guns++ 的 44 把枪共享 {@code minecraft:carrot_on_a_stick}），
+ * 只按物品查会把它们混成一坨。三级匹配用 {@link StackIdentity}：
+ * ① 身份补丁（剔除 {@code custom_data}/{@code damage}/{@code lore} 等易变组件）
+ * → ② {@code minecraft:item_model} → ③ 物品 id（旧行为兜底）。</p>
  *
  * <p>A type is a JEI recipe type id ({@code minecraft:crafting},
  * {@code minecraft:smelting}, {@code farmersdelight:cooking}, …).  The UI
@@ -328,6 +335,14 @@ public final class RecipeViewerEngine {
          *  entries of one recipe share a group, so a usage lookup shows the
          *  recipe once instead of once per product. */
         final Map<Item, Map<Object, RecipeDisplayEntry>> inputIndex = new HashMap<>();
+        /** ① 栈级：身份补丁（剔除易变组件）→ 产物配方集合。 */
+        final Map<StackIdentity.IdentityKey, Set<RecipeDisplayEntry>> outputByStack = new HashMap<>();
+        /** ① 栈级：身份补丁 → (配方分组 → 代表条目)。 */
+        final Map<StackIdentity.IdentityKey, Map<Object, RecipeDisplayEntry>> inputByStack = new HashMap<>();
+        /** ② 模型级：物品 + {@code minecraft:item_model} → 产物配方集合。 */
+        final Map<StackIdentity.ModelKey, Set<RecipeDisplayEntry>> outputByModel = new HashMap<>();
+        /** ② 模型级：物品 + {@code minecraft:item_model} → (配方分组 → 代表条目)。 */
+        final Map<StackIdentity.ModelKey, Map<Object, RecipeDisplayEntry>> inputByModel = new HashMap<>();
         final Map<RecipeDisplayEntry, Object> entryGroups = new HashMap<>();
 
         RecipeTypeData(String uid, List<ItemStack> stations) {
@@ -351,6 +366,14 @@ public final class RecipeViewerEngine {
                         // if its result resolves to several stacks of that item
                         // (enchantment levels / other NBT-only variants).
                         outputIndex.computeIfAbsent(output.getItem(), k -> new java.util.LinkedHashSet<>()).add(entry);
+                        StackIdentity.IdentityKey identity = StackIdentity.IdentityKey.of(output);
+                        if (identity != null) {
+                            outputByStack.computeIfAbsent(identity, k -> new java.util.LinkedHashSet<>()).add(entry);
+                        }
+                        StackIdentity.ModelKey model = StackIdentity.ModelKey.of(output);
+                        if (model != null) {
+                            outputByModel.computeIfAbsent(model, k -> new java.util.LinkedHashSet<>()).add(entry);
+                        }
                     }
                 }
             }
@@ -363,19 +386,43 @@ public final class RecipeViewerEngine {
                         Object key = groupKey != null ? groupKey : entry;
                         inputIndex.computeIfAbsent(input.getItem(), k -> new HashMap<>())
                                 .putIfAbsent(key, entry);
+                        StackIdentity.IdentityKey identity = StackIdentity.IdentityKey.of(input);
+                        if (identity != null) {
+                            inputByStack.computeIfAbsent(identity, k -> new HashMap<>()).putIfAbsent(key, entry);
+                        }
+                        StackIdentity.ModelKey model = StackIdentity.ModelKey.of(input);
+                        if (model != null) {
+                            inputByModel.computeIfAbsent(model, k -> new HashMap<>()).putIfAbsent(key, entry);
+                        }
                     }
                 }
             }
         }
 
+        /** R 查询：① 栈级 → ② 模型级 → ③ 物品级（逐级放宽，避免"精确到查不到"）。 */
         List<RecipeDisplayEntry> resultsFor(ItemStack target) {
-            Set<RecipeDisplayEntry> hits = outputIndex.get(target.getItem());
+            Set<RecipeDisplayEntry> hits = outputByStack.get(StackIdentity.IdentityKey.of(target));
+            if (hits != null && !hits.isEmpty()) return new ArrayList<>(hits);
+            StackIdentity.ModelKey model = StackIdentity.ModelKey.of(target);
+            if (model != null) {
+                hits = outputByModel.get(model);
+                if (hits != null && !hits.isEmpty()) return new ArrayList<>(hits);
+            }
+            hits = outputIndex.get(target.getItem());
             return hits == null ? new ArrayList<>() : new ArrayList<>(hits);
         }
 
+        /** U 查询：同样三级（工作站短路优先，JEI 语义不变）。 */
         List<RecipeDisplayEntry> usagesFor(ItemStack target) {
             if (stationItems.contains(target.getItem())) return distinctRecipes();
-            Map<Object, RecipeDisplayEntry> byGroup = inputIndex.get(target.getItem());
+            Map<Object, RecipeDisplayEntry> byGroup = inputByStack.get(StackIdentity.IdentityKey.of(target));
+            if (byGroup != null && !byGroup.isEmpty()) return new ArrayList<>(byGroup.values());
+            StackIdentity.ModelKey model = StackIdentity.ModelKey.of(target);
+            if (model != null) {
+                byGroup = inputByModel.get(model);
+                if (byGroup != null && !byGroup.isEmpty()) return new ArrayList<>(byGroup.values());
+            }
+            byGroup = inputIndex.get(target.getItem());
             return byGroup == null ? new ArrayList<>() : new ArrayList<>(byGroup.values());
         }
 

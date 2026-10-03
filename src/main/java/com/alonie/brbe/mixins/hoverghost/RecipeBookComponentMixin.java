@@ -42,12 +42,29 @@ public abstract class RecipeBookComponentMixin {
     @Inject(method = "tryPlaceRecipe", at = @At("HEAD"))
     private void brbe$notePlacedRecipe(RecipeCollection collection, RecipeDisplayId recipe,
                                        boolean useMaxItems, CallbackInfoReturnable<Boolean> cir) {
-        HoverGhostRecipe.invalidate();
+        // 可合成 → 服务端会把真实物品放进工作区：**先进入交接保持**（幽灵留在画面上等物品到位，
+        // 否则撤下幽灵与物品到位之间那段空工作区会露出来——用户 2026-09-27 反馈）。
+        // 不可合成 → 服务端回的是幽灵引导包（{@code fillGhostRecipe}），照旧当场交给原版。
+        if (collection.isCraftable(recipe)) {
+            HoverGhostRecipe.beginPlacementHandover(HoverGhostRecipe.displayOf(recipe));
+        } else {
+            HoverGhostRecipe.invalidate();
+        }
+    }
+
+    @Inject(method = "tryPlaceRecipe", at = @At("RETURN"))
+    private void brbe$reinstallHeldGhost(RecipeCollection collection, RecipeDisplayId recipe,
+                                         boolean useMaxItems, CallbackInfoReturnable<Boolean> cir) {
+        // 原版方法体里已经 ghostSlots.clear() 并发了放置包 → 交接保持期间把幽灵写回来，
+        // 否则"保持"保的是一片空白（这正是空窗期的直接成因）
+        HoverGhostRecipe.reinstallHeldGhost();
     }
 
     @Inject(method = "setVisible", at = @At("HEAD"))
     private void brbe$releaseHoverGhostOnHide(boolean visible, CallbackInfo ci) {
         if (!visible) {
+            // 书收起了：交接保持没有意义（画面里已经没有幽灵），立刻交还真实物品显示权
+            HoverGhostRecipe.cancelHandover();
             HoverGhostRecipe.release();
         }
     }

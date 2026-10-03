@@ -7,7 +7,10 @@ import java.util.Locale;
 
 /**
  * Plain substring match on the item's hover name.
- * This is equivalent to the original simple search behavior.
+ *
+ * <p>{@link SearchCache#tooltipFallback()} 打开时（自研书）额外匹配 **tooltip 全文**——
+ * 与原版配方书搜索的语料一致（原版索引产物物品的全部 tooltip 行），见
+ * {@code SearchCache#tooltipFallback} 的说明。</p>
  */
 public class TextArgument implements SearchArgument {
     private final String searchText;
@@ -19,12 +22,26 @@ public class TextArgument implements SearchArgument {
     @Override
     public boolean matches(ItemStack stack, SearchCache cache) {
         String name = stack.getHoverName().getString().toLowerCase(Locale.ROOT);
-        // 配置开启且查询词为纯 ASCII（拼音/英文）且名称含汉字时走拼音匹配；
-        // 否则保持原 substring 行为（纯英文名零开销）。
-        if (pinyinEnabled() && isAscii(searchText) && containsCjk(name)) {
-            return PinyinMatcher.contains(name.codePoints().toArray(), searchText.codePoints().toArray());
+        if (matchesText(name, searchText)) {
+            return true;
         }
-        return name.contains(searchText);
+        // 名字没命中才去看 tooltip（tooltip 生成有开销，按 stack 缓存）。
+        if (!cache.tooltipFallback()) {
+            return false;
+        }
+        String tooltip = cache.getTooltipText(stack);
+        return !tooltip.isEmpty() && matchesText(tooltip.toLowerCase(Locale.ROOT), searchText);
+    }
+
+    /**
+     * 一段文本里找查询词：配置开启且查询词为纯 ASCII（拼音/英文）且文本含汉字时走拼音匹配，
+     * 否则保持原 substring 行为（纯英文零开销）。
+     */
+    private static boolean matchesText(String haystack, String needle) {
+        if (pinyinEnabled() && isAscii(needle) && containsCjk(haystack)) {
+            return PinyinMatcher.contains(haystack.codePoints().toArray(), needle.codePoints().toArray());
+        }
+        return haystack.contains(needle);
     }
 
     private static boolean pinyinEnabled() {

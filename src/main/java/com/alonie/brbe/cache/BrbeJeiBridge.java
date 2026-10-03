@@ -271,16 +271,28 @@ public final class BrbeJeiBridge {
                 }
                 if (indexed.isEmpty()) continue;
                 String uidStr = typeId.toString();
-                // 锻造：数据由 BRBE 侧（配方书已知集）权威采集，headless 不再
+                // 切石 / 锻造：数据由 BRBE 侧（配方书已知集）权威注册，headless 不再
                 // registerType 覆盖——只把 headless 收集的 JEI 原生 layout 挂到
                 // BRBE 已注册条目上，供弹窗委托完整 JEI UI。
+                //
+                // ⚠️ headless 的配方源（客户端 RECIPE 注册表）**看不到服务端数据包
+                // 配方**：2026-10-01 用户实测 MasterCutter 数据包 —— headless 只有
+                // 351 条切石，配方书 known 里 1719 条。所以引擎里已经有该类型条目时
+                // **绝不能**让 headless 的条目覆盖它（否则数据包配方又被抹掉）；
+                // 引擎里一条都没有（书里没有这类配方，如服务端不下发）才用 headless
+                // 兜底注册，保证这类服务端仍能查询。
                 // 酿造：headless 直接注册（条目自带 native layout——委托完整 JEI
                 // UI 无需匹配；解锁门控在查询类别侧）。
-                if (uidStr.equals("minecraft:smithing")) {
-                    attachVanillaLayouts(typeId, entries, stations);
+                if (uidStr.equals("minecraft:smithing") || uidStr.equals("minecraft:stonecutting")) {
+                    if (RecipeViewerEngine.allRecipes(uidStr).isEmpty()) {
+                        RecipeViewerEngine.registerType(uidStr, indexed, stations);
+                        registerPluginCategory(typeId, stations);
+                        total += indexed.size();
+                    } else {
+                        attachVanillaLayouts(typeId, entries, stations);
+                    }
                     continue;
                 }
-                // 切石：条目与 layout 均由 headless 提供（BRBE 侧跳过），照常注册。
                 RecipeViewerEngine.registerType(uidStr, indexed, stations);
                 // mod 类型（非 BRBE 内置 10 类）注册为动态查询类别 tab
                 registerPluginCategory(typeId, stations);
@@ -331,13 +343,17 @@ public final class BrbeJeiBridge {
         RecipeViewerEngine.registerRebuildListener(BrbeJeiBridge::reattachBookLayouts);
     }
 
-    /** 对锻造（数据由配方书侧权威供给的类型）重新按 headless 收集的
+    /** 对切石/锻造（数据由配方书侧权威供给的类型）重新按 headless 收集的
      *  JEI 原生 layout 挂到引擎当前条目上（rebuild 后调用；条目已就绪时才能
-     *  匹配挂接）。酿造条目由 headless 直接注册（自带 layout），无需挂接。 */
+     *  匹配挂接）。酿造条目由 headless 直接注册（自带 layout），无需挂接。
+     *
+     *  <p>切石必须在这里重挂：BRBE 注册的条目（含数据包配方）与 headless 的条目
+     *  是**不同的 RecipeDisplayId**，layout 按 id 存，重建后必须按 display 等价重挂。</p> */
     public static void reattachBookLayouts() {
         try {
             if (!jeiAvailable()) return;
             reattachTypeLayouts("minecraft:smithing");
+            reattachTypeLayouts("minecraft:stonecutting");
         } catch (Exception | LinkageError e) {
             BetterRecipeBook.LOGGER.warn("[BRBE-JEI-BRIDGE] reattachBookLayouts failed: {}", e.toString());
         }
@@ -422,6 +438,16 @@ public final class BrbeJeiBridge {
             int attached = 0;
             java.util.List<net.minecraft.world.item.crafting.display.RecipeDisplayEntry> all =
                     RecipeViewerEngine.allRecipes(typeId.toString());
+            // display → 引擎条目 的索引：切石已知集可达上千条（MasterCutter 数据包实测
+            // 1719 条），逐个 headless 条目线性扫描 all 会是 O(n·m) 的记录 equals
+            // （几十万次、每次比较嵌套 SlotDisplay 列表）→ 每次 rebuild 都要跑一遍，
+            // 改为一次性建表 + 哈希查找。
+            java.util.Map<net.minecraft.world.item.crafting.display.RecipeDisplay,
+                    net.minecraft.world.item.crafting.display.RecipeDisplayEntry> byDisplay =
+                    new java.util.HashMap<>();
+            for (net.minecraft.world.item.crafting.display.RecipeDisplayEntry existing : all) {
+                if (existing.display() != null) byDisplay.putIfAbsent(existing.display(), existing);
+            }
             for (Object entry : entries) {
                 Object recipe = get(entry, "recipe");
                 // headless 收集到的 entry 的 recipe 是 RecipeHolder（datapack）；
@@ -454,16 +480,14 @@ public final class BrbeJeiBridge {
                                 stacks == null ? List.of() : stacks));
                     }
                 }
-                for (RecipeDisplayEntry existing : all) {
-                    if (existing.display() != null
-                            && existing.display().equals(targetDisplay)) {
-                        RecipeViewerEngine.registerLayout(existing.id(),
-                                new RecipeViewerEngine.RecipeLayout(layoutW, layoutH, slotLayouts, null));
-                        UID_BY_ID.put(existing.id(), typeId);
-                        RECIPE_BY_ID.put(existing.id(), recipe);
-                        attached++;
-                        break;
-                    }
+                net.minecraft.world.item.crafting.display.RecipeDisplayEntry existing =
+                        byDisplay.get(targetDisplay);
+                if (existing != null) {
+                    RecipeViewerEngine.registerLayout(existing.id(),
+                            new RecipeViewerEngine.RecipeLayout(layoutW, layoutH, slotLayouts, null));
+                    UID_BY_ID.put(existing.id(), typeId);
+                    RECIPE_BY_ID.put(existing.id(), recipe);
+                    attached++;
                 }
             }
             // 锻造：headless 收集不到的 trim 条目（tag 绑定晚于收集时机、
@@ -474,6 +498,8 @@ public final class BrbeJeiBridge {
             int fallback = 0;
             if (typeId.toString().equals("minecraft:smithing")) {
                 fallback = attachSmithingFallbackLayouts(all);
+            } else if (typeId.toString().equals("minecraft:stonecutting")) {
+                fallback = attachStonecuttingFallbackLayouts(all);
             }
             if (attached > 0 || fallback > 0) {
                 BrbeLogger.log("BRBE-JEI-BRIDGE", "attached vanilla JEI layout to {} stonecutter/smithing entries ({}+{})",
@@ -539,6 +565,14 @@ public final class BrbeJeiBridge {
             }
         }
         return clientSyncedRecipes;
+    }
+
+    /** 客户端同步配方（fabric {@code SynchronizedRecipes}）；尚未同步 / 该通道缺席时返回
+     *  {@code null}。供 {@link RecipeNamespaceIndex} 反查配方 id 的命名空间（与锻造/切石
+     *  layout 反查同一条通道、同一套 display 等价判据）。 */
+    public static net.fabricmc.fabric.api.recipe.v1.sync.SynchronizedRecipes syncedRecipesOrNull() {
+        registerSyncedRecipesListener();
+        return resolveSyncedRecipes();
     }
 
     /** 引擎里所有没挂上 layout 的锻造条目（trim/mod 配方）：挂固定几何 layout +
@@ -667,6 +701,200 @@ public final class BrbeJeiBridge {
     /** 原版锻造类别固定几何 + 该条目的三件输入（template (1,6) / base (19,6) /
      *  addition (37,6) / output (91,6)，108x28——transform 与 trim 共用同一
      *  类别与 layout）。 */
+    /**
+     * 切石兜底（用户 2026-10-02 反馈"切石机类别内很多配方无法正常加载 JEI 界面"）。
+     *
+     * <p><b>根因</b>：headless 的 {@code injectSyncedModRecipes} 只把**配方类型命名空间 ≠
+     * minecraft** 的同步配方注入 JEI 管理器（那条规则是为 mod 配方写的），而 JEI 自己的原版类型
+     * 配方表在单机只拿到 {@code VanillaClientRecipeLoader} 的**类路径原版配方**——
+     * 实测切石恰好 351 条 = 原版 26.3 的切石配方总数，而引擎里有 1731 条（MasterCutter
+     * 这个**独立数据包**贡献 1368 条）。于是 {@link #attachVanillaLayouts} 那个"按 display
+     * 等价匹配 headless 条目"的循环里根本没有这些配方 → 没有 native layout / JEI 配方对象
+     * → 弹窗退回原版固定双槽。**所有"原版配方类型 + 数据包/模组来源"的配方都有此问题**，
+     * 只是合成/烧炼本来就走 BRBE 自己的渲染，只有切石/锻造（依赖 JEI 委托）看得见。</p>
+     *
+     * <p><b>修法</b>：与锻造兜底同一套路——遍历引擎里**还没有 layout** 的切石条目，
+     * 从集成服务器（单机全量）或 fabric 同步集取 RecipeHolder，用**已挂上的切石几何**当模板
+     * （JEI 切石类别所有配方几何一致：输入槽 → 箭头 → 输出槽），槽内物品从该条目自己的
+     * {@code StonecutterRecipeDisplay} 现解。挂上 layout + JEI 配方对象后，
+     * {@code SyntheticRecipeRendererImpl} 就能照常委托 {@code createRecipeLayoutDrawable}。</p>
+     */
+    private static int attachStonecuttingFallbackLayouts(
+            List<net.minecraft.world.item.crafting.display.RecipeDisplayEntry> all) {
+        if (all.isEmpty()) return 0;
+        net.minecraft.world.item.crafting.display.RecipeDisplayEntry templateEntry = null;
+        RecipeViewerEngine.RecipeLayout template = null;
+        for (net.minecraft.world.item.crafting.display.RecipeDisplayEntry e : all) {
+            RecipeViewerEngine.RecipeLayout l = RecipeViewerEngine.getLayout(e.id());
+            if (l != null && !l.slots().isEmpty()) {
+                template = l;
+                templateEntry = e;
+                break;
+            }
+        }
+        if (template == null || templateEntry == null) {
+            // JEI 一条切石都没收集到（无 JEI / 未启动 / 无原版配方）→ 没有可靠几何，不硬编码
+            return 0;
+        }
+        net.minecraft.util.context.ContextMap ctx;
+        try {
+            ctx = net.minecraft.world.item.crafting.display.SlotDisplayContext
+                    .fromLevel(net.minecraft.client.Minecraft.getInstance().level);
+        } catch (Exception | LinkageError e) {
+            return 0;
+        }
+        if (ctx == null) return 0;
+        int pending = 0;
+        for (net.minecraft.world.item.crafting.display.RecipeDisplayEntry entry : all) {
+            if (RecipeViewerEngine.getLayout(entry.id()) == null) pending++;
+        }
+        if (pending == 0) return 0;
+        // display → holder 一次性建表：否则 1380 条 × 1731 个 holder 的嵌套 equals
+        // （= 240 万次 SlotDisplay 列表比较）会在每次 rebuild 里跑一遍——同
+        // attachVanillaLayouts 顶部那条注释踩过的坑。
+        java.util.Map<net.minecraft.world.item.crafting.display.RecipeDisplay,
+                net.minecraft.world.item.crafting.RecipeHolder<?>> byDisplay =
+                new java.util.HashMap<>();
+        fillByDisplay(byDisplay, serverStonecuttingHolders());
+        if (byDisplay.isEmpty()) fillByDisplay(byDisplay, stonecuttingHolders());
+        int out = 0;
+        for (net.minecraft.world.item.crafting.display.RecipeDisplayEntry entry : all) {
+            if (RecipeViewerEngine.getLayout(entry.id()) != null) continue;
+            if (!(entry.display()
+                    instanceof net.minecraft.world.item.crafting.display.StonecutterRecipeDisplay sc)) {
+                continue;
+            }
+            Object holder = findStonecuttingHolderById(entry);
+            if (holder == null && entry.display() != null) holder = byDisplay.get(entry.display());
+            if (holder == null) continue;
+            List<ItemStack> input;
+            List<ItemStack> result;
+            try {
+                input = sc.input().resolveForStacks(ctx);
+                result = sc.result().resolveForStacks(ctx);
+            } catch (Exception | LinkageError e) {
+                continue;
+            }
+            List<RecipeViewerEngine.RecipeSlotLayout> slots =
+                    new ArrayList<>(template.slots().size());
+            for (RecipeViewerEngine.RecipeSlotLayout slot : template.slots()) {
+                List<ItemStack> stacks = slot.stacks();
+                if (slot.role() == 0) {
+                    stacks = input;          // RecipeIngredientRole.INPUT
+                } else if (slot.role() == 1) {
+                    stacks = result;         // RecipeIngredientRole.OUTPUT
+                }
+                slots.add(new RecipeViewerEngine.RecipeSlotLayout(slot.x(), slot.y(), slot.role(), stacks));
+            }
+            RecipeViewerEngine.registerLayout(entry.id(), new RecipeViewerEngine.RecipeLayout(
+                    template.width(), template.height(), slots, template.background()));
+            UID_BY_ID.put(entry.id(), Identifier.parse("minecraft:stonecutting"));
+            RECIPE_BY_ID.put(entry.id(), holder);
+            out++;
+        }
+        if (out > 0) {
+            BrbeLogger.log("BRBE-JEI-BRIDGE",
+                    "stonecutting fallback: attached {} datapack recipes missing from JEI's own recipe table (pending={})",
+                    out, pending);
+        }
+        return out;
+    }
+
+    /** 集成服务器配方管理器里按 display id 1:1 取切石 holder（单机最可靠，同锻造）。 */
+    private static Object findStonecuttingHolderById(
+            net.minecraft.world.item.crafting.display.RecipeDisplayEntry entry) {
+        try {
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.getSingleplayerServer() == null) return null;
+            Object info = mc.getSingleplayerServer().getRecipeManager()
+                    .getRecipeFromDisplay(entry.id());
+            if (info instanceof net.minecraft.world.item.crafting.RecipeManager.ServerDisplayInfo sdi
+                    && sdi.parent() instanceof net.minecraft.world.item.crafting.RecipeHolder<?> holder
+                    && holder.value() instanceof net.minecraft.world.item.crafting.StonecutterRecipe) {
+                return holder;
+            }
+        } catch (Exception | LinkageError e) {
+            // 服务器配方管理器不可用 → 走 display 等价兜底
+        }
+        return null;
+    }
+
+    /** 切石 holder 缓存（集成服务器全量，keyed by RecipeManager；负 id 缓存条目走这里）。 */
+    private static volatile java.util.List<net.minecraft.world.item.crafting.RecipeHolder<?>>
+            serverStonecuttingCache = java.util.List.of();
+    private static volatile Object serverStonecuttingCacheSource;
+
+    private static java.util.List<net.minecraft.world.item.crafting.RecipeHolder<?>>
+            serverStonecuttingHolders() {
+        try {
+            net.minecraft.client.Minecraft mc = net.minecraft.client.Minecraft.getInstance();
+            if (mc.getSingleplayerServer() == null) return java.util.List.of();
+            net.minecraft.world.item.crafting.RecipeManager mgr =
+                    mc.getSingleplayerServer().getRecipeManager();
+            if (serverStonecuttingCacheSource == mgr) return serverStonecuttingCache;
+            synchronized (BrbeJeiBridge.class) {
+                if (serverStonecuttingCacheSource == mgr) return serverStonecuttingCache;
+                java.util.List<net.minecraft.world.item.crafting.RecipeHolder<?>> list =
+                        new java.util.ArrayList<>();
+                for (net.minecraft.world.item.crafting.RecipeHolder<?> holder : mgr.getRecipes()) {
+                    if (holder != null && holder.value()
+                            instanceof net.minecraft.world.item.crafting.StonecutterRecipe) {
+                        list.add(holder);
+                    }
+                }
+                serverStonecuttingCache = java.util.List.copyOf(list);
+                serverStonecuttingCacheSource = mgr;
+            }
+        } catch (Exception | LinkageError e) {
+            return java.util.List.of();
+        }
+        return serverStonecuttingCache;
+    }
+
+    /** fabric 同步集里的切石 holder（LAN/多机兜底）。 */
+    private static volatile java.util.List<net.minecraft.world.item.crafting.RecipeHolder<?>>
+            stonecuttingHolderCache = java.util.List.of();
+    private static volatile Object stonecuttingHolderCacheSource;
+
+    private static java.util.List<net.minecraft.world.item.crafting.RecipeHolder<?>>
+            stonecuttingHolders() {
+        net.fabricmc.fabric.api.recipe.v1.sync.SynchronizedRecipes synced = resolveSyncedRecipes();
+        if (synced == null) return java.util.List.of();
+        if (stonecuttingHolderCacheSource == synced) return stonecuttingHolderCache;
+        synchronized (BrbeJeiBridge.class) {
+            if (stonecuttingHolderCacheSource == synced) return stonecuttingHolderCache;
+            java.util.List<net.minecraft.world.item.crafting.RecipeHolder<?>> list =
+                    new java.util.ArrayList<>();
+            for (net.minecraft.world.item.crafting.RecipeHolder<?> holder : synced.recipes()) {
+                if (holder != null && holder.value()
+                        instanceof net.minecraft.world.item.crafting.StonecutterRecipe) {
+                    list.add(holder);
+                }
+            }
+            stonecuttingHolderCache = java.util.List.copyOf(list);
+            stonecuttingHolderCacheSource = synced;
+        }
+        return stonecuttingHolderCache;
+    }
+
+    /** 把一批切石 holder 的 display 铺进索引（display 值等价是兜底判据）。 */
+    private static void fillByDisplay(
+            java.util.Map<net.minecraft.world.item.crafting.display.RecipeDisplay,
+                    net.minecraft.world.item.crafting.RecipeHolder<?>> into,
+            java.util.List<net.minecraft.world.item.crafting.RecipeHolder<?>> holders) {
+        for (net.minecraft.world.item.crafting.RecipeHolder<?> holder : holders) {
+            if (holder == null || holder.value() == null) continue;
+            try {
+                for (net.minecraft.world.item.crafting.display.RecipeDisplay display
+                        : holder.value().display()) {
+                    if (display != null) into.putIfAbsent(display, holder);
+                }
+            } catch (Exception | LinkageError ignored) {
+                // 该配方 display() 解析不了：跳过
+            }
+        }
+    }
+
     private static RecipeViewerEngine.RecipeLayout smithingLayoutFor(Object holder) {
         List<List<ItemStack>> inputs = smithingInputStacks(holder);
         List<ItemStack> template = inputs == null || inputs.size() < 3 ? List.of() : inputs.get(0);

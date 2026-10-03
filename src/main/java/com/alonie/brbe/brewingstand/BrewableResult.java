@@ -54,16 +54,23 @@ public class BrewableResult implements GenericRecipe {
      * {@code minecraft:brewing} 配方里：同一个"药水→药水"转换会有三条内容完全
      * 相同、只有 {@code input.item}/{@code output.id} 不同的配方。旧版
      * {@code PotionBrewing.Mix} 不含物品形态，形态完全由标签页决定，所以列出
-     * 全部条目是对的；26.3 若不按形态过滤，同一个标签页就会把三种形态全部列出，
-     * 而结果图标又统一按标签页物品绘制 → <b>三个一模一样的配方</b>。因此这里按
-     * <b>基底物品</b>（设计蓝图 §2.8「根据基底物品类型区分」）归属标签页。</p>
+     * 全部条目是对的；26.3 若不按形态过滤，同一个标签页就会把三种形态全部列出
+     * （三个一模一样的配方）。因此这里按形态归属标签页。</p>
      *
-     * <p>形态未知（{@link #inputItem()} 为 null，即 26.2/1.21.11 的数据）时恒
-     * true，旧分支行为不变。</p>
+     * <p><b>判据是产物形态，不是基底形态</b>（用户 2026-09-26 反馈的分类错误）：
+     * 火药与龙息这两味<b>会改变形态</b>——
+     * {@code potion + 火药 → splash_potion}、{@code splash_potion + 龙息 → lingering_potion}。
+     * 按基底归属的话，"饮用型药水 + 火药"（产物是喷溅药水）会落在<b>饮用型</b>标签页里、
+     * 在饮用型里显示一枚喷溅药水图标；"喷溅型 + 龙息"同理落进喷溅型——正是用户看到的
+     * "饮用型里出现喷溅型、喷溅型里出现滞留型"。按产物归属后，每个标签页 = <b>该形态的
+     * 全部药水及其酿造路线</b>，与结果图标（{@link #getResult} 用产物形态绘制）自洽。</p>
+     *
+     * <p>形态未知（{@link #outputItem()} 为 null，即 26.2/1.21.11 的数据）时恒 true，
+     * 旧分支行为不变。</p>
      */
     public boolean belongsToTab(BRBBookCategories.Category category) {
-        Item input = inputItem();
-        return input == null || input == category.getItemIcons().getFirst().getItem();
+        Item output = outputItem();
+        return output == null || output == category.getItemIcons().getFirst().getItem();
     }
 
     /** 输入物品形态：优先配方自带（26.3），否则用标签页物品（旧版语义）。 */

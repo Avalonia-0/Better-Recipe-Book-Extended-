@@ -1,6 +1,5 @@
 package com.alonie.brbe.brewingstand;
 
-import com.google.common.collect.Lists;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.generic.GenericRecipeBookCollection;
 import com.alonie.brbe.generic.pins.Pinnable;
@@ -9,7 +8,6 @@ import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.inventory.BrewingStandMenu;
 import net.minecraft.world.inventory.Slot;
-import net.minecraft.world.item.ItemStack;
 
 import java.util.List;
 
@@ -22,17 +20,13 @@ public class BrewingRecipeCollection extends GenericRecipeBookCollection<Brewabl
         this.category = category;
     }
 
-    public List<BrewableResult> getDisplayRecipes(boolean craftable) {
-        List<BrewableResult> list = Lists.newArrayList();
-        ItemStack carried = this.menu.getCarried();
-
-        for (BrewableResult recipe : this.recipes) {
-            if (recipe.hasMaterials(this.category, this.menu.slots, carried) == craftable) {
-                list.add(recipe);
-            }
-        }
-
-        return list;
+    /** 子集重建（排序原因剥离 stage：子组 / 重打包的原组）。 */
+    @Override
+    public BrewingRecipeCollection subset(List<BrewableResult> subset) {
+        BrewingRecipeCollection copy = new BrewingRecipeCollection(subset, this.menu, this.registryAccess, this.category);
+        // 继承"剥离子组"标记：子组的子集仍是子组，重打包的原组仍是原组
+        copy.brbe$inheritExtractionState(this);
+        return copy;
     }
 
     @Override
@@ -46,39 +40,14 @@ public class BrewingRecipeCollection extends GenericRecipeBookCollection<Brewabl
         return false;
     }
 
+    /** 材料齐备判据。可合成 / 残缺 / 两个子列表都由 {@link GenericRecipeBookCollection} 缓存派生。 */
     @Override
-    public boolean atleastOneCraftable(NonNullList<Slot> slots) {
-        ItemStack carried = this.menu.getCarried();
-        for (BrewableResult recipe : this.recipes) {
-            if (recipe.hasMaterials(this.category, slots, carried)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    @Override
-    public boolean isCraftable(BrewableResult recipe, NonNullList<Slot> slots) {
+    protected boolean hasMaterials(BrewableResult recipe, NonNullList<Slot> slots) {
         return recipe.hasMaterials(this.category, slots, this.menu.getCarried());
     }
 
     @Override
-    public boolean atleastOnePartiallyCraftable(NonNullList<Slot> slots) {
-        return !getPartiallyCraftableRecipes(slots).isEmpty();
-    }
-
-    @Override
-    public List<BrewableResult> getPartiallyCraftableRecipes(NonNullList<Slot> slots) {
-        List<BrewableResult> list = Lists.newArrayList();
-        ItemStack carried = this.menu.getCarried();
-
-        for (BrewableResult recipe : this.recipes) {
-            if (!recipe.hasMaterials(this.category, slots, carried) && recipe.hasPartialMaterials(this.category, slots, carried)) {
-                list.add(recipe);
-            }
-        }
-
-        return list;
+    protected boolean hasPartialMaterials(BrewableResult recipe, NonNullList<Slot> slots) {
+        return recipe.hasPartialMaterials(this.category, slots, this.menu.getCarried());
     }
 }

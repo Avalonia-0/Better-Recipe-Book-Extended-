@@ -3,8 +3,10 @@ package com.alonie.brbe.generic;
 import com.google.common.collect.Lists;
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
+import com.alonie.brbe.util.BrbeLogger;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.CycleLock;
+import com.alonie.brbe.util.HoverGhostRecipe;
 import com.alonie.brbe.util.ModNameUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.PartialGhostOverlayUtil;
@@ -46,6 +48,42 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
     }
 
     /**
+     * 幽灵**结束**（{@link #clear()} / 不再显示）时把「跟着幽灵走的外部预览」复位的回调。
+     *
+     * <p><b>为什么需要它</b>（用户 2026-09-28 反馈："悬停展示锻造台配方后，工作区那个盔甲架上的
+     * 装备模型无法移除"）：锻造台界面的盔甲架由原版 {@code SmithingScreen#updateArmorStandPreview}
+     * 驱动，原版只在**结果槽**变化时用它刷新（{@code slotChanged(menu, RESULT_SLOT, stack)}）。
+     * BRBE 的幽灵预览每帧把幽灵产物推进去（见 {@link #render}），但幽灵收起时**没有人复位**它 →
+     * 盔甲架一直挂着那件装备的模型，直到玩家动一下工作区让结果槽变化为止。</p>
+     *
+     * <p>复位值由调用方决定：锻造台传的是"原版语义的那个值"= 结果槽当前的物品
+     * （见 {@code SmithingRecipeBookComponent#brbe$restoreArmorStandPreview}）。</p>
+     */
+    @Nullable
+    private Runnable onGhostRelease;
+
+    /** 外部预览当前是否被本幽灵占着（用来让 {@link #releaseExternalPreview()} 幂等）。 */
+    private boolean externalPreviewHeld;
+
+    public void setOnGhostRelease(@Nullable Runnable onGhostRelease) {
+        this.onGhostRelease = onGhostRelease;
+    }
+
+    /**
+     * 幽灵不再显示时复位外部预览。**幂等**：没有对外写过就什么都不做，可以放心每帧调用
+     * （收起配方书那条路径就是这么用的——幽灵本身按原设计保留，只是不再"占着"外部预览）。
+     */
+    public void releaseExternalPreview() {
+        if (!this.externalPreviewHeld) {
+            return;
+        }
+        this.externalPreviewHeld = false;
+        if (this.onGhostRelease != null) {
+            this.onGhostRelease.run();
+        }
+    }
+
+    /**
      * @param renderingPredicate Returns true if {@link GhostRenderType} should be rendered
      */
     public void setRenderingPredicate(@Nullable BiPredicate<GhostRenderType, GenericGhostIngredient> renderingPredicate) {
@@ -78,14 +116,30 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
         this.recipe = null;
         this.ingredients.clear();
         this.time = 0.0F;
+        // 幽灵收起 = 外部预览（锻造台盔甲架）不再由我们驱动 → 复位成原版的显示
+        this.releaseExternalPreview();
     }
 
     public void addIngredient(int containerSlot, Ingredient ingredient, int i, int j) {
+        brbe$traceAdd(containerSlot, "ingredient");
         this.ingredients.add(new GenericGhostIngredient(containerSlot, ingredient, i, j));
     }
 
     public void addIngredient(int containerSlot, ItemStack itemStack, int i, int j) {
+        brbe$traceAdd(containerSlot, String.valueOf(itemStack.getItem()));
         this.ingredients.add(new GenericGhostIngredient(containerSlot, itemStack, i, j));
+    }
+
+    /**
+     * ⚠️ 临时诊断（2026-09-26，BRBE-GHOST）：谁在往幽灵里写东西——用于定位"纯悬停预览后
+     * 工作区留下持久化幽灵"（幽灵非空必然来自某次写入，写入者记下来即可定位）。定位后删除。
+     */
+    private static void brbe$traceAdd(int slot, String what) {
+        StackTraceElement[] stack = new Throwable().getStackTrace();
+        String caller = stack.length > 2
+                ? stack[2].getClassName() + "." + stack[2].getMethodName() + ":" + stack[2].getLineNumber()
+                : "?";
+        BrbeLogger.log("BRBE-GHOST", "ghost-add slot={} what={} caller={}", slot, what, caller);
     }
 
     public GenericGhostIngredient get(int i) {
@@ -115,7 +169,11 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
     public void render(GuiGraphicsExtractor guiGraphics, Minecraft minecraft, int i, int j, boolean bl, float f, BRBBookCategories.Category category) {
         if (!ClientCompat.isControlDown()) {
             this.time += f;
-            if (this.onGhostUpdate != null && this.recipe != null) this.onGhostUpdate.accept(this.getCurrentResult(category));
+            if (this.onGhostUpdate != null && this.recipe != null) {
+                // 记住了"外部预览被我们占着"：幽灵收起时要复位（见 #releaseExternalPreview）
+                this.externalPreviewHeld = true;
+                this.onGhostUpdate.accept(this.getCurrentResult(category));
+            }
         }
 
         // 材料是否已在检索空间（真实物品栏 + 手持 + 副手 + 打开的合成网格）：
@@ -124,10 +182,19 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
         // 没有这套调整——已有材料仍被红/白遮罩盖住、缺料红罩也没加深）。
         boolean[] missing = brbe$missingSlots();
 
+        // 悬停预览期间**忽略渲染谓词**（锻造台的"只画空槽位"、酿造台的"槽内与目标不同才画"）：
+        // 工作区里的真实物品此时已被「暂隐工作区真实物品」藏起来（见
+        // {@link HoverGhostRecipe#hidesRealItemIn}），幽灵必须照样画——否则那些槽位会整格
+        // 空白（用户 2026-09-25 反馈：锻造台工作区有物品时悬停配方 → 整格清空、连幽灵物品
+        // 都不显示）。点击放置的缺料引导不受影响：那时没有悬停预览，谓词照常生效。
+        boolean hoverPreview = HoverGhostRecipe.isPreviewing();
+
         for (int k = 0; k < this.ingredients.size(); ++k) {
             GenericGhostIngredient ghostIngredient = this.ingredients.get(k);
-            boolean shouldRenderBackground = renderingPredicate != null && renderingPredicate.test(GhostRenderType.BACKGROUND, ghostIngredient);
-            boolean shouldRenderItem = renderingPredicate != null && renderingPredicate.test(GhostRenderType.ITEM, ghostIngredient);
+            boolean shouldRenderBackground = hoverPreview
+                    || (renderingPredicate != null && renderingPredicate.test(GhostRenderType.BACKGROUND, ghostIngredient));
+            boolean shouldRenderItem = hoverPreview
+                    || (renderingPredicate != null && renderingPredicate.test(GhostRenderType.ITEM, ghostIngredient));
 
             // 已有材料的槽位：红底与白罩都不画，物品以完整不透明度显示。
             boolean materialOwned = k < missing.length && !missing[k];
@@ -184,6 +251,33 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
         return null;
     }
 
+    /**
+     * 工作区**已经摆好这条配方**——幽灵的每个条目在对应槽位里都已经是候选物品之一
+     * （用户 2026-09-27 收尾诉求：已摆好就别再预览，否则"暂隐工作区真实物品"会把摆好的材料
+     * 整片藏掉，而自研书的幽灵渲染谓词只画空槽位 → 工作区看起来是空的）。
+     *
+     * <p>判定与工作台路径（{@link HoverGhostRecipe} 的"幽灵一格也补不进去"）同一套
+     * {@link HoverGhostRecipe#satisfies}：物品相同、数量够，候选带组件时组件也要一致。</p>
+     */
+    public boolean isLaidOutInWorkspace(@Nullable AbstractContainerMenu menu) {
+        if (menu == null || this.ingredients.isEmpty()) return false;
+        for (GenericGhostIngredient ingredient : this.ingredients) {
+            int index = ingredient.getContainerSlot();
+            if (index < 0 || index >= menu.slots.size()) return false;
+            ItemStack real = menu.slots.get(index).getItem();
+            if (real.isEmpty()) return false;
+            boolean matched = false;
+            for (ItemStack candidate : ingredient.getVariants()) {
+                if (HoverGhostRecipe.satisfies(real, candidate)) {
+                    matched = true;
+                    break;
+                }
+            }
+            if (!matched) return false;
+        }
+        return true;
+    }
+
     public void drawTooltip(GuiGraphicsExtractor gui, int x, int y, int mouseX, int mouseY) {
         ItemStack itemStack = null;
 
@@ -192,7 +286,10 @@ public class GenericGhostRecipe<R extends GenericRecipe> {
             int k = ingredient.getY() + y;
 
             // don't render tooltip if cursor is not over item or predicate returns false
-            if (mouseX >= j && mouseY >= k && mouseX < j + 16 && mouseY < k + 16 && (renderingPredicate == null || renderingPredicate.test(GhostRenderType.TOOLTIP, ingredient))) {
+            if (mouseX >= j && mouseY >= k && mouseX < j + 16 && mouseY < k + 16
+                    && (HoverGhostRecipe.isPreviewing()
+                        || renderingPredicate == null
+                        || renderingPredicate.test(GhostRenderType.TOOLTIP, ingredient))) {
                 // 用显示体（而非自动轮换体）：锁定期间鼠标提示必须与画出来的那一件一致
                 itemStack = ingredient.getDisplayStack(j, k);
             }

@@ -80,6 +80,14 @@ public final class RecipeBookGesture {
             RecipeViewerOverlay.mouseScrolled(mouseX, mouseY, verticalAmount);
             return true;
         }
+        // ★ 替代配方组浮层（分页时）的独立滚轮区：浮层展开后**盖在配方书之上**，指针落在
+        //   浮层里的滚动翻浮层自己的页，配方书不跟着翻（用户 2026-09-26 诉求）。放在这里 =
+        //   先于书体与 RBIP 标签栏认领；也必须早于下面的 AbstractRecipeBookScreen 分支，
+        //   否则 BRBE 自研书（酿造台/锻造台）那条兜底入队路径根本到不了这个判定。
+        if (AlternativesPaging.scroll(mouseX, mouseY, verticalAmount)) {
+            CompatSelfCheck.noteSeamClaim("替代配方组翻页");
+            return true;
+        }
         Screen screen = minecraft.gui.screen();
         if (!(screen instanceof AbstractRecipeBookScreen<?> bookScreen)) {
             return false;

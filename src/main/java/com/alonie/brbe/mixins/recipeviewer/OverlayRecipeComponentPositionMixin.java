@@ -59,19 +59,8 @@ public abstract class OverlayRecipeComponentPositionMixin {
         int boxW = Math.min(count, columns) * 25 + 8;
         int boxH = rows * 25 + 8;
 
-        int boxX;
-        if (boxW <= screenW - 60) {
-            boxX = Math.max(30, Math.min(this.x, screenW - boxW - 30));
-        } else {
-            boxX = Math.max(0, Math.min(this.x, screenW - boxW));
-        }
-        int boxY;
-        if (boxH <= screenH - 60) {
-            boxY = Math.max(30, Math.min(this.y, screenH - boxH - 30));
-        } else {
-            boxY = Math.max(0, Math.min(this.y, screenH - boxH));
-        }
-        this.x = boxX;
-        this.y = boxY;
+        int[] box = AlternativeOverlayLayout.clampToScreen(this.x, this.y, boxW, boxH, screenW, screenH);
+        this.x = box[0];
+        this.y = box[1];
     }
 }

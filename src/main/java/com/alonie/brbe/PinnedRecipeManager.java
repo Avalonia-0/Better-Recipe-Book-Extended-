@@ -114,18 +114,31 @@ public class PinnedRecipeManager {
         }
     }
 
+    /**
+     * 固定 / 取消固定一个**自研配方书集合**（酿造台、锻造台）。
+     *
+     * <p>⚠️ 必须**整组一起**切换：一个集合可能包含多条配方——锻造台的纹饰组是
+     * "每种可纹饰装备一条"、酿造台的一个产物是"同产物的多条酿造路线"。旧实现对每个
+     * 已 pin 的 id 只删掉**第一个命中**就 {@code return}：组内其余 id 仍是 pin 状态 →
+     * 集合仍被判为"已固定"（{@code has()} → 排序继续把它顶到最前），而且这个"半 pin"
+     * 状态会写进 {@code brbe.pins}（用户 2026-09-26 反馈：固定后取消固定，排序不恢复，
+     * 且重启后依然如此）。取消时删**组内全部** id；固定时加**组内全部** id（与
+     * {@link #addOrRemoveFavourite(PinnableRecipeCollection)} 的 {@code removeIf} 同义）。</p>
+     *
+     * <p>⚠️ <b>固定键不再走这里</b>（用户 2026-09-27 规则：替代配方组**不能**直接固定，
+     * 只能打开组浮层逐个固定变体 → {@link #toggleFavourite(GenericRecipe)}）。本方法保留
+     * 作为"整组切换"的工具（当前 26.3 已无调用者），别把它接回固定键。</p>
+     */
     public <R extends GenericRecipe, M extends AbstractContainerMenu> void addOrRemoveFavourite(GenericRecipeBookCollection<R, M> target) {
-        for (Identifier identifier : this.pinned) {
-            for (R recipe : target.getRecipes()) {
-                if (recipe.id().equals(identifier)) {
-                    this.pinned.remove(identifier);
-                    this.store();
-                    return;
-                }
-            }
+        List<Identifier> ids = target.getRecipes().stream().map(R::id).distinct().toList();
+
+        if (ids.stream().anyMatch(this.pinned::contains)) {
+            this.pinned.removeAll(ids);
+        } else {
+            this.pinned.addAll(ids);
         }
 
-        this.pinned.addAll(target.getRecipes().stream().map(R::id).toList());
+        version++;
         this.store();
     }
 
@@ -180,7 +193,23 @@ public class PinnedRecipeManager {
      *  recipe book — {@link PinnableRecipeCollection#idFor}).  Lets the query
      *  viewer pin-mark and sort-forward the recipe book's pinned recipes. */
     public boolean isPinnedEntry(net.minecraft.world.item.crafting.display.RecipeDisplayEntry entry) {
-        return entry != null && this.pinned.contains(PinnableRecipeCollection.idFor(entry));
+        if (entry == null) {
+            return false;
+        }
+        Identifier id = PinnableRecipeCollection.idFor(entry);
+        if (this.pinned.contains(id)) {
+            return true;
+        }
+        // 同产物同形融合条目：pin 状态跟随成员（用户 2026-09-29 定）——成员里有 pin 就算被 pin
+        List<Identifier> memberPins = com.alonie.brbe.util.FusedRecipeVariants.memberPins(id);
+        if (memberPins != null) {
+            for (Identifier memberPin : memberPins) {
+                if (this.pinned.contains(memberPin)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /** 单配方变体 pin 切换（替代配方组规则：组不能直接 pin，只能在打开
@@ -188,6 +217,48 @@ public class PinnedRecipeManager {
     public void toggleFavourite(net.minecraft.world.item.crafting.display.RecipeDisplayEntry entry) {
         if (entry == null) return;
         Identifier id = PinnableRecipeCollection.idFor(entry);
+        List<Identifier> memberPins = com.alonie.brbe.util.FusedRecipeVariants.memberPins(id);
+        if (memberPins != null) {
+            // 融合条目：pin 落到**成员键**上（关掉合并功能后 pin 依然有效）；取消时连同一起清掉
+            boolean pinned = this.pinned.contains(id);
+            for (Identifier memberPin : memberPins) {
+                if (this.pinned.contains(memberPin)) {
+                    pinned = true;
+                    break;
+                }
+            }
+            if (pinned) {
+                this.pinned.remove(id);
+                this.pinned.removeAll(memberPins);
+            } else {
+                this.pinned.addAll(memberPins);
+            }
+            version++;
+            this.store();
+            return;
+        }
+        if (this.pinned.remove(id)) {
+            version++;
+            this.store();
+            return;
+        }
+        this.pinned.add(id);
+        version++;
+        this.store();
+    }
+
+    /**
+     * 单条**自研书配方**（BRB 包装对象）的固定切换：键 = {@link GenericRecipe#id()}。
+     *
+     * <p>与 {@link #toggleFavourite(net.minecraft.world.item.crafting.display.RecipeDisplayEntry)}
+     * 同义（替代配方组规则：组不能直接固定，只能打开组浮层后逐个固定变体），只是自研书
+     * （酿造台/锻造台）的变体是 BRB 包装对象、键取自它们的 {@code id()}。用户 2026-09-27 反馈：
+     * 此前固定键在自研书里直接作用在**集合**上 → 组被整体固定，而组内变体固定不了、
+     * 还会穿透浮层固定到下层那个组。</p>
+     */
+    public void toggleFavourite(GenericRecipe recipe) {
+        if (recipe == null || recipe.id() == null) return;
+        Identifier id = recipe.id();
         if (this.pinned.remove(id)) {
             version++;
             this.store();

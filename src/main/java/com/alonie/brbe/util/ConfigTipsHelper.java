@@ -146,28 +146,42 @@ public final class ConfigTipsHelper {
         entries.add(at < 0 ? entries.size() : at, textRow(builder, SECTION_LABEL_KEY));
     }
 
-    // ── 「界面」页的「Recipe Book Is Pain」小节（条目搬运）──────────────────────
+    // ── RBIP 小节（条目搬运）──────────────────────────────────────────────────
+    // 用户 2026-09-30 定稿的布局：
+    //   「功能」页：启用一键制作 → [黄字] Recipe Book Is Pain（配方书标签）→ 启用RBIP → 紧凑型标签
+    //   「界面」页：配方书居中 → 显示设置按钮 → 启用配方书 → [黄字] 同名行 →
+    //               启用上侧和下侧的标签 → 隐藏翻页按钮（这一段**保持原位**，不搬去「功能」页）
 
-    /** RBIP 的两个子开关（在 {@code [rbip]} 子对象里）要在「界面」页显示的分区锚点。 */
     private static final String UI_CATEGORY_KEY = "text.autoconfig.brbe.category.ui";
     private static final String DEFAULT_CATEGORY_KEY = "text.autoconfig.brbe.category.default";
-    /** RBIP 分区（黄字行 + 两个子开关）在「界面」页的落脚点：插在「配方书居中」之后。 */
-    private static final String RBIP_ANCHOR_OPTION_KEY = "text.autoconfig.brbe.option.keepCentered";
     private static final String RBIP_SECTION_LABEL_KEY = "brbe.gui.section.recipeBookIsPain";
-    /** 依次搬过去的条目（相对顺序即此表顺序）。 */
-    private static final List<String> RBIP_MOVED_OPTION_KEYS = List.of(
+    /** 「功能」页 RBIP 小节：黄字行之下依次是「启用RBIP」「紧凑型标签」。 */
+    private static final List<String> FUNCTION_RBIP_OPTION_KEYS = List.of(
+            "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain",
+            "text.autoconfig.brbe.option.rbip.tabMode");
+    /** 「界面」页 RBIP 小节（保持原位）：黄字行之下依次是「启用上侧和下侧的标签」「隐藏翻页按钮」。 */
+    private static final List<String> UI_RBIP_OPTION_KEYS = List.of(
             "text.autoconfig.brbe.option.rbip.enableTabPage",
             "text.autoconfig.brbe.option.rbip.hideTabPageButtons");
-    /** RBIP 主开关：移到「§eLikewise Enough Items（物品管理器）」文字行（{@code recipeViewerEnabled} 项）之前。 */
-    private static final String RBIP_MASTER_OPTION_KEY = "text.autoconfig.brbe.option.rbip.enableRecipeBookIsPain";
+    /** 「界面」页 RBIP 小节的落脚点：插在「配方书居中」之后。 */
+    private static final String RBIP_ANCHOR_OPTION_KEY = "text.autoconfig.brbe.option.keepCentered";
     private static final String VIEWER_ANCHOR_OPTION_KEY = "text.autoconfig.brbe.option.recipeViewerEnabled";
-    /** 一键制作子配置的两个条目：「启用一键制作」跟到主开关下面，「显示一键制作按钮」去「界面」页顶部。 */
+    /** 一键制作子配置的两个条目：「启用一键制作」同时是「功能」页 RBIP 小节的锚点（黄字行接在它下面），
+     *  「显示一键制作按钮」去「界面」页顶部。 */
     private static final String INSTANT_CRAFT_ENABLED_OPTION_KEY = "text.autoconfig.brbe.option.instantCraft.enabled";
     private static final String INSTANT_CRAFT_BUTTON_OPTION_KEY = "text.autoconfig.brbe.option.instantCraft.showButton";
-    /** 「显示设置按钮」「启用配方书」：一起搬到「Recipe Book Is Pain」黄字行之前（相对顺序不变）。 */
+    /** 「显示设置按钮」「启用配方书」：「界面」页 RBIP 黄字行【之前】（相对顺序不变）。 */
     private static final String SETTINGS_BUTTON_OPTION_KEY = "text.autoconfig.brbe.option.settingsButton";
     private static final String ENABLE_BOOK_OPTION_KEY = "text.autoconfig.brbe.option.enableBook";
     private static final String RECIPE_SETTINGS_CATEGORY_KEY = "text.autoconfig.brbe.category.recipeSettings";
+
+    /** 「行为」页（类别 id 仍是 {@code recipeSettings}，显示名 2026-10-02 由「配方」改为「行为」）
+     *  顶部的三个条目，**按此顺序**（用户 2026-10-02 指定）。三者原本都在「功能」页
+     *  （前两个是无 {@code @Category} 的顶层字段，第三个是 {@code scrolling} 子对象的字段）。 */
+    private static final List<String> BEHAVIOR_TOP_OPTION_KEYS = List.of(
+            "text.autoconfig.brbe.option.autoFillGhostRecipe",
+            "text.autoconfig.brbe.option.saveRecipeBookPosition",
+            "text.autoconfig.brbe.option.scrolling.scrollAround");
     /** 「启用解锁弹跳动画」：搬到「配方书翻页动画」（{@code pageAnimation.pageAnimationEnabled}）之后。
      *  ⚠️ 该字段三分支不同 —— 26.2/1.21.11 是顶层 {@code enableBounce}，1.21.1 仍在
      *  {@code newRecipes} 子对象里（{@code newRecipes.enableBounce}）。子对象条目跟随
@@ -182,12 +196,13 @@ public final class ConfigTipsHelper {
     /**
      * 按期望的最终布局重排 GUI 条目（只重排条目对象，字段与 TOML 路径都保持原样）：
      * <ol>
-     *   <li>「启用Recipe Book Is Pain」→「§eLikewise Enough Items（物品管理器）」文字行之前；</li>
-     *   <li>「启用一键制作」→ 紧随「启用Recipe Book Is Pain」之后；</li>
+     *   <li>「启用一键制作」→「§eLikewise Enough Items（物品管理器）」文字行之前；</li>
+     *   <li><b>「功能」页 RBIP 小节</b>（黄字行「Recipe Book Is Pain（配方书标签）」+「启用RBIP」+
+     *       「紧凑型标签」）→ 接在「启用一键制作」之后（用户 2026-09-30 指定）；</li>
+     *   <li><b>「界面」页 RBIP 小节保持原位</b>：黄字行 +「启用上侧和下侧的标签」+「隐藏翻页按钮」
+     *       仍在「配方书居中」之后（用户 2026-09-30 明确要求不要搬到「功能」页）；</li>
+     *   <li>「显示设置按钮」「启用配方书」→ 该黄字行【之前】（相对顺序不变）；</li>
      *   <li>「显示一键制作按钮」→「界面」页顶部；</li>
-     *   <li>「启用上侧和下侧的标签」「隐藏翻页按钮」→「界面」页「配方书居中」之后
-     *       （并在它们前面插一行黄色纯文字「Recipe Book Is Pain」）；</li>
-     *   <li>「显示设置按钮」「启用配方书」→「Recipe Book Is Pain」黄字行之前，两者相对顺序不变；</li>
      *   <li>「启用解锁弹跳动画」→「配方书翻页动画」之后（跨页：1.21.1 上它原本在「配方」页）。</li>
      * </ol>
      *
@@ -195,8 +210,7 @@ public final class ConfigTipsHelper {
      * 只能落在父字段所属的类别里（类别只在顶层字段上解析），把字段升到顶层会让 TOML 路径从
      * {@code [rbip] enableTabPage} / {@code [instantCraft] enabled} 变成顶层键、老配置值失效。
      * 所以这里保持字段原地不动，只把已经建好的条目对象重排 —— 条目仍绑定原字段，保存逻辑不变。
-     * 「Recipe Book Is Pain」那行原本是主开关的 {@code @PrefixText}（会跟着开关一起跑），
-     * 现改为「界面」页里的独立文字行。</p>
+     * 黄字行原本是主开关的 {@code @PrefixText}（会跟着开关一起跑），现为独立文字行。</p>
      */
     private static void relocateEntries(ConfigBuilder builder) {
         List<Object> defaultEntries =
@@ -204,18 +218,29 @@ public final class ConfigTipsHelper {
         List<Object> uiEntries =
                 builder.getOrCreateCategory(Component.translatable(UI_CATEGORY_KEY)).getEntries();
 
-        // 1) 主开关「启用Recipe Book Is Pain」：插到 recipeViewerEnabled 的 @PrefixText 文字行【之前】。
+        // 1) 「启用一键制作」：插到 recipeViewerEnabled 的 @PrefixText 文字行【之前】。
         //    ⚠️ AutoConfig 的 @PrefixText 不是选项条目自身的一部分，而是同组另起的一条
         //    TextListEntry、插在该组第 0 位（DefaultGuiTransformers: ret.add(0, element)）——
         //    所以"移到文字行上面"必须再往前一格，否则会落进文字行与该开关之间。
-        moveBefore(defaultEntries, RBIP_MASTER_OPTION_KEY, VIEWER_ANCHOR_OPTION_KEY, true);
-        // 2) 「启用一键制作」：紧随主开关之后
-        moveAfter(defaultEntries, INSTANT_CRAFT_ENABLED_OPTION_KEY, RBIP_MASTER_OPTION_KEY);
-        // 3) 「显示一键制作按钮」：「界面」页顶部（跨类别：它原本在「功能」页的 instantCraft 组里）
-        moveToTopOf(uiEntries, defaultEntries, INSTANT_CRAFT_BUTTON_OPTION_KEY);
-        // 4) RBIP 两个子开关：搬到「界面」页「配方书居中」之后（前置黄字分节行）
+        //    它同时是「功能」页 RBIP 小节的锚点（黄字行接在它下面）。
+        moveBefore(defaultEntries, INSTANT_CRAFT_ENABLED_OPTION_KEY, VIEWER_ANCHOR_OPTION_KEY, true);
+        // 2) 「功能」页 RBIP 小节：黄字行 +「启用RBIP」+「紧凑型标签」，接在「启用一键制作」之后
+        List<Object> functionBlock = new ArrayList<>();
+        for (String key : FUNCTION_RBIP_OPTION_KEYS) {
+            Object entry = removeByFieldName(defaultEntries, Component.translatable(key));
+            if (entry != null) functionBlock.add(entry);
+        }
+        if (!functionBlock.isEmpty()) {
+            List<Object> toInsert = new ArrayList<>();
+            toInsert.add(textRow(builder, RBIP_SECTION_LABEL_KEY));
+            toInsert.addAll(functionBlock);
+            // 锚点条目自身没有 @PrefixText，所以 +1 就落在它下面（黄字行是独立插入的）。
+            int anchor = indexOfFieldName(defaultEntries, Component.translatable(INSTANT_CRAFT_ENABLED_OPTION_KEY));
+            defaultEntries.addAll(anchor < 0 ? defaultEntries.size() : anchor + 1, toInsert);
+        }
+        // 3) 「界面」页 RBIP 小节：**保持原位** —— 黄字行 + 两个子开关仍在「配方书居中」之后
         List<Object> moved = new ArrayList<>();
-        for (String key : RBIP_MOVED_OPTION_KEYS) {
+        for (String key : UI_RBIP_OPTION_KEYS) {
             Object entry = removeByFieldName(defaultEntries, Component.translatable(key));
             if (entry != null) moved.add(entry);
         }
@@ -229,18 +254,30 @@ public final class ConfigTipsHelper {
             int anchor = indexOfFieldName(uiEntries, Component.translatable(RBIP_ANCHOR_OPTION_KEY));
             uiEntries.addAll(anchor < 0 ? uiEntries.size() : anchor + 1, toInsert);
         }
-        // 5) 「显示设置按钮」「启用配方书」→「Recipe Book Is Pain」黄字行【之前】，相对顺序不变。
+        // 4) 「显示设置按钮」「启用配方书」→「界面」页 RBIP 黄字行【之前】，相对顺序不变。
         //    该行是 textRow 现造的，字段名是随机 UUID，只能按**对象引用**定位（见 moveBeforeEntry）。
         if (rbipSectionRow != null) {
             moveBeforeEntry(uiEntries, SETTINGS_BUTTON_OPTION_KEY, rbipSectionRow);
             moveAfter(uiEntries, ENABLE_BOOK_OPTION_KEY, SETTINGS_BUTTON_OPTION_KEY);
         }
-        // 6) 「启用解锁弹跳动画」→「配方书翻页动画」之后（条目可能在 default / ui / recipeSettings
+        // 5) 「显示一键制作按钮」：「界面」页顶部（跨类别：它原本在「功能」页的 instantCraft 组里）
+        moveToTopOf(uiEntries, defaultEntries, INSTANT_CRAFT_BUTTON_OPTION_KEY);
+        // 4) 「启用解锁弹跳动画」→「配方书翻页动画」之后（条目可能在 default / ui / recipeSettings
         //    任意一页里，所以三张列表都参与查找；锚点固定在「界面」页）
         List<Object> recipeEntries =
                 builder.getOrCreateCategory(Component.translatable(RECIPE_SETTINGS_CATEGORY_KEY)).getEntries();
         moveAfterFirstFound(List.of(defaultEntries, uiEntries, recipeEntries),
                 ENABLE_BOUNCE_OPTION_KEYS, PAGE_ANIMATION_ENABLED_OPTION_KEY);
+        // 6 「自动填充幽灵配方」「保存配方书浏览记录」「循环滚动」→「行为」页顶部，
+        //     相对顺序不变（用户 2026-10-02 指定）。条目可能还在「功能」页，所以两张列表都要找；
+        //     addAll(0, …) 保证它们成为该页最前面的三条，且内部顺序 = 常量里的顺序。
+        List<Object> behaviorTop = new ArrayList<>();
+        for (String key : BEHAVIOR_TOP_OPTION_KEYS) {
+            Object entry = removeByFieldName(defaultEntries, Component.translatable(key));
+            if (entry == null) entry = removeByFieldName(recipeEntries, Component.translatable(key));
+            if (entry != null) behaviorTop.add(entry);
+        }
+        recipeEntries.addAll(0, behaviorTop);
     }
 
     /** 把 {@code optionKey} 的条目挪到 {@code anchorKey} 条目之前；{@code skipTextRowAbove} 为真时

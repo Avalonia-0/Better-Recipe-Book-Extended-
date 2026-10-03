@@ -159,11 +159,18 @@ public abstract class AbstractContainerScreenMixin {
                 // 只处理当前页可见的标签：分页后隐藏标签的 isHovered 字段停留在
                 // 最后一次可见时的值（stale），否则会固定到"同位置的第一页标签"。
                 if (!tab.visible || !tab.isHoveredOrFocused()) continue;
-                CreativeModeTab group = RecipeBookIsPain.toItemGroup(tab.getCategory());
-                if (group == null) continue;
-                Identifier tabId = BuiltInRegistries.CREATIVE_MODE_TAB.getKey(group);
-                if (tabId == null) continue;
-                TabPinManager.toggle(tabId);
+                // pin 键：扩展档（命名空间 / 数据包）的标签没有创造标签 →
+                // 键是命名空间 / 包 id（见 RecipeBookIsPain.extendedPinKey）；
+                // 其余标签仍是创造标签 id（既有数据不变）。
+                String pinKey = RecipeBookIsPain.extendedPinKey(tab.getCategory());
+                if (pinKey == null) {
+                    CreativeModeTab group = RecipeBookIsPain.toItemGroup(tab.getCategory());
+                    Identifier tabId = group == null ? null
+                            : BuiltInRegistries.CREATIVE_MODE_TAB.getKey(group);
+                    pinKey = tabId == null ? null : tabId.toString();
+                }
+                if (pinKey == null) continue;
+                TabPinManager.toggleKey(pinKey);
                 if (minecraft.getSoundManager() != null) {
                     AbstractWidget.playButtonClickSound(minecraft.getSoundManager());
                 }

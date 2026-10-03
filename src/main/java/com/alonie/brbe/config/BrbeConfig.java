@@ -40,22 +40,116 @@ public class BrbeConfig implements ConfigData {
     @ConfigEntry.Gui.PrefixText
     public boolean recipeViewerEnabled = true;
 
-    /** 配方书模式：只显示配方书内的对象——配方书体系的工作站（合成/烧炼/锻造/
-     *  酿造——BRBE 自带酿造配方书）与配方书驱动的模组类别保留；无配方书体系的
-     *  工作站（切石/铁砧/研磨）与信息行类别（燃料/堆肥/信息）整体隐藏，对象的
-     *  tooltip 也过滤非法工作站图标。默认关闭。 */
-    @ConfigEntry.Gui.Tooltip
-    public boolean hideNoRecipeBookStationObjects = false;
+    /** 「查询范围」（用户 2026-10-03：显示名由「配方书模式」改来，类型由布尔改为枚举）：
+     *  {@link QueryScope#RECIPE_BOOK_ONLY} = 仅限配方书（原 {@code true}）；
+     *  {@link QueryScope#ALL_CATEGORIES} = 全类别（原 {@code false}，默认）。
+     *  语义与旧布尔完全一致：仅限配方书时，配方书体系的工作站（合成/烧炼/锻造/酿造——BRBE 自带
+     *  酿造配方书）与配方书驱动的模组类别保留，无配方书体系的工作站（切石/铁砧/研磨）与信息行
+     *  类别（燃料/堆肥/信息）整体隐藏，对象的 tooltip 也过滤非法工作站图标。
+     *  旧 TOML 布尔键 {@code hideNoRecipeBookStationObjects} 由配置加载前的
+     *  {@code migrateLegacyConfigValuesInToml()} 迁移。 */
+    @ConfigEntry.Gui.Tooltip(count = 2)
+    // 两行说明（排版对齐「标签模式」）：…@Tooltip[0] / [1]。
+    // ⚠️ 必需（理由同 pageFlipDirection）：AutoConfig 对**没有这个注解**的枚举字段生成的是
+    // 可搜索下拉框（DropdownBoxEntry，实测候选只剩当前档位）；带上才走枚举切换按钮
+    // （SelectionListEntry，与「标签模式」同一条 provider 路径）。
+    @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
+    public QueryScope queryScope = QueryScope.ALL_CATEGORIES;
 
-    /** 「预览模式」：重新开启界面时查询窗口不再恢复，与其他元素交互时也会关闭查询窗口。默认关。 */
-    @ConfigEntry.Gui.Tooltip
-    public boolean previewMode = false;
+    /** 「查询范围」的**两档**。档位名走 {@code text.autoconfig.brbe.option.queryScope.<常量名>}。 */
+    public enum QueryScope implements me.shedaniel.clothconfig2.gui.entries.SelectionListEntry.Translatable {
+        /** 仅限配方书：只显示配方书体系内的对象（原布尔 {@code hideNoRecipeBookStationObjects=true}）。 */
+        RECIPE_BOOK_ONLY,
+        /** 全类别：不按配方书体系过滤（原布尔 {@code =false}，默认）。 */
+        ALL_CATEGORIES;
 
-    /** 「在配方区使用自然的翻页方向」：开启时鼠标滚轮向前（上滚）＝往后翻页；
-     *  关闭（默认）时是旧方向（上滚＝往前翻页）。只作用于**查询窗口配方区**的翻页——
-     *  标签条翻页、Alt+滚轮轮循、配方书自身的翻页都不受影响。默认关闭。 */
-    @ConfigEntry.Gui.Tooltip
-    public boolean naturalPageDirection = false;
+        @Override
+        public String getKey() {
+            return "text.autoconfig.brbe.option.queryScope." + name();
+        }
+
+        /** 便捷判断（核心代码用它，避免直接耦合枚举）。 */
+        public boolean recipeBookOnly() {
+            return this == RECIPE_BOOK_ONLY;
+        }
+    }
+
+    /** 旧布尔 {@code hideNoRecipeBookStationObjects} 的读取点统一改用它
+     *  （字段缺失 / 为 null 时按默认的「全类别」）。 */
+    public boolean recipeBookOnly() {
+        return queryScope == QueryScope.RECIPE_BOOK_ONLY;
+    }
+
+    /** 「窗口模式」（用户 2026-10-03：由布尔项改为枚举，并改名）：
+     *  {@link WindowMode#PERSISTENT} = 持久（原 {@code false}，默认）：重新开启界面时查询窗口恢复；
+     *  {@link WindowMode#PREVIEW} = 预览（原 {@code true}）：重新开启界面时查询窗口不再恢复，
+     *  与其他元素交互时也会关闭查询窗口。
+     *  旧 TOML 布尔键 {@code previewMode} 由配置加载前的
+     *  {@code migrateLegacyConfigValuesInToml()} 迁移。 */
+    @ConfigEntry.Gui.Tooltip(count = 2)
+    // 两行说明（排版对齐「标签模式」）：…@Tooltip[0] / [1]。
+    // ⚠️ 必需（理由同 queryScope）：没有它 AutoConfig 会生成候选只剩当前档位的下拉框。
+    @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
+    public WindowMode windowMode = WindowMode.PERSISTENT;
+
+    /** 「窗口模式」的**两档**。档位名走 {@code text.autoconfig.brbe.option.windowMode.<常量名>}。 */
+    public enum WindowMode implements me.shedaniel.clothconfig2.gui.entries.SelectionListEntry.Translatable {
+        /** 持久：查询窗口在重新开启界面时恢复（原布尔 {@code previewMode=false}，默认）。 */
+        PERSISTENT,
+        /** 预览：不恢复，且与其他元素交互时关闭（原布尔 {@code previewMode=true}）。 */
+        PREVIEW;
+
+        @Override
+        public String getKey() {
+            return "text.autoconfig.brbe.option.windowMode." + name();
+        }
+
+        /** 便捷判断（核心代码用它，避免直接耦合枚举）。 */
+        public boolean preview() {
+            return this == PREVIEW;
+        }
+    }
+
+    /** 旧布尔 {@code previewMode} 的读取点统一改用它（字段缺失 / 为 null 时按默认的「持久」）。 */
+    public boolean previewMode() {
+        return windowMode == WindowMode.PREVIEW;
+    }
+
+    /** 「配方区翻页方向」（用户 2026-10-03：由布尔项改为枚举，并改名）：
+     *  {@link PageFlipDirection#NATURAL} = 自然（鼠标滚轮向前 / 上滚＝往后翻页，原 {@code true}）；
+     *  {@link PageFlipDirection#REGULAR} = 常规（旧方向：上滚＝往前翻页，原 {@code false}，默认）。
+     *  只作用于**查询窗口配方区**的翻页——标签条翻页、Alt+滚轮轮循、配方书自身的翻页都不受影响。
+     *  旧 TOML 布尔键 {@code naturalPageDirection} 由配置加载前的
+     *  {@code migrateLegacyConfigValuesInToml()} 迁移成 {@code pageFlipDirection = "NATURAL"|"REGULAR"}。 */
+    @ConfigEntry.Gui.Tooltip(count = 2)
+    // 两行说明（排版对齐「标签模式」）：Cloth 的 @Tooltip(count = N) 读 …@Tooltip[0] / [1]。
+    // ⚠️ 这个注解是**必需**的（用户 2026-10-03 实测："这一项只有一个『常规』可选"）：
+    // AutoConfig 的 DefaultGuiProviders 对枚举字段注册了**两条**路径 ——
+    //   ① 带本注解 → startSelector(...) → SelectionListEntry＝**枚举切换按钮**（点一下切下一档）；
+    //   ② 不带    → startDropdownMenu(...) → DropdownBoxEntry＝可搜索下拉框（候选只剩当前档位）。
+    // 注册顺序 ① 在前、GuiRegistry 取 findFirst → 带注解才走切换按钮（「标签模式」走的正是 ①）。
+    @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
+    public PageFlipDirection pageFlipDirection = PageFlipDirection.REGULAR;
+
+    /** 「配方区翻页方向」的**两档**。AutoConfig 的枚举选择器按
+     *  {@link me.shedaniel.clothconfig2.gui.entries.SelectionListEntry.Translatable#getKey()} 取显示名，
+     *  即 {@code text.autoconfig.brbe.option.pageFlipDirection.<常量名>}。 */
+    public enum PageFlipDirection implements me.shedaniel.clothconfig2.gui.entries.SelectionListEntry.Translatable {
+        /** 自然：鼠标滚轮向前（上滚）＝往后翻页（原布尔项 {@code true}）。 */
+        NATURAL,
+        /** 常规：旧方向，上滚＝往前翻页（原布尔项 {@code false}，默认）。 */
+        REGULAR;
+
+        @Override
+        public String getKey() {
+            return "text.autoconfig.brbe.option.pageFlipDirection." + name();
+        }
+
+        /** 便捷判断（核心代码用它，避免直接耦合枚举）。 */
+        public boolean natural() {
+            return this == NATURAL;
+        }
+    }
 
     @ConfigEntry.Gui.TransitiveObject
     public RecipeBookIsPain rbip = new RecipeBookIsPain();
@@ -244,6 +338,102 @@ public class BrbeConfig implements ConfigData {
          *  故 TOML 路径保持 {@code [rbip]} 不变（玩家配置不失效）。 */
         @ConfigEntry.Gui.Tooltip
         public boolean enableRecipeBookIsPain = true;
+
+        /** 「标签模式」（默认「创造模式物品栏」）：用 Cloth 的**枚举切换按钮**（点一下切到下一档、
+         *  到底回绕）代替原来的布尔开关 —— 三档各一套实现，见下。
+         *
+         *  <ul>
+         *    <li>{@link TabMode#CREATIVE_TABS}：每个创造标签一个配方书标签（原 RBIP 行为）；</li>
+         *    <li>{@link TabMode#NAMESPACE}（界面显示名「命名空间」）：搜索标签 + **配方 id 的
+         *        命名空间**各一个标签（模组 / 数据包各按自己的命名空间归组，图标 = 该标签内
+         *        某个配方的产物（稳定伪随机），原版命名空间是草方块），tooltip = 命名空间对应的
+         *        模组名 / 命名空间本身。**兼容性最好**：数据包沿用 {@code minecraft} 命名空间时
+         *        自然并入原版标签，不会多出一堆零散标签。</li>
+         *    <li>{@link TabMode#DATAPACK}（界面显示名「数据包」）：搜索标签 + 每个**来源数据包**
+         *        一个标签 —— 按配方来自哪个数据包归组（原版 / 每个模组自带数据包 / 每个启用的
+         *        数据包），图标与 tooltip 同上但 tooltip 是数据包名字。**只在单机 / 局域网主机
+         *        可用**：联机时客户端拿不到服务端的包列表，该档自动按「命名空间」跑，配置界面
+         *        也把它藏起来，离开服务器恢复（用户 2026-10-01 定）。</li>
+         *  </ul>
+         *
+         *  <p>历史：2026-09-30 引入第二档（当时叫「紧凑型标签」、枚举常量 {@code COMPACT}）→
+         *  2026-10-01 改名「命名空间」→ 同日转向「数据包」（按来源包归组）→ 同日又拆回三档。
+         *  旧 TOML 值 {@code tabMode = "COMPACT"} 在配置加载前由 {@code BetterRecipeBook}
+         *  的预处理改写成 {@code "NAMESPACE"}。</p>
+         *
+         *  <p>按钮上的档位名来自 {@code text.autoconfig.brbe.option.rbip.tabMode.<常量名>}。</p> */
+        // 三行说明：Cloth 的 @Tooltip(count = N) 会读 …@Tooltip[0] / [1] / [2]（不是换行符）。
+        // ⚠️ 这一项的 GUI 由 {@code TabModeGuiRegistrar} 的 transformer 接管（联机时隐藏数据包档），
+        // 那里的 tooltip 也是按这 3 个键拼的；count 只影响"provider 被绕过"时的默认条目。
+        @ConfigEntry.Gui.Tooltip(count = 3)
+        @ConfigEntry.Gui.EnumHandler(option = ConfigEntry.Gui.EnumHandler.EnumDisplayOption.BUTTON)
+        public TabMode tabMode = TabMode.CREATIVE_TABS;
+
+        /** 旧字段（2026-09-30 起由 {@link #tabMode} 取代）：**只用于迁移** ——
+         *  老配置里的 {@code compactTabs = true} 会在启动时被 {@link #migrateLegacyTabMode()}
+         *  搬进 {@code tabMode = NAMESPACE} 并复位。界面上不显示，也没有别的读取点。 */
+        @ConfigEntry.Gui.Excluded
+        public boolean compactTabs = false;
+
+        /** 标签模式的三档（实现 Cloth 的
+         *  {@code SelectionListEntry.Translatable} 让切换按钮显示**本地化档位名**，
+         *  否则按钮上会直接显示枚举常量名）。 */
+        public enum TabMode implements me.shedaniel.clothconfig2.gui.entries.SelectionListEntry.Translatable {
+            CREATIVE_TABS,
+            /** 按**配方 id 的命名空间**归组（旧名 {@code COMPACT}「紧凑型标签」）。 */
+            NAMESPACE,
+            /** 按配方所属的**数据包**归组（需要服务端包列表 → 联机不可用）。 */
+            DATAPACK;
+
+            @Override
+            public String getKey() {
+                return "text.autoconfig.brbe.option.rbip.tabMode." + name();
+            }
+        }
+
+        /**
+         * **实际生效**的档位：联机（真正的服务器）时数据包档降级为命名空间档 ——
+         * 客户端拿不到服务端的包列表，数据包档在联机下必然只有一个「服务器」标签，
+         * 不如按命名空间正常分类（用户 2026-10-01 定）。存储值不变，离开服务器自动恢复。
+         */
+        public TabMode effectiveTabMode() {
+            if (tabMode == TabMode.DATAPACK
+                    && com.alonie.brbe.util.WorldScopedStore.onRemoteServer()) {
+                return TabMode.NAMESPACE;
+            }
+            return tabMode;
+        }
+
+        /** 便捷判断：当前是不是**命名空间**标签模式（核心代码如 {@code TabPinManager} 用它，
+         *  避免直接耦合枚举）。 */
+        public boolean namespaceModeEnabled() {
+            return effectiveTabMode() == TabMode.NAMESPACE;
+        }
+
+        /** 便捷判断：当前是不是**数据包**标签模式（联机时恒 false，见 {@link #effectiveTabMode()}）。 */
+        public boolean datapackModeEnabled() {
+            return effectiveTabMode() == TabMode.DATAPACK;
+        }
+
+        /** 联机时数据包档被隐藏（配置界面据此收窄可选档位）。 */
+        public boolean datapackModeHidden() {
+            return tabMode == TabMode.DATAPACK
+                    && com.alonie.brbe.util.WorldScopedStore.onRemoteServer();
+        }
+
+        /** 老配置迁移（只搬一次）：布尔 {@code compactTabs = true} → {@code tabMode = NAMESPACE}
+         *  （那个布尔开关当年的语义就是"按命名空间收标签"，与数据包档无关）。
+         *  枚举字符串的旧值（{@code "COMPACT"}）在配置加载前就被改写了，见
+         *  {@code BetterRecipeBook} 的 TOML 预处理。
+         *  @return 是否发生了改动（true 时调用方需要保存配置） */
+        public boolean migrateLegacyTabMode() {
+            if (!compactTabs) return false;
+            if (tabMode == TabMode.CREATIVE_TABS) {
+                tabMode = TabMode.NAMESPACE;
+            }
+            compactTabs = false;
+            return true;
+        }
 
         public boolean enableTabPage = true;
 

@@ -142,6 +142,23 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
         }
     }
 
+    /**
+     * 顶层浮层这一遍的格子 tooltip（用户 2026-09-27 反馈：组内配方的 tooltip 被浮层压住）。
+     *
+     * <p>这一遍跑在帧末 tooltip 刷新之后，所以只能就地画；延迟注册的那一份在
+     * {@link com.alonie.brbe.generic.GenericRecipeBookComponent#drawTooltip} 里已按
+     * {@code TopLayerOverlayRenderer#redrawsOverlayOnTop} 让位，不会重复绘制。</p>
+     */
+    @Override
+    public void brbe$renderTopLayerTooltip(GuiGraphicsExtractor guiGraphics, int mouseX, int mouseY) {
+        if (!this.brbe$hasTopLayerOverlay()) {
+            return;
+        }
+
+        SmithingRecipeBookPage page = (SmithingRecipeBookPage) this._$recipeBookComponent.recipesPage;
+        com.alonie.brbe.util.ClientCompat.drawComponentTooltipNow(guiGraphics, page.overlayTooltip(), mouseX, mouseY);
+    }
+
     @Override
     public boolean brbe$clickTopLayerOverlay(MouseButtonEvent event, boolean doubleClick) {
         if (this.brbe$hasTopLayerOverlay()
@@ -165,7 +182,10 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     protected void slotClicked(Slot slot, int x, int y, ContainerInput clickType) {
         // clear ghost recipe if an empty ingredient slot is clicked with no items
         if (BetterRecipeBook.config.enableBook && slot != null && slot.index < 4 && menu.getCarried().isEmpty() && menu.slots.get(slot.index).getItem().isEmpty()) {
-            _$recipeBookComponent.ghostRecipe.clear();
+            // ⚠️ 临时诊断（BRBE-GHOST）
+            com.alonie.brbe.util.BrbeLogger.log("BRBE-GHOST", "external-clear:smithing-slotClicked slot={} ghostSize={}",
+                    slot.index, _$recipeBookComponent.ghostRecipe.size());
+            _$recipeBookComponent.brbe$endGhostGuide();
         }
 
         super.slotClicked(slot, x, y, clickType);
@@ -219,8 +239,16 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
 
     @Inject(method = "slotChanged", at = @At(value = "HEAD"))
     public void slotChanged(AbstractContainerMenu abstractContainerMenu, int i, ItemStack itemStack, CallbackInfo ci) {
+        // 交接保持期间槽位变化是**放置本身**造成的（真实物品正在到位）：不能按"外部清空"处理，
+        // 否则第一件物品落格就把幽灵清掉、退回空窗期（用户 2026-09-27 反馈）
+        if (_$recipeBookComponent.brbe$isHandoverHolding()) {
+            return;
+        }
         if (i == SmithingMenu.BASE_SLOT || i == SmithingMenu.ADDITIONAL_SLOT || i == SmithingMenu.TEMPLATE_SLOT || i == SmithingMenu.RESULT_SLOT) {
-            _$recipeBookComponent.ghostRecipe.clear();
+            // ⚠️ 临时诊断（BRBE-GHOST）
+            com.alonie.brbe.util.BrbeLogger.log("BRBE-GHOST", "external-clear:smithing-slotChanged slot={} ghostSize={}",
+                    i, _$recipeBookComponent.ghostRecipe.size());
+            _$recipeBookComponent.brbe$endGhostGuide();
         }
     }
 }
