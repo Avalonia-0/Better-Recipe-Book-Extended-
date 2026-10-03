@@ -6,6 +6,7 @@ import com.alonie.brbe.cache.RecipeViewerIndex;
 import com.alonie.brbe.config.KeybindingCodec;
 import com.alonie.brbe.config.KeybindingGuiRegistrar;
 import com.alonie.brbe.config.PinyinSearchGuiRegistrar;
+import com.alonie.brbe.config.TabModeGuiRegistrar;
 import me.shedaniel.clothconfig2.api.ModifierKeyCode;
 import net.minecraft.client.KeyMapping;
 import net.minecraft.client.Minecraft;
@@ -134,6 +135,7 @@ public class BetterRecipeBookClientFabric implements ClientModInitializer {
         com.alonie.brbe.fabric.compat.rei.ReiCompatHandler.register();
         KeybindingGuiRegistrar.register();
         PinyinSearchGuiRegistrar.register();
+        TabModeGuiRegistrar.register();
 
         ScreenEvents.AFTER_INIT.register((client, screen, scaledWidth, scaledHeight) -> {
             this.registeredScreens.remove(screen);

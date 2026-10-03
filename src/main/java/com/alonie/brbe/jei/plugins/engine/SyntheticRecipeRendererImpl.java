@@ -131,14 +131,17 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
         // 继续由 JEI 自己的轮循器推进；锁定键+滚轮由 CycleLock 逐格翻动被冻结的
         // 那一个。旧实现是"按住 Alt 就不 tick 整个 drawable"（整块界面一起冻），
         // 与用户要求相反。
-        applyCycleLock(drawable, x, y, fit);
-
         long tick = net.minecraft.util.Util.getMillis() / 50;
         if (tick != lastTick) {
             lastTick = tick;
             // 始终 tick：没被指着的槽位必须继续自动轮换。
             drawable.tick();
         }
+
+        // ⚠️ 顺序要紧：override 必须在 tick() **之后**、绘制之前写。
+        // 先写再 tick 时，JEI 的轮循器会在本次 tick 里把该槽位的显示重新推导一遍，
+        // 我们刚钉住的变体又被顶掉——观感就是"物品切过去、一瞬间又切回来"（用户 2026-09-27 反馈）。
+        applyCycleLock(drawable, x, y, fit);
 
         renderContainer(gui, x, y, w, h);
 
@@ -152,7 +155,13 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
         // as it does inside JEI (backgrounds bound via slot.setBackground
         // included).
         drawable.setPosition(0, 0);
-        drawable.drawRecipe(gui, 0, 0);
+        // 抑制 JEI 自己的槽位"候选/标签"角标（方案 A，见 brbe$setCandidatesBadgeSuppressed）
+        boolean brbeBadgeWasSuppressed = brbe$setCandidatesBadgeSuppressed(true);
+        try {
+            drawable.drawRecipe(gui, 0, 0);
+        } finally {
+            brbe$setCandidatesBadgeSuppressed(brbeBadgeWasSuppressed);
+        }
 
         gui.pose().popMatrix();
 
@@ -163,6 +172,50 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
         // 位置与 JEI 原画完全一致。
         drawFrozenBadges(gui, drawable, x, y, fit);
         return true;
+    }
+
+    /** headless fork 里 {@code RecipeSlot.brbeSuppressCandidatesBadge} 的反射句柄
+     *  （null = 该分支的 fork 没有这个开关，例如 26.2）。 */
+    private static java.lang.reflect.Field brbeCandidatesBadgeField;
+    private static boolean brbeCandidatesBadgeFieldLookedUp;
+
+    /**
+     * 抑制 JEI 自己的槽位"候选/标签"角标（用户 2026-10-02 定的**方案 A**）。
+     *
+     * <p>BRBE 把真实 JEI 的 {@code RecipeLayout} 原样画在 tooltip / Shift 弹窗 / pin 里，
+     * 槽位角上的候选角标（tag / list 图标）在 BRBE 的语境下点不了、只是视觉噪音，故在
+     * **委托绘制期间**把它关掉。</p>
+     *
+     * <p>开关住在 headless fork（{@code mezz.jei.library.gui.ingredients.RecipeSlot} 的
+     * {@code public static volatile boolean brbeSuppressCandidatesBadge}）——fork 与 BRBE
+     * 之间没有编译依赖，所以走反射；找不到该字段（旧 fork / 26.2 没有这个角标）就静默跳过。</p>
+     *
+     * <p>只包住 {@code drawRecipe}：BRBE 自己给**被冻结槽位**重画的角标
+     * （{@code drawFrozenBadges}，用户 2026-09-13 诉求 3）不受影响。</p>
+     *
+     * @return 改动前的值（调用方在 finally 里原样写回）
+     */
+    private static boolean brbe$setCandidatesBadgeSuppressed(boolean suppressed) {
+        try {
+            java.lang.reflect.Field field = brbeCandidatesBadgeField;
+            if (!brbeCandidatesBadgeFieldLookedUp) {
+                brbeCandidatesBadgeFieldLookedUp = true;
+                try {
+                    field = Class.forName("mezz.jei.library.gui.ingredients.RecipeSlot")
+                            .getField("brbeSuppressCandidatesBadge");
+                    brbeCandidatesBadgeField = field;
+                } catch (Throwable ignored) {
+                    brbeCandidatesBadgeField = null;
+                    return false;
+                }
+            }
+            if (field == null) return false;
+            boolean previous = field.getBoolean(null);
+            field.setBoolean(null, suppressed);
+            return previous;
+        } catch (Throwable ignored) {
+            return false;
+        }
     }
 
     @Override
@@ -224,7 +277,24 @@ public final class SyntheticRecipeRendererImpl implements SyntheticRecipeRendere
                 int sy = Math.round(oy + area.getY() * fit);
                 int sw = Math.max(1, Math.round(area.getWidth() * fit));
                 int sh = Math.max(1, Math.round(area.getHeight() * fit));
-                if (!CycleLock.claim(slot, sx, sy, sw, sh)) {
+                // ★ 命中判定改用 **JEI 自己的** getSlotUnderMouse（与它的 tooltip 同源）：
+                //   getAreaIncludingBackground() 在本环境里对多个槽位返回**起点相同、只有宽度不同**
+                //   的区域（实测 rect 都是同一原点而宽度 36/54/108）→ 最宽的那个永远命中、指针下的
+                //   窄槽永远锁不上（用户 2026-09-27 反馈"只锁得住产物、材料抽搐"）。
+                //   坐标系：drawable 位置被设为 (0,0)，故内容局部坐标 = (屏幕 - 内容原点) / fit。
+                boolean brbe$isUnderCursor = false;
+                if (CycleLock.isDown()) {
+                    double brbe$localX = (CycleLock.cursorX() - ox) / fit;
+                    double brbe$localY = (CycleLock.cursorY() - oy) / fit;
+                    brbe$isUnderCursor = drawable.getSlotUnderMouse(brbe$localX, brbe$localY)
+                            .map(mezz.jei.api.gui.inputs.RecipeSlotUnderMouse::slot)
+                            .filter(s -> s == slot)
+                            .isPresent();
+                }
+                // claim 的矩形用光标 1x1（光标必然在内）：它的作用是把这一件登记给 CycleLock，
+                // 供锁定键+滚轮 step() 使用。
+                if (!brbe$isUnderCursor
+                        || !CycleLock.claim(slot, CycleLock.cursorX(), CycleLock.cursorY(), 1, 1)) {
                     unfreeze(slot);
                     continue;
                 }

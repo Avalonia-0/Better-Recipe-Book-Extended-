@@ -42,12 +42,27 @@ public abstract class RecipeBookComponentMixin {
     @Inject(method = "tryPlaceRecipe", at = @At("HEAD"))
     private void brbe$notePlacedRecipe(RecipeCollection collection, RecipeDisplayId recipe,
                                        boolean useMaxItems, CallbackInfoReturnable<Boolean> cir) {
-        HoverGhostRecipe.invalidate();
+        // 可合成 → 服务端会把真实物品放进工作区：**先进入交接保持**（用户 2026-09-27 反馈的空窗期）。
+        // 不可合成 → 服务端回的是幽灵引导包，照旧当场交给原版。
+        if (collection.isCraftable(recipe)) {
+            HoverGhostRecipe.beginPlacementHandover(HoverGhostRecipe.displayOf(recipe));
+        } else {
+            HoverGhostRecipe.invalidate();
+        }
+    }
+
+    @Inject(method = "tryPlaceRecipe", at = @At("RETURN"))
+    private void brbe$reinstallHeldGhost(RecipeCollection collection, RecipeDisplayId recipe,
+                                         boolean useMaxItems, CallbackInfoReturnable<Boolean> cir) {
+        // 原版方法体里已经清空幽灵槽位并发了放置包 → 交接保持期间把幽灵写回来
+        HoverGhostRecipe.reinstallHeldGhost();
     }
 
     @Inject(method = "setVisible", at = @At("HEAD"))
     private void brbe$releaseHoverGhostOnHide(boolean visible, CallbackInfo ci) {
         if (!visible) {
+            // 书收起了：交接保持没有意义（画面里已经没有幽灵）
+            HoverGhostRecipe.cancelHandover();
             HoverGhostRecipe.release();
         }
     }

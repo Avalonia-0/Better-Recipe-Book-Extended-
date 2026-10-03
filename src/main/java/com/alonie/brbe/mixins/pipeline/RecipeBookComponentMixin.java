@@ -6,9 +6,11 @@ import com.alonie.brbe.mixins.accessors.RecipeBookPageAccessor;
 import com.alonie.brbe.mixins.accessors.RecipeCollectionAccessor;
 import com.alonie.brbe.search.SearchQuery;
 import com.alonie.brbe.util.CollectionPipeline;
+import com.alonie.brbe.util.FusedRecipeVariants;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.RecipeBookPositionMemory;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
@@ -16,6 +18,7 @@ import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookPage;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookTabButton;
 import net.minecraft.client.gui.screens.recipebook.RecipeCollection;
+import net.minecraft.world.entity.player.StackedItemContents;
 import net.minecraft.world.inventory.RecipeBookMenu;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -47,7 +50,7 @@ import java.util.Set;
  * {@link CollectionPipeline} and is:
  * <ol>
  *   <li>Advanced search filter</li>
- *   <li>Ungroup split (noGrouped)</li>
+ *   <li>Ungroup split (alternativeRecipes.splitMode == 完全)</li>
  *   <li>Pins sort (pinned → front)</li>
  *   <li>Partial sort (craftable → partial → uncraftable)</li>
  * </ol>
@@ -65,6 +68,11 @@ public abstract class RecipeBookComponentMixin {
     @SuppressWarnings("rawtypes")
     @Shadow
     protected RecipeBookMenu menu;
+
+    /** 原版当前物品栏的 stacked contents（判定"哪个融合成员真能做"）。 */
+    @Shadow
+    @Final
+    private StackedItemContents stackedContents;
 
     @Unique
     private String brbe$savedSearchText;
@@ -123,6 +131,10 @@ public abstract class RecipeBookComponentMixin {
     @Unique
     private boolean brbe$cacheHasPipelined;
 
+    /** 上一次写进日志的合并摘要（去重，避免每次库存变化都打一行）。见 {@link #brbe$logMergeStats()}。 */
+    @Unique
+    private String brbe$lastMergeLog;
+
     /** 缓存键：残缺标记修订号（{@link com.alonie.brbe.util.PartialCraftingUtil#partialMarkingRevision()}）。
      *  Stage 4 排序依赖残缺标记，而标记会在库存没变时被整轮重算（集合重建 / 配置变化 /
      *  物品栏界面的强制 pass）→ 必须入键，否则排序会用过期顺序（用户 2026-09-13 反馈）。 */
@@ -160,10 +172,30 @@ public abstract class RecipeBookComponentMixin {
 
     @Unique
     private boolean brbe$configKey() {
-        if (BetterRecipeBook.config == null) return false;
-        return BetterRecipeBook.config.partialCraftingEnabled
-                || BetterRecipeBook.config.partialMarkingEnabled
-                || BetterRecipeBook.config.alternativeRecipes.noGrouped;
+        return brbe$configMask() != 0;
+    }
+
+    /**
+     * **配置位掩码**（管线输出缓存的键分量之一）：每个开关**单独**占一位。
+     *
+     * <p>不能压成一个 boolean OR —— 那样只要有一个开关是开的，切换其余开关就不会改变键
+     * （{@code mergeSameResult} 默认开 → OR 恒真 → 关掉「显示部分可合成配方」时管线不会重跑）。
+     * 2026-09-30 由 {@code tools/search-cache-harness} 的 Phase D/E 抓出（"配置变 → 指纹变"）。</p>
+     */
+    @Unique
+    private int brbe$configMask() {
+        if (BetterRecipeBook.config == null) return 0;
+        int mask = 0;
+        if (BetterRecipeBook.config.partialCraftingEnabled) mask |= 1;
+        if (BetterRecipeBook.config.partialMarkingEnabled) mask |= 2;
+        if (BetterRecipeBook.config.alternativeRecipes.noGrouped()) mask |= 4;
+        // 「拆散替代配方组」三档必须**分位**（选择性＝0 位 / 完全＝4 / 关闭＝16）：压成一个布尔
+        // 会让档位切换不改变缓存键 —— 与 2026-09-30 那次"开关压成一个 OR"同源的坑。
+        if (!BetterRecipeBook.config.alternativeRecipes.selectiveSplitEnabled()) mask |= 16;
+        // 同产物合并会改变管线输出的分组 → 必须进缓存键，否则开关切换不生效
+        // （同 2026-09-11 搜索词 / isFiltering 那两轮踩过的坑）
+        if (BetterRecipeBook.config.alternativeRecipes.mergeSameResult) mask |= 8;
+        return mask;
     }
 
     // ---- Search text save / restore ----
@@ -326,8 +358,35 @@ public abstract class RecipeBookComponentMixin {
                         SlotDisplayContext.fromLevel(minecraft.level));
             }
 
-            // Stage 2: Ungroup split (if noGrouped enabled)
+            // Stage 2: Ungroup split (if splitMode == 完全)
             list = CollectionPipeline.applyUngroup(list);
+
+            // Stage 2.6: 同产物合并 = 专用收纳格（用户 2026-09-28 定稿）
+            //  · 非混合组（独立格/全同产物组）里的同产物配方**搬进**收纳格（原格被取代）
+            //  · 混合组里的同产物配方**复制**一份进收纳格，**原组一条不动**（保留原有秩序）
+            //  · 取消分组开启时本项不生效；新建格立刻重放残缺标记（同 Stage 2.5 的处理）
+            CollectionPipeline.MergeResult merge = CollectionPipeline.applyResultMerge(
+                    list,
+                    minecraft.level == null ? null : SlotDisplayContext.fromLevel(minecraft.level),
+                    this::brbe$reapplyPartialMarking);
+            list = merge.list();
+            brbe$logMergeStats();
+            // Stage 2.5: 排序原因剥离（用户 2026-09-27 诉求）——替代配方组里"需要调整排序"的
+            // 变体（pin / 可合成 / 残缺 / 搜索命中）从原组剥出来、按类别各自成组，**多层递归**；
+            // 原组只保留基线（最低类别）变体且位置不变。取代原 Stage 6 的 pin 专用剥离
+            // （pin 行为不变：全 pin 原组保留、部分 pin 剥离后由 Stage 3 置顶）。
+            // 新建的子组立刻重放残缺标记（标记按集合对象身份记录，见 brbe$reapplyPartialMarking）。
+            // 同时：副本"两边都脱离父组"时合二为一（只留专用格那一条）、搜索时副本不在混合组重复显示。
+            // ⚠️「拆散替代配方组」= 关闭（OFF）时**不跑**本 stage（用户 2026-10-03 指令）：
+            // "关闭"要连选择性拆散一起关掉 —— 否则组内变体仍会按 pin / 可合成 / 残缺 / 搜索命中
+            // 被拆出去。此时替代配方组整体保持原样，组内变体在同一个按钮上轮循。
+            if (BetterRecipeBook.config.alternativeRecipes.selectiveSplitEnabled()) {
+                list = CollectionPipeline.applySortExtraction(
+                        list, brbe$parsedQuery,
+                        minecraft.level == null ? null : SlotDisplayContext.fromLevel(minecraft.level),
+                        this::brbe$reapplyPartialMarking,
+                        merge);
+            }
 
             // Stage 3: Pins sort (in-place — moves pinned to front)
             CollectionPipeline.applyPins(list);
@@ -361,15 +420,10 @@ public abstract class RecipeBookComponentMixin {
             brbe$cacheHasPipelined = true;
         }
 
-        // Stage 6: pin 剥离（pin 变体从原组取出 → 置顶；原组原位保留未 pin 变体）。
-        // 幂等——无论全新管线输出还是缓存快照副本，本阶段都先清旧重打包组再重建。
-        CollectionPipeline.applyPinCopyGroups(list);
-
-        // Stage 6b：pin 提取生成的新组（rest/pin 包）是全新 RecipeCollection 对象，
-        // 而残缺标记/注入按"集合对象身份"记录（tagger 弱键）——新对象没有标记 →
-        // 组内残缺配方退化为不可合成。重新走一遍「标记 → carried 提升 → 注入
-        // craftable」（与 incompletecrafting 主 passes 同参数）；已检查过的原组
-        // wasChecked 自动跳过（无副作用），仅未检查的重打包组真正生效。
+        // Stage 6b（保留，改注释）：剥离已在 Stage 2.5 完成；这里每帧无条件重放一遍残缺标记——
+        // 缓存命中时列表里的子组来自**快照**，而 PartialCraftingUtil.invalidateCaches()（配置
+        // 变化等）会清掉标记，不清的话子组内的残缺配方会显示成不可合成。wasChecked 幂等，
+        // 已标记过的集合直接跳过，代价可忽略。
         brbe$reapplyPartialMarking(list);
 
         page.updateCollections(list, resetPageNumber, isFiltering);
@@ -392,7 +446,7 @@ public abstract class RecipeBookComponentMixin {
         int h = com.alonie.brbe.util.PipelineEpoch.current();
         h = h * 31 + (BetterRecipeBook.pinnedRecipeManager == null
                 ? 0 : BetterRecipeBook.pinnedRecipeManager.version());
-        h = h * 31 + (brbe$configKey() ? 1 : 0);
+        h = h * 31 + brbe$configMask();
         h = h * 31 + brbe$currentSearchText().hashCode();
         h = h * 31 + (isFiltering ? 1 : 0);
         h = h * 31 + PartialCraftingUtil.pipelineStateHash(list);
@@ -409,8 +463,15 @@ public abstract class RecipeBookComponentMixin {
                     SlotDisplayContext.fromLevel(minecraft.level));
         }
 
-        // Stage 2: Ungroup split (if noGrouped enabled)
+        // Stage 2: Ungroup split (if splitMode == 完全)
         list = CollectionPipeline.applyUngroup(list);
+
+        // Stage 2.6: 同产物合并（同上；诊断路径**不**重放残缺标记——那会改全局标记状态，
+        // 也不跑剥离，所以丢弃 MergeResult 即可）
+        list = CollectionPipeline.applyResultMerge(
+                list,
+                minecraft.level == null ? null : SlotDisplayContext.fromLevel(minecraft.level),
+                null).list();
 
         // Stage 3: Pins sort (in-place — moves pinned to front)
         CollectionPipeline.applyPins(list);
@@ -620,7 +681,49 @@ public abstract class RecipeBookComponentMixin {
         if (BetterRecipeBook.config == null) return false;
         return BetterRecipeBook.config.partialCraftingEnabled
                 || BetterRecipeBook.config.partialMarkingEnabled
-                || BetterRecipeBook.config.alternativeRecipes.noGrouped;
+                || BetterRecipeBook.config.alternativeRecipes.noGrouped();
+    }
+
+    /**
+     * **合并诊断行**（{@code logs/brbe-debug.log} 的 {@code [BRBE-MERGE]}）：开关开启时，
+     * 每次合并摘要变化就打一行 —— "建了几格、融了几条、哪些产物被哪条判据挡下"。
+     *
+     * <p>为什么需要它：2026-09-29 用户实测"看不到任何融合、收纳格还被拆散"，而当时无法从
+     * 任何证据区分三种完全不同的原因（开关没开 / 没建格 / 全被判据挡下）。这一行让下一次
+     * 测试自带答案。开关关闭时**不打**（保持日志干净），此时"有没有这一行"本身就是答案。</p>
+     */
+    @Unique
+    private void brbe$logMergeStats() {
+        if (BetterRecipeBook.config == null
+                || !BetterRecipeBook.config.alternativeRecipes.mergeSameResult) {
+            return;
+        }
+        String summary = CollectionPipeline.mergeDiagnostics();
+        String key = brbe$configKey() + "|" + summary;
+        if (key.equals(brbe$lastMergeLog)) {
+            return;
+        }
+        brbe$lastMergeLog = key;
+        com.alonie.brbe.util.BrbeLogger.log("BRBE-MERGE",
+                "{} splitMode={} {}", bookKey(),
+                BetterRecipeBook.config.alternativeRecipes.splitMode, summary);
+    }
+
+    /**
+     * 融合条目点击时按物品栏挑版本（用户 2026-09-29 定）。
+     *
+     * <p>融合条目展示的是逐槽选项的**并集**（差异部分轮循），但服务端是按 {@link RecipeDisplayId}
+     * 找**真实配方**的：只把主成员的 id 发过去，玩家手上只有另一版材料时会放不出来。所以在发包前
+     * 换成"成员里当前物品栏真能做的那一条"（{@code RecipeDisplayEntry#canCraft(StackedItemContents)}
+     * 用的就是成员各自真实的 requirements）；都做不了就用主成员 id 走原版行为（部分放置/幽灵预览）。</p>
+     */
+    @Redirect(method = "tryPlaceRecipe",
+              at = @At(value = "INVOKE",
+                       target = "Lnet/minecraft/client/multiplayer/MultiPlayerGameMode;handlePlaceRecipe(ILnet/minecraft/world/item/crafting/display/RecipeDisplayId;Z)V"))
+    private void brbe$placeFusedVariant(MultiPlayerGameMode gameMode, int containerId,
+                                        RecipeDisplayId id, boolean useMaxItems) {
+        gameMode.handlePlaceRecipe(containerId,
+                FusedRecipeVariants.bestVariant(id, this.stackedContents), useMaxItems);
     }
 
     @Unique

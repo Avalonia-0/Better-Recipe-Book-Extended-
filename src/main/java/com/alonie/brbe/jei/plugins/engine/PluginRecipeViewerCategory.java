@@ -154,7 +154,7 @@ public final class PluginRecipeViewerCategory implements RecipeViewerCategory {
         // the whole system up front: no category matches it, so its objects
         // never surface anywhere.  RecipeViewerIndex.workstations() does the
         // same for vanilla-type matching; this closes the mod-type side.
-        if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+        if (BetterRecipeBook.config.recipeBookOnly()
                 && (target == null || target.isEmpty()
                     || !RecipeViewerEngine.isRecipeBookStation(target))) {
             return false;

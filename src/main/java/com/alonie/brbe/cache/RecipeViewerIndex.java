@@ -203,27 +203,31 @@ public final class RecipeViewerIndex {
         }
         BrbeLogger.log("BRBE", "rebuildEngine known-by-category: {} unmatched={}",
                 categoryCounts, unmatched);
+        // 每个 uid 的条目**一律按配方书已知集（known）注册**，headless-JEI 只负责
+        // 挂 native layout（见 BrbeJeiBridge.attachVanillaLayouts / reattachBookLayouts）。
+        //
+        // ⚠️ 2026-10-01 用户实测（MasterCutter 数据包）：**无头 JEI 的配方源只有
+        // "客户端自带的 RECIPE 注册表"（原版 + 已装模组），看不到服务端数据包配方** ——
+        // 该数据包的 1368 条切石配方在 known 里（stonecutter=1719），headless 只有
+        // 351（= 原版 + 模组）。切石此前被整类**委托给 headless**（本循环 continue
+        // 掉），于是这些数据包配方在 LEI 里完全搜不到；而合成/烧炼/锻造因为本来就
+        // 按 known 注册，数据包配方一直是好的。
+        //
+        // 锻造同理（headless 的 smithing 采集本就不完整：纹饰配方因
+        // minecraft:trimmable_armor tag 未绑定而 setRecipe 失败）。两者的条目都由
+        // 这里注册，headless 侧不再 registerType 覆盖（同 uid 后注册者覆盖前者）。
+        //
+        // 书里没有这类配方时 grouped 里不会有该 uid，headless 的兜底注册结果自然保留。
+        Map<String, Integer> registeredCounts = new java.util.TreeMap<>();
         for (Map.Entry<String, List<RecipeViewerEngine.IndexedRecipe>> e : grouped.entrySet()) {
-            // 切石：条目与 layout 由 headless-jei（JEI 运行时）提供
-            // （其条目带原生 layout，弹窗可委托完整 JEI UI）——这里跳过，
-            // 避免与 headless 重复注册（同 uid 后注册者覆盖前者）。
-            if (e.getKey().equals("minecraft:stonecutting")) {
-                continue;
-            }
-            // 锻造：由 BRBE 侧（配方书已知集）权威采集——headless-JEI 的
-            // smithing 采集不完整（纹饰配方因 minecraft:trimmable_armor tag
-            // 未绑定而 setRecipe 失败，引擎只有下界合金升级），而已知集里
-            // smithing=73 条含真 SmithingRecipeDisplay（transform + trim）。
-            // 这里注册完整数据；headless 只负责经 attachVanillaLayouts 挂
-            // native layout（供弹窗委托），不再 registerType 覆盖。
-            if (e.getKey().equals("minecraft:smithing")) {
-                RecipeViewerEngine.registerType(e.getKey(), e.getValue(), stationItems.get(e.getKey()));
-                continue;
-            }
             RecipeViewerEngine.registerType(e.getKey(), e.getValue(), stationItems.get(e.getKey()));
+            registeredCounts.put(e.getKey(), e.getValue().size());
         }
         BrbeLogger.log("BRBE", "rebuildEngine: {} types, {} entries",
                 grouped.size(), grouped.values().stream().mapToInt(List::size).sum());
+        // 每个 uid 实际注册进引擎的条目数 —— 诊断"某个类别搜不到"的第一手证据
+        // （切石曾整类委托给 headless-JEI，引擎只有 351 条而配方书里有 1719 条）。
+        BrbeLogger.log("BRBE", "rebuildEngine per-type: {}", registeredCounts);
         // 通用"数据源自动定向至配方书"：配方书供给的类型源（酿造等）统一重注册。
         rebuildBookTypeSources();
         // 进度模式（hideNoRecipeBookStationObjects）的合法工作站集重建：
@@ -515,7 +519,7 @@ public final class RecipeViewerIndex {
         // its category tabs and objects never surface, and the hide filter
         // downstream has nothing left to judge.  Recipe-book-backed built-in
         // stations keep their recipeBook=true and stay.  (Mirrors 26.2.)
-        if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+        if (BetterRecipeBook.config.recipeBookOnly()) {
             return stations.stream()
                     .filter(Workstation::recipeBook)
                     .toList();

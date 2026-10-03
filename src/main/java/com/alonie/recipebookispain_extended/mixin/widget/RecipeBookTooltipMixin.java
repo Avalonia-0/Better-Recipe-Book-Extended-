@@ -1,5 +1,6 @@
 package com.alonie.recipebookispain_extended.mixin.widget;
 
+import com.alonie.recipebookispain_extended.RecipeBookIsPain;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.screens.recipebook.RecipeBookComponent;
@@ -37,6 +38,12 @@ public class RecipeBookTooltipMixin {
                 if (widget.getCategory() instanceof SearchRecipeBookCategory) {
                     context.setComponentTooltipForNextFrame(minecraft.font,
                             java.util.List.of(CreativeModeTabs.searchTab().getDisplayName()), mouseX, mouseY);
+                } else if (RecipeBookIsPain.isExtendedTabGroup(widget.getCategory())) {
+                    // 扩展档（命名空间 / 数据包）标签的提示 = 命名空间对应的模组名 / 数据包名字
+                    // （白色、非斜体），而不是它那个"代表创造标签"的名字。
+                    context.setComponentTooltipForNextFrame(minecraft.font,
+                            java.util.List.of(RecipeBookIsPain.extendedTabTooltip(widget.getCategory())),
+                            mouseX, mouseY);
                 } else {
                     CreativeModeTab group = toItemGroup(widget.getCategory());
                     if (group != null) {

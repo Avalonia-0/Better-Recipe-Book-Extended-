@@ -264,11 +264,15 @@ public final class RecipeViewerOverlay {
         return BetterRecipeBook.config.scrolling.scrollAround;
     }
 
-    /** 「在配方区使用自然的翻页方向」（默认开）：{@code true} = 鼠标滚轮向前
-     *  （上滚）往后翻页；{@code false} = 旧方向（上滚往前翻页）。只作用于
-     *  <b>配方区</b>的翻页——标签条翻页与 Alt+滚轮轮循走各自的方向。 */
+    /** 「配方区翻页方向」：{@code NATURAL}（自然）= 鼠标滚轮向前（上滚）往后翻页；
+     *  {@code REGULAR}（常规）= 旧方向（上滚往前翻页）。只作用于
+     *  <b>配方区</b>的翻页——标签条翻页与 Alt+滚轮轮循走各自的方向。
+     *  配置缺席 / 字段为 null 时按「自然」处理（与改动前的 {@code config == null} 兜底一致）。 */
     private static boolean naturalPageDirection() {
-        return BetterRecipeBook.config == null || BetterRecipeBook.config.naturalPageDirection;
+        if (BetterRecipeBook.config == null) return true;
+        com.alonie.brbe.config.BrbeConfig.PageFlipDirection direction =
+                BetterRecipeBook.config.pageFlipDirection;
+        return direction == null || direction.natural();
     }
 
 
@@ -314,6 +318,11 @@ public final class RecipeViewerOverlay {
      *  two session-only flags are never written to disk. */
     public static final class ViewSpec {
         String item;          // query target item's registry id
+        /** 目标物品的组件补丁（SNBT，{@link StackIdentity#encodePatch}）。
+         *  数据包物品大多是"原版物品 id + 组件"（Guns++ 的枪 = carrot_on_a_stick
+         *  + item_model/custom_data），只存 id 会在重开窗口后退化成裸物品
+         *  （用户 2026-10-02）。老文件没有这个字段 → null → 行为与以前一致。 */
+        String components;
         boolean usage;        // true = 用途 query, false = 配方 query
         String category;      // selected category id (may be null)
         int page;
@@ -325,29 +334,52 @@ public final class RecipeViewerOverlay {
     private static final Gson PV_GSON = new Gson();
     private static final Type PV_SPECS_TYPE =
             new TypeToken<ArrayList<ViewSpec>>() {}.getType();
+    /** 作用域内的文件名（与 pin 浮层同目录：{@code <world>/brbe/} 或
+     *  {@code <gameDir>/brbe/servers/<key>/}）。 */
+    private static final String VIEWER_FILE_NAME = "queryviewers.json";
+    /** 旧版全局文件（gameDir）——只用于一次性迁移。 */
+    private static final String VIEWER_LEGACY_FILE = "brbe.queryviewers.json";
+    /** 当前作用域内的窗口文件；null = 无作用域（不读不写）。 */
     private static Path viewerSpecFile;
     private static final List<ViewSpec> viewerSpecs = new ArrayList<>();
     private static boolean viewerPersistenceReady;
 
-    /** Load the persisted query windows (lazy — the game directory is only
-     *  available once Minecraft exists). */
+    /** Load the persisted query windows (lazy, and following the current save /
+     *  server scope — the file lives next to the pin overlays). */
     private static void initViewerPersistence() {
-        if (viewerPersistenceReady) return;
-        viewerPersistenceReady = true;
-        Minecraft mc = Minecraft.getInstance();
-        if (mc == null || mc.gameDirectory == null) return;
-        viewerSpecFile = mc.gameDirectory.toPath().resolve("brbe.queryviewers.json");
+        if (!viewerPersistenceReady) {
+            viewerPersistenceReady = true;
+            WorldScopedStore.addListener(RecipeViewerOverlay::onViewerScopeChanged);
+        }
+        WorldScopedStore.refresh();
+    }
+
+    /**
+     * 作用域切换（进入 / 离开存档或服务器）：旧作用域的窗口列表先落盘（路径仍记在
+     * {@link #viewerSpecFile}），再清空内存、载入新作用域，并做一次旧版全局文件迁移。
+     * 不清空的话，上一个世界的查询窗口会跑到下一个存档 / 服务器里。
+     */
+    private static void onViewerScopeChanged(Path dir) {
+        writeViewerSpecs(viewerSpecFile);
+        viewerSpecs.clear();
+        viewerSpecFile = dir == null ? null : dir.resolve(VIEWER_FILE_NAME);
+        if (viewerSpecFile != null) {
+            WorldScopedStore.migrateLegacy(VIEWER_LEGACY_FILE, viewerSpecFile);
+        }
         loadViewerSpecs();
     }
 
     private static void loadViewerSpecs() {
-        if (viewerSpecFile == null || !Files.exists(viewerSpecFile)) return;
+        if (viewerSpecFile == null || !Files.exists(viewerSpecFile)) {
+            viewerSpecs.clear();
+            return;
+        }
         try {
             List<ViewSpec> specs = PV_GSON.fromJson(
                     Files.readString(viewerSpecFile, StandardCharsets.UTF_8),
                     PV_SPECS_TYPE);
+            viewerSpecs.clear();
             if (specs != null) {
-                viewerSpecs.clear();
                 for (ViewSpec spec : specs) {
                     if (spec != null) viewerSpecs.add(spec);
                 }
@@ -359,12 +391,17 @@ public final class RecipeViewerOverlay {
 
     /** Write the spec list asynchronously (mirrors the pin overlay store). */
     private static void saveViewerSpecs() {
-        if (viewerSpecFile == null) return;
+        writeViewerSpecs(viewerSpecFile);
+    }
+
+    /** 异步写入指定文件（null = 无作用域，直接跳过）。 */
+    private static void writeViewerSpecs(Path target) {
+        if (target == null) return;
         List<ViewSpec> snapshot = new ArrayList<>(viewerSpecs);
         CompletableFuture.runAsync(() -> {
             try {
-                Files.createDirectories(viewerSpecFile.getParent());
-                Files.writeString(viewerSpecFile,
+                Files.createDirectories(target.getParent());
+                Files.writeString(target,
                         PV_GSON.toJson(snapshot), StandardCharsets.UTF_8);
             } catch (Exception e) {
                 BetterRecipeBook.LOGGER.warn("[BRBE] Failed to write query viewers: {}", e.getMessage());
@@ -403,7 +440,7 @@ public final class RecipeViewerOverlay {
      *  by { #close()}. */
     public static void restorePendingViewers() {
         // 预览模式：查询窗口生命周期不持久化——关闭当前界面并重开后不再恢复。
-        if (BetterRecipeBook.config.previewMode) return;
+        if (BetterRecipeBook.config.previewMode()) return;
         initViewerPersistence();
         if (viewerSpecs.isEmpty()) return;
         Minecraft mc = Minecraft.getInstance();
@@ -606,7 +643,7 @@ public final class RecipeViewerOverlay {
             // 预览模式：与查询界面以外的元素交互（点击区外）即关闭全部查询
             // 窗口——点击本身仍落到下方桌面（交互照常执行）。关闭模式（默认
             // 关）保留旧行为：区外点击只放行，不影响打开的窗口。
-            if (BetterRecipeBook.config.previewMode && !WINDOWS.isEmpty()) {
+            if (BetterRecipeBook.config.previewMode() && !WINDOWS.isEmpty()) {
                 close();
             }
             return false;
@@ -2188,14 +2225,14 @@ public final class RecipeViewerOverlay {
         Set<String> hidden = hiddenCategoryIds();
         List<RecipeViewerCategory> out = new ArrayList<>();
         for (RecipeViewerCategory cat : RecipeViewerCategories.all()) {
-            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+            if (BetterRecipeBook.config.recipeBookOnly()
                     && hidden.contains(cat.id())) {
                 continue;
             }
             // A station category whose connection to the query target is cut
             // (illegal station, toggle on) must not show a tab either — it
             // would render but ignore clicks.  Grid categories are exempt.
-            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+            if (BetterRecipeBook.config.recipeBookOnly()
                     && !cat.isGridCategory()
                     && cat.appliesToStation(queryTarget)
                     && !RecipeViewerEngine.isRecipeBookStation(queryTarget)) {
@@ -2218,7 +2255,7 @@ public final class RecipeViewerOverlay {
         int bestPriority = -1;
         for (RecipeViewerCategory category : RecipeViewerCategories.all()) {
             if (category == exclude) continue;
-            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+            if (BetterRecipeBook.config.recipeBookOnly()
                     && (!RecipeViewerCategories.isProgressCategory(category)
                         || (!category.isGridCategory()
                             && category.appliesToStation(target)
@@ -2241,7 +2278,7 @@ public final class RecipeViewerOverlay {
     private boolean cachedBrowseState;
 
     private Set<String> hiddenCategoryIds() {
-        boolean config = BetterRecipeBook.config.hideNoRecipeBookStationObjects;
+        boolean config = BetterRecipeBook.config.recipeBookOnly();
         if (cachedHiddenCategoryIds == null
                 || cachedHiddenConfigState != config
                 || RecipeViewerCategories.consumeVisibilityDirty()) {
@@ -2268,7 +2305,7 @@ public final class RecipeViewerOverlay {
         Set<String> hidden = hiddenCategoryIds();
         List<RecipeViewerCategory> out = new ArrayList<>();
         for (RecipeViewerCategory cat : RecipeViewerCategories.all()) {
-            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+            if (BetterRecipeBook.config.recipeBookOnly()
                     && hidden.contains(cat.id())) {
                 continue;
             }
@@ -3191,7 +3228,7 @@ public final class RecipeViewerOverlay {
             Component line = stationTimeLine(stationLabel(i), cookSeconds(ticks[i]),
                     stationStyle(i), stationMatches(i, furnaceStn, blastStn, smokerStn));
             List<ItemStack> icons = RecipeViewerIndex.workstationsIconsForPrefix(stationCategoryPrefix(i));
-            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+            if (BetterRecipeBook.config.recipeBookOnly()) {
                 // This tooltip belongs to a smelting recipe (an object): icons
                 // of workstations without a recipe-book system are hidden.
                 icons = filterRecipeBookStations(icons);
@@ -3489,7 +3526,7 @@ public final class RecipeViewerOverlay {
             return List.of();
         }
         List<ItemStack> icons = category.stationIconsFor(entry);
-        if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+        if (BetterRecipeBook.config.recipeBookOnly()) {
             // Hide the icons of workstations without a recipe-book system on
             // the tooltip; the object itself survives because it has at least
             // one legitimate workstation (the filter guarantees it).
@@ -3779,9 +3816,33 @@ public final class RecipeViewerOverlay {
                                                 ? "以隐藏不相关配方。"
                                                 : "以显示所有配方。")
                                         .withStyle(hintBase));
+                // 窗口操作提示（用户 2026-09-26）：标题 tooltip 追加拖动/关闭两行，
+                // 字体与首行一致（灰 + 斜体），引号内的“左键”“右键”同理加粗。
+                net.minecraft.network.chat.Component dragHint =
+                        net.minecraft.network.chat.Component.empty()
+                                .append(net.minecraft.network.chat.Component
+                                        .literal("按住“").withStyle(hintBase))
+                                .append(net.minecraft.network.chat.Component
+                                        .literal("左键")
+                                        .withStyle(hintBase.withBold(true)))
+                                .append(net.minecraft.network.chat.Component
+                                        .literal("”拖动顶栏即可移动此窗口").withStyle(hintBase));
+                net.minecraft.network.chat.Component closeHint =
+                        net.minecraft.network.chat.Component.empty()
+                                .append(net.minecraft.network.chat.Component
+                                        .literal("对窗口内任意位置按“").withStyle(hintBase))
+                                .append(net.minecraft.network.chat.Component
+                                        .literal("右键")
+                                        .withStyle(hintBase.withBold(true)))
+                                .append(net.minecraft.network.chat.Component
+                                        .literal("”以关闭此窗口").withStyle(hintBase));
                 pendingTabTooltip = java.util.List.of(
                         net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
-                                .create(hint.getVisualOrderText()));
+                                .create(hint.getVisualOrderText()),
+                        net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                                .create(dragHint.getVisualOrderText()),
+                        net.minecraft.client.gui.screens.inventory.tooltip.ClientTooltipComponent
+                                .create(closeHint.getVisualOrderText()));
                 pendingTabTooltipX = mouseX;
                 pendingTabTooltipY = mouseY;
                 pendingTabTooltipStyle = ClientCompat.VIEWER_TOOLTIP_STYLE;
@@ -3985,7 +4046,7 @@ public final class RecipeViewerOverlay {
     private void syncSpec() {
         // 预览模式：查询窗口不持久化——不写盘，并清掉历史遗留的窗口条目
         // （配置文件曾持久化的旧窗口不会再恢复，文件也随之清空）。
-        if (BetterRecipeBook.config.previewMode) {
+        if (BetterRecipeBook.config.previewMode()) {
             spec = null;
             if (!viewerSpecs.isEmpty()) {
                 viewerSpecs.clear();
@@ -4003,6 +4064,7 @@ public final class RecipeViewerOverlay {
         // close clears this flag).
         spec.materialized = true;
         spec.item = BuiltInRegistries.ITEM.getKey(queryTarget.getItem()).toString();
+        spec.components = StackIdentity.encodePatch(queryTarget);   // 栈身份：重开窗口才认得出是哪把枪
         spec.usage = queryUsage;
         spec.category = currentCategory == null ? null : currentCategory.id();
         spec.page = viewerPage;
@@ -4052,7 +4114,7 @@ public final class RecipeViewerOverlay {
             // The "hide objects of workstations without a recipe book" mode
             // suppresses the JEI fallback too: nothing BRBE can judge may
             // leak through the external viewer.
-            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+            if (BetterRecipeBook.config.recipeBookOnly()) {
                 return false;
             }
             return fallbackToViewer(target, viewUsage);
@@ -4075,14 +4137,14 @@ public final class RecipeViewerOverlay {
                     } else {
                         hits = filterByRecipeBookStations(alt.query(target, viewUsage));
                         if (hits.isEmpty()) {
-                            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+                            if (BetterRecipeBook.config.recipeBookOnly()) {
                                 return false;
                             }
                             return fallbackToViewer(target, viewUsage);
                         }
                         computeBoxSize(hits);
                     }
-                } else if (BetterRecipeBook.config.hideNoRecipeBookStationObjects) {
+                } else if (BetterRecipeBook.config.recipeBookOnly()) {
                     // Every hit was hidden by the filter: the viewer stays
                     // closed and the external viewer is not consulted either.
                     return false;
@@ -4193,6 +4255,8 @@ public final class RecipeViewerOverlay {
                 Identifier.tryParse(spec.item)).map(item -> new ItemStack(item, 1))
                 .orElse(ItemStack.EMPTY);
         if (target.isEmpty()) return false;
+        // 组件补回去（旧 spec 没有该字段 / 注册表上下文不可用 → 保持物品级，行为同以前）
+        StackIdentity.applyEncodedPatch(target, spec.components);
         anchorOverlayWidget = null;
         anchorBookButton = null;
         resetBrowseAllState();
@@ -4494,7 +4558,7 @@ public final class RecipeViewerOverlay {
             // Grid categories are exempt and never reach this branch.
             // Browse-all skips the cut (it distributes everything queryable).
             if (!browseAllMode
-                    && BetterRecipeBook.config.hideNoRecipeBookStationObjects
+                    && BetterRecipeBook.config.recipeBookOnly()
                     && queryUsage
                     && queryTarget != null && !queryTarget.isEmpty()
                     && category.appliesToStation(queryTarget)
@@ -4527,7 +4591,7 @@ public final class RecipeViewerOverlay {
      *  entries (dropping legitimate ones or leaking illegal ones). */
     private List<RecipeDisplayEntry> filterByRecipeBookStations(
             List<RecipeDisplayEntry> hits, RecipeViewerCategory category) {
-        if (!BetterRecipeBook.config.hideNoRecipeBookStationObjects) return hits;
+        if (!BetterRecipeBook.config.recipeBookOnly()) return hits;
         if (hits == null || hits.isEmpty()) return hits;
         List<RecipeDisplayEntry> out = new ArrayList<>();
         for (RecipeDisplayEntry entry : hits) {

@@ -229,7 +229,7 @@ public final class RecipeViewerCategories {
             // 进度模式（hideNoRecipeBookStationObjects）：信息行类别（燃料/
             // 堆肥/信息）整体隐藏，无配方书体系的工作站类别（切石/铁砧/研磨）
             // 隐藏，非法工作站与类别的连接切断——只显示和进度相关的对象。
-            if (BetterRecipeBook.config.hideNoRecipeBookStationObjects
+            if (BetterRecipeBook.config.recipeBookOnly()
                     && (!isProgressCategory(category)
                         || (!category.isGridCategory()
                             && !RecipeViewerEngine.isRecipeBookStation(target)))) {
@@ -308,7 +308,7 @@ public final class RecipeViewerCategories {
      *  （切石/铁砧/研磨）不可见；配方书体系的内置类别（合成/烧炼/锻造/酿造——
      *  BRBE 自带酿造配方书）与配方书驱动的 mod 类别可见。开关关闭时恒为 true。 */
     public static boolean isProgressCategory(RecipeViewerCategory category) {
-        if (!BetterRecipeBook.config.hideNoRecipeBookStationObjects) return true;
+        if (!BetterRecipeBook.config.recipeBookOnly()) return true;
         if (category == null || category.isGridCategory()) return false;
         List<String> uids = category.jeiTypeUids();
         if (uids.isEmpty()) return false;

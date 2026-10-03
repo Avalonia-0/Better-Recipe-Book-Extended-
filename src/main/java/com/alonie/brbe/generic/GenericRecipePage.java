@@ -16,6 +16,8 @@ import net.minecraft.client.gui.GuiGraphics;
 
 import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.core.RegistryAccess;
+import net.minecraft.resources.Identifier;
+import net.minecraft.network.chat.Component;
 import com.alonie.brbe.widget.StateSwitchingButton;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import org.jetbrains.annotations.Nullable;
@@ -42,6 +44,13 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     /** 悬停瞬间捕获的配方与类别：动画中两页共用按钮、内容会被下一页覆盖，tooltip/R-U 须用捕获值。 */
     protected R hoveredRecipe;
     protected BRBBookCategories.Category hoveredCategory;
+    /**
+     * **幽灵预览**专用的悬停配方（可与 {@link #hoveredRecipe} 不同）：
+     * {@code hoveredRecipe} 服务 tooltip / R-U 查询，本字段只喂「自动填充幽灵配方」。
+     * 不提供预览的格子（{@link GenericRecipeButton#providesHoverPreview()} = false，
+     * 例如锻造台纹饰组）在这里是 {@code null} → 不写幽灵（用户 2026-09-26 诉求）。
+     */
+    protected R hoverGhostRecipe;
 
     // 翻页动画：整页平滑滑动 + 内容区 scissor 视窗。
     // visualPage（浮点视觉页）朝 currentPage 平滑逼近：单页动画由配置时长控制，
@@ -110,7 +119,11 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         return false;
     }
 
-    protected void initOverlay(C recipeCollection, int x, int y, RegistryAccess registryAccess) {
+    /**
+     * 打开替代配方组浮层；{@code anchorX/anchorY} = 被右键点击的组按钮坐标（位置按它算）。
+     */
+    protected void initOverlay(C recipeCollection, int anchorX, int anchorY,
+                               int x, int y, RegistryAccess registryAccess) {
     }
 
     public boolean mouseClicked(double mouseX, double mouseY, int button, int j, int k, int l, int m) {
@@ -154,7 +167,12 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
                     this.lastClickedRecipe = recipeButton.getCurrentDisplayedRecipe();
                     this.lastClickedRecipeCollection = recipeButton.getCollection();
                 } else if (button == 1 && !overlayIsVisible() && !recipeButton.isOnlyOption()) {
-                    this.initOverlay(recipeButton.getCollection(), this.parentLeft, this.parentTop, registryAccess);
+                    // 记下本格的 id 快照 + 落点：结果集重建后据此找回"同一格"的新对象（见 brbe$refreshOpenOverlay）
+                    this.brbe$overlayGroupIds = this.brbe$recipeIds(recipeButton.getCollection());
+                    this.brbe$overlayAnchorX = recipeButton.getX();
+                    this.brbe$overlayAnchorY = recipeButton.getY();
+                    this.initOverlay(recipeButton.getCollection(), recipeButton.getX(), recipeButton.getY(),
+                            this.parentLeft, this.parentTop, registryAccess);
                 }
                 return true;
             }
@@ -180,6 +198,33 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
     }
 
     protected boolean overlayIsVisible() {
+        return false;
+    }
+
+    /** 收起配方书时关闭替代配方组浮层（有浮层的实现覆写；默认无浮层）。 */
+    protected void hideOverlay() {
+    }
+
+    /**
+     * 替代配方组浮层里**被悬停的那一格**的 tooltip（{@code null} = 没有悬停任何格子）。
+     *
+     * <p>浮层打开时格子由页面自己画（{@link #suppressGridHover()} 把 {@code hoveredButton}
+     * 压成 null），tooltip 就得由浮层自己给：锻造台/酿造台页面覆写本方法，行内容与该书的
+     * 普通配方格同款（用户 2026-09-27 诉求）。通用页面没有浮层，默认 {@code null}。</p>
+     */
+    @Nullable
+    public List<Component> overlayTooltip() {
+        return null;
+    }
+
+    /**
+     * 替代配方组浮层打开时，**网格不再参与悬停判定**（原版合成书就是这个语义：
+     * {@code hoverghost/RecipeBookPageMixin} 在 {@code overlay.isVisible()} 时直接 return）。
+     *
+     * <p>不抑制的话，鼠标落在浮层的面板/间隙上时命中判定会**透过浮层**命中底下的网格按钮 →
+     * 触发那格的幽灵预览与 tooltip（用户 2026-09-26 反馈的"透过替代配方组界面触发幽灵配方"）。</p>
+     */
+    protected boolean suppressGridHover() {
         return false;
     }
 
@@ -219,6 +264,7 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         this.hoveredButton = null;
         this.hoveredRecipe = null;
         this.hoveredCategory = null;
+        this.hoverGhostRecipe = null;
 
         boolean animating = this.animActive;
         if (animating) {
@@ -297,10 +343,12 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
             } else {
                 button.render(gui, mouseX, mouseY, delta);
             }
-            if (interactive && button.visible && button.isHoveredOrFocused()) {
+            if (interactive && !this.suppressGridHover() && button.visible && button.isHoveredOrFocused()) {
                 this.hoveredButton = button;
                 this.hoveredRecipe = button.getCurrentDisplayedRecipe();
                 this.hoveredCategory = this.category;
+                // 幽灵预览：格子可以声明"不提供"（纹饰组）——悬停它不写幽灵、也不暂隐工作区
+                this.hoverGhostRecipe = button.providesHoverPreview() ? this.hoveredRecipe : null;
             }
         }
     }
@@ -400,6 +448,99 @@ public class GenericRecipePage<M extends AbstractContainerMenu, C extends Generi
         this.lastFlipFrame = -100;
 
         this.updateButtonsForPage();
+
+        // 结果集重建后**已经打开的组浮层必须跟着刷新**（用户 2026-09-27 反馈的"镜像"）
+        this.brbe$refreshOpenOverlay(recipeCollection);
+    }
+
+    /** 组浮层当前显示那一格的配方 id 快照（右键打开时记录，每次刷新后更新）；{@code null} = 没有打开的浮层。 */
+    @Nullable
+    private java.util.Set<Identifier> brbe$overlayGroupIds;
+
+    /** 组浮层打开时的落点（被右键点击的那个组按钮坐标）：刷新时**沿用**，浮层不跟着格子跑。 */
+    private int brbe$overlayAnchorX;
+    private int brbe$overlayAnchorY;
+
+    private java.util.Set<Identifier> brbe$recipeIds(@Nullable C collection) {
+        if (collection == null) {
+            return java.util.Set.of();
+        }
+        java.util.Set<Identifier> ids = new java.util.HashSet<>();
+        for (R recipe : collection.getRecipes()) {
+            if (recipe.id() != null) {
+                ids.add(recipe.id());
+            }
+        }
+        return ids;
+    }
+
+    /**
+     * 结果集重建后刷新**已经打开的**组浮层 —— 修掉"pin 走的变体在组里留一份镜像"。
+     * 浮层持有的是打开那一刻的集合对象与格子快照；pin 会把被固定的变体从原组剥出去、
+     * 原组重新打包成新对象 → 旧快照里还留着那个变体。
+     *
+     * <p>只跟随"自己那一格"（用户 2026-09-27 三次反馈）：先在结果集里找 id 全部命中本格快照的
+     * 候选（本格是全 pin 格时只接受"本格的子集"，父组多了别的 id 就不跟），取交集最大者；
+     * 并列时优先"还有未 pin 变体"的那一格（原组）。找不到 ⇒ 本格已不存在（整组被 pin 走 /
+     * 全 pin 格被解除 pin 散回原组）→ **收起浮层**，不能改开父组（初版按"交集最大"找，
+     * 解除 pin 时父组交集同为最大 → 浮层突然变成父组）。</p>
+     *
+     * <p>位置与页码**保持不动**：沿用打开时的锚点（{@link #brbe$overlayAnchorX}）。</p>
+     */
+    private void brbe$refreshOpenOverlay(List<C> list) {
+        if (this.brbe$overlayGroupIds == null || this.brbe$overlayGroupIds.isEmpty() || !this.overlayIsVisible()) {
+            return;
+        }
+
+        // 浮层这一格是不是"全 pin 格"（pin 剥离出来的副本组）：它的成员全部在 pin 集合里。
+        boolean pinnedCell = BetterRecipeBook.pinnedRecipeManager.pinned.containsAll(this.brbe$overlayGroupIds);
+
+        C match = null;
+        int bestOverlap = 0;
+        boolean bestPinned = true;
+        for (C candidate : list) {
+            int overlap = 0;
+            boolean outside = false;
+            for (R recipe : candidate.getRecipes()) {
+                Identifier id = recipe.id();
+                if (id == null) continue;
+                if (this.brbe$overlayGroupIds.contains(id)) {
+                    overlap++;
+                } else if (pinnedCell) {
+                    // 全 pin 格只接受"自己这一格的子集"：父组/别的组多了本格没有的 id → 不跟
+                    outside = true;
+                    break;
+                }
+            }
+            if (outside || overlap == 0) {
+                continue;
+            }
+            boolean candidatePinned = BetterRecipeBook.pinnedRecipeManager.isFullyPinned(candidate);
+            // 交集大者优先；并列时优先"还有未 pin 变体"的那一格（原组），避免浮层跳到刚 pin 出来的格
+            if (match == null || overlap > bestOverlap || (overlap == bestOverlap && bestPinned && !candidatePinned)) {
+                bestOverlap = overlap;
+                bestPinned = candidatePinned;
+                match = candidate;
+            }
+        }
+        if (match == null) {
+            // 这一格已经不存在（整组被 pin 走 / 全 pin 格被解除 pin 散回原组）→ 收起浮层
+            this.hideOverlay();
+            this.brbe$overlayGroupIds = null;
+            return;
+        }
+        this.brbe$overlayGroupIds = this.brbe$recipeIds(match);
+        this.refreshOverlay(match, this.brbe$overlayAnchorX, this.brbe$overlayAnchorY);
+    }
+
+    /**
+     * 就地刷新已经打开的组浮层：**内容**按新集合重建，**位置与页码保持**。
+     *
+     * <p>默认实现按原锚点重新 {@code init}；有分页的浮层覆写它（例如锻造台：翻到第 3 页时
+     * pin 一条，不能跳回第 1 页）。</p>
+     */
+    protected void refreshOverlay(C collection, int anchorX, int anchorY) {
+        this.initOverlay(collection, anchorX, anchorY, this.parentLeft, this.parentTop, this.registryAccess);
     }
 
     @Nullable

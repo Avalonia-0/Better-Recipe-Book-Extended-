@@ -122,11 +122,91 @@ public class BetterRecipeBook {
         SMITHING_TRIM = appContext.smithingTrim();
     }
 
+    /**
+     * 配置加载前的 TOML 预处理：把「标签模式」的旧枚举值 {@code "COMPACT"} 改写成
+     * {@code "NAMESPACE"}（2026-10-01 三档并存后，那个常量的语义后代是命名空间档）。
+     *
+     * <p>为什么不在配置对象里迁移：枚举常量一旦从 enum 里删掉，旧 TOML 值反序列化就会抛异常
+     * ——Cloth 的 register 会整体失败，玩家的其余设置也会一起丢。所以先把文件里的这一个值改掉，
+     * 再让 AutoConfig 正常加载。文件不存在 / 不含旧值时什么都不做。</p>
+     */
+    private static void migrateLegacyTabModeInToml() {
+        try {
+            Minecraft minecraft = Minecraft.getInstance();
+            if (minecraft == null || minecraft.gameDirectory == null) return;
+            java.nio.file.Path path = minecraft.gameDirectory.toPath()
+                    .resolve("config").resolve("brbe.toml");
+            if (!java.nio.file.Files.isRegularFile(path)) return;
+            String text = java.nio.file.Files.readString(path, java.nio.charset.StandardCharsets.UTF_8);
+            String updated = text.replaceAll("(?m)^(\\s*tabMode\\s*=\\s*)[\"']COMPACT[\"']", "$1\"NAMESPACE\"");
+            if (updated.equals(text)) return;
+            java.nio.file.Files.writeString(path, updated, java.nio.charset.StandardCharsets.UTF_8);
+
+            LOGGER.info("[BRBE] Migrated brbe.toml tabMode value: COMPACT -> NAMESPACE");
+        } catch (Exception e) {
+            LOGGER.warn("[BRBE] tabMode TOML migration failed: {}", e.getMessage());
+        }
+    }
+
+    /**
+     * 配置加载前的 TOML 预处理（2026-10-03）：把**四个**旧布尔项改写成枚举值 ——
+     * {@code naturalPageDirection} → {@code pageFlipDirection = "NATURAL"|"REGULAR"}、
+     * {@code hideNoRecipeBookStationObjects} → {@code queryScope = "RECIPE_BOOK_ONLY"|"ALL_CATEGORIES"}、
+     * {@code previewMode} → {@code windowMode = "PERSISTENT"|"PREVIEW"}、
+     * {@code noGrouped} → {@code splitMode = "FULL"|"SELECTIVE"}。
+     *
+     * <p>同 {@link #migrateLegacyTabModeInToml()}：字段类型换掉后，旧值反序列化会抛异常 →
+     * Cloth 的 register 整体失败（玩家的其余设置一起丢）。所以先把文件里那一行改掉，
+     * 再让 AutoConfig 正常加载。文件不存在 / 不含旧键时什么都不做。</p>
+     */
+    private static void migrateLegacyConfigValuesInToml() {
+        try {
+            Minecraft minecraft = Minecraft.getInstance();
+            if (minecraft == null || minecraft.gameDirectory == null) return;
+            java.nio.file.Path path = minecraft.gameDirectory.toPath()
+                    .resolve("config").resolve("brbe.toml");
+            if (!java.nio.file.Files.isRegularFile(path)) return;
+            String text = java.nio.file.Files.readString(path, java.nio.charset.StandardCharsets.UTF_8);
+            String updated = text
+                    .replaceAll("(?m)^(\\s*)naturalPageDirection\\s*=\\s*true\\b",
+                            "$1pageFlipDirection = \"NATURAL\"")
+                    .replaceAll("(?m)^(\\s*)naturalPageDirection\\s*=\\s*false\\b",
+                            "$1pageFlipDirection = \"REGULAR\"")
+                    .replaceAll("(?m)^(\\s*)hideNoRecipeBookStationObjects\\s*=\\s*true\\b",
+                            "$1queryScope = \"RECIPE_BOOK_ONLY\"")
+                    .replaceAll("(?m)^(\\s*)hideNoRecipeBookStationObjects\\s*=\\s*false\\b",
+                            "$1queryScope = \"ALL_CATEGORIES\"")
+                    .replaceAll("(?m)^(\\s*)previewMode\\s*=\\s*true\\b",
+                            "$1windowMode = \"PREVIEW\"")
+                    .replaceAll("(?m)^(\\s*)previewMode\\s*=\\s*false\\b",
+                            "$1windowMode = \"PERSISTENT\"")
+                    .replaceAll("(?m)^(\\s*)noGrouped\\s*=\\s*true\\b",
+                            "$1splitMode = \"FULL\"")
+                    .replaceAll("(?m)^(\\s*)noGrouped\\s*=\\s*false\\b",
+                            "$1splitMode = \"SELECTIVE\"");
+            if (updated.equals(text)) return;
+            java.nio.file.Files.writeString(path, updated, java.nio.charset.StandardCharsets.UTF_8);
+            LOGGER.info("[BRBE] Migrated brbe.toml legacy boolean options to enums");
+        } catch (Exception e) {
+            LOGGER.warn("[BRBE] legacy option TOML migration failed: {}", e.getMessage());
+        }
+    }
+
     public static void init() {
         PotionLoader.init();
 
         queuedScroll = 0;
         isFilteringNone = true;
+
+        // 配置加载前的 TOML 预处理（2026-10-01）：`tabMode = "COMPACT"` → `"NAMESPACE"`。
+        // 必须在 AutoConfig.register 之前做——枚举常量改名后 GSON/Cloth 反序列化旧值会失败，
+        // 那样整份配置都会走异常分支（等于配置丢失）。只改这一个值，其余原样保留。
+        migrateLegacyTabModeInToml();
+
+        // 配置加载前的 TOML 预处理（2026-10-03）：三个旧布尔项 → 枚举值
+        // （`naturalPageDirection` / `hideNoRecipeBookStationObjects` / `previewMode` / `noGrouped`；
+        //  "枚举化"必须的一次性搬运 —— 旧布尔值会让枚举反序列化失败、整份配置丢失）。
+        migrateLegacyConfigValuesInToml();
 
         // Register config (existing logic, unchanged)
         try {
@@ -134,6 +214,11 @@ public class BetterRecipeBook {
 
             configHolder = AutoConfig.getConfigHolder(BrbeConfig.class);
             config = configHolder.getConfig();
+
+            // 配置迁移（2026-09-30）：旧布尔开关 compactTabs=true → tabMode=NAMESPACE，只搬一次。
+            if (config.rbip.migrateLegacyTabMode()) {
+                configHolder.save();
+            }
         } catch (Exception e) {
             BetterRecipeBook.LOGGER.warn("[BRBE] Config error: {}", e.getMessage());
         }

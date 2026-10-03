@@ -60,11 +60,15 @@ public interface BRBSmithingRecipe extends GenericRecipe {
     }
 
     default boolean hasBase(List<Slot> slots, RegistryAccess registryAccess, ItemStack carried) {
-        if (!carried.isEmpty() && !carried.has(DataComponents.TRIM) && getBase().getItem().equals(carried.getItem()))
+        // ⚠️ 基底物品只取一次：getBase() 是"带组件的 ItemStack 复制"，写在循环里会对
+        // 每个槽位复制一次（锻造台菜单 40 个槽位 → 每次判定 40 次分配）。
+        Item baseItem = getBase().getItem();
+
+        if (!carried.isEmpty() && !carried.has(DataComponents.TRIM) && baseItem.equals(carried.getItem()))
             return true;
 
         for (Slot slot : slots) {
-            if (!slot.getItem().has(DataComponents.TRIM) && getBase().getItem().equals(slot.getItem().getItem()))
+            if (!slot.getItem().has(DataComponents.TRIM) && baseItem.equals(slot.getItem().getItem()))
                 return true;
         }
         return false;

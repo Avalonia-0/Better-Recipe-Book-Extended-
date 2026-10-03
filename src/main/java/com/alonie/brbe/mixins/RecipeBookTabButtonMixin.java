@@ -28,4 +28,9 @@ public abstract class RecipeBookTabButtonMixin implements RecipeBookTabButtonIco
     public void brbe$setIconYOffset(int iconYOffset) {
         this.brbe$iconYOffset = iconYOffset;
     }
+
+    @Override
+    public int brbe$getIconYOffset() {
+        return this.brbe$iconYOffset;
+    }
 }

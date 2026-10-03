@@ -2,7 +2,10 @@ package com.alonie.brbe.mixins;
 
 import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.brewingstand.BrewingRecipeBookComponent;
+import com.alonie.brbe.brewingstand.BrewingRecipeBookPage;
+import com.alonie.brbe.interfaces.TopLayerOverlayProvider;
 import com.alonie.brbe.pinoverlay.PinOverlayManager;
+import com.alonie.brbe.util.RecipeViewerOverlay;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBTextures;
 import net.minecraft.client.Minecraft;
@@ -11,6 +14,8 @@ import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.ImageButton;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
+import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.screens.inventory.AbstractContainerScreen;
 import net.minecraft.client.gui.screens.inventory.BrewingStandScreen;
 import net.minecraft.network.chat.Component;
@@ -26,7 +31,7 @@ import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 @Mixin(BrewingStandScreen.class)
-public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<BrewingStandMenu> {
+public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<BrewingStandMenu> implements TopLayerOverlayProvider {
 
     @Unique
     public final BrewingRecipeBookComponent _$recipeBookComponent = new BrewingRecipeBookComponent();
@@ -73,6 +78,74 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
     }
 
     @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        // 查询窗口 / pin 浮层优先，随后是配方书的**替代配方组浮层**：浮层打开时点击优先交给
+        // 配方书组件 → 点到浮层格子 = 选路线、点到别处 = 关掉浮层（用户 2026-09-26 反馈：
+        // 此前点到配方书以外的界面无法关闭酿造台的组浮层）。
+        if (RecipeViewerOverlay.mouseClicked(event, doubleClick, this)) {
+            return true;
+        }
+
+        if (PinOverlayManager.handleMouseClicked(event, doubleClick, this)) {
+            return true;
+        }
+
+        if (this.brbe$clickTopLayerOverlay(event, doubleClick)) {
+            return true;
+        }
+
+        return super.mouseClicked(event, doubleClick);
+    }
+
+    // ── 替代配方组 = 顶层浮层（与锻造台屏幕同一套语义）────────────────────────────
+
+    @Override
+    public boolean brbe$hasTopLayerOverlay() {
+        return this._$recipeBookComponent.isVisible()
+                && this._$recipeBookComponent.recipesPage instanceof BrewingRecipeBookPage page
+                && page.overlayIsVisible();
+    }
+
+    @Override
+    public void brbe$renderTopLayerOverlay(GuiGraphics guiGraphics, int mouseX, int mouseY, float partialTick) {
+        if (this.brbe$hasTopLayerOverlay()) {
+            ((BrewingRecipeBookPage) this._$recipeBookComponent.recipesPage).overlay.render(guiGraphics, mouseX, mouseY, partialTick);
+        }
+    }
+
+    /**
+     * 顶层浮层这一遍的格子 tooltip（用户 2026-09-28 反馈：组浮层压在组内配方的 tooltip 上）。
+     *
+     * <p>这一遍跑在帧末 tooltip 刷新之后，所以只能就地画；延迟注册的那一份在
+     * {@link com.alonie.brbe.generic.GenericRecipeBookComponent#drawTooltip} 里已按
+     * {@code TopLayerOverlayRenderer#redrawsOverlayOnTop} 让位，不会重复绘制。</p>
+     */
+    @Override
+    public void brbe$renderTopLayerTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        if (!this.brbe$hasTopLayerOverlay()) {
+            return;
+        }
+
+        BrewingRecipeBookPage page = (BrewingRecipeBookPage) this._$recipeBookComponent.recipesPage;
+        ClientCompat.drawComponentTooltipNow(guiGraphics, page.overlayTooltip(), mouseX, mouseY);
+    }
+
+    @Override
+    public boolean brbe$clickTopLayerOverlay(MouseButtonEvent event, boolean doubleClick) {
+        return this.brbe$hasTopLayerOverlay()
+                && this._$recipeBookComponent.mouseClicked(event, doubleClick);
+    }
+
+    @Override
+    public ScreenRectangle brbe$getTopLayerOverlayBounds() {
+        if (this.brbe$hasTopLayerOverlay()) {
+            return ((BrewingRecipeBookPage) this._$recipeBookComponent.recipesPage).overlay.getBounds();
+        }
+
+        return null;
+    }
+
+    @Override
     public boolean keyPressed(KeyEvent event) {
         if (_$recipeBookComponent.keyPressed(event)) {
             return true;
@@ -100,7 +173,9 @@ public abstract class BrewingStandScreenMixin extends AbstractContainerScreen<Br
     protected void slotClicked(Slot slot, int x, int y, ClickType clickType) {
         // clear ghost recipe if an empty ingredient slot is clicked with no items
         if (slot != null && slot.index < 4 && menu.slots.get(slot.index).getItem().isEmpty()) {
-            _$recipeBookComponent.ghostRecipe.clear();
+            // 外部清空 = 点击留下的缺料引导**结束**（否则下次悬停结束会把这份引导又写回来，
+            // 玩家看到"来源无规律"的持久幽灵 —— 用户 2026-09-26 反馈）
+            _$recipeBookComponent.brbe$endGhostGuide();
         }
 
         super.slotClicked(slot, x, y, clickType);

@@ -86,6 +86,31 @@ public final class CacheableRecipeDisplayEntry {
     /** Trim pattern id of a smithing_trim recipe, or null for other types. */
     public String trimPattern() { return trimPattern; }
 
+    /**
+     * {@code smithing_trim} 配方的**模板物品 id**（第一条备选；如
+     * {@code minecraft:coast_armor_trim_smithing_template}），取不到返回 {@code null}。
+     *
+     * <p>用途：补全注入时和服务器已有条目去重。去重键既看纹饰图案（{@link #trimPattern()}）
+     * 也看模板物品——前者依赖服务器侧能把 {@code SmithingTrimDemoSlotDisplay} 的 pattern
+     * holder 反查成注册键，后者只要一个物品 id，没有这层依赖（2026-09-28）。</p>
+     */
+    public String trimTemplateItem() {
+        if (templateIngredients == null || templateIngredients.isEmpty()) {
+            return null;
+        }
+        List<String> alternatives = templateIngredients.get(0);
+        if (alternatives == null || alternatives.isEmpty()) {
+            return null;
+        }
+        String raw = alternatives.get(0);
+        // 标签（"#minecraft:..."）解不出单一物品，不作为去重键
+        if (raw == null || raw.isEmpty() || raw.charAt(0) == '#') {
+            return null;
+        }
+        Identifier id = Identifier.tryParse(raw);
+        return id == null ? null : id.toString();
+    }
+
     // ======== From JSON ========
 
     /**
@@ -143,6 +168,11 @@ public final class CacheableRecipeDisplayEntry {
 
         c.resultItem = VanillaRecipeLoader.extractResultItem(json);
         c.resultCount = VanillaRecipeLoader.extractResultCount(json);
+        // 产物**运行时才派生**的配方（原版只有 map_cloning：`"result": {}` 空对象，产物 = 输入
+        // 地图本身、数量随材料数增加）静态解析拿不到产物 —— 留着它只会多出一个"空气"按钮：
+        // 渲染成空物品、按产物去重对不上服务器那条真条目（于是被当新配方注入）、归组也查不到
+        // 来源（产物没有命名空间 → 「未知来源」）。纹饰走 pattern，不受此影响。
+        if (c.resultItem == null && !"smithing_trim".equals(type)) return null;
         c.craftingStation = VanillaRecipeLoader.extractCraftingStation(type);
         c.categoryName = VanillaRecipeLoader.mapCategory(json, type);
         c.group = VanillaRecipeLoader.mapGroup(json);

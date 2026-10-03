@@ -6,6 +6,7 @@ import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.ModNameUtil;
 import com.alonie.brbe.util.PartialCraftingUtil;
 import com.alonie.brbe.util.RecipeViewerOverlay;
+import com.alonie.brbe.util.WorldScopedStore;
 import com.alonie.brbe.util.CycleLock;
 import com.google.gson.Gson;
 import com.google.gson.reflect.TypeToken;
@@ -72,6 +73,12 @@ public final class PinOverlayManager {
     // ── Persistence ───────────────────────────────────────────────────────
     private static final Gson GSON = new Gson();
     private static final Type SPECS_TYPE = new TypeToken<ArrayList<PinOverlay.PinSpec>>() {}.getType();
+    /** 作用域内的文件名（保存在 {@code <world>/brbe/} 或
+     *  {@code <gameDir>/brbe/servers/<key>/}）。 */
+    private static final String FILE_NAME = "pinoverlays.json";
+    /** 旧版全局文件（gameDir）——只用于一次性迁移。 */
+    private static final String LEGACY_FILE = "brbe.pinoverlays.json";
+    /** 当前作用域内的 pin 文件；null = 无作用域（不读不写）。 */
     private static Path pinFile;
     /** Specs that could not be resolved yet (their recipe is not known this
      *  session); re-attempted while a container screen is open. */
@@ -81,24 +88,41 @@ public final class PinOverlayManager {
 
     private PinOverlayManager() {}
 
-    /** Load the persisted pin overlays (called lazily on first render; the
-     *  game directory is only available once Minecraft exists). */
+    /** Load the persisted pin overlays (called lazily on every render: the
+     *  store follows the current save / server scope, so this both performs the
+     *  first load and picks up world changes). */
     public static void init() {
-        if (initialized) return;
-        initialized = true;
-        Minecraft mc = Minecraft.getInstance();
-        if (mc.gameDirectory == null) return;
-        pinFile = mc.gameDirectory.toPath().resolve("brbe.pinoverlays.json");
+        if (!initialized) {
+            initialized = true;
+            WorldScopedStore.addListener(PinOverlayManager::onScopeChanged);
+        }
+        WorldScopedStore.refresh();
+    }
+
+    /**
+     * 作用域切换（进入 / 离开存档或服务器）：先把旧作用域的数据落盘（文件路径仍记在
+     * {@link #pinFile}；每次改动本就即时保存，这里是兜底），再清空内存、载入新作用域。
+     * 不清空的话，上一个世界开的 pin 会跟着跑到下一个存档 / 服务器里。
+     */
+    private static void onScopeChanged(Path dir) {
+        writeTo(pinFile, snapshot());
+        pins.clear();
+        pendingSpecs.clear();
+        pressPin = null;
+        dragMoved = false;
+        pinFile = dir == null ? null : dir.resolve(FILE_NAME);
+        if (pinFile != null) WorldScopedStore.migrateLegacy(LEGACY_FILE, pinFile);
         load();
     }
 
     private static void load() {
-        if (pinFile == null || !Files.exists(pinFile)) return;
+        if (pinFile == null) return;
+        pendingSpecs.clear();
+        if (!Files.exists(pinFile)) return;
         try {
             String json = Files.readString(pinFile, StandardCharsets.UTF_8);
             List<PinOverlay.PinSpec> specs = GSON.fromJson(json, SPECS_TYPE);
             if (specs != null) {
-                pendingSpecs.clear();
                 for (PinOverlay.PinSpec spec : specs) {
                     if (spec != null) pendingSpecs.add(spec);
                 }
@@ -110,17 +134,27 @@ public final class PinOverlayManager {
 
     /** Persist every pin (and any unresolved spec) asynchronously. */
     private static void save() {
-        if (pinFile == null) return;
-        List<PinOverlay.PinSpec> snapshot = new ArrayList<>(pendingSpecs.size() + pins.size());
+        writeTo(pinFile, snapshot());
+    }
+
+    /** 当前内存中的全部 pin（含尚未解析的 spec）快照。 */
+    private static List<PinOverlay.PinSpec> snapshot() {
+        List<PinOverlay.PinSpec> specs = new ArrayList<>(pendingSpecs.size() + pins.size());
         for (PinOverlay pin : pins) {
-            snapshot.add(pin.toSpec());
+            specs.add(pin.toSpec());
         }
-        snapshot.addAll(pendingSpecs);
+        specs.addAll(pendingSpecs);
+        return specs;
+    }
+
+    /** 异步写入指定文件（null = 无作用域，直接跳过）。 */
+    private static void writeTo(Path target, List<PinOverlay.PinSpec> specs) {
+        if (target == null) return;
         CompletableFuture.runAsync(() -> {
             try {
-                String json = GSON.toJson(snapshot);
-                Files.createDirectories(pinFile.getParent());
-                Files.writeString(pinFile, json, StandardCharsets.UTF_8);
+                String json = GSON.toJson(specs);
+                Files.createDirectories(target.getParent());
+                Files.writeString(target, json, StandardCharsets.UTF_8);
             } catch (IOException e) {
                 BetterRecipeBook.LOGGER.warn("[BRBE] Failed to write pin overlays: {}", e.getMessage());
             }

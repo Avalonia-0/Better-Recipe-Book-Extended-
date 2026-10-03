@@ -142,6 +142,23 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
         }
     }
 
+    /**
+     * 顶层浮层这一遍的格子 tooltip（用户 2026-09-28 反馈：组浮层压在组内配方的 tooltip 上）。
+     *
+     * <p>这一遍跑在帧末 tooltip 刷新之后，所以只能就地画；延迟注册的那一份在
+     * {@link com.alonie.brbe.generic.GenericRecipeBookComponent#drawTooltip} 里已按
+     * {@code TopLayerOverlayRenderer#redrawsOverlayOnTop} 让位，不会重复绘制。</p>
+     */
+    @Override
+    public void brbe$renderTopLayerTooltip(GuiGraphics guiGraphics, int mouseX, int mouseY) {
+        if (!this.brbe$hasTopLayerOverlay()) {
+            return;
+        }
+
+        SmithingRecipeBookPage page = (SmithingRecipeBookPage) this._$recipeBookComponent.recipesPage;
+        ClientCompat.drawComponentTooltipNow(guiGraphics, page.overlayTooltip(), mouseX, mouseY);
+    }
+
     @Override
     public boolean brbe$clickTopLayerOverlay(MouseButtonEvent event, boolean doubleClick) {
         if (this.brbe$hasTopLayerOverlay()
@@ -165,7 +182,9 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
     protected void slotClicked(Slot slot, int x, int y, ClickType clickType) {
         // clear ghost recipe if an empty ingredient slot is clicked with no items
         if (BetterRecipeBook.config.enableBook && slot != null && slot.index < 4 && menu.getCarried().isEmpty() && menu.slots.get(slot.index).getItem().isEmpty()) {
-            _$recipeBookComponent.ghostRecipe.clear();
+            // 外部清空 = 点击留下的缺料引导**结束**（否则下次悬停结束会把这份引导又写回来，
+            // 玩家看到"来源无规律"的持久幽灵 —— 用户 2026-09-26 反馈）
+            _$recipeBookComponent.brbe$endGhostGuide();
         }
 
         super.slotClicked(slot, x, y, clickType);
@@ -210,8 +229,12 @@ public abstract class SmithingScreenMixin extends ItemCombinerScreen<SmithingMen
 
     @Inject(method = "slotChanged", at = @At(value = "HEAD"))
     public void slotChanged(AbstractContainerMenu abstractContainerMenu, int i, ItemStack itemStack, CallbackInfo ci) {
+        // 交接保持期间槽位变化是**放置本身**造成的（真实物品正在到位）：不能按"外部清空"处理
+        if (_$recipeBookComponent.brbe$isHandoverHolding()) {
+            return;
+        }
         if (i == SmithingMenu.BASE_SLOT || i == SmithingMenu.ADDITIONAL_SLOT || i == SmithingMenu.TEMPLATE_SLOT || i == SmithingMenu.RESULT_SLOT) {
-            _$recipeBookComponent.ghostRecipe.clear();
+            _$recipeBookComponent.brbe$endGhostGuide();
         }
     }
 }

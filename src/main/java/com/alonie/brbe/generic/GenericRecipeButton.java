@@ -5,9 +5,8 @@ import com.alonie.brbe.BetterRecipeBook;
 import com.alonie.brbe.api.BRBBookCategories;
 import com.alonie.brbe.util.ClientCompat;
 import com.alonie.brbe.util.BRBTextures;
-import com.alonie.brbe.util.ModNameUtil;
 import com.alonie.brbe.util.PageAnimationEdges;
-import net.minecraft.client.Minecraft;
+import com.alonie.brbe.util.RecipeCellTooltips;
 import net.minecraft.client.gui.GuiGraphics;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
@@ -18,9 +17,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.world.inventory.AbstractContainerMenu;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.TooltipFlag;
 
 import java.util.List;
 import java.util.function.Supplier;
@@ -62,9 +59,8 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         this.currentIndex = Mth.floor(this.time / 30.0F) % list.size();
 
         R current = getCurrentDisplayedRecipe();
-        boolean isPartial = current != null
-                && this.collection.getPartiallyCraftableRecipes().stream()
-                        .anyMatch(r -> r.id().equals(current.id()));
+        // 残缺判定走集合的槽位状态缓存（同 id 视为同一配方，与既有语义一致）
+        boolean isPartial = current != null && this.collection.isPartiallyMarked(current);
 
         // blit outline texture — use craftable sprite for partial recipes
         // so they get the light-coloured border (red fill is drawn below)
@@ -84,7 +80,8 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
             gui.fill(getX() + 1, getY() + 1, getX() + this.width - 1, getY() + this.height - 1, 0x60FF3333);
         }
 
-        ItemStack result = getCurrentDisplayedRecipe().getResult(registryAccess, category);
+        // 展示物品走 getDisplayedStack：默认 = 当前轮循配方的产物，子类可整格换（纹饰组 → 模板）
+        ItemStack result = this.getDisplayedStack(category);
 
         // render ingredient item (on top of red overlay)
         int offset = 4;
@@ -126,8 +123,7 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         if (current == null) {
             return;
         }
-        boolean isPartial = this.collection.getPartiallyCraftableRecipes().stream()
-                .anyMatch(r -> r.id().equals(current.id()));
+        boolean isPartial = this.collection.isPartiallyMarked(current);
         boolean effectiveCraftable = collection.isCraftable(current, menu.slots) || isPartial;
         Identifier outlineTexture = effectiveCraftable ?
                 BRBTextures.RECIPE_BOOK_BUTTON_SLOT_CRAFTABLE_SPRITE : BRBTextures.RECIPE_BOOK_BUTTON_SLOT_UNCRAFTABLE_SPRITE;
@@ -146,7 +142,7 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
                 gui.fill(slotX + 1, slotY + 1, rightBound - 1, slotY + this.height - 1, 0x60FF3333);
             }
             gui.disableScissor();
-            ItemStack result = current.getResult(registryAccess, category);
+            ItemStack result = this.getDisplayedStack(category);
             gui.renderFakeItem(result, bx + 4, slotY + 4);
             // 移动方向的前方边缘盖住后方边缘：配方左移（左端被边界压扁）时左边界
             // 最后渲染（在上层），右移时右边界在上层。
@@ -175,7 +171,7 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
             if (isPartial && !redCheck) {
                 gui.fill(slotX + 1, slotY + 1, slotX + this.width - 1, slotY + this.height - 1, 0x60FF3333);
             }
-            ItemStack result = current.getResult(registryAccess, category);
+            ItemStack result = this.getDisplayedStack(category);
             gui.renderFakeItem(result, bx + 4, slotY + 4);
         }
     }
@@ -184,8 +180,17 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
         return this.getOrderedRecipes().size() == 1;
     }
 
+    /**
+     * 本格是否参与「悬停即预览幽灵配方」：默认参与。子类可以声明不参与
+     * （锻造台纹饰组——那一格展示的是模板、内部不轮循，悬停它不该往工作区写任何东西）。
+     */
+    public boolean providesHoverPreview() {
+        return true;
+    }
+
     public List<R> getOrderedRecipes() {
-        List<R> list = this.getCollection().getDisplayRecipes(true);
+        // getDisplayRecipes 返回**缓存本体**（只读），这里复制一份再拼装
+        List<R> list = Lists.newArrayList(this.getCollection().getDisplayRecipes(true));
 
         if (!this.filteringSupplier.get()) {
             list.addAll(this.collection.getDisplayRecipes(false));
@@ -230,24 +235,37 @@ public class GenericRecipeButton<C extends GenericRecipeBookCollection<R, M>, R 
      * 悬停瞬间须捕获配方后调用本重载，避免读到错页内容。
      */
     public List<Component> getTooltipText(R recipe, BRBBookCategories.Category category) {
-        List<Component> list = Lists.newArrayList();
         if (recipe == null) {
-            return list;
+            return Lists.newArrayList();
         }
+        return this.getTooltipFor(recipe.getResult(registryAccess, category));
+    }
 
-        var tipCtx = Item.TooltipContext.of(registryAccess);
-        ItemStack result = recipe.getResult(registryAccess, category);
-        list.addAll(result.getTooltipLines(tipCtx, Minecraft.getInstance().player, TooltipFlag.NORMAL));
+    /**
+     * 由**展示物品**构建单元格 tooltip。
+     *
+     * <p>物品行的来源与 {@link #getDisplayedStack} 一致（子类可以把整格换成别的东西展示，
+     * tooltip 跟着换，例如锻造台纹饰组显示模板）；行序与原版 `RecipeButton#getTooltipText`
+     * 相同：物品行 → 「单击鼠标右键获取更多信息」→ 空行 + 模组名。</p>
+     */
+    protected List<Component> getTooltipFor(ItemStack result) {
+        // 与原版一致（javap `RecipeButton#getTooltipText`：hasMultipleRecipes() → MORE_RECIPES_TOOLTIP）：
+        // 这一格是"多个替代配方"的组、右键能展开更多时补一行提示。用户 2026-09-26 反馈：
+        // 酿造台/锻造台的自研配方书漏了这一行。
+        // 行内容与**替代配方组浮层**里的格子共用（RecipeCellTooltips），保证两边格式一致。
+        return RecipeCellTooltips.forStack(this.registryAccess, result, this.getOrderedRecipes().size() > 1);
+    }
 
-        // Add source mod name (Jade-compatible format: jade.modName.<MOD_ID>)
-        if (BetterRecipeBook.config.showModName) {
-            Component modName = ModNameUtil.getFormattedModName(result);
-            if (modName != null && !modName.getString().isEmpty()) {
-                list.add(Component.empty());
-                list.add(modName);
-            }
-        }
-
-        return list;
+    /**
+     * 单元格**画出来**的那件物品（默认 = 当前轮循配方的产物）。
+     *
+     * <p>锻造台的**纹饰组**覆写它：原版一条 {@code smithing_trim} 配方的 base 是
+     * {@code #minecraft:trimmable_armor} 标签，展开成"每种可纹饰装备一件"的一整组，
+     * 折叠时轮循各件装备没有信息量——整组共用的**纹饰模板**才是这一组的身份
+     * （用户 2026-09-26 诉求）。</p>
+     */
+    protected ItemStack getDisplayedStack(BRBBookCategories.Category category) {
+        R current = this.getCurrentDisplayedRecipe();
+        return current == null ? ItemStack.EMPTY : current.getResult(this.registryAccess, category);
     }
 }
