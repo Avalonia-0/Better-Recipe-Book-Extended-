@@ -6344,3 +6344,24 @@ RBIP 标签已被 `rbip$skipCreativeTabUnlockBounce` 取消（`animationTime` �
 **部署**（备份 `20261004-020239`）：26.3 先单独验证通过（`845d5b4ff1eaf800045a0b858c11a60f`），
 随后三分支同步重建部署 —— 26.3 `c98f0d0bcbbabf3c01a95b34ceb8ac64`、
 26.2 `4a2562a6908a1308785ed72cbd2b7cda`、1.21.11 `aadb092bd0a986582441381dbff266cd`。
+
+
+**补记（同日，第十二轮）：「隐藏配置界面两侧的文字」默认值改为开**
+
+用户要求把「杂项」页 `hideConfigSideText` 的默认值由关改开。改动（四维护分支同步）：
+- `BrbeConfig.hideConfigSideText = true`（javadoc 同步「默认开」）——与相邻的 `hideConfigTitleBand`
+  （本来就是默认开）取向一致：配置界面默认"干净"，装饰性文字按需打开。
+- `ConfigScreenSideText.hiddenByConfig()` 的**兜底语义随之翻转**：
+  `config == null || config.hideConfigSideText` —— 配置尚未注册（Cloth 缺失等）时也按开处理 =
+  不绘制，与新默认一致；旧写法是"未注册时照常绘制"。
+- 该选项本来就没有 tooltip 键，lang 无需改动；仓库内没有其它代码路径读这个字段。
+
+⚠️ **已写进 `brbe.toml` 的旧值不会被代码默认值覆盖**：Cloth 反序列化以文件里的值为准，
+所以升级后**老实例仍会显示两侧文字**，除非在配置界面里手动开一次（或在游戏关闭时改 toml）。
+26.3 实例此前已手动设为 `true`；1.21.11 / 1.21.1（×2）/ 26.2 四个实例的 toml 仍是 `false`。
+
+**部署**（备份 `20261004-023326`（三分支）+ `20261004-023333`（1.21.1 双端））：
+26.3 `c075601bc678d380ac65b263d605d6c7`、26.2 `e2c196e10167038e866d6b93c3b2e8b6`、
+1.21.11 `aab3a2cf2eaedf7a4360c0913fa8e32f`、1.21.1-Fabric `c3c504a13d2fb9bd9f02590db7262f5c`、
+1.21.1-NeoForge `85fe514d1ba2f0965afdaf0b0c347aa5`；四分支字节码校验
+`iconst_1 / putfield hideConfigSideText` ✓（字段初始值确实进了构造器）。
