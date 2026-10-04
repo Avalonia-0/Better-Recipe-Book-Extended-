@@ -65,7 +65,7 @@ import java.util.WeakHashMap;
  * （右列还要再右移 {@link #RIGHT_SHIFT_PX}，实际更窄），长文案需要更多横向空间来容纳
  * 摆动与倾斜（用户 2026-09-13："我发现左侧空间更大"）。</p>
  *
- * <p><b>开关</b>：「杂项」页的<b>隐藏配置界面两侧的文字</b>（{@code hideConfigSideText}，默认关）
+ * <p><b>开关</b>：「杂项」页的<b>隐藏配置界面两侧的文字</b>（{@code hideConfigSideText}，默认开）
  * 打开时 {@link #shouldRender} 与 {@link #render} 都直接不画 —— fabric 入口的按屏注册因此压根不会发生，
  * NeoForge 的全局监听也在这里被挡下。</p>
  *
@@ -241,10 +241,10 @@ public final class ConfigScreenSideText {
         return isDecoratedScreen(screen) && !hiddenByConfig();
     }
 
-    /** 「隐藏配置界面两侧的文字」是否开启（**默认关**；配置尚未注册时按关处理 = 照常绘制）。 */
+    /** 「隐藏配置界面两侧的文字」是否开启（**默认开**；配置尚未注册时也按开处理 = 不绘制）。 */
     private static boolean hiddenByConfig() {
-        return com.alonie.brbe.BetterRecipeBook.config != null
-                && com.alonie.brbe.BetterRecipeBook.config.hideConfigSideText;
+        return com.alonie.brbe.BetterRecipeBook.config == null
+                || com.alonie.brbe.BetterRecipeBook.config.hideConfigSideText;
     }
 
     /**
