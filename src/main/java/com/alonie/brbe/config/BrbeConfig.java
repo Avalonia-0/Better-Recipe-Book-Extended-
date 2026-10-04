@@ -321,9 +321,9 @@ public class BrbeConfig implements ConfigData {
     public boolean hideConfigTitleBand = true;
 
     /** 隐藏配置界面两侧的文字：打开时左右两条竖排装饰文字（{@code ConfigScreenSideText}）
-     *  不再绘制。无 tooltip，默认关。 */
+     *  不再绘制。无 tooltip，**默认开**。 */
     @ConfigEntry.Category("miscellaneous")
-    public boolean hideConfigSideText = false;
+    public boolean hideConfigSideText = true;
 
     // -- Inner config class ---------------------------------------------------
 
